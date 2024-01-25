@@ -184,8 +184,12 @@ static const std::map<std::string, led_label> led_label_lookup =
     { KEY_NORD_AAL,             { "Å"     , "\xC3\x85",         }}, // Å
     { KEY_NORD_A_OE,            { "Ä Ø"   , "\xC3\x84\x20\xC3"
                                             "\x98"              }}, // Ä Ø
+    { KEY_NORD_AE_A,            { "Æ Ä"   , "\xC3\x86\x20\xC3"
+                                            "\x84"              }}, // Æ Ä
     { KEY_NORD_O_AE,            { "Ö Æ"   , "\xC3\x96\x20\xC3"
                                             "\x86"              }}, // Ö Æ
+    { KEY_NORD_OE_O,            { "Ø Ö"   , "\xC3\x98\x20\xC3"
+                                            "\x96"              }}, // Ø Ö
     { KEY_NORD_HALF,            { "§ ½"   , "\xC2\xA7\x20\xC2"
                                             "\xBD"              }}, // § ½
     { KEY_NORD_HYPHEN,          { "- _"   , "- _"               }},

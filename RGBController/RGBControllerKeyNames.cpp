@@ -176,7 +176,9 @@ const char* KEY_KR_HANJA              = "Key: 한자";
 
 const char* KEY_NORD_AAL              = "Key: Å";
 const char* KEY_NORD_A_OE             = "Key: Ä Ø";
+const char* KEY_NORD_AE_A             = "Key: Æ Ä";
 const char* KEY_NORD_O_AE             = "Key: Ö Æ";
+const char* KEY_NORD_OE_O             = "Key: Ø Ö";
 const char* KEY_NORD_HALF             = "Key: § ½";
 const char* KEY_NORD_HYPHEN           = "Key: - _";
 const char* KEY_NORD_PLUS_QUESTION    = "Key: + ?";

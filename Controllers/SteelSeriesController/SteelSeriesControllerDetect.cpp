@@ -9,6 +9,7 @@
 
 #include <hidapi.h>
 #include "DetectionManager.h"
+#include "dmiinfo.h"
 #include "SteelSeriesDevices.h"
 #include "SteelSeriesAeroxWirelessController.h"
 #include "SteelSeriesAerox5Controller.h"
@@ -18,6 +19,7 @@
 #include "SteelSeriesApexController.h"
 #include "SteelSeriesApexMController.h"
 #include "SteelSeriesApexTZoneController.h"
+#include "SteelSeriesApSController.h"
 #include "SteelSeriesOldApexController.h"
 #include "SteelSeriesQCKMatController.h"
 #include "SteelSeriesRivalController.h"
@@ -36,6 +38,8 @@
 #include "RGBController_SteelSeriesRival5.h"
 #include "RGBController_SteelSeriesSensei.h"
 #include "RGBController_SteelSeriesSiberia.h"
+#include "RGBController_SteelSeriesApS.h"
+#include "SteelSeriesApSDevices.h"
 
 
 
@@ -457,10 +461,30 @@ DetectedControllers DetectSteelSeriesRival5(
                 RIVAL_5,
                 info->path,
                 name
-            );
+                );
 
         RGBController_SteelSeriesRival5* rgb_controller =
             new RGBController_SteelSeriesRival5(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return detected_controllers;
+}
+
+DetectedControllers DetectSteelSeriesApS(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+
+    hid_device* dev = hid_open_path(info->path);
+
+    DMIInfo dmi;
+
+    if(dev)
+    {
+        std::string full_name = name + " " + dmi.getManufacturer() +  " / " + dmi.getMainboard();
+        SteelSeriesApSController*     controller            = new SteelSeriesApSController(dev, *info);
+        RGBController_SteelSeriesApS* rgb_controller        = new RGBController_SteelSeriesApS(controller, info->product_id, full_name);
 
         detected_controllers.push_back(rgb_controller);
     }
@@ -559,3 +583,22 @@ REGISTER_HID_DETECTOR_I  ("SteelSeries Apex M750",                          Dete
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex (OG)/Apex Fnatic",              DetectSteelSeriesApexOld,   STEELSERIES_VID, STEELSERIES_APEX_OG_PID,                   	0  );
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex 350",                           DetectSteelSeriesApexOld,   STEELSERIES_VID, STEELSERIES_APEX_350_PID,                      0  );
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex Pro 3",                         DetectSteelSeriesApex,      STEELSERIES_VID, STEELSERIES_APEX_PRO3_PID,                     1  );
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
+| APS devices                                                                                                                                                               |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS KLC 1122",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_KLC_1122_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS KLC 113A",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_KLC_113A_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 1124",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_1124_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 1134",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_1134_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 113C",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_113C_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 113E",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_113E_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 1153",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_1153_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 114B",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_114B_PID, 0, 0xFFC0, 1);
+REGISTER_HID_DETECTOR_IPU("SteelSeries ApS ALC 114D",   DetectSteelSeriesApS, STEELSERIES_VID, STEELSERIES_APS_ALC_114D_PID, 0, 0xFFC0, 1);
+
+// TODO: REMOVE
+#ifdef STEELSERIES_APS_KLC_DUMMY_VID
+REGISTER_HID_DETECTOR("SteelSeries ApS KLC Dummy", DetectSteelSeriesApS,   STEELSERIES_APS_KLC_DUMMY_VID, STEELSERIES_APS_KLC_DUMMY_PID);
+#endif
+// -- TODO
