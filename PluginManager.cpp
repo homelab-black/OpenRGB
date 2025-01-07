@@ -12,6 +12,7 @@
 #include "PluginManager.h"
 #include "OpenRGBThemeManager.h"
 #include "SettingsManager.h"
+#include "ResourceManager.h"
 
 PluginManager::PluginManager()
 {
@@ -374,8 +375,6 @@ void PluginManager::LoadPlugin(OpenRGBPluginEntry* plugin_entry)
 
         QObject* instance                = plugin_entry->loader->instance();
 
-        bool dark_theme = OpenRGBThemeManager::IsDarkTheme();
-
         if(instance)
         {
             OpenRGBPluginInterface* plugin = qobject_cast<OpenRGBPluginInterface*>(instance);
@@ -386,7 +385,7 @@ void PluginManager::LoadPlugin(OpenRGBPluginEntry* plugin_entry)
                 {
                     plugin_entry->plugin = plugin;
 
-                    plugin->Load(dark_theme, ResourceManager::get());
+                    plugin->Load(ResourceManager::get());
 
                     /*-------------------------------------------------*\
                     | Call the Add Plugin callback                      |
