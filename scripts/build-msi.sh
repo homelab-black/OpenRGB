@@ -15,11 +15,11 @@ PRODUCTCOMMENT="Open source RGB lighting control that doesn't depend on manufact
 
 MAJOR=$(grep "MAJOR\ *=" OpenRGB.pro | cut -d= -f 2 | tr -d [:space:])
 MINOR=$(grep "MINOR\ *=" OpenRGB.pro | cut -d= -f 2 | tr -d [:space:])
-REVISION=$(grep "REVISION\ *=" OpenRGB.pro | cut -d= -f 2 | tr -d [:space:])
+REVNUM=$(grep "REVNUM\ *=" OpenRGB.pro | cut -d= -f 2 | tr -d [:space:])
 #The commit count since last tag. The commit ID can be added with group \3 however Wix only accepts integers
 RELEASE=$(git describe --tags --abbrev=8 | sed -E "s/(.*)-([0-9]*)-g(\w*)/\2/g")
 
-VERSION="${MAJOR}.${MINOR}.${REVISION}.${RELEASE}"
+VERSION="${MAJOR}.${MINOR}.${REVNUM}.${RELEASE}"
 
 XMLOUTFILE=${PRODUCTNAME,,}".wxs"
 
