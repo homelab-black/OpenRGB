@@ -24,13 +24,39 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 #-----------------------------------------------------------------------------------------------#
 # Application Configuration                                                                     #
 #-----------------------------------------------------------------------------------------------#
-MAJOR       = 0
-MINOR       = 9
-REVISION    = 1
-VERSION     = $$MAJOR"."$$MINOR$$REVISION
+MAJOR       = 1
+MINOR       = 0
+REVISION    = 0
+SUFFIX      = devel
+
+SHORTHASH   = $$system("git rev-parse --short=7 HEAD")
+COMMAND     = "git describe --abbrev=0"
+LASTTAG     = $$system($$COMMAND)
+message("LASTTAG: "$$LASTTAG)
+COMMAND     = "git rev-list --count "$$LASTTAG"..HEAD"
+COMMITS     = $$system($$COMMAND)
+message("COMMITS: "$$COMMITS)
+
+VERSION_NUM = $$MAJOR"."$$MINOR"."$$REVISION
+VERSION_STR = $$MAJOR"."$$MINOR
+VERSION_DEB = $$MAJOR"."$$MINOR"."$$REVISION
+VERSION_WIX = $$MAJOR"."$$MINOR"."$$REVISION"."$$COMMITS
+VERSION_AUR = $$MAJOR"."$$MINOR".r"$$COMMITS"-g"$$SHORTHASH
+VERSION_RPM = $$MAJOR"."$$MINOR"."$$REVISION"^"$$COMMITS".git"$$SHORTHASH
+!isEmpty(SUFFIX) {
+VERSION_STR = $$MAJOR"."$$MINOR"-"$$SUFFIX
+VERSION_DEB = $$MAJOR"."$$MINOR"."$$REVISION"~git"$$COMMITS
+}
+
 TARGET      = OpenRGB
 TEMPLATE    = app
 
+message("VERSION_NUM: "$$VERSION_NUM)
+message("VERSION_STR: "$$VERSION_STR)
+message("VERSION_DEB: "$$VERSION_DEB)
+message("VERSION_WIX: "$$VERSION_WIX)
+message("VERSION_AUR: "$$VERSION_AUR)
+message("VERSION_RPM: "$$VERSION_RPM)
 #-----------------------------------------------------------------------------------------------#
 # Automatically generated build information                                                     #
 #-----------------------------------------------------------------------------------------------#
@@ -43,7 +69,7 @@ GIT_COMMIT_DATE         = $$system(git log -n 1 --pretty=format:"%ci")
 GIT_BRANCH              = $$system(git branch --show-current)
 
 DEFINES +=                                                                                      \
-    VERSION_STRING=\\"\"\"$$VERSION\\"\"\"                                                      \
+    VERSION_STRING=\\"\"\"$$VERSION_STR\\"\"\"                                                  \
     BUILDDATE_STRING=\\"\"\"$$BUILDDATE\\"\"\"                                                  \
     GIT_COMMIT_ID=\\"\"\"$$GIT_COMMIT_ID\\"\"\"                                                 \
     GIT_COMMIT_DATE=\\"\"\"$$GIT_COMMIT_DATE\\"\"\"                                             \
