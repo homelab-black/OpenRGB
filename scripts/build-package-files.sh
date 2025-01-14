@@ -21,11 +21,11 @@ fi
 
 MAJOR=$(grep MAJOR\  ${PROJECT_FILE} | cut -d= -f 2 | tr -d [:space:])
 MINOR=$(grep MINOR\  ${PROJECT_FILE} | cut -d= -f 2 | tr -d [:space:])
-REVISION=$(grep REVISION\  ${PROJECT_FILE} | cut -d= -f 2 | tr -d [:space:])
+REVNUM=$(grep REVNUM\  ${PROJECT_FILE} | cut -d= -f 2 | tr -d [:space:])
 
 #Convert Revision to a nummber in case it is blank in the project file
-REVISION=$(( ${REVISION} + 0 ))
+REVNUM=$(( ${REVNUM} + 0 ))
 
-PACKAGE_VERSION="${MAJOR}.${MINOR}.${REVISION}"
+PACKAGE_VERSION="${MAJOR}.${MINOR}.${REVNUM}"
 
 sed -e "s/${VERSION_PATTERN}/${PACKAGE_VERSION}/g" ${INFILE_PATH} > ${1}

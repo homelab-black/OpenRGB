@@ -26,8 +26,9 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 #-----------------------------------------------------------------------------------------------#
 MAJOR       = 0
 MINOR       = 9
-REVISION    = 1
-VERSION     = $$MAJOR"."$$MINOR$$REVISION
+REVISION    = -devel
+REVNUM      = 9999
+VERSION     = $$MAJOR"."$$MINOR"."$$REVNUM
 TARGET      = OpenRGB
 TEMPLATE    = app
 
@@ -43,7 +44,7 @@ GIT_COMMIT_DATE         = $$system(git log -n 1 --pretty=format:"%ci")
 GIT_BRANCH              = $$system(git branch --show-current)
 
 DEFINES +=                                                                                      \
-    VERSION_STRING=\\"\"\"$$VERSION\\"\"\"                                                      \
+    VERSION_STRING=\\"\"\"$$MAJOR$$MINOR$$REVISION\\"\"\"                                       \
     BUILDDATE_STRING=\\"\"\"$$BUILDDATE\\"\"\"                                                  \
     GIT_COMMIT_ID=\\"\"\"$$GIT_COMMIT_ID\\"\"\"                                                 \
     GIT_COMMIT_DATE=\\"\"\"$$GIT_COMMIT_DATE\\"\"\"                                             \
