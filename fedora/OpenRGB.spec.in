@@ -18,7 +18,7 @@ Open source RGB lighting control that doesn't depend on manufacturer software. S
 ASUS, ASRock, Corsair, G.Skill, Gigabyte, HyperX, MSI, Razer, ThermalTake, and more supported
 
 %prep
-cp %{_sourcedir}/%{_name}/* %{_builddir} -r
+cp -r %{_sourcedir}/%{_name}/. %{_builddir}
 
 %build
 cd %{_builddir}
