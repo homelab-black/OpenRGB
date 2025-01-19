@@ -74,7 +74,7 @@ XML_ICON="\t<Icon Id='OpenRGBIcon' SourceFile='${ICONFILE}'/>\n"
 XML_PROPERTY="\t<Property Id='ARPPRODUCTICON' Value='OpenRGBIcon'/>\n\t<Property Id='ARPURLINFOABOUT' Value='https://www.openrgb.org'/>\n"
 XML_ACTIONS_EXECUTE="\t<InstallExecuteSequence>\n\t\t<Custom Action='LaunchOpenRGBAdmin' After='InstallFiles'>NOT Installed</Custom>\n\t\t<Custom Action='LaunchOpenRGB' After='InstallFinalize'>NOT Installed</Custom>\n\t</InstallExecuteSequence>\n"
 XML_WIX_UI="\t<Property Id='WIXUI_INSTALLDIR' Value='INSTALLDIR' />\n\t<UIRef Id='WixUI_InstallDir'/>\n\t<UIRef Id='WixUI_ErrorProgressText'/>\n\t<WixVariable Id='WixUILicenseRtf' Value='${LICENSEFILE}'/>\n\t<WixVariable Id='WixUIBannerBmp' Value='${BANNERIMAGE}'/>\n\t<WixVariable Id='WixUIDialogBmp' Value='${DIALOGBACKGROUND}'/>\n"
-XML_MAJOR_UPGRADE="\t<MajorUpgrade AllowDowngrades='yes' Schedule='afterInstallInitialize' />\n"
+XML_MAJOR_UPGRADE="\t<MajorUpgrade AllowDowngrades='yes' AllowSameVersionUpgrades='yes' Schedule='afterInstallInitialize' />\n"
 XML_METADATA="$XML_PACKAGE $XML_MEDIA $XML_CONDITIONS $XML_MAJOR_UPGRADE $XML_ACTION_RUNAS_ADMIN $XML_ACTION_FIRSTRUN $XML_ICON $XML_PROPERTY $XML_ACTIONS_EXECUTE $XML_WIX_UI"
 
 XML_STARTMENU="\t\t<Directory Id='ProgramMenuFolder' Name='Programs'>\n\t\t\t<Component Id='ProgramMenuShortcut' Guid='"$(uuidgen -t | awk '{ print toupper($0) }')"'>\n\t\t\t\t<Shortcut Id='startmenu${PRODUCTNAME}' Directory='ProgramMenuFolder' Name='${PRODUCTNAME}' Target='[#${EXE_ID}]' WorkingDirectory='INSTALLDIR' Advertise='no'/>\n\t\t\t\t<RemoveFolder Id='ProgramMenuShortcut' On='uninstall'/>\n\t\t\t\t<RegistryValue Root='HKCU' Key='Software\[Manufacturer]\[ProductName]' Type='string' Value='' KeyPath='yes'/>\n\t\t\t</Component>\n\t\t</Directory>\n"
