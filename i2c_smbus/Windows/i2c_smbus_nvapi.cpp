@@ -10,10 +10,12 @@
 \*---------------------------------------------------------*/
 
 #include "i2c_smbus_nvapi.h"
+#include "LogManager.h"
 
 i2c_smbus_nvapi::i2c_smbus_nvapi(NV_PHYSICAL_GPU_HANDLE handle)
 {
     this->handle = handle;
+    this->i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_DEFAULT;
 }
 
 s32 i2c_smbus_nvapi::i2c_smbus_xfer(u8 addr, char read_write, u8 command, int mode, i2c_smbus_data* data)
@@ -38,9 +40,8 @@ s32 i2c_smbus_nvapi::i2c_smbus_xfer(u8 addr, char read_write, u8 command, int mo
     i2c_data.port_id = 1;
 	i2c_data.is_port_id_set = 1;
 
-    // Use default speed
 	i2c_data.i2c_speed = 0xFFFF;
-	i2c_data.i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_DEFAULT;
+    i2c_data.i2c_speed_khz = i2c_speed_khz;
 
     // Load device address
     i2c_data.i2c_dev_address = (addr << 1);
@@ -139,9 +140,8 @@ s32 i2c_smbus_nvapi::i2c_xfer(u8 addr, char read_write, int* size, u8* data)
     i2c_data.port_id = 1;
 	i2c_data.is_port_id_set = 1;
 
-    // Use default speed
 	i2c_data.i2c_speed = 0xFFFF;
-	i2c_data.i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_DEFAULT;
+    i2c_data.i2c_speed_khz = i2c_speed_khz;
 
     // Load device address
     i2c_data.i2c_dev_address = (addr << 1);
@@ -160,6 +160,53 @@ s32 i2c_smbus_nvapi::i2c_xfer(u8 addr, char read_write, int* size, u8* data)
     }
 
     return(ret);
+}
+
+void i2c_smbus_nvapi::i2c_set_max_speed(int hz)
+{
+    if(hz)
+    {
+        LOG_TRACE("Set I2C interface speed to %d Hz", hz);
+    }
+    else
+    {
+        LOG_TRACE("Set I2C interface speed to default");
+    }
+    if(hz < 3000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_DEFAULT;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_DEFAULT");
+    }
+    else if(hz < 10000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_3KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_3KHZ");
+    }
+    else if(hz < 33000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_10KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_10KHZ");
+    }
+    else if(hz < 100000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_33KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_33KHZ");
+    }
+    else if(hz < 200000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_100KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_100KHZ");
+    }
+    else if(hz < 400000)
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_200KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_200KHZ");
+    }
+    else
+    {
+        i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_400KHZ;
+        LOG_TRACE("Using NV_I2C_SPEED::NVAPI_I2C_SPEED_400KHZ");
+    }
 }
 
 #include "DetectionManager.h"
