@@ -11,6 +11,7 @@
 \*---------------------------------------------------------*/
 
 #include "i2c_smbus.h"
+#include "LogManager.h"
 #include <string.h>
 
 #ifdef WIN32
@@ -250,4 +251,21 @@ void i2c_smbus_interface::i2c_smbus_thread_function()
         i2c_smbus_done_cv.notify_all();
         done_lock.unlock();
     }
+}
+
+/*-------------------------------------------------------------------------------------*\
+|                                                                                       |
+| Deliberately not returning a value.                                                   |
+|                                                                                       |
+| Controllers should attempt to reduce the speed if it's known to be necessary,         |
+| but shouldn't depend on a success indicator, because some drivers can adjust the      |
+| speed while most of them can neither set nor query it and depend on external means    |
+| (e.g. device tree or module parameters) to do it.                                     |
+|                                                                                       |
+| Ignored unless a driver overrides it.                                                 |
+|                                                                                       |
+\*-------------------------------------------------------------------------------------*/
+void i2c_smbus_interface::i2c_set_max_speed(int hz)
+{
+    LOG_TRACE("Ignored attempt to set the I2C interface speed to %d Hz", hz);
 }
