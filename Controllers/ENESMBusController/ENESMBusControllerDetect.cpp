@@ -69,9 +69,9 @@ static const unsigned char ene_ram_addresses[] =
 \*----------------------------------------------------------------------------*/
 json quirk_ene_smbus_motherboards[] =
 {
-    "B560 PRO",
     "X670E Steel Legend",
-    "MPG Z690 CARBON WIFI"
+    "MPG Z690 CARBON WIFI",
+    "B760 Pro RS"
 };
 
 #define QUIRK_ENE_RAM_ADDRESS_COUNT  8
