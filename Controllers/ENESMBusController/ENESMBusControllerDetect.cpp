@@ -14,6 +14,7 @@
 #include "LogManager.h"
 #include "RGBController.h"
 #include "RGBController_ENESMBus.h"
+#include "SettingsManager.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 #include "dmiinfo.h"
@@ -68,26 +69,9 @@ static const unsigned char ene_ram_addresses[] =
 \*----------------------------------------------------------------------------*/
 json quirk_ene_smbus_motherboards[] =
 {
-    "MPG Z690 CARBON WIFI",
-    "B450 AORUS ELITE V2",
-    "B450 AORUS M",
-    "B450 AORUS PRO WIFI-CF",
-    "B450 AORUS PRO-CF",
-    "B450 AORUS PRO-CF4",
-    "B450 I AORUS PRO WIFI-CF",
-    "B450M DS3H-CF",
-    "X299 DESIGNARE EX-CF",
-    "X399 AORUS XTREME-CF",
-    "X399 DESIGNARE EX-CF",
-    "X470 AORUS GAMING 5 WIFI",
-    "X470 AORUS GAMING 5 WIFI-CF",
-    "X470 AORUS GAMING 7 WIFI-CF",
-    "X470 AORUS GAMING 7 WIFI-50-CF",
-    "X470 AORUS ULTRA GAMING",
-    "X470 AORUS ULTRA GAMING-CF",
-    "B360M AORUS Gaming 3-CF",
-    "Z370 AORUS Gaming 5-CF",
-    "Z370 AORUS Ultra Gaming-CF"
+    "B560 PRO",
+    "X670E Steel Legend",
+    "MPG Z690 CARBON WIFI"
 };
 
 #define QUIRK_ENE_RAM_ADDRESS_COUNT  8
@@ -102,7 +86,7 @@ static const unsigned char quirk_ene_ram_addresses[] =
     0x75,
     0x76,
     0x77
-}
+};
 
 /*---------------------------------------------------------------------------------*\
 | This list contains the available SMBus addresses for mapping Aura motherboards    |
@@ -209,7 +193,6 @@ bool TestForENESMBusController(i2c_smbus_interface* bus, unsigned char address)
             {
                 LOG_DEBUG("[ENE SMBus] Device %02X is a Micron device, skipping", address);
                 pass = false;
-                break;
             }
             else
             {
@@ -238,22 +221,37 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
     /*---------------------------------------*\
     | Use limited list on quirky motherboards |
     \*---------------------------------------*/
-    DMIInfo dmi;
-    bool quirkMotherboard                              = false;
-    int addr_list_count                                = ENE_RAM_ADDRESS_COUNT;
-    const unsigned char addr_list                      = ene_ram_addresses;
-    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(quirk_ene_smbus_motherboards), std::end(quirk_ene_smbus_motherboards), dmi.getMainboard() );
+    SettingsManager*                    set_man = ResourceManager::get()->GetSettingsManager();
+    json                                device_settings;
+    DMIInfo                             dmi;
 
-    if(result != std::end(quirk_ene_smbus_motherboards))
+    /*-------------------------------------------------*\
+    | Get Linux LED settings from settings manager      |
+    \*-------------------------------------------------*/
+    device_settings = set_man->GetSettings(DETECTOR_NAME);
+
+    if(!device_settings.contains("QuirkyMotherbords"))
     {
-        quirkMotherboard = true;
+        //If supported devices is not found then write it to settings
+        device_settings["QuirkyMotherbords"] = quirk_ene_smbus_motherboards;
+        set_man->SetSettings(DETECTOR_NAME, device_settings);
+        set_man->SaveSettings();
+    }
+
+    unsigned int addr_list_count                       = ENE_RAM_ADDRESS_COUNT;
+    const unsigned char *addr_list                     = ene_ram_addresses;
+    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(device_settings["QuirkyMotherbords"]), std::end(device_settings["QuirkyMotherbords"]), dmi.getMainboard() );
+
+    if(result != std::end(device_settings["QuirkyMotherbords"]))
+    {
+        LOG_VERBOSE("[ENE SMBus DRAM] Detected quirky motherboard, limiting probed I2C addresses");
         addr_list = quirk_ene_ram_addresses;
         addr_list_count = QUIRK_ENE_RAM_ADDRESS_COUNT;
     }
 
     for (unsigned int bus = 0; bus < busses.size(); bus++)
     {
-        int address_list_idx = -1;
+        unsigned int address_list_idx = 0;
 
         IF_DRAM_SMBUS(busses[bus]->pci_vendor, busses[bus]->pci_device)
         {
@@ -270,21 +268,17 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
                     break;
                 }
 
-                do
+                while (address_list_idx < addr_list_count)
                 {
-                    address_list_idx++;
+                    LOG_DEBUG("[ENE SMBus DRAM] Testing address %02X to see if there is a device there", addr_list[address_list_idx]);
 
-                    if(address_list_idx < addr_list_count)
-                    {
-                        LOG_DEBUG("[ENE SMBus DRAM] Testing address %02X to see if there is a device there", addr_list[address_list_idx]);
-
-                        res = busses[bus]->i2c_smbus_write_quick(addr_list[address_list_idx], I2C_SMBUS_WRITE);
-                    }
-                    else
+                    res = busses[bus]->i2c_smbus_write_quick(addr_list[address_list_idx], I2C_SMBUS_WRITE);
+                    if(res < 0)
                     {
                         break;
                     }
-                } while (res >= 0);
+                    address_list_idx++;
+                }
 
                 if(address_list_idx < addr_list_count)
                 {
