@@ -21,6 +21,7 @@
 
 #define DETECTOR_NAME   "ENE (ASUS Aura) SMBus Controller"
 #define VENDOR_NAME     "ASUS"                                  //This should match the Vendor name from DMI
+#define QUIRK_BOARD_KEY "QuirkyMotherboards"
 
 using namespace std::chrono_literals;
 
@@ -225,24 +226,24 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
     json                                device_settings;
     DMIInfo                             dmi;
 
-    /*-------------------------------------------------*\
-    | Get Linux LED settings from settings manager      |
-    \*-------------------------------------------------*/
+    /*----------------------------------------------------*\
+    | Get the list of quirky boards from settings manager  |
+    \*----------------------------------------------------*/
     device_settings = set_man->GetSettings(DETECTOR_NAME);
 
-    if(!device_settings.contains("QuirkyMotherbords"))
+    if(!device_settings.contains(QUIRK_BOARD_KEY))
     {
-        //If supported devices is not found then write it to settings
-        device_settings["QuirkyMotherbords"] = quirk_ene_smbus_motherboards;
+        //If the list is not found then write it to settings
+        device_settings[QUIRK_BOARD_KEY] = quirk_ene_smbus_motherboards;
         set_man->SetSettings(DETECTOR_NAME, device_settings);
         set_man->SaveSettings();
     }
 
     unsigned int addr_list_count                       = ENE_RAM_ADDRESS_COUNT;
     const unsigned char *addr_list                     = ene_ram_addresses;
-    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(device_settings["QuirkyMotherbords"]), std::end(device_settings["QuirkyMotherbords"]), dmi.getMainboard() );
+    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(device_settings[QUIRK_BOARD_KEY]), std::end(device_settings[QUIRK_BOARD_KEY]), dmi.getMainboard() );
 
-    if(result != std::end(device_settings["QuirkyMotherbords"]))
+    if(result != std::end(device_settings[QUIRK_BOARD_KEY]))
     {
         LOG_VERBOSE("[ENE SMBus DRAM] Detected quirky motherboard, limiting probed I2C addresses");
         addr_list = quirk_ene_ram_addresses;
