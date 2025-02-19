@@ -210,13 +210,14 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
 
 void KingstonFuryDRAMController::SendBegin()
 {
+    int last_slot = (int)slots.size() - 1;
     // start with the outermost stick
-    for(int idx = (int)slots.size() - 1; idx >= 0; idx--)
+    for(int idx = last_slot; idx >= 0; idx--)
     {
         LOG_DEBUG("[%s] %02X beginning transaction",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
         SetTransactionMode(idx, FURY_BEGIN_TRNSFER);
-        if(idx == (int)slots.size() - 1)
+        if(idx == last_slot)
             last_begin_trans = transactionmode_last_write;
     }
 }
@@ -360,11 +361,8 @@ void KingstonFuryDRAMController::SetModeColors(std::vector<RGBColor> colors)
     }
 }
 
-#if 1
 void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
 {
-    steady_clock::time_point t0 = steady_clock::now();
-    unsigned char addr;
     if(colors.size() != GetLEDCount())
     {
         return;
@@ -373,7 +371,7 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
     unsigned int led_per_dimm = GetLEDPerDIMM();
     for(std::size_t slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
     {
-        addr = base_addr + slots[slot_idx];
+        unsigned char addr = base_addr + slots[slot_idx];
         unsigned char color_registers[FURY_LEDS_PER_DIMM_DDR5 * 3];
         unsigned char *color_ptr_8 = color_registers;
         unsigned short *color_ptr_16 = (unsigned short *)color_registers;
@@ -392,40 +390,6 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
         }
     }
 }
-#else
-void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
-{
-    if(colors.size() != GetLEDCount())
-    {
-        return;
-    }
-
-    unsigned int led_per_dimm = GetLEDPerDIMM();
-    for(unsigned int led_idx = 0; led_idx < led_per_dimm; led_idx++)
-    {
-        int red_register    = FURY_REG_BASE_RED   + 3 * led_idx;
-        int green_register  = FURY_REG_BASE_GREEN + 3 * led_idx;
-        int blue_register   = FURY_REG_BASE_BLUE  + 3 * led_idx;
-
-        std::vector<unsigned char> reds, greens, blues;
-        for(std::size_t slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
-        {
-            RGBColor color      = colors[slot_idx * led_per_dimm + led_idx];
-            unsigned char red   = RGBGetRValue(color);
-            unsigned char green = RGBGetGValue(color);
-            unsigned char blue  = RGBGetBValue(color);
-
-            reds.push_back(red);
-            greens.push_back(green);
-            blues.push_back(blue);
-        }
-
-        SetRegister(red_register, reds);
-        SetRegister(blue_register, blues);
-        SetRegister(green_register, greens);
-    }
-}
-#endif
 
 unsigned int KingstonFuryDRAMController::GetLEDPerDIMM()
 {
@@ -434,101 +398,6 @@ unsigned int KingstonFuryDRAMController::GetLEDPerDIMM()
         return(FURY_LEDS_PER_DIMM_DDR4);
     }
     return(FURY_LEDS_PER_DIMM_DDR5);
-}
-
-uint8_t leds[2][36];
-uint16_t (*leds16)[18] = (uint16_t(*)[18])leds;
-
-void effect() {
-    static int counter;
-    uint8_t c1, c2;
-    int i, j, k;
-    for (i = 0; i < 36; i += 3) {
-        c1 = ((i / 3) == (counter % 12)) ? 255 : 0;
-        for (j = 0; j < 3; j++) {
-            c2 = (j == (counter / 12)) ? c1 : 0;
-            for (k = 0; k < 2; k++) {
-                leds[k][i + j] = c2;
-            }
-        }
-    }
-    counter = (counter + 1) % 36;
-}
-
-void breathein() {
-    static int counter;
-    uint8_t c;
-    c = (1 << counter) - 1;
-    int i, k;
-    for (i = 0; i < 36; i += 1) {
-        for (k = 0; k < 2; k++) {
-            leds[k][i] = c;
-        }
-    }
-    counter = (counter + 1) % 8;
-}
-
-void KingstonFuryDRAMController::test()
-{
-    int ledindex;
-    int idx;
-    int res;
-    int addr;
-    steady_clock::time_point t0;
-    int w = 1;
-    //while (1)
-    {
-        //BusyWaitFor(300us);
-        //settrans(0x63, 0x53);
-        //t0 = Now();
-        //BusyWaitFor(300us);
-        //settrans(0x61, 0x53);
-        //BusyWaitFor(300us);
-        //w += 1;
-        SendBegin();
-        t0 = steady_clock::now();
-        if(w > 10) {
-            w = 1;
-        }
-        else {
-            for (ledindex = 0; ledindex < 36; ledindex += 2) {
-                for (idx = 0; idx < 2; idx++) {
-                    addr = 0x61 + 2 * idx;
-                    res = bus->i2c_smbus_write_word_data(addr, 0x50 + ledindex, leds16[idx][ledindex / 2]);
-                    //res = bus->i2c_smbus_write_byte_data(addr, 0x50 + ledindex, leds[idx][ledindex]);
-
-                    if (res < 0) {
-                        printf("res 0x%08x\n", res);
-                    }
-                }
-            }
-        }
-
-        //BusyWaitFor(300us);
-        //settrans(0x61, 0x44);
-        //BusyWaitFor(300us);
-        //settrans(0x63, 0x44);
-        SendApply();
-        LOG_DEBUG("trans took %lld ns", (steady_clock::now() - t0).count());
-        //BusyWaitFor(300us);
-
-        //effect();
-        breathein();
-        std::this_thread::sleep_until(t0 + 30ms);
-
-        //BusyWaitFor(3ms);
-
-        int cnt = 0;
-        while (1) {
-            //std::this_thread::sleep_for(1ms);
-            res = bus->i2c_smbus_read_word_data(0x63, 0x08);
-            //printf("after endtrans res 0x%08X\n", res);
-            if (res < 0)
-                cnt += 1;
-            if (cnt > 2)
-                break;
-        }
-    }
 }
 
 void KingstonFuryDRAMController::testpreamble()
@@ -544,27 +413,4 @@ void KingstonFuryDRAMController::testpreamble()
     bus->i2c_smbus_write_byte_data(0x61, 0x27, 0x02);
     SendApply();
     std::this_thread::sleep_for(20ms);
-
-
-#if 0
-    SendBegin();
-
-    //WriteIoPortByte(SMBusTiming, SMBusTimingFromFreq(200000));
-    //WriteIoPortByte(SMBusTiming, 0xB0);
-
-    //std::this_thread::sleep_for(1ms);
-    //res = ReadIoPortByte(SMBusTiming);
-    //printf("Timing 0x%02X\n", res);
-
-    steady_clock::time_point t0, t1;
-    for (int i = 0x50; i < 0x74; i += 1) {
-        t0 = steady_clock::now();
-        bus->i2c_smbus_write_byte_data(0x61, i, 0);
-        t1 = steady_clock::now();
-        //printf("dt %lld\n", (t1 - t0).count());
-        bus->i2c_smbus_write_byte_data(0x63, i, 0);
-    }
-    SendApply();
-    std::this_thread::sleep_for(40ms);
-#endif
 }

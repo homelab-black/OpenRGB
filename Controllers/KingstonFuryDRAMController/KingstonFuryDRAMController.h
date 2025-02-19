@@ -144,7 +144,6 @@ public:
     void            SetModeColors(std::vector<RGBColor> colors);
     void            SetLEDColors(std::vector<RGBColor> colors);
 
-    void            test();
     void            testpreamble();
 
 private:
