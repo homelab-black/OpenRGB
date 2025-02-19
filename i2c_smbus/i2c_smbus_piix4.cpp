@@ -99,44 +99,64 @@ int i2c_smbus_piix4::piix4_transaction()
     WriteIoPortByte(SMBHSTCNT, temp | 0x040);
 
     /* We will always wait for a fraction of a second! (See PIIX4 docs errata) */
-    temp = 0;
+    /*---------------------------------------------------------------------------------------------------------------*\
+    | The above comment from 2002 or earlier is still relevant for the Zen 4 architecture.                            |
+    | AMD takes bug-for-bug compatibility seriously.                                                                  |
+    |                                                                                                                 |
+    | Instead of just waiting for an unspecified amount of time, we try to follow exactly what the                    |
+    | Intel 83271 Specification Update says about SMBHSTSTS.                                                          |
+    |                                                                                                                 |
+    |-----------------------------------------------------------------------------------------------------------------|
+    | [Bit] 1  SMBus Interrupt/Host Completion (INTER)—R/WC.                                                          |
+    | 1 = Indicates that the host transaction has completed or that the source of an SMBus interrupt was the          |
+    | completion of the last host command.                                                                            |
+    | 0 = Host transaction has not completed or that an SMBus interrupt was not caused by host command completion.    |
+    | This bit is only set by hardware and can only be reset by writing a 1 to this bit position.                     |
+    |-----------------------------------------------------------------------------------------------------------------|
+    | [Bit] 0 Host Busy (HOST_BUSY)—RO.                                                                               |
+    | 1 = Indicates that the SMBus controller host interface is in the process of completing a command.               |
+    | 0 = SMBus controller host interface is not processing a command. None of the other registers should be accessed |
+    | if this bit is set. Note that there may be moderate latency before the transaction begins and the Host Busy bit |
+    | gets set.                                                                                                       |
+    \*---------------------------------------------------------------------------------------------------------------*/
 #ifdef _WIN32
     if(delay_timer != NULL)
     {
         LARGE_INTEGER retry_delay;
-        retry_delay.QuadPart = -2500;
+        retry_delay.QuadPart = RETRY_DELAY_US * -10;
 
-        SetWaitableTimer(delay_timer, &retry_delay, 0, NULL, NULL, FALSE);
-        WaitForSingleObject(delay_timer, INFINITE);
-
-
-        while ((++timeout < MAX_TIMEOUT) && temp <= 1)
+        do
         {
-            temp = ReadIoPortByte(SMBHSTSTS);
             SetWaitableTimer(delay_timer, &retry_delay, 0, NULL, NULL, FALSE);
             WaitForSingleObject(delay_timer, INFINITE);
+            temp = ReadIoPortByte(SMBHSTSTS);
         }
+        while((++timeout < MAX_TIMEOUT) && ((temp & 0x03) != 0x02));
     }
 #else
     if(delay_timer)
     {
-        while ((++timeout < MAX_TIMEOUT) && temp <= 1)
+        do
         {
+            usleep(RETRY_DELAY_US);
             temp = ReadIoPortByte(SMBHSTSTS);
-            usleep(250);
         }
+        while((++timeout < MAX_TIMEOUT) && ((temp & 0x03) != 0x02));
     }
 #endif
     else
     {
-        while ((++timeout < MAX_TIMEOUT) && temp <= 1)
+        std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+        do
         {
             temp = ReadIoPortByte(SMBHSTSTS);
         }
+        while((std::chrono::steady_clock::now() < deadline) && ((temp & 0x03) != 0x02));
+        temp = ReadIoPortByte(SMBHSTSTS); // we can be preempted between reading the register and checking for the timeout
     }
 
     /* If the SMBus is still busy, we give up */
-    if (timeout == MAX_TIMEOUT)
+    if (temp & 0x01)
     {
         result = -ETIMEDOUT;
     }
