@@ -471,6 +471,8 @@ unsigned char RGBController_KingstonFuryDRAM::GetRealModeValue()
 
 void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
 {
+    controller->test();
+    return;
     controller->SendBegin();
     controller->SetMode(GetRealModeValue());
 
@@ -737,11 +739,16 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
     LOG_DEBUG("[%s] device update mode",
               FURY_CONTROLLER_NAME);
     // Preamble only necessary when changing modes.
-    if(GetRealModeValue() != controller->GetMode())
+    if(modes[active_mode].value != last_mode)
     {
+#if 1
+        controller->testpreamble();
+#else
         controller->SendPreamble(modes[active_mode].value != FURY_MODE_RAIN &&
                                  modes[active_mode].value != FURY_MODE_FIREWORK &&
                                  modes[active_mode].value != FURY_MODE_DIRECT);
+#endif
+        last_mode = modes[active_mode].value;
     }
     DeviceUpdateLEDs();
 }

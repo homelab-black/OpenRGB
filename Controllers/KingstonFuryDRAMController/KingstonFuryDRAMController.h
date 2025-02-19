@@ -18,6 +18,8 @@
 #include "i2c_smbus.h"
 #include "RGBController.h"
 
+using namespace std::chrono;
+
 #define FURY_CONTROLLER_NAME "Kingston Fury DDR4/5 DRAM"
 #define FURY_BASE_ADDR_DDR4 0x58
 #define FURY_BASE_ADDR_DDR5 0x60
@@ -142,14 +144,20 @@ public:
     void            SetModeColors(std::vector<RGBColor> colors);
     void            SetLEDColors(std::vector<RGBColor> colors);
 
+    void            test();
+    void            testpreamble();
+
 private:
     bool            CachedRead(int slot_idx, unsigned char reg, unsigned char *val);
     bool            CachedWrite(int slot_idx, unsigned char reg, unsigned char val);
     bool            SmbusRead(int slot_idx, unsigned char reg, unsigned char *val);
     bool            SmbusWrite(int slot_idx, unsigned char reg, unsigned char val);
+    int             SetTransactionMode(int slot_idx, int val);
 
     i2c_smbus_interface*    bus;
     std::vector<int>        slots;
     unsigned char           base_addr;
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
+
+    steady_clock::time_point transactionmode_last_write;
 };

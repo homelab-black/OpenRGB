@@ -210,24 +210,54 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
 
 void KingstonFuryDRAMController::SendBegin()
 {
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    // start with the outermost stick
+    for(int idx = (int)slots.size() - 1; idx >= 0; idx--)
     {
         LOG_DEBUG("[%s] %02X beginning transaction",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
-        SmbusWrite((int)idx, FURY_REG_APPLY, FURY_BEGIN_TRNSFER);
+        SetTransactionMode(idx, FURY_BEGIN_TRNSFER);
     }
-    std::this_thread::sleep_for(FURY_DELAY);
 }
 
 void KingstonFuryDRAMController::SendApply()
 {
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < (int)slots.size(); idx++)
     {
         LOG_DEBUG("[%s] %02X ending transaction",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
-        SmbusWrite((int)idx, FURY_REG_APPLY, FURY_END_TRNSFER);
+        SetTransactionMode(idx, FURY_END_TRNSFER);
     }
-    std::this_thread::sleep_for(FURY_DELAY);
+}
+
+int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
+{
+    bool readback = true;
+    int res;
+    int expected = (val << 8) | 0x5A;
+    int tries = 0;
+    unsigned char addr = base_addr + slots[slot_idx];
+    while(1) { // TODO timeout
+        if(!readback) {
+            res = bus->i2c_smbus_write_byte_data(addr, 0x08, val);
+            //printf("settrans(0x%02X, 0x%02X) write: 0x%08X\n", addr, val, res);
+            if (res < 0) {
+            }
+            transactionmode_last_write = steady_clock::now();
+            readback = (res >= 0);
+        }
+        if(readback) {
+            res = bus->i2c_smbus_read_word_data(addr, 0x08);
+            if (res == expected)
+                break;
+            //printf("settrans(0x%02X, 0x%02X) read: 0x%08X\n", addr, val, res);
+            if ((res & 0xFFFF00FF) == 0x5A)
+                readback = false;
+        }
+        tries += 1;
+        //BusyWaitFor(100us);
+    }
+    //printf("settrans(0x%02X, 0x%02X) read: 0x%08X tries %d\n", addr, val, res, tries);
+    return tries;
 }
 
 void KingstonFuryDRAMController::SetMode(unsigned char val)
@@ -348,4 +378,132 @@ unsigned int KingstonFuryDRAMController::GetLEDPerDIMM()
         return(FURY_LEDS_PER_DIMM_DDR4);
     }
     return(FURY_LEDS_PER_DIMM_DDR5);
+}
+
+uint8_t leds[2][36];
+uint16_t (*leds16)[18] = (uint16_t(*)[18])leds;
+
+void effect() {
+    static int counter;
+    uint8_t c1, c2;
+    int i, j, k;
+    for (i = 0; i < 36; i += 3) {
+        c1 = ((i / 3) == (counter % 12)) ? 255 : 0;
+        for (j = 0; j < 3; j++) {
+            c2 = (j == (counter / 12)) ? c1 : 0;
+            for (k = 0; k < 2; k++) {
+                leds[k][i + j] = c2;
+            }
+        }
+    }
+    counter = (counter + 1) % 36;
+}
+
+void breathein() {
+    static int counter;
+    uint8_t c;
+    c = (1 << counter) - 1;
+    int i, k;
+    for (i = 0; i < 36; i += 1) {
+        for (k = 0; k < 2; k++) {
+            leds[k][i] = c;
+        }
+    }
+    counter = (counter + 1) % 8;
+}
+
+void KingstonFuryDRAMController::test()
+{
+    int ledindex;
+    int idx;
+    int res;
+    int addr;
+    steady_clock::time_point t0;
+    int w = 1;
+    while (1) {
+        //BusyWaitFor(300us);
+        //settrans(0x63, 0x53);
+        //t0 = Now();
+        //BusyWaitFor(300us);
+        //settrans(0x61, 0x53);
+        //BusyWaitFor(300us);
+        //w += 1;
+        SendBegin();
+        t0 = steady_clock::now();
+        if(w > 10) {
+            w = 1;
+        }
+        else {
+            for (ledindex = 0; ledindex < 36; ledindex += 2) {
+                for (idx = 0; idx < 2; idx++) {
+                    addr = 0x61 + 2 * idx;
+                    res = bus->i2c_smbus_write_word_data(addr, 0x50 + ledindex, leds16[idx][ledindex / 2]);
+                    //res = bus->i2c_smbus_write_byte_data(addr, 0x50 + ledindex, leds[idx][ledindex]);
+
+                    if (res < 0) {
+                        printf("res 0x%08x\n", res);
+                    }
+                }
+            }
+        }
+
+        //BusyWaitFor(300us);
+        //settrans(0x61, 0x44);
+        //BusyWaitFor(300us);
+        //settrans(0x63, 0x44);
+        SendApply();
+        LOG_DEBUG("trans took %lld ns", (steady_clock::now() - t0).count());
+        //BusyWaitFor(300us);
+
+        //effect();
+        breathein();
+        std::this_thread::sleep_until(t0 + 30ms);
+
+        //BusyWaitFor(3ms);
+
+        int cnt = 0;
+        while (1) {
+            //std::this_thread::sleep_for(1ms);
+            res = bus->i2c_smbus_read_word_data(0x63, 0x08);
+            //printf("after endtrans res 0x%08X\n", res);
+            if (res < 0)
+                cnt += 1;
+            if (cnt > 2)
+                break;
+        }
+    }
+}
+
+void KingstonFuryDRAMController::testpreamble()
+{
+    SendBegin();
+    bus->i2c_smbus_write_byte_data(0x63, 0x0B, 0x00); // FURY_REG_INDEX
+    bus->i2c_smbus_write_byte_data(0x63, 0x09, 0x10);
+    bus->i2c_smbus_write_byte_data(0x63, 0x20, 0x50);
+    bus->i2c_smbus_write_byte_data(0x63, 0x27, 0x02);
+    bus->i2c_smbus_write_byte_data(0x61, 0x0B, 0x01); // FURY_REG_INDEX
+    bus->i2c_smbus_write_byte_data(0x61, 0x09, 0x10);
+    bus->i2c_smbus_write_byte_data(0x61, 0x20, 0x50);
+    bus->i2c_smbus_write_byte_data(0x61, 0x27, 0x02);
+    SendApply();
+    std::this_thread::sleep_for(20ms);
+    SendBegin();
+
+    //WriteIoPortByte(SMBusTiming, SMBusTimingFromFreq(200000));
+    //WriteIoPortByte(SMBusTiming, 0xB0);
+
+    //std::this_thread::sleep_for(1ms);
+    //res = ReadIoPortByte(SMBusTiming);
+    //printf("Timing 0x%02X\n", res);
+
+    steady_clock::time_point t0, t1;
+    for (int i = 0x50; i < 0x74; i += 1) {
+        t0 = steady_clock::now();
+        bus->i2c_smbus_write_byte_data(0x61, i, 0);
+        t1 = steady_clock::now();
+        //printf("dt %lld\n", (t1 - t0).count());
+        bus->i2c_smbus_write_byte_data(0x63, i, 0);
+    }
+    SendApply();
+    std::this_thread::sleep_for(40ms);
 }
