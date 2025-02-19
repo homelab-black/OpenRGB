@@ -160,4 +160,5 @@ private:
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
 
     steady_clock::time_point transactionmode_last_write;
+    steady_clock::time_point last_begin_trans;
 };

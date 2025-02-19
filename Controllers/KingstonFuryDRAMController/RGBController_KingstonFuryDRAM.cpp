@@ -49,6 +49,7 @@ RGBController_KingstonFuryDRAM::RGBController_KingstonFuryDRAM(KingstonFuryDRAMC
     type        = DEVICE_TYPE_DRAM;
     description = "Kingston Fury Beast/Renegade DDR4/5 DRAM Device";
     location    = controller->GetDeviceLocation();
+    flags      |= CONTROLLER_FLAG_RESET_BEFORE_UPDATE;
 
     mode Direct;
     Direct.name           = "Direct";
@@ -471,8 +472,12 @@ unsigned char RGBController_KingstonFuryDRAM::GetRealModeValue()
 
 void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
 {
-    controller->test();
+    controller->SendBegin();
+    controller->SetLEDColors(colors);
+    controller->SendApply();
     return;
+}
+#if 0
     controller->SendBegin();
     controller->SetMode(GetRealModeValue());
 
@@ -723,6 +728,7 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
     controller->SetNumSlots();
     controller->SendApply();
 }
+#endif
 
 void RGBController_KingstonFuryDRAM::UpdateZoneLEDs(int /*zone*/)
 {
