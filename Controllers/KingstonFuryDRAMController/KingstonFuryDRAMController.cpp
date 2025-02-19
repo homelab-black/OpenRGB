@@ -487,6 +487,9 @@ void KingstonFuryDRAMController::testpreamble()
     bus->i2c_smbus_write_byte_data(0x61, 0x27, 0x02);
     SendApply();
     std::this_thread::sleep_for(20ms);
+
+
+#if 0
     SendBegin();
 
     //WriteIoPortByte(SMBusTiming, SMBusTimingFromFreq(200000));
@@ -506,4 +509,5 @@ void KingstonFuryDRAMController::testpreamble()
     }
     SendApply();
     std::this_thread::sleep_for(40ms);
+#endif
 }
