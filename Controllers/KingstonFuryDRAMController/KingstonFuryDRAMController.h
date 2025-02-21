@@ -23,9 +23,12 @@ using namespace std::chrono;
 #define FURY_CONTROLLER_NAME "Kingston Fury DDR4/5 DRAM"
 #define FURY_BASE_ADDR_DDR4 0x58
 #define FURY_BASE_ADDR_DDR5 0x60
-#define FURY_DELAY std::chrono::milliseconds(10)
+#define FURY_DELAY_DETECT          10ms
+#define FURY_DELAY_RETRY           10ms
+#define FURY_DELAY_WRITE_REGISTER  300us
 #define FURY_LEDS_PER_DIMM_DDR4 10
 #define FURY_LEDS_PER_DIMM_DDR5 12
+#define FURY_LEDS_PER_DIMM_MAX  12
 #define FURY_MAX_MODE_COLORS 10
 #define FURY_DEFAULT_BG_COLOR ToRGBColor(16,16,16)
 #define FURY_ALT_DIRECTIONS {\
@@ -130,7 +133,8 @@ public:
     std::string     GetDeviceLocation();
     unsigned int    GetLEDCount();
     unsigned int    GetLEDPerDIMM();
-    unsigned int    GetSlotCount();
+    int             GetSlotCount();
+    [[deprecated("This might not end well if accessed outside of a transaction")]]
     unsigned char   GetMode();
 
     void            SendPreamble(bool synchronize);
@@ -147,6 +151,12 @@ public:
     void            testpreamble();
 
 private:
+    typedef union
+    {
+        uint8_t  bytes[FURY_LEDS_PER_DIMM_MAX * 3];
+        uint16_t words[FURY_LEDS_PER_DIMM_MAX * 3 / 2];
+    } LedColorRegisters;
+
     bool            CachedRead(int slot_idx, unsigned char reg, unsigned char *val);
     bool            CachedWrite(int slot_idx, unsigned char reg, unsigned char val);
     bool            SmbusRead(int slot_idx, unsigned char reg, unsigned char *val);
@@ -157,6 +167,7 @@ private:
     std::vector<int>        slots;
     unsigned char           base_addr;
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
+    std::vector<LedColorRegisters>                      led_color_regs;
 
     steady_clock::time_point transactionmode_last_write;
     steady_clock::time_point last_begin_trans;

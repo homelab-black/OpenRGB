@@ -407,7 +407,7 @@ RGBController_KingstonFuryDRAM::~RGBController_KingstonFuryDRAM()
 
 void RGBController_KingstonFuryDRAM::SetupZones()
 {
-    for(unsigned int slot = 0; slot < controller->GetSlotCount(); slot++)
+    for(int slot = 0; slot < controller->GetSlotCount(); slot++)
     {
         zone* new_zone          = new zone;
 

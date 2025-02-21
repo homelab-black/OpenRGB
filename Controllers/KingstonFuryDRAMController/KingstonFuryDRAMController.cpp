@@ -24,18 +24,19 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(
     this->slots     = slots;
 
     reg_cache.resize(slots.size());
+    led_color_regs.resize(slots.size());
 }
 
 std::string KingstonFuryDRAMController::GetDeviceLocation()
 {
     std::string return_string(bus->device_name);
     return_string.append(", addresses [");
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
         char addr[5];
         snprintf(addr, 5, "0x%02X", base_addr + slots[idx]);
         return_string.append(addr);
-        if(idx < slots.size() - 1)
+        if(idx < GetSlotCount() - 1)
         {
             return_string.append(",");
         }
@@ -49,12 +50,12 @@ std::string KingstonFuryDRAMController::GetDeviceLocation()
 
 unsigned int KingstonFuryDRAMController::GetLEDCount()
 {
-    return(GetLEDPerDIMM() * (unsigned int)slots.size());
+    return(GetLEDPerDIMM() * (unsigned int)GetSlotCount());
 }
 
-unsigned int KingstonFuryDRAMController::GetSlotCount()
+int KingstonFuryDRAMController::GetSlotCount()
 {
-    return((unsigned int)slots.size());
+    return((int)slots.size());
 }
 
 unsigned char KingstonFuryDRAMController::GetMode()
@@ -86,7 +87,7 @@ bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsi
         }
         else
         {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY);
+            std::this_thread::sleep_for(3 * retries * FURY_DELAY_RETRY);
         }
     }
     return false;
@@ -109,7 +110,7 @@ bool KingstonFuryDRAMController::SmbusWrite(int slot_idx, unsigned char reg, uns
         }
         else
         {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY);
+            std::this_thread::sleep_for(3 * retries * FURY_DELAY_RETRY);
         }
     }
     return false;
@@ -203,14 +204,14 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
     // The RGB controller is a bit slow and requires delay;
     // however, we can delay once for all of the sticks instead of
     // delaying individually for each stick.
-    std::this_thread::sleep_for(FURY_DELAY);
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 
     SendApply();
 }
 
 void KingstonFuryDRAMController::SendBegin()
 {
-    int last_slot = (int)slots.size() - 1;
+    int last_slot = GetSlotCount() - 1;
     // start with the outermost stick
     for(int idx = last_slot; idx >= 0; idx--)
     {
@@ -224,7 +225,7 @@ void KingstonFuryDRAMController::SendBegin()
 
 void KingstonFuryDRAMController::SendApply()
 {
-    int last_slot = (int)slots.size() - 1;
+    int last_slot = GetSlotCount() - 1;
     for(int idx = 0; idx <= last_slot; idx++)
     {
         LOG_DEBUG("[%s] %02X ending transaction",
@@ -238,7 +239,7 @@ void KingstonFuryDRAMController::SendApply()
     int cnt = 0;
     int res;
     unsigned char addr = base_addr + slots[last_slot];
-    while (1) {
+    while (1) { // TODO timeout
         //std::this_thread::sleep_for(1ms);
         res = bus->i2c_smbus_read_word_data(addr, 0x08);
         LOG_DEBUG("i2c_smbus_read_word_data(0x%02x, 0x%04X):0x%08X", addr, 8, res);
@@ -292,7 +293,7 @@ void KingstonFuryDRAMController::SetNumSlots()
 {
     if(slots.size() <= 4)
     {
-        SetRegister(FURY_REG_NUM_SLOTS, (unsigned char)slots.size());
+        SetRegister(FURY_REG_NUM_SLOTS, GetSlotCount());
     }
     else
     {
@@ -306,13 +307,13 @@ void KingstonFuryDRAMController::SetNumSlots()
 void KingstonFuryDRAMController::SetRegister(int reg, unsigned char val)
 {
     bool write_occurred = false;
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite((int)idx, reg, val) || write_occurred;
+        write_occurred = CachedWrite(idx, reg, val) || write_occurred;
     }
     if(write_occurred)
     {
-        std::this_thread::sleep_for(FURY_DELAY);
+        std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
     }
 }
 
@@ -325,13 +326,13 @@ void KingstonFuryDRAMController::SetRegister(int reg, std::vector<unsigned char>
                   FURY_CONTROLLER_NAME, reg);
         return;
     }
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite((int)idx, reg, vals[idx]) || write_occurred;
+        write_occurred = CachedWrite(idx, reg, vals[idx]) || write_occurred;
     }
     if(write_occurred)
     {
-        std::this_thread::sleep_for(FURY_DELAY);
+        std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
     }
 }
 
@@ -344,7 +345,7 @@ void KingstonFuryDRAMController::SetModeColors(std::vector<RGBColor> colors)
 
     SetRegister(FURY_REG_NUM_COLORS, (unsigned char)colors.size());
 
-    for(std::size_t idx = 0; idx < colors.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
         RGBColor color      = colors[idx];
         unsigned char red   = RGBGetRValue(color);
@@ -369,12 +370,11 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
     }
 
     unsigned int led_per_dimm = GetLEDPerDIMM();
-    for(std::size_t slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
+
+    // pack rgb values for each stick
+    for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
     {
-        unsigned char addr = base_addr + slots[slot_idx];
-        unsigned char color_registers[FURY_LEDS_PER_DIMM_DDR5 * 3];
-        unsigned char *color_ptr_8 = color_registers;
-        unsigned short *color_ptr_16 = (unsigned short *)color_registers;
+        unsigned char *color_ptr_8 = &led_color_regs[slot_idx].bytes[0];
         for(unsigned int led_idx = 0; led_idx < led_per_dimm; led_idx += 1)
         {
             RGBColor color = colors[slot_idx * led_per_dimm + led_idx];
@@ -382,11 +382,24 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
             *color_ptr_8++ = RGBGetGValue(color);
             *color_ptr_8++ = RGBGetBValue(color);
         }
-        for(unsigned int led_idx = 0; led_idx < led_per_dimm * 3; led_idx += 2)
+    }
+
+    // write two bytes at once, interleaved
+    for(unsigned int reg_idx = 0; reg_idx < led_per_dimm * 3; reg_idx += 2)
+    {
+        steady_clock::time_point min_wait = steady_clock::now() + FURY_DELAY_WRITE_REGISTER;
+        for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
         {
-            int res = bus->i2c_smbus_write_word_data(addr, FURY_REG_BASE_RED + led_idx, *color_ptr_16);
-            LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + led_idx, *color_ptr_16, res);
-            color_ptr_16 += 1;
+            unsigned char addr = base_addr + slots[slot_idx];
+            uint16_t val = led_color_regs[slot_idx].words[reg_idx / 2];
+            int res = bus->i2c_smbus_write_word_data(addr, FURY_REG_BASE_RED + reg_idx, val);
+            if(res)
+            {
+                LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + reg_idx, val, res);
+            }
+        }
+        while(steady_clock::now() < min_wait)
+        {
         }
     }
 }
