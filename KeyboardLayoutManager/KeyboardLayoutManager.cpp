@@ -164,6 +164,23 @@ static const std::vector<keyboard_led> keyboard_zone_extras =
     {   0,      5,      16,         0,          KEY_EN_RIGHT_ARROW,         KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
 };
 
+static const std::vector<keyboard_led> keyboard_zone_extras_short =
+{
+    /*-----------------------------------------------------------------------------------------------------------------------------*\
+    |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,     OpCode                              |
+    \*-----------------------------------------------------------------------------------------------------------------------------*/
+    {   0,      1,      14,         0,          KEY_EN_INSERT,              KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      1,      15,         0,          KEY_EN_HOME,                KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      1,      16,         0,          KEY_EN_PAGE_UP,             KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      2,      14,         0,          KEY_EN_DELETE,              KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      2,      15,         0,          KEY_EN_END,                 KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      2,      16,         0,          KEY_EN_PAGE_DOWN,           KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      4,      15,         0,          KEY_EN_UP_ARROW,            KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      5,      14,         0,          KEY_EN_LEFT_ARROW,          KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      5,      15,         0,          KEY_EN_DOWN_ARROW,          KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    {   0,      5,      16,         0,          KEY_EN_RIGHT_ARROW,         KEY_EN_UNUSED,      KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+};
+
 static const std::vector<keyboard_led> keyboard_zone_numpad =
 {
     /*-----------------------------------------------------------------------------------------------------------------------------*\
@@ -329,6 +346,11 @@ KeyboardLayoutManager::KeyboardLayoutManager(KEYBOARD_LAYOUT layout, KEYBOARD_SI
     if(physical_size & KEYBOARD_ZONE_EXTRA)
     {
         InsertKeys(keyboard_zone_extras);
+    }
+
+    if(physical_size & KEYBOARD_ZONE_EXTRA_SHORT)
+    {
+        InsertKeys(keyboard_zone_extras_short);
     }
 
     if(physical_size & KEYBOARD_ZONE_NUMPAD)

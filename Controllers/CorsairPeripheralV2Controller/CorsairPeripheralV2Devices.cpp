@@ -29,6 +29,22 @@ std::vector<unsigned int> corsair_tkl_values =
        105,  108,  107,               44,              111,  122,  101,  109,               80,   81,   79,
 };
 
+std::vector<unsigned int> corsair_pro_tkl_values =
+{
+    /* ESC          F1    F2    F3    F4    F5    F6    F7    F8    F9   F10   F11   F12 */
+        41,         58,   59,   60,   61,   62,   63,   64,   65,   66,   67,   68,   69,
+    /* BKTK    1     2     3     4     5     6     7     8     9     0     -     =   BSPC  INS   HOME  PGUP  */
+        53,   30,   31,   32,   33,   34,   35,   36,   37,   38,   39,   45,   46,   42,   73,   74,   75,
+    /* TAB     Q     W     E     R     T     Y     U     I     O     P     [     ]     \   DEL   END   PGDN  */
+        43,   20,   26,    8,   21,   23,   28,   24,   12,   18,   19,   47,   48,   49,   76,   77,   78,
+    /* CPLK    A     S     D     F     G     H     J     K     L     ;     "     #   ENTR                    */
+        57,    4,   22,    7,    9,   10,   11,   13,   14,   15,   51,   52,   50,   40,
+    /* LSFT  ISO\    Z     X     C     V     B     N     M     ,     .     /   RSFT              ARWU        */
+       106,  100,   29,   27,    6,   25,    5,   17,   16,   54,   55,   56,  110,               82,
+    /* LCTL  LWIN  LALT               SPC              RALT  RFNC  RMNU  RCTL              ARWR  ARWD  ARWR  */
+       105,  108,  107,               44,              111,  122,  101,  109,               80,   81,   79,
+};
+
 std::vector<unsigned int> corsair_full_size_values =
 {
     /* ESC          F1    F2    F3    F4    F5    F6    F7    F8    F9   F10   F11   F12   PRSC  SCLK  PSBK                         */
@@ -122,6 +138,25 @@ keyboard_keymap_overlay_values corsair_k70_pro_layout
         {   0,      1,      18,         126,        KEY_EN_MEDIA_PREVIOUS,      KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Previous Track Key
         {   0,      1,      19,         124,        KEY_EN_MEDIA_PLAY_PAUSE,    KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Play Pause Key
         {   0,      1,      20,         125,        KEY_EN_MEDIA_NEXT,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Next Tack Key
+    }
+};
+
+keyboard_keymap_overlay_values corsair_k70_pro_tkl_layout
+{
+    KEYBOARD_SIZE::KEYBOARD_SIZE_PRO_TKL,
+    {
+        corsair_pro_tkl_values,
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                                             |
+        |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode,                             |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,      14,         130,        "Gaming",               KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      15,         124,        "iCue",                 KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
     }
 };
 
@@ -943,6 +978,38 @@ static const corsair_v2_device k70_rgb_pro_v2_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Corsair K70 Pro TKL 1B1C:2B14                                |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       6 Rows, 17 Columns                                      |
+\*-------------------------------------------------------------*/
+static const corsair_v2_zone k70_pro_tkl_zone =
+{
+    ZONE_EN_KEYBOARD,
+    ZONE_TYPE_MATRIX,
+    6,
+    17
+};
+
+static const corsair_v2_device k70_pro_tkl_device =
+{
+    CORSAIR_K70_PRO_TKL_PID,
+    DEVICE_TYPE_KEYBOARD,
+    6,
+    17,
+    {
+        &k70_pro_tkl_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_k70_pro_tkl_layout
+};
+
+/*-------------------------------------------------------------*\
 |   Corsair K100 MX Red 1B1C:1B7D                               |
 |                                                               |
 |   Zone "Keyboard"                                             |
@@ -1236,6 +1303,7 @@ const corsair_v2_device* corsair_v2_device_list_data[] =
     &k60_rgb_pro_lp_device,
     &k60_rgb_pro_tkl_device,
     &k70_core_rgb_device,
+    &k70_pro_tkl_device,
     &k70_rgb_pro_device,
     &k70_rgb_pro_v2_device,
     &k70_rgb_tkl_device,

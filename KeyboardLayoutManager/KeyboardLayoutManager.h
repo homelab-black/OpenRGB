@@ -30,6 +30,7 @@ enum KEYBOARD_ZONE_BITS
     KEYBOARD_ZONE_FN_ROW                = ( 1 << 1 ),
     KEYBOARD_ZONE_EXTRA                 = ( 1 << 2 ),
     KEYBOARD_ZONE_NUMPAD                = ( 1 << 3 ),
+    KEYBOARD_ZONE_EXTRA_SHORT           = ( 1 << 4 ),
 };
 
 enum KEYBOARD_SIZE
@@ -37,6 +38,7 @@ enum KEYBOARD_SIZE
     KEYBOARD_SIZE_EMPTY                 = 0,
     KEYBOARD_SIZE_FULL                  = ( KEYBOARD_ZONE_MAIN  | KEYBOARD_ZONE_FN_ROW |
                                             KEYBOARD_ZONE_EXTRA | KEYBOARD_ZONE_NUMPAD ),
+    KEYBOARD_SIZE_PRO_TKL               = ( KEYBOARD_ZONE_MAIN  | KEYBOARD_ZONE_FN_ROW | KEYBOARD_ZONE_EXTRA_SHORT),
     KEYBOARD_SIZE_TKL                   = ( KEYBOARD_ZONE_MAIN  | KEYBOARD_ZONE_FN_ROW | KEYBOARD_ZONE_EXTRA ),
     KEYBOARD_SIZE_SEVENTY_FIVE          = ( KEYBOARD_ZONE_MAIN  | KEYBOARD_ZONE_FN_ROW ),
     KEYBOARD_SIZE_SIXTY                 = ( KEYBOARD_ZONE_MAIN  ),
