@@ -16,6 +16,11 @@
 #include "RGBController.h"
 #include "LogManager.h"
 
+static inline time_point now()
+{
+    return std::chrono::steady_clock::now();
+}
+
 KingstonFuryDRAMController::KingstonFuryDRAMController(
     i2c_smbus_interface* bus, unsigned char base_addr, std::vector<int> slots)
 {
@@ -25,6 +30,12 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(
 
     reg_cache.resize(slots.size());
     led_color_regs.resize(slots.size());
+
+    time_point t0 = now();
+    last_begin_trans = t0;
+    last_end_trans = t0;
+    last_offline_start  = t0;
+    last_offline_end  = t0;
 }
 
 std::string KingstonFuryDRAMController::GetDeviceLocation()
@@ -219,7 +230,9 @@ void KingstonFuryDRAMController::SendBegin()
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
         SetTransactionMode(idx, FURY_BEGIN_TRNSFER);
         if(idx == last_slot)
+        {
             last_begin_trans = transactionmode_last_write;
+        }
     }
 }
 
@@ -234,16 +247,12 @@ void KingstonFuryDRAMController::SendApply()
     }
     std::this_thread::sleep_until(last_begin_trans + 30ms);
 
-    //BusyWaitFor(3ms);
-
     int cnt = 0;
     int res;
     unsigned char addr = base_addr + slots[last_slot];
     while (1) { // TODO timeout
-        //std::this_thread::sleep_for(1ms);
         res = bus->i2c_smbus_read_word_data(addr, 0x08);
         LOG_DEBUG("i2c_smbus_read_word_data(0x%02x, 0x%04X):0x%08X", addr, 8, res);
-        //printf("after endtrans res 0x%08X\n", res);
         if(res < 0)
             cnt += 1;
         else
@@ -257,30 +266,26 @@ int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
 {
     bool readback = true;
     int res;
-    int expected = (val << 8) | 0x5A;
+    int expected = (val << 8) | FURY_READ_SUCCESS;
     int tries = 0;
     unsigned char addr = base_addr + slots[slot_idx];
     while(1) { // TODO timeout
         if(!readback) {
             res = bus->i2c_smbus_write_byte_data(addr, 0x08, val);
-            //printf("settrans(0x%02X, 0x%02X) write: 0x%08X\n", addr, val, res);
-            if (res < 0) {
+            if (res >= 0) {
+                transactionmode_last_write = now();
+                readback = true;
             }
-            transactionmode_last_write = steady_clock::now();
-            readback = (res >= 0);
         }
         if(readback) {
             res = bus->i2c_smbus_read_word_data(addr, 0x08);
             if (res == expected)
                 break;
-            //printf("settrans(0x%02X, 0x%02X) read: 0x%08X\n", addr, val, res);
-            if ((res & 0xFFFF00FF) == 0x5A)
+            if ((res & 0xFFFF00FF) == FURY_READ_SUCCESS)
                 readback = false;
         }
         tries += 1;
-        //BusyWaitFor(100us);
     }
-    //printf("settrans(0x%02X, 0x%02X) read: 0x%08X tries %d\n", addr, val, res, tries);
     return tries;
 }
 
@@ -384,10 +389,10 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
         }
     }
 
-    // write two bytes at once, interleaved
+    // write two bytes at once, interleave across sticks
     for(unsigned int reg_idx = 0; reg_idx < led_per_dimm * 3; reg_idx += 2)
     {
-        steady_clock::time_point min_wait = steady_clock::now() + FURY_DELAY_WRITE_REGISTER;
+        time_point min_wait = now() + FURY_DELAY_WRITE_REGISTER;
         for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
         {
             unsigned char addr = base_addr + slots[slot_idx];
@@ -398,7 +403,7 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
                 LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + reg_idx, val, res);
             }
         }
-        while(steady_clock::now() < min_wait)
+        while(now() < min_wait)
         {
         }
     }

@@ -18,7 +18,9 @@
 #include "i2c_smbus.h"
 #include "RGBController.h"
 
-using namespace std::chrono;
+using namespace std::chrono_literals; // ms and us suffixes
+typedef std::chrono::steady_clock::time_point time_point;
+typedef std::chrono::steady_clock::duration duration;
 
 #define FURY_CONTROLLER_NAME "Kingston Fury DDR4/5 DRAM"
 #define FURY_BASE_ADDR_DDR4 0x58
@@ -26,6 +28,7 @@ using namespace std::chrono;
 #define FURY_DELAY_DETECT          10ms
 #define FURY_DELAY_RETRY           10ms
 #define FURY_DELAY_WRITE_REGISTER  300us
+#define FURY_READ_SUCCESS          0x5A
 #define FURY_LEDS_PER_DIMM_DDR4 10
 #define FURY_LEDS_PER_DIMM_DDR5 12
 #define FURY_LEDS_PER_DIMM_MAX  12
@@ -169,6 +172,9 @@ private:
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
     std::vector<LedColorRegisters>                      led_color_regs;
 
-    steady_clock::time_point transactionmode_last_write;
-    steady_clock::time_point last_begin_trans;
+    time_point transactionmode_last_write;
+    time_point last_begin_trans;
+    time_point last_end_trans;
+    time_point last_offline_start;
+    time_point last_offline_end;
 };
