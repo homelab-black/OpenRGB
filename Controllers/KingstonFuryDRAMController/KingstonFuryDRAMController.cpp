@@ -13,12 +13,29 @@
 #include <cstring>
 #include <vector>
 #include "KingstonFuryDRAMController.h"
-#include "RGBController.h"
+//#include "RGBController.h"
 #include "LogManager.h"
 
 static inline time_point now()
 {
     return std::chrono::steady_clock::now();
+}
+
+static inline double to_ms(duration dt)
+{
+    return std::chrono::nanoseconds(dt).count() / 1000000.0;
+}
+
+static inline void BusyWaitUntil(time_point tp)
+{
+    while(now() < tp)
+    {
+    }
+}
+
+static inline void BusyWaitFor(duration dt)
+{
+    BusyWaitUntil(now() + dt);
 }
 
 KingstonFuryDRAMController::KingstonFuryDRAMController(
@@ -231,6 +248,15 @@ void KingstonFuryDRAMController::SendBegin()
         SetTransactionMode(idx, FURY_BEGIN_TRNSFER);
         if(idx == last_slot)
         {
+            double dt = to_ms(transactionmode_last_write - last_begin_trans);
+            if(dt < 200) {
+                static int count = 0;
+                static const int window = 1000;
+                period_rolling_average -= period_rolling_average / window;
+                period_rolling_average += dt / window;
+                LOG_DEBUG("[%s] -------------------------------------------------- PERIOD %f ms avg %f ms count %d --------------------------------------------------",
+                          FURY_CONTROLLER_NAME, dt, period_rolling_average, ++count);
+            }
             last_begin_trans = transactionmode_last_write;
         }
     }
@@ -276,6 +302,8 @@ int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
                 transactionmode_last_write = now();
                 readback = true;
             }
+            // not waiting here can overwrite the registers used for detection when SMBUS runs faster than 100 kHz
+            BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
         }
         if(readback) {
             res = bus->i2c_smbus_read_word_data(addr, 0x08);
@@ -403,9 +431,7 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
                 LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + reg_idx, val, res);
             }
         }
-        while(now() < min_wait)
-        {
-        }
+        BusyWaitUntil(min_wait);
     }
 }
 
@@ -421,14 +447,23 @@ unsigned int KingstonFuryDRAMController::GetLEDPerDIMM()
 void KingstonFuryDRAMController::testpreamble()
 {
     SendBegin();
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x63, 0x0B, 0x00); // FURY_REG_INDEX
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x63, 0x09, 0x10);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x63, 0x20, 0x50);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x63, 0x27, 0x02);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x61, 0x0B, 0x01); // FURY_REG_INDEX
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x61, 0x09, 0x10);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x61, 0x20, 0x50);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     bus->i2c_smbus_write_byte_data(0x61, 0x27, 0x02);
+    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
     SendApply();
-    std::this_thread::sleep_for(20ms);
+    std::this_thread::sleep_for(100ms);
 }

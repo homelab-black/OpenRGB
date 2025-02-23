@@ -177,4 +177,6 @@ private:
     time_point last_end_trans;
     time_point last_offline_start;
     time_point last_offline_end;
+
+    double period_rolling_average = 41; // Fury Beast DDR5-6000 CL30
 };
