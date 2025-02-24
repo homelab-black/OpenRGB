@@ -477,7 +477,19 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
     controller->SendApply();
     return;
 }
-#if 0
+
+void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
+{
+    LOG_DEBUG("[%s] device update mode",
+              FURY_CONTROLLER_NAME);
+    // Preamble only necessary when changing modes.
+    if(last_mode != modes[active_mode].value)
+    {
+        controller->SendPreamble(modes[active_mode].value != FURY_MODE_RAIN &&
+                                 modes[active_mode].value != FURY_MODE_FIREWORK &&
+                                 modes[active_mode].value != FURY_MODE_DIRECT);
+        last_mode = modes[active_mode].value;
+    }
     controller->SendBegin();
     controller->SetMode(GetRealModeValue());
 
@@ -485,9 +497,11 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
     switch(modes[active_mode].value)
     {
     case FURY_MODE_STATIC:
+    case FURY_MODE_DIRECT:
         controller->SetRegister(FURY_REG_DIRECTION, FURY_DIR_BOTTOM_TO_TOP);
         controller->SetRegister(FURY_REG_DELAY, 0);
-        controller->SetRegister(FURY_REG_SPEED, 0);
+        // internal update cycle (ms) = FURY_REG_SPEED + 16
+        controller->SetRegister(FURY_REG_SPEED, 0x18);
         break;
 
     case FURY_MODE_RAINBOW:
@@ -725,10 +739,9 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateLEDs()
 
     controller->SetRegister(FURY_REG_BRIGHTNESS,
                             modes[active_mode].brightness);
-    controller->SetNumSlots();
+    //controller->SetNumSlots();
     controller->SendApply();
 }
-#endif
 
 void RGBController_KingstonFuryDRAM::UpdateZoneLEDs(int /*zone*/)
 {
@@ -740,6 +753,7 @@ void RGBController_KingstonFuryDRAM::UpdateSingleLED(int /*led*/)
     DeviceUpdateLEDs();
 }
 
+#if 0
 void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
 {
     LOG_DEBUG("[%s] device update mode",
@@ -758,3 +772,4 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
     }
     DeviceUpdateLEDs();
 }
+#endif

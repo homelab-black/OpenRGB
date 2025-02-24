@@ -137,7 +137,6 @@ public:
     unsigned int    GetLEDCount();
     unsigned int    GetLEDPerDIMM();
     int             GetSlotCount();
-    [[deprecated("This might not end well if accessed outside of a transaction")]]
     unsigned char   GetMode();
 
     void            SendPreamble(bool synchronize);
@@ -165,6 +164,7 @@ private:
     bool            SmbusRead(int slot_idx, unsigned char reg, unsigned char *val);
     bool            SmbusWrite(int slot_idx, unsigned char reg, unsigned char val);
     int             SetTransactionMode(int slot_idx, int val);
+    time_point      LogTimestamp(const char *txt, time_point tp);
 
     i2c_smbus_interface*    bus;
     std::vector<int>        slots;
@@ -172,10 +172,16 @@ private:
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
     std::vector<LedColorRegisters>                      led_color_regs;
 
+    time_point transactionmode_first_read;
     time_point transactionmode_last_write;
-    time_point last_begin_trans;
-    time_point last_end_trans;
+    time_point last_begin_trans_start;
+    time_point last_begin_trans_master;
+    time_point last_begin_trans_end;
+    time_point last_end_trans_start;
+    time_point last_end_trans_master;
+    time_point last_end_trans_end;
     time_point last_offline_start;
+    time_point last_offline_detect;
     time_point last_offline_end;
 
     double period_rolling_average = 41; // Fury Beast DDR5-6000 CL30
