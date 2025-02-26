@@ -295,7 +295,8 @@ void KingstonFuryDRAMController::SendApply()
     }
     last_end_trans_master = LogTimestamp("end trans went through on master", transactionmode_last_write);
     last_end_trans_end = LogTimestamp("end trans verified on master", now());
-    std::this_thread::sleep_until(last_begin_trans_master + 30ms);
+
+    std::this_thread::sleep_until(last_begin_trans_master + 25ms);
 
     int cnt = 0;
     int tries = 0;
@@ -349,7 +350,8 @@ int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
                 transactionmode_last_write = now();
                 readback = true;
             }
-            // not waiting here can overwrite the registers used for detection when SMBUS runs faster than 100 kHz
+            // not waiting here when SMBUS runs faster than 100 kHz
+            // can overwrite random registers including the registers used for detection
             BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
         }
         if(readback) {
@@ -476,7 +478,7 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
     // write two bytes at once, interleave across sticks
     for(unsigned int reg_idx = 0; reg_idx < led_per_dimm * 3; reg_idx += 2)
     {
-        time_point min_wait = now() + FURY_DELAY_WRITE_REGISTER;
+        time_point write_started = now();
         for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
         {
             unsigned char addr = base_addr + slots[slot_idx];
@@ -487,7 +489,10 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
                 LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + reg_idx, val, res);
             }
         }
-        BusyWaitUntil(min_wait);
+        // Ideally we should wait relative to the actual start of transaction, i.e. setting the start bit in the host controller.
+        // We can't do that when SMBUS is managed by the OS, otherwise it'd be possible.
+        // What we do here instead might cause glitches when preempted. !2701 is highly recommended.
+        BusyWaitUntil(write_started + FURY_DELAY_WRITE_REGISTER);
     }
 }
 
@@ -514,45 +519,4 @@ time_point KingstonFuryDRAMController::LogTimestamp(const char *txt, time_point 
               to_ms(tp - last_offline_start), to_ms(tp - last_offline_detect)
               );
     return tp;
-}
-
-void KingstonFuryDRAMController::testpreamble()
-{
-    int res;
-    static bool firstrun = true;
-    SendBegin();
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    if(firstrun)
-    {
-        LOG_DEBUG("[%s] register contents on startup follows", FURY_CONTROLLER_NAME);
-        for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
-        {
-            unsigned char device_addr = base_addr + slots[slot_idx];
-            for(int reg = 0; reg < 0x80; reg++)
-            {
-                res = bus->i2c_smbus_read_word_data(device_addr, reg);
-                LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%08X",
-                          FURY_CONTROLLER_NAME, device_addr, reg, (res >> 8) & 0xFF, res);
-            }
-        }
-    }
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x63, 0x0B, 0x00); // FURY_REG_INDEX
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x63, 0x09, 0x10);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x63, 0x20, 0x50);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x63, 0x27, 0x02);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x61, 0x0B, 0x01); // FURY_REG_INDEX
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x61, 0x09, 0x10);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x61, 0x20, 0x50);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    bus->i2c_smbus_write_byte_data(0x61, 0x27, 0x02);
-    BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
-    SendApply();
-    std::this_thread::sleep_for(100ms);
 }

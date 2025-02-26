@@ -150,8 +150,6 @@ public:
     void            SetModeColors(std::vector<RGBColor> colors);
     void            SetLEDColors(std::vector<RGBColor> colors);
 
-    void            testpreamble();
-
 private:
     typedef union
     {
@@ -184,5 +182,10 @@ private:
     time_point last_offline_detect;
     time_point last_offline_end;
 
+    // just for statistics
     double period_rolling_average = 41; // Fury Beast DDR5-6000 CL30
+
+    // a bit more than the duration of a word write at 64 kHz, i.e. the minimum speed of the piix4 host
+    // not only for statistics,
+    duration write_word_rolling_average = 600us;
 };
