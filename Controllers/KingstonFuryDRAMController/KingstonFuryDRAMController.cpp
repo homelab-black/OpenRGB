@@ -129,7 +129,7 @@ int KingstonFuryDRAMController::SmbusReadByte(int slot_idx, unsigned char reg)
 
 int KingstonFuryDRAMController::SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val)
 {
-    unsigned char device_addr = base_addr + slots[slot_idx];
+    unsigned char device_addr = GetSlotAddress(slot_idx);
     int res;
 
     res = bus->i2c_smbus_write_byte_data(device_addr, reg, val);
@@ -250,7 +250,7 @@ void KingstonFuryDRAMController::SendApply()
     bool nofailseen = true;
     int expected = (FURY_END_TRNSFER << 8) | FURY_READ_SUCCESS;
     int res;
-    unsigned char addr = base_addr + slots[last_slot];
+    unsigned char addr = GetSlotAddress(last_slot);
     last_offline_start = LogTimestamp("started looking for offline", now());
     while(1)
     {
@@ -288,10 +288,10 @@ int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
     int res;
     int expected = (val << 8) | FURY_READ_SUCCESS;
     int tries = 0;
-    unsigned char addr = base_addr + slots[slot_idx];
+    unsigned char addr = GetSlotAddress(slot_idx);
     while(1) { // TODO timeout
         if(!readback) {
-            res = bus->i2c_smbus_write_byte_data(addr, 0x08, val);
+            res = bus->i2c_smbus_write_byte_data(addr, FURY_REG_APPLY, val);
             if (res >= 0) {
                 transactionmode_last_write = now();
                 readback = true;
@@ -301,7 +301,7 @@ int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
             BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
         }
         if(readback) {
-            res = bus->i2c_smbus_read_word_data(addr, 0x08);
+            res = bus->i2c_smbus_read_word_data(addr, FURY_REG_APPLY);
             if((res & 0xFFFF00FF) == FURY_READ_SUCCESS)
             {
                 if(no_successful_read)
@@ -419,7 +419,7 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
         time_point write_started = now();
         for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
         {
-            unsigned char addr = base_addr + slots[slot_idx];
+            unsigned char addr = GetSlotAddress(slot_idx);
             uint16_t val = led_color_regs[slot_idx].words[reg_idx / 2];
             int res = bus->i2c_smbus_write_word_data(addr, FURY_REG_BASE_RED + reg_idx, val);
             if(res)
