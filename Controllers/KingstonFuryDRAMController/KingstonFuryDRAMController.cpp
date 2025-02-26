@@ -45,10 +45,10 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(
     this->base_addr = base_addr;
     this->slots     = slots;
 
-    reg_cache.resize(slots.size());
-    led_color_regs.resize(slots.size());
-
+    //led_color_regs.resize(slots.size());
     time_point t0 = now();
+    last_writes.resize(slots.size(), t0);
+
     last_begin_trans_start = t0;
     last_begin_trans_master = t0;
     last_begin_trans_end = t0;
@@ -91,113 +91,59 @@ int KingstonFuryDRAMController::GetSlotCount()
     return((int)slots.size());
 }
 
+unsigned char KingstonFuryDRAMController::GetSlotAddress(int slot_idx)
+{
+    return base_addr + slots[slot_idx];
+}
+
 unsigned char KingstonFuryDRAMController::GetMode()
 {
-    unsigned char mode = 0;
-    CachedRead(0, FURY_REG_MODE, &mode);
-    return mode;
+    int res = SmbusReadByte(0, FURY_REG_MODE);
+    if(res < 0) {
+        return 0;
+    }
+    else
+    {
+        return res & 0xFF;
+    }
 }
 
-bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsigned char *val)
+int KingstonFuryDRAMController::SmbusReadByte(int slot_idx, unsigned char reg)
 {
-    if(val == NULL)
+    unsigned char device_addr = GetSlotAddress(slot_idx);
+    int res = bus->i2c_smbus_read_word_data(device_addr, reg);
+    if(res >= 0)
     {
-        return false;
-    }
-
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    int res;
-
-    for(int retries = 1; retries <= 5; retries++)
-    {
-        res = bus->i2c_smbus_read_word_data(device_addr, reg);
-        if(res >= 0)
-        {
-            *val = (res >> 8) & 0xFF;
-            LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%02X",
-                      FURY_CONTROLLER_NAME, device_addr, reg, *val, res);
-            return true;
-        }
-        else
-        {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY_RETRY);
-        }
-    }
-    return false;
-}
-
-bool KingstonFuryDRAMController::SmbusWrite(int slot_idx, unsigned char reg, unsigned char val)
-{
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    int res;
-
-    for(int retries = 1; retries <= 5; retries++)
-    {
-        res = bus->i2c_smbus_write_byte_data(device_addr,
-                                             reg, val);
-        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%02X",
+        int val = (res >> 8) & 0xFF;
+        LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%08X",
                   FURY_CONTROLLER_NAME, device_addr, reg, val, res);
-        if(res >= 0)
-        {
-            return true;
-        }
-        else
-        {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY_RETRY);
-        }
-    }
-    return false;
-}
-
-// returns whether a read was successful
-bool KingstonFuryDRAMController::CachedRead(int slot_idx, unsigned char reg, unsigned char *val)
-{
-    if(val == NULL)
-    {
-        return false;
-    }
-
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    if(reg_cache[slot_idx].find(reg) == reg_cache[slot_idx].end())
-    {
-        if(SmbusRead(slot_idx, reg, val))
-        {
-            reg_cache[slot_idx][reg] = *val;
-            return true;
-        }
-        LOG_ERROR("[%s] %02X failed to get register &%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg);
-        return false;
+        return val;
     }
     else
     {
-        *val = reg_cache[slot_idx][reg];
-        return true;
+        LOG_DEBUG("[%s] %02X reading register &%02X; res=%08X %s",
+                  FURY_CONTROLLER_NAME, device_addr, reg, res, strerror(-res));
+        return res;
     }
 }
 
-// returns whether a write was actually performed
-bool KingstonFuryDRAMController::CachedWrite(int slot_idx, unsigned char reg, unsigned char val)
+int KingstonFuryDRAMController::SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val)
 {
     unsigned char device_addr = base_addr + slots[slot_idx];
-    if(reg_cache[slot_idx].find(reg) == reg_cache[slot_idx].end() ||
-       reg_cache[slot_idx][reg] != val)
+    int res;
+
+    res = bus->i2c_smbus_write_byte_data(device_addr, reg, val);
+    if(res >= 0)
     {
-        if(SmbusWrite(slot_idx, reg, val))
-        {
-            reg_cache[slot_idx][reg] = val;
-            return true;
-        }
-        LOG_ERROR("[%s] %02X failed to set register &%02X=%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg, val);
-        return false;
+        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%08X",
+                  FURY_CONTROLLER_NAME, device_addr, reg, val, res);
     }
     else
     {
-        LOG_DEBUG("[%s] %02X register already set &%02X=%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg, val);
-        return false;
+        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%08X %s",
+                  FURY_CONTROLLER_NAME, device_addr, reg, val, res, strerror(-res));
     }
+    return res;
 }
 
 void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
@@ -234,7 +180,7 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
         LOG_DEBUG("[%s] %02X writing index %d",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx],
                   written_index);
-        SmbusWrite((int)idx, FURY_REG_INDEX, written_index);
+        SmbusWriteByte((int)idx, FURY_REG_INDEX, written_index);
         written_index += 1;
     }
     // The RGB controller is a bit slow and requires delay;
@@ -397,20 +343,15 @@ void KingstonFuryDRAMController::SetNumSlots()
 
 void KingstonFuryDRAMController::SetRegister(int reg, unsigned char val)
 {
-    bool write_occurred = false;
     for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite(idx, reg, val) || write_occurred;
+        SmbusWriteByte(idx, reg, val);
     }
-    if(write_occurred)
-    {
-        std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
-    }
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 }
 
 void KingstonFuryDRAMController::SetRegister(int reg, std::vector<unsigned char> vals)
 {
-    bool write_occurred = false;
     if(vals.size() < slots.size())
     {
         LOG_ERROR("[%s] vector of values has wrong size when setting register &%02X",
@@ -419,12 +360,9 @@ void KingstonFuryDRAMController::SetRegister(int reg, std::vector<unsigned char>
     }
     for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite(idx, reg, vals[idx]) || write_occurred;
+        SmbusWriteByte(idx, reg, vals[idx]);
     }
-    if(write_occurred)
-    {
-        std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
-    }
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 }
 
 void KingstonFuryDRAMController::SetModeColors(std::vector<RGBColor> colors)

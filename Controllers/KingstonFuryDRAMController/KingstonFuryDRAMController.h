@@ -157,19 +157,19 @@ private:
         uint16_t words[FURY_LEDS_PER_DIMM_MAX * 3 / 2];
     } LedColorRegisters;
 
-    bool            CachedRead(int slot_idx, unsigned char reg, unsigned char *val);
-    bool            CachedWrite(int slot_idx, unsigned char reg, unsigned char val);
-    bool            SmbusRead(int slot_idx, unsigned char reg, unsigned char *val);
-    bool            SmbusWrite(int slot_idx, unsigned char reg, unsigned char val);
+    unsigned char   GetSlotAddress(int slot_idx);
+    int             SmbusReadByte(int slot_idx, unsigned char reg);
+    int             SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val);
+    int             SmbusWriteWord(int slot_idx, unsigned char reg, unsigned char val);
     int             SetTransactionMode(int slot_idx, int val);
     time_point      LogTimestamp(const char *txt, time_point tp);
 
     i2c_smbus_interface*    bus;
     std::vector<int>        slots;
     unsigned char           base_addr;
-    std::vector<std::map<unsigned char, unsigned char>> reg_cache;
-    std::vector<LedColorRegisters>                      led_color_regs;
+    std::vector<LedColorRegisters> led_color_regs;
 
+    std::vector<time_point> last_writes;
     time_point transactionmode_first_read;
     time_point transactionmode_last_write;
     time_point last_begin_trans_start;
