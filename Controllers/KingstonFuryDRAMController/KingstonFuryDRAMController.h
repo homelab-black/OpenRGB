@@ -13,7 +13,6 @@
 #pragma once
 
 #include <string>
-#include <map>
 #include <vector>
 #include "i2c_smbus.h"
 #include "RGBController.h"
@@ -27,11 +26,16 @@ typedef std::chrono::steady_clock::duration duration;
 #define FURY_BASE_ADDR_DDR5 0x60
 #define FURY_DELAY_DETECT          10ms
 #define FURY_DELAY_RETRY           10ms
+#define FURY_DELAY_APPLY           30ms
 #define FURY_DELAY_WRITE_REGISTER  300us
 #define FURY_READ_SUCCESS          0x5A
+
+#define FURY_SPEED_DEFAULT         0x18
+
 #define FURY_LEDS_PER_DIMM_DDR4 10
 #define FURY_LEDS_PER_DIMM_DDR5 12
 #define FURY_LEDS_PER_DIMM_MAX  12
+
 #define FURY_MAX_MODE_COLORS 10
 #define FURY_DEFAULT_BG_COLOR ToRGBColor(16,16,16)
 #define FURY_ALT_DIRECTIONS {\
@@ -145,8 +149,8 @@ public:
     void            SetMode(unsigned char val);
     void            SetNumSlots();
     void            ResetSpeed();
-    void            SetSpeed(int reg, std::vector<unsigned char> vals);
-    void            ApplySpeed();
+    void            SetSpeed(std::vector<unsigned char> vals);
+    void            x();
 
     void            SetRegister(int reg, unsigned char val);
     void            SetRegister(int reg, std::vector<unsigned char> vals);
@@ -163,7 +167,7 @@ private:
     unsigned char   GetSlotAddress(int slot_idx);
     int             SmbusReadByte(int slot_idx, unsigned char reg);
     int             SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val);
-    int             SmbusWriteWord(int slot_idx, unsigned char reg, unsigned char val);
+    //int             SmbusWriteWord(int slot_idx, unsigned char reg, unsigned char val);
     int             SetTransactionMode(int slot_idx, int val);
     time_point      LogTimestamp(const char *txt, time_point tp);
 

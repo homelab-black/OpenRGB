@@ -195,6 +195,33 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
     SendApply();
 }
 
+#define D1 1ms
+#define DE 80ms
+void KingstonFuryDRAMController::x()
+{
+    int last_slot = GetSlotCount() - 1;
+    // start with the outermost stick
+    std::this_thread::sleep_for(DE);
+    for(int idx = last_slot; idx >= 0; idx--)
+    {
+        SmbusWriteByte(idx, FURY_REG_APPLY, FURY_BEGIN_TRNSFER);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
+    for(int idx = 0; idx <= last_slot; idx++)
+    {
+        SmbusReadByte(idx, FURY_REG_SPEED);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
+    for(int idx = 0; idx <= last_slot; idx++)
+    {
+        SmbusWriteByte(idx, FURY_REG_APPLY, FURY_END_TRNSFER);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
+}
+
 void KingstonFuryDRAMController::SendBegin()
 {
     last_begin_trans_start = LogTimestamp("begin trans started", now());
@@ -242,7 +269,7 @@ void KingstonFuryDRAMController::SendApply()
     last_end_trans_master = LogTimestamp("end trans went through on master", transactionmode_last_write);
     last_end_trans_end = LogTimestamp("end trans verified on master", now());
 
-    std::this_thread::sleep_until(last_begin_trans_master + 30ms);
+    std::this_thread::sleep_until(last_begin_trans_master + FURY_DELAY_APPLY);
 
     int goodcnt = 0;
     int badcnt = 0;

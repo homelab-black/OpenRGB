@@ -501,7 +501,7 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
         controller->SetRegister(FURY_REG_DIRECTION, FURY_DIR_BOTTOM_TO_TOP);
         controller->SetRegister(FURY_REG_DELAY, 0);
         // internal update cycle (ms) = FURY_REG_SPEED + 16
-        controller->SetRegister(FURY_REG_SPEED, 0x18);
+        controller->SetRegister(FURY_REG_SPEED, FURY_SPEED_DEFAULT);
         break;
 
     case FURY_MODE_RAINBOW:
@@ -741,6 +741,7 @@ void RGBController_KingstonFuryDRAM::DeviceUpdateMode()
                             modes[active_mode].brightness);
     //controller->SetNumSlots();
     controller->SendApply();
+    controller->x();
 }
 
 void RGBController_KingstonFuryDRAM::UpdateZoneLEDs(int /*zone*/)
