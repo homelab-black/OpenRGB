@@ -45,7 +45,7 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(
     this->base_addr = base_addr;
     this->slots     = slots;
 
-    //led_color_regs.resize(slots.size());
+    led_color_regs.resize(slots.size());
     time_point t0 = now();
     last_writes.resize(slots.size(), t0);
 
