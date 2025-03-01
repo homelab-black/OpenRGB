@@ -242,9 +242,11 @@ void KingstonFuryDRAMController::SendApply()
     last_end_trans_master = LogTimestamp("end trans went through on master", transactionmode_last_write);
     last_end_trans_end = LogTimestamp("end trans verified on master", now());
 
-    std::this_thread::sleep_until(last_begin_trans_master + 25ms);
+    std::this_thread::sleep_until(last_begin_trans_master + 30ms);
 
-    int cnt = 0;
+    int goodcnt = 0;
+    int badcnt = 0;
+    int waitcnt = 0;
     int tries = 0;
     int nofailcounter = 0;
     bool nofailseen = true;
@@ -269,16 +271,34 @@ void KingstonFuryDRAMController::SendApply()
             }
         }
         if(res < 0)
-            cnt += 1;
+        {
+            goodcnt = 0;
+            badcnt += 1;
+        }
         else
-            cnt = 0;
+        {
+            goodcnt += 1;
+            badcnt = 0;
+        }
         tries += 1;
-        if(cnt > 2)
+        if(badcnt > 2)
+        {
             break;
-        //std::this_thread::sleep_for(1ms);
+        }
+        if(goodcnt > 2)
+        {
+            goodcnt = 0;
+            waitcnt += 1;
+            if(waitcnt > 5)
+            {
+                break;
+            }
+            LOG_DEBUG("sendapply wait %d", waitcnt);
+            std::this_thread::sleep_for(15ms);
+        }
     }
-    LOG_DEBUG("[%s] %02X detected offline, %d reads before first fail, %d tries total",
-          FURY_CONTROLLER_NAME, addr, nofailcounter, tries);
+    LOG_DEBUG("[%s] %02X%s detected offline, %d reads before first fail, %d tries total",
+              FURY_CONTROLLER_NAME, addr, (waitcnt > 5) ? " NOT" : "", nofailcounter, tries);
 }
 
 int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
@@ -422,9 +442,15 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
             unsigned char addr = GetSlotAddress(slot_idx);
             uint16_t val = led_color_regs[slot_idx].words[reg_idx / 2];
             int res = bus->i2c_smbus_write_word_data(addr, FURY_REG_BASE_RED + reg_idx, val);
-            if(res)
+            if(res < 0)
             {
-                LOG_DEBUG("i2c_smbus_write_word_data(0x%02x, 0x%02X, 0x%04X):0x%08X", addr, FURY_REG_BASE_RED + reg_idx, val, res);
+                LOG_DEBUG("[%s] %02X setting register &%02X=%04X; res=%08X",
+                          FURY_CONTROLLER_NAME, addr, FURY_REG_BASE_RED + reg_idx, val, res, strerror(-res));
+            }
+            else
+            {
+                LOG_DEBUG("[%s] %02X setting register &%02X=%04X; res=%08X",
+                          FURY_CONTROLLER_NAME, addr, FURY_REG_BASE_RED + reg_idx, val, res);
             }
         }
         // Ideally we should wait relative to the actual start of transaction, i.e. setting the start bit in the host controller.

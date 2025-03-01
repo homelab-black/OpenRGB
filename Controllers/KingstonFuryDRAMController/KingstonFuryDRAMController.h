@@ -144,6 +144,9 @@ public:
     void            SendApply();
     void            SetMode(unsigned char val);
     void            SetNumSlots();
+    void            ResetSpeed();
+    void            SetSpeed(int reg, std::vector<unsigned char> vals);
+    void            ApplySpeed();
 
     void            SetRegister(int reg, unsigned char val);
     void            SetRegister(int reg, std::vector<unsigned char> vals);
@@ -168,6 +171,8 @@ private:
     std::vector<int>        slots;
     unsigned char           base_addr;
     std::vector<LedColorRegisters> led_color_regs;
+    std::vector<unsigned char>     actual_speed;
+    std::vector<unsigned char>     target_speed;
 
     std::vector<time_point> last_writes;
     time_point transactionmode_first_read;
