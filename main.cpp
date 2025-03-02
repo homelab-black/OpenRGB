@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <thread>
 #include <QSharedMemory>
+#include <Windows.h>
 #include "cli.h"
 #include "ResourceManager.h"
 #include "NetworkClient.h"
