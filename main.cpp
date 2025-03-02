@@ -153,6 +153,19 @@ void InstallWinRing0()
 }
 #endif
 
+void bringWindowToFront()
+{
+    HWND hwnd = FindWindowW(nullptr, L"OpenRGB");
+    if(hwnd)
+    {
+        if(IsIconic(hwnd))
+        {
+            ShowWindow(hwnd, SW_RESTORE);
+        }
+        SetForegroundWindow(hwnd);
+    }
+}
+
 /******************************************************************************************\
 *                                                                                          *
 *   main                                                                                   *
@@ -160,7 +173,6 @@ void InstallWinRing0()
 *       Main function.  Detects busses and Aura controllers, then opens the main window    *
 *                                                                                          *
 \******************************************************************************************/
-
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
@@ -223,6 +235,7 @@ int main(int argc, char* argv[])
 
         if(!sharedMemory.create(1)) 
         {
+            bringWindowToFront();
             return 0;
         }
 
