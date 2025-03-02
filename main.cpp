@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <thread>
 #include <QSharedMemory>
-#include <Windows.h>
 #include "cli.h"
 #include "ResourceManager.h"
 #include "NetworkClient.h"
@@ -154,19 +153,6 @@ void InstallWinRing0()
 }
 #endif
 
-void bringWindowToFront()
-{
-    HWND hwnd = FindWindowW(nullptr, L"OpenRGB");
-    if(hwnd)
-    {
-        if(IsIconic(hwnd))
-        {
-            ShowWindow(hwnd, SW_RESTORE);
-        }
-        SetForegroundWindow(hwnd);
-    }
-}
-
 /******************************************************************************************\
 *                                                                                          *
 *   main                                                                                   *
@@ -236,7 +222,6 @@ int main(int argc, char* argv[])
 
         if(!sharedMemory.create(1)) 
         {
-            bringWindowToFront();
             return 0;
         }
 
