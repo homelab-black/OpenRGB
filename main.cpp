@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <thread>
 #include <QSharedMemory>
-#include <Windows.h>
 #include "cli.h"
 #include "ResourceManager.h"
 #include "NetworkClient.h"
@@ -190,23 +189,6 @@ int main(int argc, char* argv[])
     | Windows only - Install SMBus Driver WinRing0              |
     \*---------------------------------------------------------*/
     InstallWinRing0();
-
-    /*---------------------------------------------------------*\
-    | Windows only - Bring window to front                      |
-    \*---------------------------------------------------------*/
-    void bringWindowToFront()
-    {
-        HWND hwnd = FindWindow(nullptr, L"OpenRGB");
-        if(hwnd)
-        {
-            if(IsIconic(hwnd))
-            {
-                ShowWindow(hwnd, SW_RESTORE);
-            }
-            SetForegroundWindow(hwnd);
-        }
-    }
-    bringWindowToFront();
 #endif
 
     /*---------------------------------------------------------*\
@@ -241,7 +223,6 @@ int main(int argc, char* argv[])
 
         if(!sharedMemory.create(1)) 
         {
-            bringWindowToFront();
             return 0;
         }
 
