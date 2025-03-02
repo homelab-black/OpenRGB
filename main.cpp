@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>
+#include <QSharedMemory>
+#include <Windows.h>
 #include "cli.h"
 #include "ResourceManager.h"
 #include "NetworkClient.h"
@@ -166,7 +168,7 @@ int main(int argc, char* argv[])
     /*---------------------------------------------------------*\
     | Windows only - Attach console output                      |
     \*---------------------------------------------------------*/
-    if (AttachConsole(ATTACH_PARENT_PROCESS))
+    if(AttachConsole(ATTACH_PARENT_PROCESS))
     {
         /*---------------------------------------------------------*\
         | We are running under some terminal context; otherwise     |
@@ -188,6 +190,23 @@ int main(int argc, char* argv[])
     | Windows only - Install SMBus Driver WinRing0              |
     \*---------------------------------------------------------*/
     InstallWinRing0();
+
+    /*---------------------------------------------------------*\
+    | Windows only - Bring window to front                      |
+    \*---------------------------------------------------------*/
+    void bringWindowToFront()
+    {
+        HWND hwnd = FindWindow(nullptr, L"OpenRGB");
+        if(hwnd)
+        {
+            if(IsIconic(hwnd))
+            {
+                ShowWindow(hwnd, SW_RESTORE);
+            }
+            SetForegroundWindow(hwnd);
+        }
+    }
+    bringWindowToFront();
 #endif
 
     /*---------------------------------------------------------*\
@@ -218,6 +237,14 @@ int main(int argc, char* argv[])
         LOG_TRACE("[main] initializing GUI");
         QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
         QApplication a(argc, argv);
+        QSharedMemory sharedMemory("OpenRGB");
+
+        if(!sharedMemory.create(1)) 
+        {
+            bringWindowToFront();
+            return 0;
+        }
+
         QGuiApplication::setDesktopFileName("org.openrgb.OpenRGB");
         LOG_TRACE("[main] QApplication created");
 
