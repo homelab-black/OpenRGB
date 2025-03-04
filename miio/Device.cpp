@@ -46,13 +46,16 @@ json Device::send(json &command) {
     uint8_t* buf = new uint8_t[2000];
     uint16_t payloads_len = (uint16_t)payload.length();
     payload.copy((char*)&(buf[32]), payloads_len, 0);
+
     Msg msg;
     msg.length = uint16_t(32 + payloads_len);
-    memcpy(msg.did, did_,4);
+    memcpy(msg.did, did_, 4);
+
     time_t seconds;
     time(&seconds);
     msg.stamp = (uint32_t)seconds - root_stamp_;
     memcpy(msg.md5_checksum, token_, 16);
+
     PackMsgHeader(&msg, buf);
     EncryptPayloads(&(buf[32]), payloads_len);
     FillMd5Checksum(buf, msg.length);

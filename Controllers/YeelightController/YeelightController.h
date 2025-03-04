@@ -10,18 +10,19 @@
 \*---------------------------------------------------------*/
 
 #pragma once
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#include <MiioDevice.h>
 
 #include <string>
-#include <thread>
 #include <vector>
-#include "RGBController.h"
-#include "net_port.h"
 
 class YeelightController
 {
 public:
-    YeelightController(std::string ip, std::string host_ip, bool music_mode_val);
-    ~YeelightController();
+    YeelightController(std::string ip, std::string token);
 
     std::string GetLocation();
     std::string GetName();
@@ -29,18 +30,25 @@ public:
     std::string GetManufacturer();
     std::string GetUniqueID();
 
-    bool        GetMusicMode();
-
-    void SetMusicMode();
     void SetPower();
-    void SetColor(unsigned char red, unsigned char green, unsigned char blue);
+    void SetColor(unsigned int rgb);
+    void SetBrightness(unsigned int level);
+
+    json GetProperties(std::vector<std::string> props);
+
+    unsigned int        GetRgb() const;
+    unsigned int        GetBrightness() const;
+    bool                GetPower() const;
 
 private:
+    std::string         name;
+    std::string         version;
     std::string         location;
-    std::string         host_ip;
-    net_port            port;
-    bool                music_mode;
-    unsigned int        music_mode_port;
-    net_port            music_mode_server;
-    SOCKET *            music_mode_sock;
+    std::string         token;
+    unsigned int        rgb;
+    unsigned int        level;
+    bool                power;
+
+    MiioDevice          miio_device;
+
 };

@@ -38,24 +38,18 @@ void DetectYeelightControllers()
     {
         for(unsigned int device_idx = 0; device_idx < yeelight_settings["devices"].size(); device_idx++)
         {
-            std::string yeelight_host_ip;
-
-            if(yeelight_settings["devices"][device_idx].contains("host_ip"))
-            {
-                yeelight_host_ip = yeelight_settings["devices"][device_idx]["host_ip"];
-            }
 
             if(yeelight_settings["devices"][device_idx].contains("ip"))
             {
                 std::string yeelight_ip = yeelight_settings["devices"][device_idx]["ip"];
-                bool        music_mode  = false;
+                std::string token;
 
-                if(yeelight_settings["devices"][device_idx].contains("music_mode"))
+                if(yeelight_settings["devices"][device_idx].contains("token"))
                 {
-                    music_mode = yeelight_settings["devices"][device_idx]["music_mode"];
+                    token = yeelight_settings["devices"][device_idx]["token"];
                 }
 
-                YeelightController*     controller     = new YeelightController(yeelight_ip, yeelight_host_ip, music_mode);
+                YeelightController*     controller     = new YeelightController(yeelight_ip, token);
                 RGBController_Yeelight* rgb_controller = new RGBController_Yeelight(controller);
 
                 ResourceManager::get()->RegisterRGBController(rgb_controller);

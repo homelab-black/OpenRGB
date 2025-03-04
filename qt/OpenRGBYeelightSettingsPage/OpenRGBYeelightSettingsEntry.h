@@ -28,5 +28,4 @@ public:
 
 private slots:
     void changeEvent(QEvent *event);
-    void on_HostIPChooserButton_clicked();
 };

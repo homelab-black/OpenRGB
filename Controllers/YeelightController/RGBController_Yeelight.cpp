@@ -41,24 +41,15 @@ RGBController_Yeelight::RGBController_Yeelight(YeelightController* controller_pt
     | "Static" to prevent effect engine use, as the standard    |
     | interface is limited to a very low update rate            |
     \*---------------------------------------------------------*/
-    if(controller->GetMusicMode())
-    {
-        mode Direct;
-        Direct.name       = "Direct";
-        Direct.value      = 0;
-        Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
-        Direct.color_mode = MODE_COLORS_PER_LED;
-        modes.push_back(Direct);
-    }
-    else
-    {
-        mode Static;
-        Static.name       = "Static";
-        Static.value      = 0;
-        Static.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
-        Static.color_mode = MODE_COLORS_PER_LED;
-        modes.push_back(Static);
-    }
+    mode Static;
+    Static.name       = "Static";
+    Static.value      = 0;
+    Static.flags      = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Static.color_mode = MODE_COLORS_PER_LED;
+    Static.brightness_min = 1;
+    Static.brightness_max = 100;
+    Static.brightness = controller->GetBrightness();
+    modes.push_back(Static);
 
     SetupZones();
 }
@@ -81,6 +72,7 @@ void RGBController_Yeelight::SetupZones()
 
     led new_led;
     new_led.name = "RGB Light";
+    new_led.value = controller->GetRgb();
 
     leds.push_back(new_led);
 
@@ -96,11 +88,8 @@ void RGBController_Yeelight::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_Yeelight::DeviceUpdateLEDs()
 {
-    unsigned char red = RGBGetRValue(colors[0]);
-    unsigned char grn = RGBGetGValue(colors[0]);
-    unsigned char blu = RGBGetBValue(colors[0]);
-
-    controller->SetColor(red, grn, blu);
+    controller->SetColor(colors[0]);
+    controller->SetBrightness(modes[0].brightness);
 }
 
 void RGBController_Yeelight::UpdateZoneLEDs(int /*zone*/)
