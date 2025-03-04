@@ -154,6 +154,7 @@ INCLUDEPATH +=                                                                  
     i2c_tools/                                                                                  \
     interop/                                                                                    \
     net_port/                                                                                   \
+    miio/                                                                                       \
     pci_ids/                                                                                    \
     scsiapi/                                                                                    \
     serial_port/                                                                                \
@@ -192,6 +193,7 @@ HEADERS +=                                                                      
     interop/DeviceGuardLock.h                                                                   \
     interop/DeviceGuardManager.h                                                                \
     net_port/net_port.h                                                                         \
+    miio/MiioDevice.h                                                                           \
     pci_ids/pci_ids.h                                                                           \
     scsiapi/scsiapi.h                                                                           \
     serial_port/find_usb_serial_port.h                                                          \
@@ -261,6 +263,10 @@ SOURCES +=                                                                      
     interop/DeviceGuardLock.cpp                                                                 \
     interop/DeviceGuardManager.cpp                                                              \
     net_port/net_port.cpp                                                                       \
+    miio\aes.c                                                                                  \
+    miio\Device.cpp                                                                             \
+    miio\MiioDevice.cpp                                                                         \
+    miio\type_tools.cpp                                                                         \
     serial_port/serial_port.cpp                                                                 \
     StringUtils.cpp                                                                             \
     super_io/super_io.cpp                                                                       \
