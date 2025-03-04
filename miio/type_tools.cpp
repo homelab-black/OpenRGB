@@ -2,15 +2,9 @@
 
 #include <cmath>
 #include <cctype>
+#include <cstring>
 #include <time.h>
 
-/*
-int num = int((unsigned char)(*(bytes + 3)) << 24 |
-    (unsigned char)(*(bytes + 2)) << 16 |
-    (unsigned char)(*(bytes + 1)) << 8 |
-    (unsigned char)(*(bytes + 0)));
-return num;
-*/
 
 int CharBcd2Int(int dec)
 {
@@ -68,4 +62,46 @@ int Hex2Ascii(const char* hex, unsigned char* ascii)
         }
     }
     return tlen;
+}
+
+
+void Uint16ToCharBigEndian(const uint16_t *num, unsigned char *bytes)
+{
+    // Convert uint16_t to big-endian byte array
+    bytes[0] = (*num >> 8) & 0xFF;  // High byte
+    bytes[1] = *num & 0xFF;         // Low byte
+}
+
+void CharToUint32BigEndian(const unsigned char *bytes, uint32_t *num)
+{
+    // Convert big-endian byte array to uint32_t
+    *num = ((uint32_t)bytes[0] << 24) |
+           ((uint32_t)bytes[1] << 16) |
+           ((uint32_t)bytes[2] << 8)  |
+           (uint32_t)bytes[3];
+}
+
+void Uint32ToCharBigEndian(const uint32_t *num, unsigned char *bytes) {
+    // Convert uint32_t to big-endian byte array
+    bytes[0] = (*num >> 24) & 0xFF;  // Highest byte
+    bytes[1] = (*num >> 16) & 0xFF;
+    bytes[2] = (*num >> 8) & 0xFF;
+    bytes[3] = *num & 0xFF;         // Lowest byte
+}
+
+void CharToUint16BigEndian(const unsigned char *bytes, uint16_t *num)
+{
+    *num = ((uint16_t)bytes[0] << 8) | (uint16_t)bytes[1];
+}
+
+void Char2Int32LittleEndian(const char *bytes, int position, int *num)
+{
+#ifdef BIGENDIAN
+    *((char*)num + 0) = *(bytes + position + 3);
+    *((char*)num + 1) = *(bytes + position + 2);
+    *((char*)num + 2) = *(bytes + position + 1);
+    *((char*)num + 3) = *(bytes + position + 0);
+#else
+    memcpy(num, &(bytes[position]), 4);
+#endif
 }

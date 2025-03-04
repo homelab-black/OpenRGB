@@ -9,13 +9,11 @@
 #include <mbedtls/md5.h>
 
 
-using namespace std;
-
 Device::Device(const char *ip, const char *token) {
 
     if (!udp_client_.udp_client(ip, "54321"))
     {
-        throw runtime_error("Failed to create UDP Client");
+        throw std::runtime_error("Failed to create UDP Client");
     }
 
     unsigned char token_buf[16];
@@ -43,7 +41,7 @@ Device::Device(const char *ip, const char *token) {
 json Device::send(json &command) {
     // 1. Create Payload
     command["id"] = GetPacketIdPlus1();
-    string payload = command.dump();
+    std::string payload = command.dump();
 
     // 2. encrypt and send
     MakePayloads16Multiple(payload);
@@ -65,7 +63,7 @@ json Device::send(json &command) {
     if (ret < 0)
     {
         delete[] buf;
-        throw runtime_error("Failed to send command: " + to_string(ret));
+        throw std::runtime_error("Failed to send command: " + std::to_string(ret));
     }
     //do NOT need msg struct for received msg
     UnpackMsgHeader(buf, &msg);
@@ -158,7 +156,7 @@ void Device::FillMd5Checksum(unsigned char *msg_buf, uint32_t packet_length) {
     mbedtls_md5_free(&md5_ctx);
 }
 
-void Device::MakePayloads16Multiple(string& payloads_send) {
+void Device::MakePayloads16Multiple(std::string& payloads_send) {
     const char empty[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     uint32_t len = (uint32_t)payloads_send.length();
     int remain = len % 16;

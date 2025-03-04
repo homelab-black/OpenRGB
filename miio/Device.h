@@ -10,7 +10,6 @@
 using json = nlohmann::json;
 
 #include "aes.h"
-
 #include "net_port.h"
 
 class Device {
