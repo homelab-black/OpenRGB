@@ -263,7 +263,6 @@ SOURCES +=                                                                      
     interop/DeviceGuardLock.cpp                                                                 \
     interop/DeviceGuardManager.cpp                                                              \
     net_port/net_port.cpp                                                                       \
-    miio\aes.c                                                                                  \
     miio\Device.cpp                                                                             \
     miio\MiioDevice.cpp                                                                         \
     miio\type_tools.cpp                                                                         \

@@ -9,20 +9,18 @@
 #include <mbedtls/md5.h>
 
 
-Device::Device(const char *ip, const char *token) {
+Device::Device(const char *ip, const char *token) : packet_id_(0) {
 
     if (!udp_client_.udp_client(ip, "54321"))
     {
         throw std::runtime_error("Failed to create UDP Client");
     }
 
-    unsigned char token_buf[16];
-    Hex2Ascii(token, token_buf);
+    Hex2Ascii(token, token_);
 
-    //set token
-    memcpy(token_, token_buf, 16);
     //set aes ctx
-    Token2AesCtx(token_, &ctx_, iv_);
+    Token2AesCtx();
+
     //handshake
     unsigned char handshake_buf[32] = { 0x21, 0x31, 0, 0x20, 0xff, 0xff, 0xff, 0xff,
                                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -40,7 +38,7 @@ Device::Device(const char *ip, const char *token) {
 
 json Device::send(json &command) {
     // 1. Create Payload
-    command["id"] = GetPacketIdPlus1();
+    command["id"] = IncPacketId();
     std::string payload = command.dump();
 
     // 2. encrypt and send
@@ -77,29 +75,68 @@ json Device::send(json &command) {
     return json::parse(payload);
 }
 
-void Device::Token2AesCtx(const unsigned char *token, AES_ctx *ctx_with_key, uint8_t *iv) {
-    unsigned char key_byte[16];
-    unsigned char iv_byte[16];
+int Device::UdpSendSync(void *send_buf, uint32_t send_buf_size, void *recv_buf, uint32_t recv_buf_size)
+{
+    udp_client_.udp_write((char*)send_buf, send_buf_size);
+
+    return udp_client_.udp_listen((char*)recv_buf, recv_buf_size);
+}
+
+void Device::Token2AesCtx() {
 
     mbedtls_md5_context md5_ctx;
     mbedtls_md5_init(&md5_ctx);
 
     // Generate key from token (first 16 bytes)
     mbedtls_md5_starts(&md5_ctx);
-    mbedtls_md5_update(&md5_ctx, token, 16);
-    mbedtls_md5_finish(&md5_ctx, key_byte);
+    mbedtls_md5_update(&md5_ctx, token_, 16);
+    mbedtls_md5_finish(&md5_ctx, key_);
 
-    AES_init_ctx(ctx_with_key, key_byte);//AES_init_ctx only will use key_byte[0] to key_byte[15]
-
+    // Generate iv from key + token (first 16 bytes)
     mbedtls_md5_starts(&md5_ctx);
-    mbedtls_md5_update(&md5_ctx, key_byte, 16);
-    mbedtls_md5_update(&md5_ctx, token, 16);
-    mbedtls_md5_finish(&md5_ctx, iv_byte);
-
-    memcpy(iv, iv_byte, 16);
-    //AES_init_ctx_iv(ctx, key_byte, iv_byte);
+    mbedtls_md5_update(&md5_ctx, key_, 16);
+    mbedtls_md5_update(&md5_ctx, token_, 16);
+    mbedtls_md5_finish(&md5_ctx, iv_);
 
     mbedtls_md5_free(&md5_ctx);
+}
+
+void Device::DecryptPayloads(uint8_t *payloads, uint16_t payloads_len) {
+    unsigned char output[16];
+
+    unsigned char temp_iv[16];
+    memcpy(temp_iv, iv_, 16);
+
+    mbedtls_aes_context ctx;
+
+    mbedtls_aes_setkey_dec(&ctx, key_, 128);
+
+    for (uint16_t i = 0; i < payloads_len; i += 16) {
+        mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_DECRYPT, 16,
+                              temp_iv, payloads + i, output);
+        memcpy(payloads + i, output, 16);
+    }
+
+    mbedtls_aes_free(&ctx);
+}
+
+void Device::EncryptPayloads(uint8_t *payloads, uint16_t payloads_len) {
+    unsigned char output[16];
+
+    unsigned char temp_iv[16];
+    memcpy(temp_iv, iv_, 16);
+
+    mbedtls_aes_context ctx;
+
+    mbedtls_aes_setkey_enc(&ctx, key_, 128);
+
+    for (uint16_t i = 0; i < payloads_len; i += 16) {
+        mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, 16,
+                              temp_iv, payloads + i, output);
+        memcpy(payloads + i, output, 16);
+    }
+
+    mbedtls_aes_free(&ctx);
 }
 
 void Device::UnpackHandshakeMsg(const unsigned char *msg_buf, Device::Msg *msg) {
@@ -112,16 +149,6 @@ void Device::UnpackMsgHeader(const uint8_t *msg_buf, Device::Msg *msg) {
     memcpy(&(msg->did), &(msg_buf[8]), 4);
     CharToUint32BigEndian(&(msg_buf[12]), &(msg->stamp));
     memcpy(&(msg->md5_checksum), &(msg_buf[16]), 16);
-}
-
-void Device::DecryptPayloads(uint8_t *payloads, uint16_t payloads_len) {
-    AES_ctx_set_iv(&ctx_, iv_);
-    AES_CBC_decrypt_buffer(&ctx_, payloads, payloads_len);
-}
-
-void Device::EncryptPayloads(uint8_t *payloads, uint16_t payloads_len) {
-    AES_ctx_set_iv(&ctx_, iv_);
-    AES_CBC_encrypt_buffer(&ctx_, payloads, payloads_len);
 }
 
 void Device::PackMsgHeader(const Device::Msg *msg, uint8_t *msg_buf) {
@@ -172,4 +199,9 @@ void Device::GetPayloadsActualLength(uint8_t *payloads, uint16_t *payloads_len) 
     {
         (*payloads_len)--;
     }
+}
+
+int Device::IncPacketId()
+{
+    return ++packet_id_;
 }
