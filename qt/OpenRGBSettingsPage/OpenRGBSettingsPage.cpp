@@ -19,6 +19,16 @@
 
 using namespace Ui;
 
+/*-------------------------------------------------------------------------*\
+| Translation Strings                                                       |
+\*-------------------------------------------------------------------------*/
+const char* SMBUS_SPEED_WARNING =   QT_TRANSLATE_NOOP("OpenRGBSettingsPageUi",
+                                                      "<h2>WARNING</h2>"
+                                                      "<p>Modifying this value can cause the computer to malfunction, resulting in "
+                                                      "data loss, downtime, or even damage to the hardware. </p>"
+                                                      "<p>The OpenRGB project or any of its contributors are not liable for any damage.</p>"
+                                                     );
+
 OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::OpenRGBSettingsPageUi)
@@ -214,9 +224,29 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     {
         ui->CheckboxAMDSMBusReduceCPU->setChecked(drivers_settings["amd_smbus_reduce_cpu"]);
     }
+
+    bool set_smbus_speed = false;
+    int smbus_speed = ui->SpinSmbusSpeed->value();
+    if(drivers_settings.contains("amd_smbus_set_speed") && drivers_settings["amd_smbus_set_speed"].is_boolean())
+    {
+        set_smbus_speed = drivers_settings["amd_smbus_set_speed"].get<bool>();
+    }
+    ui->CheckboxSmbusSpeed->setChecked(set_smbus_speed);
+    if(drivers_settings.contains("amd_smbus_speed") && drivers_settings["amd_smbus_speed"].is_number_unsigned())
+    {
+        int config_speed = drivers_settings["amd_smbus_speed"].get<unsigned int>();
+        if((config_speed >= ui->SpinSmbusSpeed->minimum()) && (config_speed <= ui->SpinSmbusSpeed->maximum()))
+        {
+            smbus_speed = config_speed;
+        }
+    }
+    ui->SpinSmbusSpeed->setValue(smbus_speed);
+    ui->SpinSmbusSpeed->setEnabled(set_smbus_speed);
 #else
     ui->DriversSettingsLabel->hide();
     ui->CheckboxAMDSMBusReduceCPU->hide();
+    ui->CheckboxSmbusSpeed->hide();
+    ui->SpinSmbusSpeed->hide();
 #endif
     /*---------------------------------------------------------*\
     | Load drivers settings (Windows only)                      |
@@ -976,6 +1006,28 @@ void Ui::OpenRGBSettingsPage::on_CheckboxAMDSMBusReduceCPU_clicked()
 {
     json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
     drivers_settings["amd_smbus_reduce_cpu"] = ui->CheckboxAMDSMBusReduceCPU->isChecked();
+    ResourceManager::get()->GetSettingsManager()->SetSettings("Drivers", drivers_settings);
+    SaveSettings();
+}
+
+void Ui::OpenRGBSettingsPage::on_CheckboxSmbusSpeed_clicked()
+{
+    json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
+    bool set_smbus_speed = ui->CheckboxSmbusSpeed->isChecked();
+    if(set_smbus_speed)
+    {
+        LOG_DIALOG("%s", SMBUS_SPEED_WARNING);
+    }
+    drivers_settings["amd_smbus_set_speed"] = set_smbus_speed;
+    ResourceManager::get()->GetSettingsManager()->SetSettings("Drivers", drivers_settings);
+    SaveSettings();
+    ui->SpinSmbusSpeed->setEnabled(set_smbus_speed);
+}
+
+void Ui::OpenRGBSettingsPage::on_SpinSmbusSpeed_editingFinished()
+{
+    json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
+    drivers_settings["amd_smbus_speed"] = ui->SpinSmbusSpeed->value();
     ResourceManager::get()->GetSettingsManager()->SetSettings("Drivers", drivers_settings);
     SaveSettings();
 }

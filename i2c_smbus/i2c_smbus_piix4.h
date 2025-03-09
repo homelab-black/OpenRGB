@@ -30,6 +30,15 @@
 #define SMBSHDWCMD (9 + piix4_smba)
 #define SMBSLVEVT (0xA + piix4_smba)
 #define SMBSLVDAT (0xC + piix4_smba)
+#define SMBSPEED (0xE + piix4_smba)
+
+#define PIIX4_CLOCK_BASE       16500000u
+// divisor must be <= 255
+#define PIIX4_SPEED_MIN        ((PIIX4_CLOCK_BASE + 254u) / 255u)
+// divisor after reset
+#define PIIX4_DIVISOR_DEFAULT  0xB0
+// SPD is rated for 1 MHz, don't go above that
+#define PIIX4_SPEED_MAX        1000000u
 
 #define MAX_TIMEOUT     5000
 
@@ -51,6 +60,9 @@ public:
     i2c_smbus_piix4();
     ~i2c_smbus_piix4();
 
+    void i2c_set_max_speed(int hz);
+    void set_configured_speed();
+
 private:
     int piix4_transaction();
     s32 piix4_access(u16 addr, char read_write, u8 command, int size, i2c_smbus_data *data);
@@ -62,4 +74,5 @@ private:
 #else
     bool delay_timer;
 #endif
+    bool speed_changed = false;
 };

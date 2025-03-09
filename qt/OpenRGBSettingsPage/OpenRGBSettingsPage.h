@@ -80,6 +80,8 @@ private slots:
     void on_CheckboxLogConsole_clicked();
     void on_CheckboxLogFile_clicked();
     void on_CheckboxAMDSMBusReduceCPU_clicked();
+    void on_CheckboxSmbusSpeed_clicked();
+    void on_SpinSmbusSpeed_editingFinished();
     void on_CheckboxSharedSMBusAccess_clicked();
 
     void on_CheckboxSetOnExit_clicked(bool checked);
