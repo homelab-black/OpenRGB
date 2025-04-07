@@ -25,6 +25,7 @@ std::map<std::string, ZotacV2GPUConfig> ZOTAC_V2_GPU_CONFIG =
     { "N675E-1019", { 1, true  } },  // ZOTAC GAMING GeForce RTX 4090 Trinity OC
     { "N675E-1062", { 1, true  } },  // ZOTAC GAMING GeForce RTX 4090 Trinity OC Alternate Controller Version
     { "N675A-1019", { 5, true  } },  // ZOTAC GAMING GeForce RTX 4080 16GB AMP Extreme AIRO
+    { "N675A-1072", { 5, true  } },  // ZOTAC GAMING GeForce RTX 4080 16GB Super AMP Extreme AIRO
     { "N675A-1062", { 5, true  } },  // ZOTAC GAMING GeForce RTX 4090 AMP Extreme AIRO
 };
 
