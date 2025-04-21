@@ -87,8 +87,6 @@ public:
     i2c_smbus_interface();
     virtual ~i2c_smbus_interface();
 
-    void i2c_smbus_thread_function();
-
     //Functions derived from i2c-core.c
     s32 i2c_smbus_write_quick(u8 addr, u8 value);
     s32 i2c_smbus_read_byte(u8 addr);
@@ -106,6 +104,7 @@ public:
     s32 i2c_read_block(u8 addr, int* size, u8* data);
     s32 i2c_write_block(u8 addr, int size, u8* data);
 
+private:
     //Handle SMBus and I2C transfer calls in a single thread
     s32 i2c_smbus_xfer_call(u8 addr, char read_write, u8 command, int size, i2c_smbus_data* data);
     s32 i2c_xfer_call(u8 addr, char read_write, int* size, u8 *data);
@@ -113,29 +112,8 @@ public:
     virtual s32 i2c_smbus_xfer(u8 addr, char read_write, u8 command, int size, i2c_smbus_data* data) = 0;
     virtual s32 i2c_xfer(u8 addr, char read_write, int* size, u8* data) = 0;
 
-private:
-    std::thread *           i2c_smbus_thread;
-    std::atomic<bool>       i2c_smbus_thread_running;
-
-    std::atomic<bool>       i2c_smbus_start;
-    std::condition_variable i2c_smbus_start_cv;
-    std::mutex              i2c_smbus_start_mutex;
-
-    std::atomic<bool>       i2c_smbus_done;
-    std::condition_variable i2c_smbus_done_cv;
-    std::mutex              i2c_smbus_done_mutex;
-
     std::mutex              i2c_smbus_xfer_mutex;
 
-    u8                  i2c_addr;
-    char                i2c_read_write;
-    u8                  i2c_command;
-    int                 i2c_size_smbus;
-    int*                i2c_size;
-    i2c_smbus_data*     i2c_data_smbus;
-    u8*                 i2c_data;
-    s32                 i2c_ret;
-    bool                smbus_xfer;
 };
 
 #endif /* I2C_SMBUS_H */

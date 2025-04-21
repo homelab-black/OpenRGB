@@ -13,8 +13,30 @@
 #include <cstring>
 #include <vector>
 #include "KingstonFuryDRAMController.h"
-#include "RGBController.h"
+//#include "RGBController.h"
 #include "LogManager.h"
+
+static inline time_point now()
+{
+    return std::chrono::steady_clock::now();
+}
+
+static inline double to_ms(duration dt)
+{
+    return std::chrono::nanoseconds(dt).count() / 1000000.0;
+}
+
+static inline void BusyWaitUntil(time_point tp)
+{
+    while(now() < tp)
+    {
+    }
+}
+
+static inline void BusyWaitFor(duration dt)
+{
+    BusyWaitUntil(now() + dt);
+}
 
 KingstonFuryDRAMController::KingstonFuryDRAMController(
     i2c_smbus_interface* bus, unsigned char base_addr, std::vector<int> slots)
@@ -23,19 +45,31 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(
     this->base_addr = base_addr;
     this->slots     = slots;
 
-    reg_cache.resize(slots.size());
+    led_color_regs.resize(slots.size());
+    time_point t0 = now();
+    last_writes.resize(slots.size(), t0);
+
+    last_begin_trans_start = t0;
+    last_begin_trans_master = t0;
+    last_begin_trans_end = t0;
+    last_end_trans_start = t0;
+    last_end_trans_master = t0;
+    last_end_trans_end = t0;
+    last_offline_start  = t0;
+    last_offline_detect  = t0;
+    last_offline_end  = t0;
 }
 
 std::string KingstonFuryDRAMController::GetDeviceLocation()
 {
     std::string return_string(bus->device_name);
     return_string.append(", addresses [");
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
         char addr[5];
         snprintf(addr, 5, "0x%02X", base_addr + slots[idx]);
         return_string.append(addr);
-        if(idx < slots.size() - 1)
+        if(idx < GetSlotCount() - 1)
         {
             return_string.append(",");
         }
@@ -49,130 +83,78 @@ std::string KingstonFuryDRAMController::GetDeviceLocation()
 
 unsigned int KingstonFuryDRAMController::GetLEDCount()
 {
-    return(GetLEDPerDIMM() * (unsigned int)slots.size());
+    return(GetLEDPerDIMM() * (unsigned int)GetSlotCount());
 }
 
-unsigned int KingstonFuryDRAMController::GetSlotCount()
+int KingstonFuryDRAMController::GetSlotCount()
 {
-    return((unsigned int)slots.size());
+    return((int)slots.size());
+}
+
+unsigned char KingstonFuryDRAMController::GetSlotAddress(int slot_idx)
+{
+    return base_addr + slots[slot_idx];
 }
 
 unsigned char KingstonFuryDRAMController::GetMode()
 {
-    unsigned char mode = 0;
-    CachedRead(0, FURY_REG_MODE, &mode);
-    return mode;
+    int res = SmbusReadByte(0, FURY_REG_MODE);
+    if(res < 0) {
+        return 0;
+    }
+    else
+    {
+        return res & 0xFF;
+    }
 }
 
-bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsigned char *val)
+int KingstonFuryDRAMController::SmbusReadByte(int slot_idx, unsigned char reg)
 {
-    if(val == NULL)
+    unsigned char device_addr = GetSlotAddress(slot_idx);
+    int res = bus->i2c_smbus_read_word_data(device_addr, reg);
+    if(res >= 0)
     {
-        return false;
-    }
-
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    int res;
-
-    for(int retries = 1; retries <= 5; retries++)
-    {
-        res = bus->i2c_smbus_read_word_data(device_addr, reg);
-        if(res >= 0)
-        {
-            *val = (res >> 8) & 0xFF;
-            LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%02X",
-                      FURY_CONTROLLER_NAME, device_addr, reg, *val, res);
-            return true;
-        }
-        else
-        {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY);
-        }
-    }
-    return false;
-}
-
-bool KingstonFuryDRAMController::SmbusWrite(int slot_idx, unsigned char reg, unsigned char val)
-{
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    int res;
-
-    for(int retries = 1; retries <= 5; retries++)
-    {
-        res = bus->i2c_smbus_write_byte_data(device_addr,
-                                             reg, val);
-        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%02X",
+        int val = (res >> 8) & 0xFF;
+        LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%08X",
                   FURY_CONTROLLER_NAME, device_addr, reg, val, res);
-        if(res >= 0)
-        {
-            return true;
-        }
-        else
-        {
-            std::this_thread::sleep_for(3 * retries * FURY_DELAY);
-        }
-    }
-    return false;
-}
-
-// returns whether a read was successful
-bool KingstonFuryDRAMController::CachedRead(int slot_idx, unsigned char reg, unsigned char *val)
-{
-    if(val == NULL)
-    {
-        return false;
-    }
-
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    if(reg_cache[slot_idx].find(reg) == reg_cache[slot_idx].end())
-    {
-        if(SmbusRead(slot_idx, reg, val))
-        {
-            reg_cache[slot_idx][reg] = *val;
-            return true;
-        }
-        LOG_ERROR("[%s] %02X failed to get register &%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg);
-        return false;
+        return val;
     }
     else
     {
-        *val = reg_cache[slot_idx][reg];
-        return true;
+        LOG_DEBUG("[%s] %02X reading register &%02X; res=%08X %s",
+                  FURY_CONTROLLER_NAME, device_addr, reg, res, strerror(-res));
+        return res;
     }
 }
 
-// returns whether a write was actually performed
-bool KingstonFuryDRAMController::CachedWrite(int slot_idx, unsigned char reg, unsigned char val)
+int KingstonFuryDRAMController::SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val)
 {
-    unsigned char device_addr = base_addr + slots[slot_idx];
-    if(reg_cache[slot_idx].find(reg) == reg_cache[slot_idx].end() ||
-       reg_cache[slot_idx][reg] != val)
+    unsigned char device_addr = GetSlotAddress(slot_idx);
+    int res;
+
+    res = bus->i2c_smbus_write_byte_data(device_addr, reg, val);
+    if(res >= 0)
     {
-        if(SmbusWrite(slot_idx, reg, val))
-        {
-            reg_cache[slot_idx][reg] = val;
-            return true;
-        }
-        LOG_ERROR("[%s] %02X failed to set register &%02X=%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg, val);
-        return false;
+        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%08X",
+                  FURY_CONTROLLER_NAME, device_addr, reg, val, res);
     }
     else
     {
-        LOG_DEBUG("[%s] %02X register already set &%02X=%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg, val);
-        return false;
+        LOG_DEBUG("[%s] %02X setting register &%02X=%02X; res=%08X %s",
+                  FURY_CONTROLLER_NAME, device_addr, reg, val, res, strerror(-res));
     }
+    return res;
 }
 
 void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
 {
     SendBegin();
 
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    int last_slot = GetSlotCount() - 1;
+    char written_index = 0;
+    // start with the outermost stick
+    for(int idx = last_slot; idx >= 0; idx--)
     {
-        char written_index = 0;
 #ifdef FURY_SYNC
         if(!synchronize)
         {
@@ -198,36 +180,192 @@ void KingstonFuryDRAMController::SendPreamble(bool /*synchronize*/)
         LOG_DEBUG("[%s] %02X writing index %d",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx],
                   written_index);
-        SmbusWrite((int)idx, FURY_REG_INDEX, written_index);
+        SmbusWriteByte((int)idx, FURY_REG_INDEX, written_index);
+        written_index += 1;
     }
     // The RGB controller is a bit slow and requires delay;
     // however, we can delay once for all of the sticks instead of
     // delaying individually for each stick.
-    std::this_thread::sleep_for(FURY_DELAY);
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 
     SendApply();
+
+    SendBegin();
+    SetNumSlots();
+    SendApply();
+}
+
+#define D1 1ms
+#define DE 80ms
+void KingstonFuryDRAMController::x()
+{
+    int last_slot = GetSlotCount() - 1;
+    // start with the outermost stick
+    std::this_thread::sleep_for(DE);
+    for(int idx = last_slot; idx >= 0; idx--)
+    {
+        SmbusWriteByte(idx, FURY_REG_APPLY, FURY_BEGIN_TRNSFER);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
+    for(int idx = 0; idx <= last_slot; idx++)
+    {
+        SmbusReadByte(idx, FURY_REG_SPEED);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
+    for(int idx = 0; idx <= last_slot; idx++)
+    {
+        SmbusWriteByte(idx, FURY_REG_APPLY, FURY_END_TRNSFER);
+        std::this_thread::sleep_for(D1);
+    }
+    std::this_thread::sleep_for(DE);
 }
 
 void KingstonFuryDRAMController::SendBegin()
 {
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    last_begin_trans_start = LogTimestamp("begin trans started", now());
+    int last_slot = GetSlotCount() - 1;
+    // start with the outermost stick
+    for(int idx = last_slot; idx >= 0; idx--)
     {
         LOG_DEBUG("[%s] %02X beginning transaction",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
-        SmbusWrite((int)idx, FURY_REG_APPLY, FURY_BEGIN_TRNSFER);
+        SetTransactionMode(idx, FURY_BEGIN_TRNSFER);
+        if(idx == last_slot)
+        {
+            last_offline_end = LogTimestamp("detected online", transactionmode_first_read);
+            double dt = to_ms(transactionmode_last_write - last_begin_trans_master);
+            if(dt < 200)
+            {
+                static int count = 0;
+                static const int window = 100;
+                period_rolling_average -= period_rolling_average / window;
+                period_rolling_average += dt / window;
+                LOG_DEBUG("[%s] -------------------------------------------------- PERIOD %f ms avg %f ms (%f Hz) count %d --------------------------------------------------",
+                          FURY_CONTROLLER_NAME, dt, period_rolling_average, 1000 / period_rolling_average, ++count);
+            }
+            else
+            {
+                LOG_DEBUG("[%s] -------------------------------------------------- PERIOD %f ms (ignored for average) --------------------------------------------------",
+                          FURY_CONTROLLER_NAME, dt);
+            }
+            last_begin_trans_master = LogTimestamp("begin trans went through on master", transactionmode_last_write);
+        }
     }
-    std::this_thread::sleep_for(FURY_DELAY);
+    last_begin_trans_end = LogTimestamp("begin trans finished", now());
 }
 
 void KingstonFuryDRAMController::SendApply()
 {
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    last_end_trans_start = LogTimestamp("end trans started", now());
+    int last_slot = GetSlotCount() - 1;
+    for(int idx = 0; idx <= last_slot; idx++)
     {
         LOG_DEBUG("[%s] %02X ending transaction",
                   FURY_CONTROLLER_NAME, base_addr + slots[idx]);
-        SmbusWrite((int)idx, FURY_REG_APPLY, FURY_END_TRNSFER);
+        SetTransactionMode(idx, FURY_END_TRNSFER);
     }
-    std::this_thread::sleep_for(FURY_DELAY);
+    last_end_trans_master = LogTimestamp("end trans went through on master", transactionmode_last_write);
+    last_end_trans_end = LogTimestamp("end trans verified on master", now());
+
+    std::this_thread::sleep_until(last_begin_trans_master + FURY_DELAY_APPLY);
+
+    int goodcnt = 0;
+    int badcnt = 0;
+    int waitcnt = 0;
+    int tries = 0;
+    int nofailcounter = 0;
+    bool nofailseen = true;
+    int expected = (FURY_END_TRNSFER << 8) | FURY_READ_SUCCESS;
+    int res;
+    unsigned char addr = GetSlotAddress(last_slot);
+    last_offline_start = LogTimestamp("started looking for offline", now());
+    while(1)
+    {
+        res = bus->i2c_smbus_read_word_data(addr, 0x08);
+        LOG_DEBUG("i2c_smbus_read_word_data(0x%02x, 0x%02X):0x%08X", addr, 8, res);
+        if(nofailseen)
+        {
+            if(res == expected)
+            {
+                nofailcounter += 1;
+            }
+            else
+            {
+                nofailseen = false;
+                last_offline_detect = LogTimestamp("detected offline", now());
+            }
+        }
+        if(res < 0)
+        {
+            goodcnt = 0;
+            badcnt += 1;
+        }
+        else
+        {
+            goodcnt += 1;
+            badcnt = 0;
+        }
+        tries += 1;
+        if(badcnt > 2)
+        {
+            break;
+        }
+        if(goodcnt > 2)
+        {
+            goodcnt = 0;
+            waitcnt += 1;
+            if(waitcnt > 5)
+            {
+                break;
+            }
+            LOG_DEBUG("sendapply wait %d", waitcnt);
+            std::this_thread::sleep_for(15ms);
+        }
+    }
+    LOG_DEBUG("[%s] %02X%s detected offline, %d reads before first fail, %d tries total",
+              FURY_CONTROLLER_NAME, addr, (waitcnt > 5) ? " NOT" : "", nofailcounter, tries);
+}
+
+int KingstonFuryDRAMController::SetTransactionMode(int slot_idx, int val)
+{
+    bool readback = true;
+    bool no_successful_read = true;
+    int res;
+    int expected = (val << 8) | FURY_READ_SUCCESS;
+    int tries = 0;
+    unsigned char addr = GetSlotAddress(slot_idx);
+    while(1) { // TODO timeout
+        if(!readback) {
+            res = bus->i2c_smbus_write_byte_data(addr, FURY_REG_APPLY, val);
+            if (res >= 0) {
+                transactionmode_last_write = now();
+                readback = true;
+            }
+            // not waiting here when SMBUS runs faster than 100 kHz
+            // can overwrite random registers including the registers used for detection
+            BusyWaitFor(FURY_DELAY_WRITE_REGISTER);
+        }
+        if(readback) {
+            res = bus->i2c_smbus_read_word_data(addr, FURY_REG_APPLY);
+            if((res & 0xFFFF00FF) == FURY_READ_SUCCESS)
+            {
+                if(no_successful_read)
+                {
+                    transactionmode_first_read = now();
+                    no_successful_read = false;
+                }
+                readback = false;
+                if((res == expected) && (tries > 0))
+                {
+                    break;
+                }
+            }
+        }
+        tries += 1;
+    }
+    return tries;
 }
 
 void KingstonFuryDRAMController::SetMode(unsigned char val)
@@ -239,7 +377,7 @@ void KingstonFuryDRAMController::SetNumSlots()
 {
     if(slots.size() <= 4)
     {
-        SetRegister(FURY_REG_NUM_SLOTS, (unsigned char)slots.size());
+        SetRegister(FURY_REG_NUM_SLOTS, GetSlotCount());
     }
     else
     {
@@ -252,34 +390,26 @@ void KingstonFuryDRAMController::SetNumSlots()
 
 void KingstonFuryDRAMController::SetRegister(int reg, unsigned char val)
 {
-    bool write_occurred = false;
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite((int)idx, reg, val) || write_occurred;
+        SmbusWriteByte(idx, reg, val);
     }
-    if(write_occurred)
-    {
-        std::this_thread::sleep_for(FURY_DELAY);
-    }
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 }
 
 void KingstonFuryDRAMController::SetRegister(int reg, std::vector<unsigned char> vals)
 {
-    bool write_occurred = false;
     if(vals.size() < slots.size())
     {
         LOG_ERROR("[%s] vector of values has wrong size when setting register &%02X",
                   FURY_CONTROLLER_NAME, reg);
         return;
     }
-    for(std::size_t idx = 0; idx < slots.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
-        write_occurred = CachedWrite((int)idx, reg, vals[idx]) || write_occurred;
+        SmbusWriteByte(idx, reg, vals[idx]);
     }
-    if(write_occurred)
-    {
-        std::this_thread::sleep_for(FURY_DELAY);
-    }
+    std::this_thread::sleep_for(FURY_DELAY_WRITE_REGISTER);
 }
 
 void KingstonFuryDRAMController::SetModeColors(std::vector<RGBColor> colors)
@@ -291,7 +421,7 @@ void KingstonFuryDRAMController::SetModeColors(std::vector<RGBColor> colors)
 
     SetRegister(FURY_REG_NUM_COLORS, (unsigned char)colors.size());
 
-    for(std::size_t idx = 0; idx < colors.size(); idx++)
+    for(int idx = 0; idx < GetSlotCount(); idx++)
     {
         RGBColor color      = colors[idx];
         unsigned char red   = RGBGetRValue(color);
@@ -316,28 +446,44 @@ void KingstonFuryDRAMController::SetLEDColors(std::vector<RGBColor> colors)
     }
 
     unsigned int led_per_dimm = GetLEDPerDIMM();
-    for(unsigned int led_idx = 0; led_idx < led_per_dimm; led_idx++)
+
+    // pack rgb values for each stick
+    for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
     {
-        int red_register    = FURY_REG_BASE_RED   + 3 * led_idx;
-        int green_register  = FURY_REG_BASE_GREEN + 3 * led_idx;
-        int blue_register   = FURY_REG_BASE_BLUE  + 3 * led_idx;
-
-        std::vector<unsigned char> reds, greens, blues;
-        for(std::size_t slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
+        unsigned char *color_ptr_8 = &led_color_regs[slot_idx].bytes[0];
+        for(unsigned int led_idx = 0; led_idx < led_per_dimm; led_idx += 1)
         {
-            RGBColor color      = colors[slot_idx * led_per_dimm + led_idx];
-            unsigned char red   = RGBGetRValue(color);
-            unsigned char green = RGBGetGValue(color);
-            unsigned char blue  = RGBGetBValue(color);
-
-            reds.push_back(red);
-            greens.push_back(green);
-            blues.push_back(blue);
+            RGBColor color = colors[slot_idx * led_per_dimm + led_idx];
+            *color_ptr_8++ = RGBGetRValue(color);
+            *color_ptr_8++ = RGBGetGValue(color);
+            *color_ptr_8++ = RGBGetBValue(color);
         }
+    }
 
-        SetRegister(red_register, reds);
-        SetRegister(blue_register, blues);
-        SetRegister(green_register, greens);
+    // write two bytes at once, interleave across sticks
+    for(unsigned int reg_idx = 0; reg_idx < led_per_dimm * 3; reg_idx += 2)
+    {
+        time_point write_started = now();
+        for(int slot_idx = 0; slot_idx < GetSlotCount(); slot_idx++)
+        {
+            unsigned char addr = GetSlotAddress(slot_idx);
+            uint16_t val = led_color_regs[slot_idx].words[reg_idx / 2];
+            int res = bus->i2c_smbus_write_word_data(addr, FURY_REG_BASE_RED + reg_idx, val);
+            if(res < 0)
+            {
+                LOG_DEBUG("[%s] %02X setting register &%02X=%04X; res=%08X",
+                          FURY_CONTROLLER_NAME, addr, FURY_REG_BASE_RED + reg_idx, val, res, strerror(-res));
+            }
+            else
+            {
+                LOG_DEBUG("[%s] %02X setting register &%02X=%04X; res=%08X",
+                          FURY_CONTROLLER_NAME, addr, FURY_REG_BASE_RED + reg_idx, val, res);
+            }
+        }
+        // Ideally we should wait relative to the actual start of transaction, i.e. setting the start bit in the host controller.
+        // We can't do that when SMBUS is managed by the OS, otherwise it'd be possible.
+        // What we do here instead might cause glitches when preempted. !2701 is highly recommended.
+        BusyWaitUntil(write_started + FURY_DELAY_WRITE_REGISTER);
     }
 }
 
@@ -348,4 +494,20 @@ unsigned int KingstonFuryDRAMController::GetLEDPerDIMM()
         return(FURY_LEDS_PER_DIMM_DDR4);
     }
     return(FURY_LEDS_PER_DIMM_DDR5);
+}
+
+time_point KingstonFuryDRAMController::LogTimestamp(const char *txt, time_point tp)
+{
+    LOG_DEBUG("[%s] %s event "
+              "%f ms after begin trans started, %f ms after detected online, "
+              "%f ms after begin trans went through on master, %f ms after begin trans finished, "
+              "%f ms after end trans started, %f ms after end trans went through on master, %f ms after end trans verified on master, "
+              "%f ms after started looking for offline, %f ms after detected offline",
+              FURY_CONTROLLER_NAME, txt,
+              to_ms(tp - last_begin_trans_start), to_ms(tp - last_offline_end),
+              to_ms(tp - last_begin_trans_master), to_ms(tp - last_begin_trans_end),
+              to_ms(tp - last_end_trans_start), to_ms(tp - last_end_trans_master), to_ms(tp - last_end_trans_end),
+              to_ms(tp - last_offline_start), to_ms(tp - last_offline_detect)
+              );
+    return tp;
 }

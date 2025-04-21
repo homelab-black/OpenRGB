@@ -33,4 +33,6 @@ public:
 private:
     unsigned char               GetRealModeValue();
     KingstonFuryDRAMController* controller;
+
+    int last_mode = 0xDEADBEEF; // initialize to an invalid value to force preamble at startup
 };

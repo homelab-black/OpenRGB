@@ -59,7 +59,7 @@ TestResult TestForFurySignature(i2c_smbus_interface *bus, unsigned int slot_addr
         return RESULT_ERROR;
     }
 
-    std::this_thread::sleep_for(FURY_DELAY);
+    std::this_thread::sleep_for(FURY_DELAY_DETECT);
     LOG_DEBUG("[%s] %02X beginning transaction; res=%02X",
               FURY_CONTROLLER_NAME, slot_addr, res);
 
@@ -69,7 +69,7 @@ TestResult TestForFurySignature(i2c_smbus_interface *bus, unsigned int slot_addr
         for(int retry = 3; retry > 0; retry--)
         {
             res = bus->i2c_smbus_read_word_data(slot_addr, i);
-            std::this_thread::sleep_for(FURY_DELAY);
+            std::this_thread::sleep_for(FURY_DELAY_DETECT);
             LOG_DEBUG("[%s] Testing address %02X register %02X, res=%04X",
                       FURY_CONTROLLER_NAME, slot_addr, i, res);
             // retry when there is an error or the returned value is 0xFFFF
@@ -96,7 +96,7 @@ TestResult TestForFurySignature(i2c_smbus_interface *bus, unsigned int slot_addr
         // Get the model code
         res = bus->i2c_smbus_read_word_data(slot_addr, FURY_REG_MODEL);
         int model_code = res >> 8;
-        std::this_thread::sleep_for(FURY_DELAY);
+        std::this_thread::sleep_for(FURY_DELAY_DETECT);
         LOG_DEBUG("[%s] Reading model code at address %02X register %02X, res=%02X",
                   FURY_CONTROLLER_NAME, slot_addr, FURY_REG_MODEL, res);
 
@@ -113,7 +113,7 @@ TestResult TestForFurySignature(i2c_smbus_interface *bus, unsigned int slot_addr
     {
         return RESULT_ERROR;
     }
-    std::this_thread::sleep_for(FURY_DELAY);
+    std::this_thread::sleep_for(FURY_DELAY_DETECT);
     LOG_DEBUG("[%s] %02X ending transaction; res=%02X",
               FURY_CONTROLLER_NAME, slot_addr, res);
 
@@ -141,7 +141,7 @@ void DetectKingstonFuryDRAMControllers(i2c_smbus_interface* bus, std::vector<SPD
             {
                 // I/O error - wait for a bit and retry
                 retries++;
-                std::this_thread::sleep_for(FURY_DELAY);
+                std::this_thread::sleep_for(FURY_DELAY_DETECT);
             }
         }
 

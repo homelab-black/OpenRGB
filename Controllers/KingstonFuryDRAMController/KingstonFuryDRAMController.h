@@ -13,17 +13,29 @@
 #pragma once
 
 #include <string>
-#include <map>
 #include <vector>
 #include "i2c_smbus.h"
 #include "RGBController.h"
 
+using namespace std::chrono_literals; // ms and us suffixes
+typedef std::chrono::steady_clock::time_point time_point;
+typedef std::chrono::steady_clock::duration duration;
+
 #define FURY_CONTROLLER_NAME "Kingston Fury DDR4/5 DRAM"
 #define FURY_BASE_ADDR_DDR4 0x58
 #define FURY_BASE_ADDR_DDR5 0x60
-#define FURY_DELAY std::chrono::milliseconds(10)
+#define FURY_DELAY_DETECT          10ms
+#define FURY_DELAY_RETRY           10ms
+#define FURY_DELAY_APPLY           30ms
+#define FURY_DELAY_WRITE_REGISTER  300us
+#define FURY_READ_SUCCESS          0x5A
+
+#define FURY_SPEED_DEFAULT         0x18
+
 #define FURY_LEDS_PER_DIMM_DDR4 10
 #define FURY_LEDS_PER_DIMM_DDR5 12
+#define FURY_LEDS_PER_DIMM_MAX  12
+
 #define FURY_MAX_MODE_COLORS 10
 #define FURY_DEFAULT_BG_COLOR ToRGBColor(16,16,16)
 #define FURY_ALT_DIRECTIONS {\
@@ -128,7 +140,7 @@ public:
     std::string     GetDeviceLocation();
     unsigned int    GetLEDCount();
     unsigned int    GetLEDPerDIMM();
-    unsigned int    GetSlotCount();
+    int             GetSlotCount();
     unsigned char   GetMode();
 
     void            SendPreamble(bool synchronize);
@@ -136,6 +148,9 @@ public:
     void            SendApply();
     void            SetMode(unsigned char val);
     void            SetNumSlots();
+    void            ResetSpeed();
+    void            SetSpeed(std::vector<unsigned char> vals);
+    void            x();
 
     void            SetRegister(int reg, unsigned char val);
     void            SetRegister(int reg, std::vector<unsigned char> vals);
@@ -143,13 +158,43 @@ public:
     void            SetLEDColors(std::vector<RGBColor> colors);
 
 private:
-    bool            CachedRead(int slot_idx, unsigned char reg, unsigned char *val);
-    bool            CachedWrite(int slot_idx, unsigned char reg, unsigned char val);
-    bool            SmbusRead(int slot_idx, unsigned char reg, unsigned char *val);
-    bool            SmbusWrite(int slot_idx, unsigned char reg, unsigned char val);
+    typedef union
+    {
+        uint8_t  bytes[FURY_LEDS_PER_DIMM_MAX * 3];
+        uint16_t words[FURY_LEDS_PER_DIMM_MAX * 3 / 2];
+    } LedColorRegisters;
+
+    unsigned char   GetSlotAddress(int slot_idx);
+    int             SmbusReadByte(int slot_idx, unsigned char reg);
+    int             SmbusWriteByte(int slot_idx, unsigned char reg, unsigned char val);
+    //int             SmbusWriteWord(int slot_idx, unsigned char reg, unsigned char val);
+    int             SetTransactionMode(int slot_idx, int val);
+    time_point      LogTimestamp(const char *txt, time_point tp);
 
     i2c_smbus_interface*    bus;
     std::vector<int>        slots;
     unsigned char           base_addr;
-    std::vector<std::map<unsigned char, unsigned char>> reg_cache;
+    std::vector<LedColorRegisters> led_color_regs;
+    std::vector<unsigned char>     actual_speed;
+    std::vector<unsigned char>     target_speed;
+
+    std::vector<time_point> last_writes;
+    time_point transactionmode_first_read;
+    time_point transactionmode_last_write;
+    time_point last_begin_trans_start;
+    time_point last_begin_trans_master;
+    time_point last_begin_trans_end;
+    time_point last_end_trans_start;
+    time_point last_end_trans_master;
+    time_point last_end_trans_end;
+    time_point last_offline_start;
+    time_point last_offline_detect;
+    time_point last_offline_end;
+
+    // just for statistics
+    double period_rolling_average = 41; // Fury Beast DDR5-6000 CL30
+
+    // a bit more than the duration of a word write at 64 kHz, i.e. the minimum speed of the piix4 host
+    // not only for statistics,
+    duration write_word_rolling_average = 600us;
 };
