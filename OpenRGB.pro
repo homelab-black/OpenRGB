@@ -171,7 +171,6 @@ HEADERS +=                                                                      
     $$CONTROLLER_H                                                                              \
     Colors.h                                                                                    \
     dependencies/ColorWheel/ColorWheel.h                                                        \
-    dependencies/PawnIO/PawnIOLib.h \
     dependencies/json/nlohmann/json.hpp                                                         \
     LogManager.h                                                                                \
     NetworkClient.h                                                                             \
@@ -189,7 +188,6 @@ HEADERS +=                                                                      
     filesystem.h                                                                                \
     hidapi_wrapper/hidapi_wrapper.h                                                             \
     i2c_smbus/i2c_smbus.h                                                                       \
-    i2c_smbus/i2c_smbus_piix4_pawnio.h \
     i2c_tools/i2c_tools.h                                                                       \
     interop/DeviceGuard.h                                                                       \
     interop/DeviceGuardLock.h                                                                   \
@@ -242,7 +240,6 @@ SOURCES +=                                                                      
     dependencies/hueplusplus-1.2.0/src/UPnP.cpp                                                 \
     dependencies/hueplusplus-1.2.0/src/Utils.cpp                                                \
     dependencies/hueplusplus-1.2.0/src/ZLLSensors.cpp                                           \
-    i2c_smbus/i2c_smbus_piix4_pawnio.cpp \
     main.cpp                                                                                    \
     cli.cpp                                                                                     \
     dmiinfo/dmiinfo.cpp                                                                         \
@@ -348,6 +345,9 @@ win32:SOURCES +=                                                                
     i2c_smbus/i2c_smbus_nct6775.cpp                                                             \
     i2c_smbus/i2c_smbus_nvapi.cpp                                                               \
     i2c_smbus/i2c_smbus_piix4.cpp                                                               \
+    i2c_smbus/i2c_smbus_pawnio.cpp                                                              \
+    i2c_smbus/i2c_smbus_pawnio_i801.cpp                                                         \
+    i2c_smbus/i2c_smbus_pawnio_piix4.cpp                                                        \
     scsiapi/scsiapi_windows.c                                                                   \
     serial_port/find_usb_serial_port_win.cpp                                                    \
     SuspendResume/SuspendResume_Windows.cpp                                                     \
@@ -367,7 +367,7 @@ win32:HEADERS +=                                                                
     i2c_smbus/i2c_smbus_nct6775.h                                                               \
     i2c_smbus/i2c_smbus_nvapi.h                                                                 \
     i2c_smbus/i2c_smbus_piix4.h                                                                 \
-    i2c_smbus/i2c_smbus_piix4_pawnio.h                                                          \
+    i2c_smbus/i2c_smbus_pawnio.h                                                                \
     wmi/wmi.h                                                                                   \
     AutoStart/AutoStart-Windows.h                                                               \
     SuspendResume/SuspendResume_Windows.h                                                       \
@@ -407,6 +407,10 @@ win32:DEFINES +=                                                                
 win32:RC_ICONS +=                                                                               \
     qt/OpenRGB.ico
 
+win32:DISTFILES += \
+    dependencies/PawnIO/modules/SmbusPIIX4.bin \
+    dependencies/PawnIO/modules/SmbusI801.bin
+
 #-----------------------------------------------------------------------------------------------#
 # Windows GitLab CI Configuration                                                               #
 #-----------------------------------------------------------------------------------------------#
@@ -433,7 +437,8 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/libusb-1.0.27/VS2019/MS64/dll/libusb-1.0.dll)\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x64/hidapi.dll                   )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/PawnIOLib.dll                        )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/I2cPIIX4.bin                 )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusPIIX4.bin               )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusI801.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     first.depends = $(first) copydata
     export(first.depends)
     export(copydata.commands)
@@ -787,5 +792,4 @@ macx:contains(QMAKE_HOST.arch, x86_64) {
 
 DISTFILES += \
     debian/openrgb-udev.postinst \
-    debian/openrgb.postinst \
-    dependencies/PawnIO/modules/I2cPIIX4.bin
+    debian/openrgb.postinst
