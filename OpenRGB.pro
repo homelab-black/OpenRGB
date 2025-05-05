@@ -348,6 +348,7 @@ win32:SOURCES +=                                                                
     i2c_smbus/i2c_smbus_pawnio.cpp                                                              \
     i2c_smbus/i2c_smbus_pawnio_i801.cpp                                                         \
     i2c_smbus/i2c_smbus_pawnio_piix4.cpp                                                        \
+    super_io/super_io_pawnio.cpp                                                                \
     scsiapi/scsiapi_windows.c                                                                   \
     serial_port/find_usb_serial_port_win.cpp                                                    \
     SuspendResume/SuspendResume_Windows.cpp                                                     \
@@ -368,6 +369,7 @@ win32:HEADERS +=                                                                
     i2c_smbus/i2c_smbus_nvapi.h                                                                 \
     i2c_smbus/i2c_smbus_piix4.h                                                                 \
     i2c_smbus/i2c_smbus_pawnio.h                                                                \
+    super_io/super_io_pawnio.h                                                                  \
     wmi/wmi.h                                                                                   \
     AutoStart/AutoStart-Windows.h                                                               \
     SuspendResume/SuspendResume_Windows.h                                                       \
@@ -408,8 +410,9 @@ win32:RC_ICONS +=                                                               
     qt/OpenRGB.ico
 
 win32:DISTFILES += \
-    dependencies/PawnIO/modules/SmbusPIIX4.bin \
-    dependencies/PawnIO/modules/SmbusI801.bin
+    dependencies/PawnIO/modules/SmbusPIIX4.bin                                                  \
+    dependencies/PawnIO/modules/SmbusI801.bin                                                   \
+    dependencies/PawnIO/modules/LpcIO.bin
 
 #-----------------------------------------------------------------------------------------------#
 # Windows GitLab CI Configuration                                                               #
@@ -439,6 +442,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/PawnIOLib.dll                        )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusPIIX4.bin               )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusI801.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/LpcIO.bin                    )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     first.depends = $(first) copydata
     export(first.depends)
     export(copydata.commands)

@@ -275,6 +275,7 @@ s32 i2c_smbus_pawnio::i2c_xfer(u8 /*addr*/, char /*read_write*/, int* /*size*/, 
     return -1;
 }
 
+// TODO: Find a better place for this function
 #ifdef _WIN32
 HRESULT i2c_smbus_pawnio::start_pawnio(std::string filename, PHANDLE phandle) {
     HRESULT status;
