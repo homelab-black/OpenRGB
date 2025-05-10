@@ -7,12 +7,13 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
+
 #include <hidapi.h>
 #include "CreativeSoundBlasterXG6Controller.h"
 #include "RGBController_CreativeSoundBlasterXG6.h"
-#include "CreativePebbleXController.h"
-#include "RGBController_CreativePebbleX.h"
 #include "Detector.h"
+#include "LogManager.h"
+
 
 /*-----------------------------------------------------*\
 | Creative vendor ID                                    |
@@ -22,6 +23,7 @@
 | SoundCards                                            |
 \*-----------------------------------------------------*/
 #define CREATIVE_SOUNDBLASTERX_G6_PID           0x3256
+
 /*-----------------------------------------------------*\
 | Speakers                                              |
 \*-----------------------------------------------------*/
@@ -42,18 +44,28 @@ void DetectCreativeDevice(hid_device_info* info, const std::string& name)
 }
 
 
-void DetectCreativePebbleXDevice(hid_device_info* info, const std::string& name)
+void DetectCreativePebbleDevice(hid_device_info* info, const std::string& name)
 {
+
     hid_device* dev = hid_open_path(info->path);
+    // LOG_DEBUG("[%s] at address 0x%02X invalid. Expected 0xAB [0x*] but received:%s", 'GIGABYTEGPU_CONTROLLER_NAME2', address, text.c_str());
+    LOG_DEBUG("BEFORE IFELSE STATAEMNET");
 
     if(dev)
     {
+        LOG_DEBUG("MADE IT HERE DEV IS TRUE");
         CreativePebbleXController*     controller     = new CreativePebbleXController(dev, info->path);
         RGBController_CreativePebbleX* rgb_controller = new RGBController_CreativePebbleX(controller);
         rgb_controller->name = name;
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
+    else
+    {
+        LOG_DEBUG("'DIDNT MAKE IT HERE DEV IS FALSE'");
+    }
 }
+
+
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Sound Cards                                                                                                                                       |
@@ -63,4 +75,4 @@ REGISTER_HID_DETECTOR_I("Creative SoundBlasterX G6",               DetectCreativ
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Speakers                                                                                                                                          |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_I("Creative Pebble X", DetectCreativePebbleXDevice, CREATIVE_VID, CREATIVE_PEBBLE_X_PID, 3);
+REGISTER_HID_DETECTOR_I("Creative Pebble X", DetectCreativePebbleDevice, CREATIVE_VID, CREATIVE_PEBBLE_X_PID, 3);

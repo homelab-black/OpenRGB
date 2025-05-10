@@ -170,6 +170,8 @@ HEADERS +=                                                                      
     $$GUI_H                                                                                     \
     $$CONTROLLER_H                                                                              \
     Colors.h                                                                                    \
+    Controllers/CreativeController/CreativePebbleXController.h \
+    Controllers/CreativeController/RGBController_CreativePebbleX.h \
     dependencies/ColorWheel/ColorWheel.h                                                        \
     dependencies/json/nlohmann/json.hpp                                                         \
     LogManager.h                                                                                \
@@ -210,6 +212,8 @@ HEADERS +=                                                                      
 SOURCES +=                                                                                      \
     $$GUI_CPP                                                                                   \
     $$CONTROLLER_CPP                                                                            \
+    Controllers/CreativeController/CreativePebbleXController.cpp \
+    Controllers/CreativeController/RGBController_CreativePebbleX.cpp \
     dependencies/ColorWheel/ColorWheel.cpp                                                      \
     dependencies/hueplusplus-1.2.0/src/Action.cpp                                               \
     dependencies/hueplusplus-1.2.0/src/APICache.cpp                                             \
