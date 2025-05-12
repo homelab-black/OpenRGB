@@ -9,6 +9,8 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
+#pragma once
+
 void pawnio_superio_enter(int ioreg);
 
 void pawnio_superio_outb(int ioreg, int reg, int val);
