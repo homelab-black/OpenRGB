@@ -13,7 +13,6 @@
 #include "i2c_smbus_pawnio.h"
 #include "LogManager.h"
 #ifdef _WIN32
-#include "OlsApi.h"
 #include "PawnIOLib.h"
 #include "wmi.h"
 #endif
