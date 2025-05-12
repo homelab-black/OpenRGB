@@ -212,6 +212,7 @@ HEADERS +=                                                                      
 SOURCES +=                                                                                      \
     $$GUI_CPP                                                                                   \
     $$CONTROLLER_CPP                                                                            \
+    ../../CreativeController/creativepebblexcontroller.cpp \
     Controllers/CreativeController/CreativePebbleXController.cpp \
     Controllers/CreativeController/RGBController_CreativePebbleX.cpp \
     dependencies/ColorWheel/ColorWheel.cpp                                                      \

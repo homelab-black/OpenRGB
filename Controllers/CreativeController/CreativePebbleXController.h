@@ -19,12 +19,19 @@ public:
     CreativePebbleXController(hid_device* dev_handle, const char* path);
     ~CreativePebbleXController();
 
-    void                    UpdateDeviceLEDs(const std::vector<RGBColor>& led_colors);
-
+    void                    UpdateDeviceLEDs(const std::vector<RGBColor>& led_colors, unsigned char brightness);
+    void                    SetBrightness(unsigned char brightness);
+    void                    UpdateDeviceMode(unsigned char mode);
     std::string             GetDeviceLocation();
     std::string             GetSerialString();
 
 private:
     hid_device*             dev;
     std::string             location;
+
+    void            SendBrightness
+        (
+            unsigned char   brightness
+            );
+
 };
