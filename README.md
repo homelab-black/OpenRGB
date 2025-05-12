@@ -133,7 +133,6 @@ This project interacts directly with hardware using reverse engineered protocols
 
 * OpenRGB directly relies upon these projects.
 
-  * WinRing0: https://openlibsys.org/
   * libusb: https://github.com/libusb/libusb
   * hidapi: https://github.com/libusb/hidapi
   * libe131: https://github.com/hhromic/libe131
