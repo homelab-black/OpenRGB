@@ -33,31 +33,32 @@ std::string CreativePebbleXController::GetDeviceLocation()
 }
 
 
-// void CreativePebbleXController::UpdateDeviceMode(unsigned char mode)
-// {
-//     unsigned char usb_buf[64];
+void CreativePebbleXController::UpdateDeviceMode(unsigned char mode)
+{
+    unsigned char usb_buf[64];
 
-//     /*-----------------------------------------------------*\
-//     | Zero out buffer                                       |
-//     \*-----------------------------------------------------*/
-//     memset(usb_buf, 0x00, sizeof(usb_buf));
+    /*-----------------------------------------------------*\
+    | Zero out buffer                                       |
+    \*-----------------------------------------------------*/
+    memset(usb_buf, 0x00, sizeof(usb_buf));
 
-//     usb_buf[0x00]           = 0x03;
-//     usb_buf[0x01]           = 0x6A;
-//     usb_buf[0x02]           = 0x3A;
-//     usb_buf[0x03]           = 0x03;
-//     usb_buf[0x04]           = 0x00;
-//     usb_buf[0x05]           = 0x29;
-//     usb_buf[0x06]           = 0x01;
-//     usb_buf[0x07]           = mode;
+    usb_buf[0x00]           = 0x03;
+    usb_buf[0x01]           = 0x6A;
+    usb_buf[0x02]           = 0x3A;
+    usb_buf[0x03]           = 0x03;
+    usb_buf[0x04]           = 0x00;
+    usb_buf[0x05]           = 0x29;
+    usb_buf[0x06]           = 0x01;
+    usb_buf[0x07]           = mode;
 
-//     /*-----------------------------------------------------*\
-//     | Send packet                                           |
-//     \*-----------------------------------------------------*/
-//     hid_write(dev, usb_buf, sizeof(usb_buf));
-// }
+    /*-----------------------------------------------------*\
+    | Send packet                                           |
+    \*-----------------------------------------------------*/
+    hid_write(dev, usb_buf, sizeof(usb_buf));
+}
 
-void CreativePebbleXController::UpdateDeviceLEDs (unsigned char red, unsigned char grn, unsigned char blu, unsigned char brightness)
+
+void CreativePebbleXController::UpdateDeviceLEDs (std::vector<RGBColor> led_colors)
 {
     unsigned char usb_buf[64];
 
@@ -80,29 +81,28 @@ void CreativePebbleXController::UpdateDeviceLEDs (unsigned char red, unsigned ch
     int offset = 9;
     for (int i = 0; i < 5; i++) {
         usb_buf[offset++] = 0xFF;
-        usb_buf[offset++] = blu; //RGBGetBValue(led_colors[i]);     // Blue
-        usb_buf[offset++] = grn; //RGBGetGValue(led_colors[i]);     // Green
-        usb_buf[offset++] = red; //RGBGetRValue(led_colors[i]);     // Red
+        usb_buf[offset++] = RGBGetBValue(led_colors[i]);     // Blue
+        usb_buf[offset++] = RGBGetGValue(led_colors[i]);     // Green
+        usb_buf[offset++] = RGBGetRValue(led_colors[i]);     // Red
     }
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, usb_buf, sizeof(usb_buf));
+}
 
-
-    /*-----------------------------------------------------*\
-    | Small delay to ensure device processes command        |
-    \*-----------------------------------------------------*/
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+void CreativePebbleXController::SetBrightness (unsigned char brightness)
+{
+    unsigned char usb_buf[64];
 
     /*-----------------------------------------------------*\
     | Brightness goes from 0-100                            |
     \*-----------------------------------------------------*/
-    if(brightness > 0xFF)
-    {
-        brightness = 0xFF;
-    }
+    // if(brightness > 0xFF)
+    // {
+    //     brightness = 0xFF;
+    // }
     /*-----------------------------------------------------*\
     | Zero out buffer                                       |
     \*-----------------------------------------------------*/
@@ -121,82 +121,4 @@ void CreativePebbleXController::UpdateDeviceLEDs (unsigned char red, unsigned ch
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, usb_buf, sizeof(usb_buf));
-
-    /*-----------------------------------------------------*\
-    | Brightness goes from 0-100                            |
-    \*-----------------------------------------------------*/
-    // if(brightness > 0xFF)
-    // {
-    //     brightness = 0xFF;
-    // }
-    /*-----------------------------------------------------*\
-    // | Zero out buffer                                       |
-    // \*-----------------------------------------------------*/
-    // memset(usb_buf, 0x00, sizeof(usb_buf));
-    // /*-----------------------------------------------------*\
-    // | Set up Port State packet                              |
-    // \*-----------------------------------------------------*/
-    // usb_buf[0x00]   = 0x03;
-    // usb_buf[0x01]   = 0x6A;
-    // usb_buf[0x02]   = 0x3A;
-    // usb_buf[0x03]   = 0x02;
-    // usb_buf[0x04]   = 0x00;
-    // usb_buf[0x05]   = 0x27;
-    // usb_buf[0x06]   = brightness;
-    // /*-----------------------------------------------------*\
-    // | Send packet                                           |
-    // \*-----------------------------------------------------*/
-    // hid_write(dev, usb_buf, sizeof(usb_buf));
 }
-
-// void CreativePebbleXController::SetBrightness (unsigned char brightness)
-// {
-//     unsigned char usb_buf[64];
-
-    // /*-----------------------------------------------------*\
-    // | Brightness goes from 0-100                            |
-    // \*-----------------------------------------------------*/
-    // // if(brightness > 0xFF)
-    // // {
-    // //     brightness = 0xFF;
-    // // }
-    // /*-----------------------------------------------------*\
-    // | Zero out buffer                                       |
-    // \*-----------------------------------------------------*/
-    // memset(usb_buf, 0x00, sizeof(usb_buf));
-    // /*-----------------------------------------------------*\
-    // | Set up Port State packet                              |
-    // \*-----------------------------------------------------*/
-    // usb_buf[0x00]   = 0x03;
-    // usb_buf[0x01]   = 0x6A;
-    // usb_buf[0x02]   = 0x3A;
-    // usb_buf[0x03]   = 0x02;
-    // usb_buf[0x04]   = 0x00;
-    // usb_buf[0x05]   = 0x27;
-    // usb_buf[0x06]   = brightness;
-    // /*-----------------------------------------------------*\
-    // | Send packet                                           |
-    // \*-----------------------------------------------------*/
-    // hid_write(dev, usb_buf, sizeof(usb_buf));
-
-
-//     /*-----------------------------------------------------*\
-//     | Zero out buffer                                       |
-//     \*-----------------------------------------------------*/
-//     memset(usb_buf, 0x00, sizeof(usb_buf));
-//     /*-----------------------------------------------------*\
-//     | Set up Port State packet                              |
-//     \*-----------------------------------------------------*/
-//     usb_buf[0x00]   = 0x03;
-//     usb_buf[0x01]   = 0x6A;
-//     usb_buf[0x02]   = 0x3A;
-//     usb_buf[0x03]   = 0x02;
-//     usb_buf[0x04]   = 0x00;
-//     usb_buf[0x05]   = 0x2d;
-//     usb_buf[0x06]   = 0x01;
-//     /*-----------------------------------------------------*\
-//     | Send packet                                           |
-//     \*-----------------------------------------------------*/
-//     hid_write(dev, usb_buf, sizeof(usb_buf));
-
-// }

@@ -48,11 +48,11 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Chasers;
     Chasers.name                 = "Chasers";
     Chasers.value                = 0x0B;
-    Chasers.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED; // | MODE_FLAG_HAS_BRIGHTNESS;
+    Chasers.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
     Chasers.color_mode           = 2;
-    // Chasers.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
-    // Chasers.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
-    // Chasers.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Chasers.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Chasers.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Chasers.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Chasers.speed                = 0x00;
     Chasers.speed_max            = 0xFF;
     Chasers.speed_min            = 0x00;
@@ -61,15 +61,77 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Aurora;
     Aurora.name                 = "Aurora";
     Aurora.value                = 0x08;
-    Aurora.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED; // | MODE_FLAG_HAS_BRIGHTNESS;
+    Aurora.flags                = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
     Aurora.color_mode           = 0;
-    // Aurora.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
-    // Aurora.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
-    // Aurora.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Aurora.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Aurora.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Aurora.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Aurora.speed                = 0x00;
     Aurora.speed_max            = 0xFF;
     Aurora.speed_min            = 0x00;
     modes.push_back(Aurora);
+
+    mode Peak_Meter;
+    Peak_Meter.name                 = "Peak Meter";
+    Peak_Meter.value                = 0x0a;
+    Peak_Meter.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_UD;
+    Peak_Meter.color_mode           = MODE_COLORS_PER_LED;
+    Peak_Meter.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Peak_Meter.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Peak_Meter.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    modes.push_back(Peak_Meter);
+
+    mode Glowing;
+    Glowing.name                 = "Glowing";
+    Glowing.value                = 0x09;
+    Glowing.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Glowing.color_mode           = MODE_COLORS_PER_LED;
+    Glowing.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Glowing.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Glowing.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Glowing.speed                = 0x00;
+    Glowing.speed_max            = 0xFF;
+    Glowing.speed_min            = 0x00;
+    modes.push_back(Glowing);
+
+    mode Wave;
+    Wave.name                 = "Wave";
+    Wave.value                = 0x04;
+    Wave.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
+    Wave.color_mode           = MODE_COLORS_PER_LED;
+    Wave.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Wave.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Wave.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Wave.speed                = 0x00;
+    Wave.speed_max            = 0xFF;
+    Wave.speed_min            = 0x00;
+    modes.push_back(Wave);
+
+    mode Cycle;
+    Cycle.name                 = "Cycle";
+    Cycle.value                = 0x01;
+    Cycle.flags                = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Cycle.color_mode           = 0;
+    Cycle.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Cycle.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Cycle.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Cycle.speed                = 0x00;
+    Cycle.speed_max            = 0xFF;
+    Cycle.speed_min            = 0x00;
+    modes.push_back(Cycle);
+
+    mode Morph;
+    Morph.name                 = "Morph";
+    Morph.value                = 0x07;
+    Morph.flags                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Morph.color_mode           = MODE_COLORS_MODE_SPECIFIC;
+    Morph.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    Morph.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    Morph.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    Morph.speed                = 0x00;
+    Morph.speed_max            = 0xFF;
+    Morph.speed_min            = 0x00;
+    modes.push_back(Morph);
 
     SetupZones();
 }
@@ -103,12 +165,6 @@ void RGBController_CreativePebbleX::SetupZones()
 }
 
 
-// void RGBController_CreativePebbleX::SetMode(unsigned char mode)
-// {
-//     controller->UpdateDeviceMode(mode);
-// }
-
-
 void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
 {
     /*---------------------------------------------------------*\
@@ -119,12 +175,7 @@ void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_CreativePebbleX::DeviceUpdateLEDs()
 {
-    unsigned char red = RGBGetRValue(colors[0]);
-    unsigned char grn = RGBGetGValue(colors[0]);
-    unsigned char blu = RGBGetBValue(colors[0]);
-
-    controller->UpdateDeviceLEDs(red, grn, blu, modes[active_mode].brightness);
-    // controller->UpdateDeviceLEDs(colors, modes[active_mode].brightness); // workaround for dirty ????
+    controller->UpdateDeviceLEDs(colors);
 }
 
 
@@ -142,14 +193,13 @@ void RGBController_CreativePebbleX::UpdateSingleLED(int /*led*/)
 
 void RGBController_CreativePebbleX::DeviceUpdateMode()
 {
-    // if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
-    // {
-    //     controller->SetBrightness(modes[active_mode].brightness);
-    // }
-    // else
-    // {
-    //     controller->SetBrightness(0xFF);
-    // }
-    // controller->UpdateDeviceMode(modes[active_mode].value);
-    DeviceUpdateLEDs();
+    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+    {
+        controller->SetBrightness(modes[active_mode].brightness);
+    }
+
+    // IF MODE HAS SPEED
+    // IF MODE HAS DIRECTION
+
+    controller->UpdateDeviceMode(modes[active_mode].value);
 }
