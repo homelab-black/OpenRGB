@@ -28,7 +28,7 @@ public:
     void        DeviceUpdateLEDs();
     void        UpdateZoneLEDs(int zone);
     void        UpdateSingleLED(int led);
-    void        SetMode(unsigned char mode);
+    // void        SetMode(unsigned char mode);
     void        DeviceUpdateMode();
 
 private:

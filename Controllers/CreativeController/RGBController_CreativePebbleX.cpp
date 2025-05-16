@@ -36,9 +36,9 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     serial                      = "";
 
     mode Static;
-    Static.name                 = "Static";
+    Static.name                 = "Direct";
     Static.value                = 0x03;
-    Static.flags                = MODE_COLORS_PER_LED | MODE_FLAG_HAS_BRIGHTNESS;
+    Static.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
     Static.color_mode           = MODE_COLORS_PER_LED;
     Static.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
     Static.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
@@ -48,11 +48,11 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Chasers;
     Chasers.name                 = "Chasers";
     Chasers.value                = 0x0B;
-    Chasers.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    Chasers.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED; // | MODE_FLAG_HAS_BRIGHTNESS;
     Chasers.color_mode           = 2;
-    Chasers.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
-    Chasers.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
-    Chasers.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    // Chasers.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    // Chasers.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    // Chasers.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Chasers.speed                = 0x00;
     Chasers.speed_max            = 0xFF;
     Chasers.speed_min            = 0x00;
@@ -61,11 +61,11 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Aurora;
     Aurora.name                 = "Aurora";
     Aurora.value                = 0x08;
-    Aurora.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    Aurora.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED; // | MODE_FLAG_HAS_BRIGHTNESS;
     Aurora.color_mode           = 0;
-    Aurora.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
-    Aurora.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
-    Aurora.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
+    // Aurora.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
+    // Aurora.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
+    // Aurora.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Aurora.speed                = 0x00;
     Aurora.speed_max            = 0xFF;
     Aurora.speed_min            = 0x00;
@@ -103,10 +103,10 @@ void RGBController_CreativePebbleX::SetupZones()
 }
 
 
-void RGBController_CreativePebbleX::SetMode(unsigned char mode)
-{
-    controller->UpdateDeviceMode(mode);
-}
+// void RGBController_CreativePebbleX::SetMode(unsigned char mode)
+// {
+//     controller->UpdateDeviceMode(mode);
+// }
 
 
 void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
@@ -119,17 +119,22 @@ void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_CreativePebbleX::DeviceUpdateLEDs()
 {
-    controller->UpdateDeviceLEDs(colors, modes[active_mode].brightness);
+    unsigned char red = RGBGetRValue(colors[0]);
+    unsigned char grn = RGBGetGValue(colors[0]);
+    unsigned char blu = RGBGetBValue(colors[0]);
+
+    controller->UpdateDeviceLEDs(red, grn, blu, modes[active_mode].brightness);
+    // controller->UpdateDeviceLEDs(colors, modes[active_mode].brightness); // workaround for dirty ????
 }
 
 
-void RGBController_CreativePebbleX::UpdateZoneLEDs(int zone)
+void RGBController_CreativePebbleX::UpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
 
-void RGBController_CreativePebbleX::UpdateSingleLED(int led)
+void RGBController_CreativePebbleX::UpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
@@ -145,7 +150,6 @@ void RGBController_CreativePebbleX::DeviceUpdateMode()
     // {
     //     controller->SetBrightness(0xFF);
     // }
-    controller->UpdateDeviceMode(modes[active_mode].value);
-
-    // DeviceUpdateLEDs();
+    // controller->UpdateDeviceMode(modes[active_mode].value);
+    DeviceUpdateLEDs();
 }
