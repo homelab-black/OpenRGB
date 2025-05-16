@@ -1,10 +1,13 @@
-/*-----------------------------------------*\
-|  RGBController_Govee.cpp                  |
-|                                           |
-|  Generic RGB Interface for Govee          |
-|                                           |
-|  Adam Honse (CalcProgrammer1) 12/27/2023  |
-\*-----------------------------------------*/
+/*---------------------------------------------------------*\
+| RGBController_Govee.cpp                                   |
+|                                                           |
+|   RGBController for Govee wireless lighting devices       |
+|                                                           |
+|   Adam Honse (calcprogrammer1@gmail.com)      27 Dec 2023 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-only                   |
+\*---------------------------------------------------------*/
 
 #include <map>
 #include "RGBController_Govee.h"
