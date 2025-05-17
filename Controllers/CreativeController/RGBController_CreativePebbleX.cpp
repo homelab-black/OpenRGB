@@ -7,9 +7,7 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-
 #include "RGBController_CreativePebbleX.h"
-
 
 /**------------------------------------------------------------------*\
     @name Creative Pebble X
@@ -22,11 +20,11 @@
     @comment
 \*-------------------------------------------------------------------*/
 
+int GetPebble_WaveDirection(int input);
 
 RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXController* controller_ptr)
 {
     controller                  = controller_ptr;
-
 
     name                        = "Creative Pebble X Device";
     vendor                      = "Creative";
@@ -48,14 +46,17 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Chasers;
     Chasers.name                 = "Chasers";
     Chasers.value                = 0x0B;
-    Chasers.flags                = MODE_COLORS_MODE_SPECIFIC | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Chasers.color_mode           = 2;
+    Chasers.flags                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Chasers.color_mode           = MODE_COLORS_MODE_SPECIFIC;
+    Chasers.colors_min           = 1;
+    Chasers.colors_max           = 1;
     Chasers.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
     Chasers.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Chasers.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Chasers.speed                = 0x00;
-    Chasers.speed_max            = 0xFF;
+    Chasers.speed_max            = 0x06;
     Chasers.speed_min            = 0x00;
+    Chasers.colors.resize(1);
     modes.push_back(Chasers);
 
     mode Aurora;
@@ -67,7 +68,7 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     Aurora.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Aurora.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Aurora.speed                = 0x00;
-    Aurora.speed_max            = 0xFF;
+    Aurora.speed_max            = 0x06;
     Aurora.speed_min            = 0x00;
     modes.push_back(Aurora);
 
@@ -90,7 +91,7 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     Glowing.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Glowing.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Glowing.speed                = 0x00;
-    Glowing.speed_max            = 0xFF;
+    Glowing.speed_max            = 0x06;
     Glowing.speed_min            = 0x00;
     modes.push_back(Glowing);
 
@@ -103,7 +104,7 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     Wave.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Wave.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Wave.speed                = 0x00;
-    Wave.speed_max            = 0xFF;
+    Wave.speed_max            = 0x06;
     Wave.speed_min            = 0x00;
     modes.push_back(Wave);
 
@@ -116,7 +117,7 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     Cycle.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Cycle.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Cycle.speed                = 0x00;
-    Cycle.speed_max            = 0xFF;
+    Cycle.speed_max            = 0x06;
     Cycle.speed_min            = 0x00;
     modes.push_back(Cycle);
 
@@ -125,23 +126,25 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     Morph.value                = 0x07;
     Morph.flags                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
     Morph.color_mode           = MODE_COLORS_MODE_SPECIFIC;
+    Morph.color_mode           = 2;
+    Morph.colors_min           = 2;
+    Morph.colors_max           = 2;
     Morph.brightness_min       = PEBBLE_X_BRIGHTNESS_MIN;
     Morph.brightness_max       = PEBBLE_X_BRIGHTNESS_MAX;
     Morph.brightness           = PEBBLE_X_BRIGHTNESS_MAX;
     Morph.speed                = 0x00;
-    Morph.speed_max            = 0xFF;
+    Morph.speed_max            = 0x06;
     Morph.speed_min            = 0x00;
+    Morph.colors.resize(2);
     modes.push_back(Morph);
 
     SetupZones();
 }
 
-
 RGBController_CreativePebbleX::~RGBController_CreativePebbleX()
 {
     delete controller;
 }
-
 
 void RGBController_CreativePebbleX::SetupZones()
 {
@@ -164,7 +167,6 @@ void RGBController_CreativePebbleX::SetupZones()
     SetupColors();
 }
 
-
 void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
 {
     /*---------------------------------------------------------*\
@@ -172,34 +174,76 @@ void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
     \*---------------------------------------------------------*/
 }
 
-
 void RGBController_CreativePebbleX::DeviceUpdateLEDs()
 {
     controller->UpdateDeviceLEDs(colors);
 }
-
 
 void RGBController_CreativePebbleX::UpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-
 void RGBController_CreativePebbleX::UpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
 
-
 void RGBController_CreativePebbleX::DeviceUpdateMode()
 {
+    controller->UpdateDeviceMode(modes[active_mode].value);
     if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
     {
         controller->SetBrightness(modes[active_mode].brightness);
     }
+    if(modes[active_mode].flags & MODE_FLAG_HAS_SPEED)
+    {
+        controller->SetSpeed(modes[active_mode].speed);
+    }
+    if(modes[active_mode].flags & (MODE_FLAG_HAS_DIRECTION_UD | MODE_FLAG_HAS_DIRECTION_LR))
+    {
+        int waveDirection = GetPebble_WaveDirection(modes[active_mode].direction);
+        controller->SetDirection(waveDirection);
+    }
+    if(modes[active_mode].color_mode & MODE_COLORS_MODE_SPECIFIC)
+    {
+        unsigned char red = RGBGetRValue(modes[active_mode].colors[0]);
+        unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
+        unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
 
-    // IF MODE HAS SPEED
-    // IF MODE HAS DIRECTION
-
-    controller->UpdateDeviceMode(modes[active_mode].value);
+        if(modes[active_mode].value == 0x07)
+        {
+            unsigned char red2 = RGBGetRValue(modes[active_mode].colors[1]);
+            unsigned char grn2 = RGBGetGValue(modes[active_mode].colors[1]);
+            unsigned char blu2 = RGBGetBValue(modes[active_mode].colors[1]);
+            controller->UpdateMorphMode(red, grn, blu, red2, grn2, blu2);
+        }
+        else
+        {
+            controller->UpdateModeSpecificLEDs(red, grn, blu);
+        }
+    }
 }
+
+
+int GetPebble_WaveDirection(int input)
+{
+    switch(input)
+    {
+    case MODE_DIRECTION_LEFT:
+        return(0x02);
+
+    case MODE_DIRECTION_RIGHT:
+        return(0x01);
+
+    case MODE_DIRECTION_UP:
+        return(0x04);
+
+    case MODE_DIRECTION_DOWN:
+        return(0x03);
+
+    default:
+        return(0x02);
+    }
+}
+

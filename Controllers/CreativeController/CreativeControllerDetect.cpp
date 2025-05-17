@@ -14,7 +14,6 @@
 #include "CreativePebbleXController.h"
 #include "RGBController_CreativePebbleX.h"
 #include "Detector.h"
-#include "LogManager.h"
 
 
 /*-----------------------------------------------------*\
@@ -25,7 +24,6 @@
 | SoundCards                                            |
 \*-----------------------------------------------------*/
 #define CREATIVE_SOUNDBLASTERX_G6_PID           0x3256
-
 /*-----------------------------------------------------*\
 | Speakers                                              |
 \*-----------------------------------------------------*/
