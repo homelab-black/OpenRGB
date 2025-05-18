@@ -9,8 +9,6 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-#include <chrono>
-#include <thread>
 #include "RGBController_MSIOptix.h"
 
 /**------------------------------------------------------------------*\

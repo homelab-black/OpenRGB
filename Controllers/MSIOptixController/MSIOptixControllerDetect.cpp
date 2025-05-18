@@ -30,7 +30,6 @@ void DetectMSIOptixControllers(hid_device_info* info, const std::string& name)
 
     if(dev)
     {
-
         int led_count = 0;
         if (name == "MSI Optix controller") {
             led_count = MSI_OPTIX_NUMBER_OF_LEDS;
