@@ -7,14 +7,12 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-
 #include <hidapi.h>
 #include "CreativeSoundBlasterXG6Controller.h"
 #include "RGBController_CreativeSoundBlasterXG6.h"
 #include "CreativePebbleXController.h"
 #include "RGBController_CreativePebbleX.h"
 #include "Detector.h"
-
 
 /*-----------------------------------------------------*\
 | Creative vendor ID                                    |
@@ -29,7 +27,6 @@
 \*-----------------------------------------------------*/
 #define CREATIVE_PEBBLE_X_PID                   0x3299
 
-
 void DetectCreativeDevice(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
@@ -43,10 +40,8 @@ void DetectCreativeDevice(hid_device_info* info, const std::string& name)
     }
 }
 
-
 void DetectCreativePebbleDevice(hid_device_info* info, const std::string& name)
 {
-
     hid_device* dev = hid_open_path(info->path);
 
     if(dev)
@@ -57,8 +52,6 @@ void DetectCreativePebbleDevice(hid_device_info* info, const std::string& name)
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
-
-
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Sound Cards                                                                                                                                       |

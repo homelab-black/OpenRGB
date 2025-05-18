@@ -70,9 +70,9 @@ void CreativePebbleXController::UpdateModeSpecificLEDs(unsigned char red, unsign
     usb_buf[0x08]           = 0x01;
     usb_buf[0x09]           = 0xFF;
 
-    usb_buf[0x10] = blue;     // Blue
-    usb_buf[0x11] = green;     // Green
-    usb_buf[0x12] = red;     // Red
+    usb_buf[0x10]           = blue;
+    usb_buf[0x11]           = green;
+    usb_buf[0x12]           = red;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
@@ -99,9 +99,9 @@ void CreativePebbleXController::UpdateMorphMode(unsigned char red, unsigned char
     usb_buf[0x08]           = 0x01;
     usb_buf[0x09]           = 0xFF;
 
-    usb_buf[0x10] = blue;     // Blue
-    usb_buf[0x11] = green;     // Green
-    usb_buf[0x12] = red;     // Red
+    usb_buf[0x10]           = blue;
+    usb_buf[0x11]           = green;
+    usb_buf[0x12]           = red;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
@@ -124,9 +124,9 @@ void CreativePebbleXController::UpdateMorphMode(unsigned char red, unsigned char
     usb_buf[0x08]           = 0x01;
     usb_buf[0x09]           = 0xFF;
 
-    usb_buf[0x10] = blue2;     // Blue
-    usb_buf[0x11] = green2;     // Green
-    usb_buf[0x12] = red2;     // Red
+    usb_buf[0x10]           = blue2;
+    usb_buf[0x11]           = green2;
+    usb_buf[0x12]           = red2;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
@@ -173,16 +173,10 @@ void CreativePebbleXController::SetBrightness (unsigned char brightness)
     unsigned char usb_buf[64];
 
     /*-----------------------------------------------------*\
-    | Brightness goes from 0-100                            |
-    \*-----------------------------------------------------*/
-    // if(brightness > 0xFF)
-    // {
-    //     brightness = 0xFF;
-    // }
-    /*-----------------------------------------------------*\
     | Zero out buffer                                       |
     \*-----------------------------------------------------*/
     memset(usb_buf, 0x00, sizeof(usb_buf));
+
     /*-----------------------------------------------------*\
     | Set up Port State packet                              |
     \*-----------------------------------------------------*/
@@ -193,6 +187,7 @@ void CreativePebbleXController::SetBrightness (unsigned char brightness)
     usb_buf[0x04]   = 0x00;
     usb_buf[0x05]   = 0x27;
     usb_buf[0x06]   = brightness;
+
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
@@ -259,6 +254,7 @@ void CreativePebbleXController::SetSpeed (unsigned char speed)
     | Zero out buffer                                       |
     \*-----------------------------------------------------*/
     memset(usb_buf, 0x00, sizeof(usb_buf));
+
     /*-----------------------------------------------------*\
     | Set up Port State packet                              |
     \*-----------------------------------------------------*/
@@ -272,6 +268,7 @@ void CreativePebbleXController::SetSpeed (unsigned char speed)
     usb_buf[0x07]   = 0x03;
     usb_buf[0x08]   = speed_val1;
     usb_buf[0x09]   = speed_val2;
+
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
@@ -285,6 +282,7 @@ void CreativePebbleXController::SetDirection (unsigned char direction)
     | Zero out buffer                                       |
     \*-----------------------------------------------------*/
     memset(usb_buf, 0x00, sizeof(usb_buf));
+
     /*-----------------------------------------------------*\
     | Set up Port State packet                              |
     \*-----------------------------------------------------*/
@@ -297,6 +295,7 @@ void CreativePebbleXController::SetDirection (unsigned char direction)
     usb_buf[0x06]   = 0x01;
     usb_buf[0x07]   = 0x04;
     usb_buf[0x08]   = direction;
+
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
