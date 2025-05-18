@@ -14,6 +14,8 @@
 
 #define PEBBLE_X_BRIGHTNESS_MIN 0x00
 #define PEBBLE_X_BRIGHTNESS_MAX 0xFF
+#define PEBBLE_X_SPEED_MIN      0x00
+#define PEBBLE_X_SPEED_MAX      0x06
 
 class RGBController_CreativePebbleX: public RGBController
 {
@@ -28,7 +30,7 @@ public:
     void        DeviceUpdateLEDs();
     void        UpdateZoneLEDs(int zone);
     void        UpdateSingleLED(int led);
-    void        SetMode(unsigned char mode);
+
     void        DeviceUpdateMode();
 
 private:
