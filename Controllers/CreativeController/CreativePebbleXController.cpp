@@ -134,7 +134,7 @@ void CreativePebbleXController::UpdateMorphMode(unsigned char red, unsigned char
     hid_write(dev, usb_buf, sizeof(usb_buf));
 }
 
-void CreativePebbleXController::UpdateDeviceLEDs (std::vector<RGBColor> led_colors)
+void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_colors)
 {
     unsigned char usb_buf[64];
 
@@ -197,58 +197,7 @@ void CreativePebbleXController::SetBrightness (unsigned char brightness)
 void CreativePebbleXController::SetSpeed (unsigned char speed)
 {
     unsigned char usb_buf[64];
-    unsigned char speed_val1;
-    unsigned char speed_val2;
-
-    switch (speed) {
-        case 0x00:
-            // Handle speed 0x00
-            speed_val1 = 0x70;
-            speed_val2 = 0x17;
-            break;
-
-        case 0x01:
-            // Handle speed 0x01
-            speed_val1 = 0xa0;
-            speed_val2 = 0x0f;
-            break;
-
-        case 0x02:
-            // Handle speed 0x02
-            speed_val1 = 0xc4;
-            speed_val2 = 0x09;
-            break;
-
-        case 0x03:
-            // Handle speed 0x03
-            speed_val1 = 0x35;
-            speed_val2 = 0x05;
-            break;
-
-        case 0x04:
-            // Handle speed 0x04
-            speed_val1 = 0xee;
-            speed_val2 = 0x02;
-            break;
-
-        case 0x05:
-            // Handle speed 0x05
-            speed_val1 = 0x77;
-            speed_val2 = 0x01;
-            break;
-
-        case 0x06:
-            // Handle speed 0x06
-            speed_val1 = 0xfa;
-            speed_val2 = 0x00;
-            break;
-
-        default:
-            // Handle invalid speed values
-            speed_val1 = 0x70;
-            speed_val2 = 0x17;
-            break;
-    }
+    speed *= 500;
 
     /*-----------------------------------------------------*\
     | Zero out buffer                                       |
@@ -266,8 +215,8 @@ void CreativePebbleXController::SetSpeed (unsigned char speed)
     usb_buf[0x05]   = 0x2b;
     usb_buf[0x06]   = 0x01;
     usb_buf[0x07]   = 0x03;
-    usb_buf[0x08]   = speed_val1;
-    usb_buf[0x09]   = speed_val2;
+    usb_buf[0x08]   = speed & 0xFF;
+    usb_buf[0x09]   = speed >> 8;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
