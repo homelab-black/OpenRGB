@@ -25,7 +25,6 @@ std::string CreativePebbleXController::GetDeviceLocation()
     return("HID " + location);
 }
 
-
 void CreativePebbleXController::UpdateDeviceMode(unsigned char mode)
 {
     unsigned char usb_buf[64];
@@ -50,7 +49,7 @@ void CreativePebbleXController::UpdateDeviceMode(unsigned char mode)
     hid_write(dev, usb_buf, sizeof(usb_buf));
 }
 
-void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_colors, unsigned char color_mode, unsigned char mode_specific_led_num)
+void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_colors, unsigned char data_packet_length, unsigned char mode_specific_led_num)
 {
     unsigned char usb_buf[64];
 
@@ -59,26 +58,32 @@ void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_color
     \*-----------------------------------------------------*/
     memset(usb_buf, 0x00, sizeof(usb_buf));
 
-    //03 6A 3A 18 00 2B 01 01 01 FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR
+    //03 6A 3A PACK_LEN 00 2B 01 01 01 FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR FF BB GG RR
     usb_buf[0x00] = 0x03;
     usb_buf[0x01] = 0x6A;
     usb_buf[0x02] = 0x3A;
-    usb_buf[0x03] = color_mode;
+    usb_buf[0x03] = data_packet_length;
     usb_buf[0x04] = 0x00;
     usb_buf[0x05] = 0x2B;
     usb_buf[0x06] = 0x01;
     usb_buf[0x07] = mode_specific_led_num;
     usb_buf[0x08] = 0x01;
 
-    if(mode_specific_led_num == 0x02)
+    if(data_packet_length == 0x08)
     {
+        /*--------------------------------------------------------------*\
+        | Device is expecting data for a single mode specific color      |
+        \*--------------------------------------------------------------*/
         usb_buf[0x09] = 0xFF;
-        usb_buf[0x0A] = RGBGetBValue(led_colors[1]);     // Blue
-        usb_buf[0x0B] = RGBGetGValue(led_colors[1]);     // Green
-        usb_buf[0x0C] = RGBGetRValue(led_colors[1]);     // Red
+        usb_buf[0x0A] = RGBGetBValue(led_colors[mode_specific_led_num-1]);     // Blue
+        usb_buf[0x0B] = RGBGetGValue(led_colors[mode_specific_led_num-1]);     // Green
+        usb_buf[0x0C] = RGBGetRValue(led_colors[mode_specific_led_num-1]);     // Red
     }
     else
     {
+        /*-----------------------------------------------------*\
+        | Device is expecting color data for all LEDs           |
+        \*-----------------------------------------------------*/
         int offset = 9;
         for(int i = 0; i < led_colors.size(); i++)
         {

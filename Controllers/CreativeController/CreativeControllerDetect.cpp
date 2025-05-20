@@ -40,7 +40,7 @@ void DetectCreativeDevice(hid_device_info* info, const std::string& name)
     }
 }
 
-void DetectCreativePebbleDevice(hid_device_info* info, const std::string& name)
+void DetectCreativePebbleXDevice(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
 
@@ -61,4 +61,4 @@ REGISTER_HID_DETECTOR_I("Creative SoundBlasterX G6",               DetectCreativ
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Speakers                                                                                                                                          |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Creative Pebble X", DetectCreativePebbleDevice, CREATIVE_VID, CREATIVE_PEBBLE_X_PID, 0, 0xFF01, 1);
+REGISTER_HID_DETECTOR_IPU("Creative Pebble X", DetectCreativePebbleXDevice, CREATIVE_VID, CREATIVE_PEBBLE_X_PID, 0, 0xFF01, 1);

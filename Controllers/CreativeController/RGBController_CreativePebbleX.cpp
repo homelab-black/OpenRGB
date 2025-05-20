@@ -15,7 +15,7 @@
     @type USB
     @save :x:
     @direct :white_check_mark:
-    @effects :x:
+    @effects :white_check_mark:
     @detectors DetectCreativePebbleXDevice
     @comment
 \*-------------------------------------------------------------------*/
