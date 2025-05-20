@@ -31,11 +31,16 @@ void DetectMSIOptixControllers(hid_device_info* info, const std::string& name)
     if(dev)
     {
         int led_count = 0;
-        if (name == "MSI Optix controller") {
+        if(name == "MSI Optix controller")
+        {
             led_count = MSI_OPTIX_NUMBER_OF_LEDS;
-        } else if (name == "MSI MPG 271QRX") {
+        }
+        else if(name == "MSI MPG 271QRX")
+        {
             led_count = MSI_MPG_271QRX_NUMBER_OF_LEDS;
-        } else {
+        }
+        else
+        {
             // Default case for unknown devices
             led_count = MSI_OPTIX_NUMBER_OF_LEDS;
         }

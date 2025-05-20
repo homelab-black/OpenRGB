@@ -34,7 +34,7 @@ enum
     DOUBLE_FLASHING_MODE_VALUE  = 0x04,
     DIRECT_MODE_VALUE           = 0x01,
     STATIC_MODE_VALUE           = 0x01,
-    LIGHTNING_MODE_VALUE         = 0x05,
+    LIGHTNING_MODE_VALUE        = 0x05,
     PLANETARY_MODE_VALUE        = 0x10,
     DOUBLE_METEOR_MODE_VALUE    = 0x11,
     ENERGY_MODE_VALUE           = 0x12,
