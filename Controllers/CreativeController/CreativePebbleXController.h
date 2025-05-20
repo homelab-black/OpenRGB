@@ -19,16 +19,7 @@ public:
     CreativePebbleXController(hid_device* dev_handle, const char* path);
     ~CreativePebbleXController();
 
-    void                    UpdateModeSpecificLEDs(unsigned char red,
-                                                   unsigned char green,
-                                                   unsigned char blue);
-    void                    UpdateMorphMode(unsigned char red,
-                                            unsigned char green,
-                                            unsigned char blue,
-                                            unsigned char red2,
-                                            unsigned char green2,
-                                            unsigned char blue2);
-    void                    UpdateDeviceLEDs(std::vector<RGBColor> led_colors);
+    void                    UpdateDeviceLEDs(std::vector<RGBColor> led_colors, unsigned char color_mode, unsigned char mode_led);
     void                    SetBrightness(unsigned char brightness);
     void                    SetSpeed(unsigned char brightness);
     void                    SetDirection(unsigned char brightness);

@@ -175,7 +175,7 @@ void RGBController_CreativePebbleX::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_CreativePebbleX::DeviceUpdateLEDs()
 {
-    controller->UpdateDeviceLEDs(colors);
+    controller->UpdateDeviceLEDs(colors, 0x18, 0x01);
 }
 
 void RGBController_CreativePebbleX::UpdateZoneLEDs(int /*zone*/)
@@ -206,20 +206,10 @@ void RGBController_CreativePebbleX::DeviceUpdateMode()
     }
     if(modes[active_mode].color_mode & MODE_COLORS_MODE_SPECIFIC)
     {
-        unsigned char red = RGBGetRValue(modes[active_mode].colors[0]);
-        unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
-        unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
-
+        controller->UpdateDeviceLEDs(modes[active_mode].colors, 0x08, 0x01);
         if(modes[active_mode].value == 0x07)
         {
-            unsigned char red2 = RGBGetRValue(modes[active_mode].colors[1]);
-            unsigned char grn2 = RGBGetGValue(modes[active_mode].colors[1]);
-            unsigned char blu2 = RGBGetBValue(modes[active_mode].colors[1]);
-            controller->UpdateMorphMode(red, grn, blu, red2, grn2, blu2);
-        }
-        else
-        {
-            controller->UpdateModeSpecificLEDs(red, grn, blu);
+            controller->UpdateDeviceLEDs(modes[active_mode].colors, 0x08, 0x02);
         }
     }
 }
