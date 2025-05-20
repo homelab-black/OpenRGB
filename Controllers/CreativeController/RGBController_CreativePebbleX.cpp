@@ -46,7 +46,7 @@ RGBController_CreativePebbleX::RGBController_CreativePebbleX(CreativePebbleXCont
     mode Chasers;
     Chasers.name                    = "Chasers";
     Chasers.value                   = 0x0B;
-    Chasers.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Chasers.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
     Chasers.color_mode              = MODE_COLORS_MODE_SPECIFIC;
     Chasers.colors_min              = 1;
     Chasers.colors_max              = 1;
@@ -191,10 +191,6 @@ void RGBController_CreativePebbleX::UpdateSingleLED(int /*led*/)
 void RGBController_CreativePebbleX::DeviceUpdateMode()
 {
     controller->UpdateDeviceMode(modes[active_mode].value);
-    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
-    {
-        controller->SetBrightness(modes[active_mode].brightness);
-    }
     if(modes[active_mode].flags & MODE_FLAG_HAS_SPEED)
     {
         controller->SetSpeed(modes[active_mode].speed);
@@ -212,25 +208,30 @@ void RGBController_CreativePebbleX::DeviceUpdateMode()
             controller->UpdateDeviceLEDs(modes[active_mode].colors, 0x08, 0x02);
         }
     }
+    if(modes[active_mode].color_mode & MODE_COLORS_PER_LED)
+    {
+        DeviceUpdateLEDs();
+    }
+    controller->SetBrightness(modes[active_mode].brightness);
 }
 
 int GetPebble_WaveDirection(int input)
 {
     switch(input)
     {
-    case MODE_DIRECTION_LEFT:
-        return(0x02);
+        case MODE_DIRECTION_LEFT:
+            return(0x02);
 
-    case MODE_DIRECTION_RIGHT:
-        return(0x01);
+        case MODE_DIRECTION_RIGHT:
+            return(0x01);
 
-    case MODE_DIRECTION_UP:
-        return(0x04);
+        case MODE_DIRECTION_UP:
+            return(0x04);
 
-    case MODE_DIRECTION_DOWN:
-        return(0x03);
+        case MODE_DIRECTION_DOWN:
+            return(0x03);
 
-    default:
-        return(0x02);
+        default:
+            return(0x02);
     }
 }

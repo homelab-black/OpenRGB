@@ -50,7 +50,7 @@ void CreativePebbleXController::UpdateDeviceMode(unsigned char mode)
     hid_write(dev, usb_buf, sizeof(usb_buf));
 }
 
-void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_colors, unsigned char color_mode, unsigned char mode_specific_led)
+void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_colors, unsigned char color_mode, unsigned char mode_specific_led_num)
 {
     unsigned char usb_buf[64];
 
@@ -67,10 +67,10 @@ void CreativePebbleXController::UpdateDeviceLEDs(std::vector<RGBColor> led_color
     usb_buf[0x04] = 0x00;
     usb_buf[0x05] = 0x2B;
     usb_buf[0x06] = 0x01;
-    usb_buf[0x07] = mode_specific_led;
+    usb_buf[0x07] = mode_specific_led_num;
     usb_buf[0x08] = 0x01;
 
-    if(mode_specific_led == 0x02)
+    if(mode_specific_led_num == 0x02)
     {
         usb_buf[0x09] = 0xFF;
         usb_buf[0x0A] = RGBGetBValue(led_colors[1]);     // Blue
