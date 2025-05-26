@@ -20,6 +20,7 @@
 #include "RGBController_CMMMController.h"
 #include "RGBController_CMMM711Controller.h"
 #include "RGBController_CMMM712Controller.h"
+#include "RGBController_CMMM731Controller.h"
 #include "RGBController_CMMP750Controller.h"
 #include "RGBController_CMARGBController.h"
 #include "RGBController_CMSmallARGBController.h"
@@ -63,6 +64,9 @@
 #define COOLERMASTER_MM712_PID                      0x0169
 #define COOLERMASTER_MM720_PID                      0x0141
 #define COOLERMASTER_MM730_PID                      0x0165
+#define COOLERMASTER_MM731_WIRED_PID                0x0167
+#define COOLERMASTER_MM731_WIRELESS_PID             0x0171
+#define COOLERMASTER_MM731_WIRELESS_R2_PID          0x01B7
 
 /*-----------------------------------------------------*\
 | Coolermaster Mousemats                                |
@@ -212,6 +216,24 @@ void DetectCoolerMasterMouse(hid_device_info* info, const std::string& name)
     {
         switch(info->product_id)
         {
+            case COOLERMASTER_MM711_PID:
+                {
+                CMMM711Controller*               controller     = new CMMM711Controller(dev, info->path);
+                    RGBController_CMMM711Controller* rgb_controller = new RGBController_CMMM711Controller(controller);
+                    // Constructor sets the name
+                    ResourceManager::get()->RegisterRGBController(rgb_controller);
+                }
+                break;
+
+            case COOLERMASTER_MM712_PID:
+                {
+                        CMMM712Controller*               controller     = new CMMM712Controller(dev, info->path);
+                        RGBController_CMMM712Controller* rgb_controller = new RGBController_CMMM712Controller(controller);
+                        // Constructor sets the name
+                        ResourceManager::get()->RegisterRGBController(rgb_controller);
+                }
+                break;
+
             case COOLERMASTER_MM530_PID:
             case COOLERMASTER_MM531_PID:
             case COOLERMASTER_MM720_PID:
@@ -224,19 +246,12 @@ void DetectCoolerMasterMouse(hid_device_info* info, const std::string& name)
                 }
                 break;
 
-            case COOLERMASTER_MM711_PID:
+            case COOLERMASTER_MM731_WIRED_PID:
+            case COOLERMASTER_MM731_WIRELESS_PID:
+            case COOLERMASTER_MM731_WIRELESS_R2_PID:
                 {
-                    CMMM711Controller*               controller     = new CMMM711Controller(dev, info->path);
-                    RGBController_CMMM711Controller* rgb_controller = new RGBController_CMMM711Controller(controller);
-                    // Constructor sets the name
-                    ResourceManager::get()->RegisterRGBController(rgb_controller);
-                }
-                break;
-
-            case COOLERMASTER_MM712_PID:
-                {
-                    CMMM712Controller*               controller     = new CMMM712Controller(dev, info->path);
-                    RGBController_CMMM712Controller* rgb_controller = new RGBController_CMMM712Controller(controller);
+                    CMMM731Controller*               controller     = new CMMM731Controller(dev, info->path);
+                    RGBController_CMMM731Controller* rgb_controller = new RGBController_CMMM731Controller(controller);
                     // Constructor sets the name
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
                 }
@@ -342,6 +357,9 @@ REGISTER_HID_DETECTOR_IPU("Cooler Master MM711",                    DetectCooler
 REGISTER_HID_DETECTOR_IPU("Cooler Master MM712",                    DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM712_PID,                     3,      0xFF0A, 2);
 REGISTER_HID_DETECTOR_IPU("Cooler Master MM720",                    DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM720_PID,                     1,      0xFF00, 1);
 REGISTER_HID_DETECTOR_IPU("Cooler Master MM730",                    DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM730_PID,                     1,      0xFF00, 1);
+REGISTER_HID_DETECTOR_IPU("Cooler Master MM731 (Wired)",            DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM731_WIRED_PID,               3,      0xFF0A, 1);
+REGISTER_HID_DETECTOR_IPU("Cooler Master MM731 (Wireless)",         DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM731_WIRELESS_PID,            3,      0xFF0A, 1);
+REGISTER_HID_DETECTOR_IPU("Cooler Master MM731 (Wireless)",         DetectCoolerMasterMouse,        COOLERMASTER_VID,   COOLERMASTER_MM731_WIRELESS_R2_PID,         3,      0xFF0A, 1);
 
 /*-----------------------------------------------------*\
 | Coolermaster Mousemats                                |
