@@ -10,6 +10,7 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
+#include <algorithm>
 #include "Detector.h"
 #include "i2c_smbus_piix4.h"
 #include "LogManager.h"
@@ -70,6 +71,10 @@ i2c_smbus_piix4::~i2c_smbus_piix4()
         CloseHandle(global_smbus_access_handle);
     }
 #endif
+    if(speed_changed)
+    {
+        i2c_set_max_speed(0);
+    }
 }
 
 //Logic adapted from piix4_transaction() in i2c-piix4.c
@@ -305,6 +310,41 @@ s32 i2c_smbus_piix4::i2c_xfer(u8 /*addr*/, char /*read_write*/, int* /*size*/, u
 {
     return -1;
 }
+
+void i2c_smbus_piix4::i2c_set_max_speed(int hz)
+{
+    unsigned char divisor = PIIX4_DIVISOR_DEFAULT;
+    unsigned char divisor_before = ReadIoPortByte(SMBSPEED);
+    LOG_INFO("[%s] Previous divisor value is 0x%02X", device_name, divisor_before);
+    if(hz)
+    {
+        LOG_INFO("[%s] Attempting to set interface speed to %d Hz", device_name, hz);
+        hz = std::clamp<int>(hz, PIIX4_SPEED_MIN, PIIX4_SPEED_MAX);
+        divisor = (uint8_t)((PIIX4_CLOCK_BASE + hz - 1) / hz);
+        speed_changed = true;
+    }
+    else
+    {
+        LOG_INFO("[%s] Set interface speed to default", device_name);
+    }
+    LOG_INFO("[%s] Using divisor 0x%02X resulting in %d Hz", device_name, divisor, PIIX4_CLOCK_BASE / divisor);
+    WriteIoPortByte(SMBSPEED, divisor);
+}
+
+void i2c_smbus_piix4::set_configured_speed()
+{
+    json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
+    if(drivers_settings.contains("amd_smbus_set_speed")
+        && drivers_settings["amd_smbus_set_speed"].is_boolean()
+        && drivers_settings["amd_smbus_set_speed"].get<bool>()
+        && drivers_settings.contains("amd_smbus_speed")
+        && drivers_settings["amd_smbus_speed"].is_number_unsigned())
+    {
+        unsigned int speed = drivers_settings["amd_smbus_speed"].get<unsigned int>();
+        i2c_set_max_speed(speed * 1000u);
+    }
+}
+
 #ifdef _WIN32
 bool i2c_smbus_piix4_detect()
 {
@@ -314,7 +354,7 @@ bool i2c_smbus_piix4_detect()
         return(false);
     }
 
-    i2c_smbus_interface * bus;
+    i2c_smbus_piix4 * bus;
     HRESULT hres;
     Wmi wmi;
 
@@ -360,7 +400,8 @@ bool i2c_smbus_piix4_detect()
             bus->pci_subsystem_device   = sbd_id;
             strcpy(bus->device_name, i["Description"].c_str());
             strcat(bus->device_name, " at 0x0B00");
-            ((i2c_smbus_piix4 *)bus)->piix4_smba = 0x0B00;
+            bus->piix4_smba = 0x0B00;
+            bus->set_configured_speed();
             ResourceManager::get()->RegisterI2CBus(bus);
 
             bus                         = new i2c_smbus_piix4();
@@ -368,9 +409,11 @@ bool i2c_smbus_piix4_detect()
             bus->pci_device             = dev_id;
             bus->pci_subsystem_vendor   = sbv_id;
             bus->pci_subsystem_device   = sbd_id;
-            ((i2c_smbus_piix4 *)bus)->piix4_smba = 0x0B20;
+            bus->piix4_smba = 0x0B20;
             strcpy(bus->device_name, i["Description"].c_str());
             strcat(bus->device_name, " at 0x0B20");
+            // Leave the secondary bus alone, it clears the lowest bit of the divisor, no idea what's going on
+            // bus->set_configured_speed();
             ResourceManager::get()->RegisterI2CBus(bus);
         }
     }
