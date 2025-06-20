@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>
+#include <QSharedMemory>
 #include "cli.h"
 #include "ResourceManager.h"
 #include "NetworkClient.h"
@@ -192,7 +193,6 @@ void sigHandler(int s)
 *       Main function.  Detects busses and Aura controllers, then opens the main window    *
 *                                                                                          *
 \******************************************************************************************/
-
 int main(int argc, char* argv[])
 {
     int exitval = EXIT_SUCCESS;
@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
     /*---------------------------------------------------------*\
     | Windows only - Attach console output                      |
     \*---------------------------------------------------------*/
-    if (AttachConsole(ATTACH_PARENT_PROCESS))
+    if(AttachConsole(ATTACH_PARENT_PROCESS))
     {
         /*---------------------------------------------------------*\
         | We are running under some terminal context; otherwise     |
@@ -267,6 +267,13 @@ int main(int argc, char* argv[])
         #endif
 
         QApplication a(argc, argv);
+        QSharedMemory sharedMemory("OpenRGB");
+
+        if(!sharedMemory.create(1)) 
+        {
+            return 0;
+        }
+
         QGuiApplication::setDesktopFileName("org.openrgb.OpenRGB");
         LOG_TRACE("[main] QApplication created");
 
