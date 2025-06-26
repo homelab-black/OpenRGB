@@ -56,6 +56,12 @@ void DetectYeelightControllers()
                 }
 
                 YeelightController*     controller     = new YeelightController(yeelight_ip, yeelight_host_ip, music_mode);
+
+                if(controller->HasFailed()){
+                    delete controller;
+                    return;
+                }
+
                 RGBController_Yeelight* rgb_controller = new RGBController_Yeelight(controller);
 
                 ResourceManager::get()->RegisterRGBController(rgb_controller);

@@ -11,8 +11,10 @@
 
 #include "YeelightController.h"
 #include <nlohmann/json.hpp>
+#include "LogManager.h"
 
 using json = nlohmann::json;
+using namespace std::literals::chrono_literals;
 
 YeelightController::YeelightController(std::string ip, std::string host_ip, bool music_mode_val)
 {
@@ -22,11 +24,14 @@ YeelightController::YeelightController(std::string ip, std::string host_ip, bool
     location    = "IP: " + ip;
     music_mode  = music_mode_val;
     this->host_ip = host_ip;
+    music_mode_server_connection_failure = false;
 
     /*-----------------------------------------------------------------*\
     | Open a TCP client sending to the device's IP, port 38899          |
     \*-----------------------------------------------------------------*/
-    port.tcp_client(ip.c_str(), "55443");
+    LOG_DEBUG("[YeelightController] Opening TCP client");
+    bool tcp_client_opened = port.tcp_client(ip.c_str(), "55443");
+    LOG_DEBUG("[YeelightController] TCP client opened: %d", tcp_client_opened);
 
     SetPower();
 
@@ -50,7 +55,9 @@ YeelightController::YeelightController(std::string ip, std::string host_ip, bool
             /*-----------------------------------------------------------------*\
             | Open a TCP server for music mode if enabled                       |
             \*-----------------------------------------------------------------*/
+            LOG_DEBUG("[YeelightController] Openning a TCP server for music mode");
             port_opened = music_mode_server.tcp_server(port_string);
+            LOG_DEBUG("[YeelightController] TCP server opened: %d", port_opened);
 
             if(!port_opened)
             {
@@ -76,8 +83,39 @@ YeelightController::YeelightController(std::string ip, std::string host_ip, bool
 
             /*-----------------------------------------------------------------*\
             | Get the client socket for the music mode connection               |
+            | Times out after 30s if no devices are connected                   |
             \*-----------------------------------------------------------------*/
+            LOG_DEBUG("[YeelightController] TCP server listening: %s %s", ip.c_str(), port_string);
+            music_mode_server_connected = false;
+
+            std::thread timeout = std::thread([&](){
+                LOG_WARNING("[YeelightController] Waiting for device to connect... Server will be automatically closed in 30s.");
+                unsigned int tries = 0;
+                unsigned int max_tries = 30;
+
+                do {
+                    if(music_mode_server_connected.load()){
+                        LOG_DEBUG("[YeelightController] Device connected to music mode server.");
+                        return;
+                    }
+                    std::this_thread::sleep_for(1s);
+                } while(++tries < max_tries);
+
+                if(!music_mode_server_connected.load()){
+                    LOG_WARNING("[YeelightController] Client did not connect. Timeout reached. Closing music mode server.");
+                    music_mode_server_connection_failure = true;
+                    net_port temp_port;
+                    temp_port.tcp_client(ip.c_str(), port_string);
+                    temp_port.tcp_client_connect();
+                    temp_port.tcp_close();
+                }
+            });
+
+            timeout.detach();
+
             music_mode_sock = music_mode_server.tcp_server_listen();
+            LOG_DEBUG("[YeelightController] tcp_server_listen end.");
+            music_mode_server_connected = true;
         }
     }
 }
@@ -114,6 +152,11 @@ std::string YeelightController::GetUniqueID()
 bool YeelightController::GetMusicMode()
 {
     return(music_mode);
+}
+
+bool YeelightController::HasFailed()
+{
+    return(music_mode_server_connection_failure.load());
 }
 
 void YeelightController::SetMusicMode()
