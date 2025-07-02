@@ -18,6 +18,7 @@
 #include "NetworkProtocol.h"
 #include "net_port.h"
 #include "ProfileManager.h"
+#include "ResourceManager.h"
 
 #define MAXSOCK 32
 #define TCP_TIMEOUT_SECONDS 5
