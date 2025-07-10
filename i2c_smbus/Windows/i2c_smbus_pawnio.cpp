@@ -108,207 +108,46 @@ i2c_smbus_pawnio::~i2c_smbus_pawnio()
     }
 }
 
-s32 i2c_smbus_pawnio::pawnio_read(u8 addr, char /*read_write*/, u8 command, int size, i2c_smbus_data* data)
-{
-    SIZE_T      return_size;
-
-    switch(size)
-    {
-    case I2C_SMBUS_BYTE:
-        {
-            const SIZE_T in_size = 1;
-            ULONG64 in[in_size] = {addr};
-            const SIZE_T out_size = 1;
-            ULONG64 out[out_size];
-
-            /*---------------------------------------------*\
-            | Execute PawnIO read_byte ioctl                |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_read_byte").c_str(), in, in_size, out, out_size, &return_size);
-            data->byte = (u8)out[0];
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_BYTE_DATA:
-        {
-            const SIZE_T in_size = 2;
-            ULONG64 in[in_size] = {addr, command};
-            const SIZE_T out_size = 1;
-            ULONG64 out[out_size];
-
-            /*---------------------------------------------*\
-            | Execute PawnIO read_byte_data ioctl           |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_read_byte_data").c_str(), in, in_size, out, out_size, &return_size);
-            data->byte = (u8)out[0];
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_WORD_DATA:
-        {
-            const SIZE_T in_size = 2;
-            ULONG64 in[in_size] = {addr, command};
-            const SIZE_T out_size = 1;
-            ULONG64 out[out_size];
-
-            /*---------------------------------------------*\
-            | Execute PawnIO read_word_data ioctl           |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_read_word_data").c_str(), in, in_size, out, out_size, &return_size);
-            data->word = (u16)out[0];
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_BLOCK_DATA:
-        {
-            const SIZE_T in_size = 2;
-            ULONG64 in[in_size] = {addr, command};
-
-            /*---------------------------------------------*\
-            | Calculate output data buffer size             |
-            | Pawn only deals with 64-bit cells, divide by  |
-            | 8 to convert bytes to qwords.                 |
-            | The first cell is also the length.            |
-            \*---------------------------------------------*/
-            const SIZE_T out_size = 1 + (I2C_SMBUS_BLOCK_MAX / 8);
-            ULONG64 out[out_size];
-
-            /*---------------------------------------------*\
-            | Execute PawnIO read_block_data ioctl          |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_read_block_data").c_str(), in, in_size, out, out_size, &return_size);
-
-            if(status)
-            {
-                return(-EIO);
-            }
-
-            if(out[0] == 0 || out[0] > I2C_SMBUS_BLOCK_MAX)
-            {
-                return(-EPROTO);
-            }
-
-            /*---------------------------------------------*\
-            | Unpack bytes from 64bit Pawn cells            |
-            \*---------------------------------------------*/
-            u8 *out_bytes = (u8*)(&out[1]);
-            memcpy(&data->block[1], out_bytes, out[0]);
-
-            return(0);
-        }
-
-    default:
-        return(-EOPNOTSUPP);
-    }
-}
-
-s32 i2c_smbus_pawnio::pawnio_write(u8 addr, char read_write, u8 command, int size, i2c_smbus_data* data)
-{
-    SIZE_T  return_size;
-
-    switch(size)
-    {
-    case I2C_SMBUS_QUICK:
-        {
-            const SIZE_T in_size = 2;
-            ULONG64 in[in_size] = {addr, (u8)read_write};
-
-            /*---------------------------------------------*\
-            | Execute PawnIO write_quick ioctl              |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_write_quick").c_str(), in, in_size, NULL, 0, &return_size);
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_BYTE:
-        {
-            const SIZE_T in_size = 2;
-            ULONG64 in[in_size] = {addr, data->byte};
-
-            /*---------------------------------------------*\
-            | Execute PawnIO write_byte ioctl               |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_write_byte").c_str(), in, in_size, NULL, 0, &return_size);
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_BYTE_DATA:
-        {
-            const SIZE_T in_size = 3;
-            ULONG64 in[in_size] = {addr, command, data->byte};
-
-            /*---------------------------------------------*\
-            | Execute PawnIO write_byte_data ioctl          |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_write_byte_data").c_str(), in, in_size, NULL, 0, &return_size);
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_WORD_DATA:
-        {
-            const SIZE_T in_size = 3;
-            ULONG64 in[in_size] = {addr, command, data->word};
-
-            /*---------------------------------------------*\
-            | Execute PawnIO write_word_data ioctl          |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_write_word_data").c_str(), in, in_size, NULL, 0, &return_size);
-
-            return(status ? -EIO : 0);
-        }
-
-    case I2C_SMBUS_BLOCK_DATA:
-        {
-            SIZE_T len = data->block[0];
-            if(len == 0 || len > I2C_SMBUS_BLOCK_MAX)
-            {
-                return -EINVAL;
-            }
-            const SIZE_T in_size = 3 + (I2C_SMBUS_BLOCK_MAX/8);
-            ULONG64 in[3 + (I2C_SMBUS_BLOCK_MAX/8)] = {addr, command, len};
-
-            /*---------------------------------------------*\
-            | Pack bytes into 64bit Pawn cells              |
-            \*---------------------------------------------*/
-            u8 *in_bytes = (u8*)&in[3];
-            memcpy(in_bytes, &data->block[1], len);
-
-            /*---------------------------------------------*\
-            | Execute PawnIO write_block_data ioctl         |
-            \*---------------------------------------------*/
-            HRESULT status = pawnio_execute(handle, ("ioctl_" + name + "_write_block_data").c_str(), in, in_size, NULL, 0, &return_size);
-
-            return(status ? -EIO : 0);
-        }
-
-    default:
-        return(-EOPNOTSUPP);
-    }
-}
-
 s32 i2c_smbus_pawnio::i2c_smbus_xfer(u8 addr, char read_write, u8 command, int size, i2c_smbus_data* data)
 {
+    /*-----------------------------------------------------*\
+    | Lock SMBus mutex                                      |
+    \*-----------------------------------------------------*/
     if(global_smbus_access_handle != NULL)
     {
         WaitForSingleObject(global_smbus_access_handle, INFINITE);
     }
 
-    int status = -ENXIO;
+    /*-----------------------------------------------------*\
+    | Pack input data                                       |
+    \*-----------------------------------------------------*/
+    const SIZE_T    in_size         = 9;
+    ULONG64         in[in_size];
+    const SIZE_T    out_size        = 5;
+    ULONG64         out[out_size];
+    SIZE_T          return_size;
+    HRESULT         status;
 
-    if(read_write && size != I2C_SMBUS_QUICK) {
-        status = pawnio_read(addr, read_write, command, size, data);
-    }
-    else
-    {
-        status = pawnio_write(addr, read_write, command, size, data);
-    }
+    in[0]   = addr;
+    in[1]   = read_write;
+    in[2]   = command;
+    in[3]   = size;
 
+    memcpy( &in[4], data, sizeof(i2c_smbus_data));
+
+    /*-----------------------------------------------------*\
+    | Perform SMBus transfer                                |
+    \*-----------------------------------------------------*/
+    status  = pawnio_execute(handle, "ioctl_smbus_xfer", in, in_size, out, out_size, &return_size);
+
+    /*-----------------------------------------------------*\
+    | Unpack output data                                    |
+    \*-----------------------------------------------------*/
+    memcpy( data, &out[0], sizeof(i2c_smbus_data));
+
+    /*-----------------------------------------------------*\
+    | Unlock SMBus mutex                                    |
+    \*-----------------------------------------------------*/
     if(global_smbus_access_handle != NULL)
     {
         ReleaseMutex(global_smbus_access_handle);
