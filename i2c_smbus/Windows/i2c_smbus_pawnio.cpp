@@ -288,60 +288,51 @@ bool i2c_smbus_pawnio_detect()
     i2c_smbus_interface *   bus;
     HANDLE                  pawnio_handle;
 
+    /*-----------------------------------------------------*\
+    | Try to load Intel (i801) SMBus driver                 |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusI801.bin", &pawnio_handle) == S_OK)
+    {
+        bus = new i2c_smbus_pawnio(pawnio_handle, "i801");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
+
+    /*-----------------------------------------------------*\
+    | Try to load AMD (PIIX4) SMBus driver - primary bus    |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
+    {
         /*-------------------------------------------------*\
-        | Intel SMBus controllers do show I/O resources in  |
-        | Device Manager.  Analysis of many Intel boards    |
-        | has shown that Intel SMBus adapter I/O space      |
-        | varies between boards.  We can query              |
-        | Win32_PnPAllocatedResource entries and look up    |
-        | the PCI device ID to find the allocated I/O space.|
-        |                                                   |
-        | Intel SMBus adapters use the i801 driver          |
+        | Select port 0                                     |
         \*-------------------------------------------------*/
+        piix4_port_sel(pawnio_handle, 0);
 
-            /*---------------------------------------------*\
-            | Create bus                                    |
-            \*---------------------------------------------*/
-            if(i2c_smbus_pawnio::start_pawnio("SmbusI801.bin", &pawnio_handle) == S_OK)
-            {
-                bus                         = new i2c_smbus_pawnio(pawnio_handle, "i801");
+        bus = new i2c_smbus_pawnio(pawnio_handle, "piix4");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
 
-                ResourceManager::get()->RegisterI2CBus(bus);
-            }
-
-        /*-------------------------------------------------*\
-        | AMD SMBus adapters use the PIIX4 driver           |
+    /*-----------------------------------------------------*\
+    | Try to load AMD (PIIX4 SMBus driver - secondary bus   |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
+    {
+        /*--------------------------------------------------*\
+        | Select port 1                                     |
         \*-------------------------------------------------*/
+        piix4_port_sel(pawnio_handle, 1);
 
-            /*---------------------------------------------*\
-            | Create primary bus                            |
-            \*---------------------------------------------*/
-            if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
-            {
-                /*---------------------------------------------*\
-                | Select port 0                                 |
-                \*---------------------------------------------*/
-                piix4_port_sel(pawnio_handle, 0);
+        bus = new i2c_smbus_pawnio(pawnio_handle, "piix4");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
 
-                bus                         = new i2c_smbus_pawnio(pawnio_handle, "piix4");
-
-                ResourceManager::get()->RegisterI2CBus(bus);
-            }
-
-            /*---------------------------------------------*\
-            | Create secondary bus                          |
-            \*---------------------------------------------*/
-            if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
-            {
-                /*---------------------------------------------*\
-                | Select port 1                                 |
-                \*---------------------------------------------*/
-                piix4_port_sel(pawnio_handle, 1);
-
-                bus                         = new i2c_smbus_pawnio(pawnio_handle, "piix4");
-
-                ResourceManager::get()->RegisterI2CBus(bus);
-            }
+    /*-----------------------------------------------------*\
+    | Try to load Nuvoton (NCT6793) SMBus driver            |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusNCT6793.bin", &pawnio_handle) == S_OK)
+    {
+        bus = new i2c_smbus_pawnio(pawnio_handle, "NCT6793");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
 
     return(true);
 }
