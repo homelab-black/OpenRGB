@@ -13,6 +13,7 @@
 #include "LogManager.h"
 #include "LogitechProtocolCommon.h"
 #include "LogitechG203LController.h"
+#include "LogitechG110Controller.h"
 #include "LogitechG213Controller.h"
 #include "LogitechG560Controller.h"
 #include "LogitechG600Controller.h"
@@ -25,6 +26,7 @@
 #include "LogitechGLightsyncController.h"
 #include "LogitechLightspeedController.h"
 #include "LogitechX56Controller.h"
+#include "RGBController_LogitechG110.h"
 #include "RGBController_LogitechG203L.h"
 #include "RGBController_LogitechG213.h"
 #include "RGBController_LogitechG560.h"
@@ -69,6 +71,7 @@ using namespace std::chrono_literals;
 #define LOGITECH_G910_ORION_SPARK_PID               0xC32B
 #define LOGITECH_G910_PID                           0xC335
 #define LOGITECH_GPRO_KEYBOARD_1_PID                0xC339
+#define LOGITECH_G110_PID                           0xC22B
 
 /*-----------------------------------------------------*\
 | Mouse product IDs                                     |
@@ -146,6 +149,19 @@ using namespace std::chrono_literals;
 /*-----------------------------------------------------*\
 | Logitech Keyboards                                    |
 \*-----------------------------------------------------*/
+void DetectLogitechKeyboardG110(hid_device_info* info, const std::string& name)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        LogitechG110Controller*     controller     = new LogitechG110Controller(dev, info->path);
+        RGBController_LogitechG110* rgb_controller = new RGBController_LogitechG110(controller);
+        rgb_controller->name = name;
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}
+
 void DetectLogitechKeyboardG213(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
@@ -653,6 +669,7 @@ void DetectLogitechX56(hid_device_info* info, const std::string& name)
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_IPU("Logitech G110 Gaming Keyboard",                  DetectLogitechKeyboardG110, LOGITECH_VID, LOGITECH_G110_PID,                    0, 0xFF00, 0x00);
 REGISTER_HID_DETECTOR_IPU("Logitech G213",                                  DetectLogitechKeyboardG213, LOGITECH_VID, LOGITECH_G213_PID,                    1, 0xFF43, 0x0602);
 REGISTER_HID_DETECTOR_IP ("Logitech G512",                                  DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G512_PID,                    1, 0xFF43);
 REGISTER_HID_DETECTOR_IP ("Logitech G512 RGB",                              DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G512_RGB_PID,                1, 0xFF43);
