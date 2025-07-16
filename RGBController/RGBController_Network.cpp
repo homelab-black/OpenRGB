@@ -20,11 +20,6 @@ RGBController_Network::RGBController_Network(NetworkClient * client_ptr, unsigne
     dev_idx = dev_idx_val;
 }
 
-void RGBController_Network::SetupZones()
-{
-    //Don't send anything, this function should only process on host
-}
-
 void RGBController_Network::ClearSegments(int zone)
 {
     client->SendRequest_RGBController_ClearSegments(dev_idx, zone);
@@ -35,14 +30,54 @@ void RGBController_Network::ClearSegments(int zone)
 
 void RGBController_Network::AddSegment(int zone, segment new_segment)
 {
-    unsigned char * data = GetSegmentDescription(zone, new_segment);
-    unsigned int size;
+    /*-----------------------------------------------------*\
+    | Lock access mutex                                     |
+    \*-----------------------------------------------------*/
+    AccessMutex.lock_shared();
 
-    memcpy(&size, &data[0], sizeof(unsigned int));
+    /*-----------------------------------------------------*\
+    | Initialize variables                                  |
+    \*-----------------------------------------------------*/
+    unsigned int data_size                  = 0;
 
-    client->SendRequest_RGBController_AddSegment(dev_idx, data, size);
+    /*-----------------------------------------------------*\
+    | Calculate data size                                   |
+    \*-----------------------------------------------------*/
+    data_size                              += sizeof(data_size);
+    data_size                              += sizeof(zone);
+    data_size                              += GetSegmentDescriptionSize(new_segment, client->GetProtocolVersion());
 
-    delete[] data;
+    /*-----------------------------------------------------*\
+    | Create data buffer                                    |
+    \*-----------------------------------------------------*/
+    unsigned char * data_buf                = new unsigned char[data_size];
+    unsigned char * data_ptr                = data_buf;
+
+    /*-----------------------------------------------------*\
+    | Copy in data size                                     |
+    \*-----------------------------------------------------*/
+    memcpy(data_ptr, &data_size, sizeof(data_size));
+    data_ptr += sizeof(data_size);
+
+    /*-----------------------------------------------------*\
+    | Copy in zone index                                    |
+    \*-----------------------------------------------------*/
+    memcpy(data_ptr, &zone, sizeof(zone));
+    data_ptr += sizeof(zone);
+
+    /*-----------------------------------------------------*\
+    | Copy in segment description                           |
+    \*-----------------------------------------------------*/
+    data_ptr                                = GetSegmentDescriptionData(data_ptr, new_segment, client->GetProtocolVersion());
+
+    /*-----------------------------------------------------*\
+    | Unlock access mutex                                   |
+    \*-----------------------------------------------------*/
+    AccessMutex.unlock_shared();
+
+    client->SendRequest_RGBController_AddSegment(dev_idx, data_buf, data_size);
+
+    delete[] data_buf;
 
     client->SendRequest_ControllerData(dev_idx);
     client->WaitOnControllerData();
@@ -58,7 +93,7 @@ void RGBController_Network::ResizeZone(int zone, int new_size)
 
 void RGBController_Network::DeviceUpdateLEDs()
 {
-    unsigned char * data = GetColorDescription();
+    unsigned char * data = CreateUpdateLEDsPacket(client->GetProtocolVersion());
     unsigned int size;
 
     memcpy(&size, &data[0], sizeof(unsigned int));
@@ -99,10 +134,10 @@ void RGBController_Network::SetCustomMode()
 
 void RGBController_Network::DeviceUpdateMode()
 {
-    unsigned char * data = GetModeDescription(active_mode, client->GetProtocolVersion());
-    unsigned int size;
+    unsigned char * data;
+    unsigned int    size;
 
-    memcpy(&size, &data[0], sizeof(unsigned int));
+    data = CreateUpdateModePacket(active_mode, &size, client->GetProtocolVersion());
 
     client->SendRequest_RGBController_UpdateMode(dev_idx, data, size);
 
@@ -111,10 +146,10 @@ void RGBController_Network::DeviceUpdateMode()
 
 void RGBController_Network::DeviceSaveMode()
 {
-    unsigned char * data = GetModeDescription(active_mode, client->GetProtocolVersion());
-    unsigned int size;
+    unsigned char * data;
+    unsigned int    size;
 
-    memcpy(&size, &data[0], sizeof(unsigned int));
+    data = CreateUpdateModePacket(active_mode, &size, client->GetProtocolVersion());
 
     client->SendRequest_RGBController_SaveMode(dev_idx, data, size);
 
@@ -133,4 +168,98 @@ void RGBController_Network::DeviceSaveMode()
 void RGBController_Network::UpdateLEDs()
 {
     DeviceUpdateLEDs();
+}
+
+unsigned char * RGBController_Network::CreateUpdateLEDsPacket(unsigned int protocol_version)
+{
+    /*-----------------------------------------------------*\
+    | Lock access mutex                                     |
+    \*-----------------------------------------------------*/
+    AccessMutex.lock_shared();
+
+    /*-----------------------------------------------------*\
+    | Initialize variables                                  |
+    \*-----------------------------------------------------*/
+    unsigned int data_size                  = 0;
+
+    /*-----------------------------------------------------*\
+    | Calculate data size                                   |
+    \*-----------------------------------------------------*/
+    data_size                              += sizeof(data_size);
+    data_size                              += GetColorDescriptionSize(protocol_version);
+
+    /*-----------------------------------------------------*\
+    | Create data buffer                                    |
+    \*-----------------------------------------------------*/
+    unsigned char * data_buf                = new unsigned char[data_size];
+    unsigned char * data_ptr                = data_buf;
+
+    /*-----------------------------------------------------*\
+    | Copy in data size                                     |
+    \*-----------------------------------------------------*/
+    memcpy(data_ptr, &data_size, sizeof(data_size));
+    data_ptr += sizeof(data_size);
+
+    /*-----------------------------------------------------*\
+    | Copy in color data                                    |
+    \*-----------------------------------------------------*/
+    data_ptr                                = GetColorDescriptionData(data_ptr, protocol_version);
+
+    /*-----------------------------------------------------*\
+    | Unlock access mutex                                   |
+    \*-----------------------------------------------------*/
+    AccessMutex.unlock_shared();
+
+    return(data_buf);
+}
+
+unsigned char * RGBController_Network::CreateUpdateModePacket(int mode_idx, unsigned int* size, unsigned int protocol_version)
+{
+    /*-----------------------------------------------------*\
+    | Lock access mutex                                     |
+    \*-----------------------------------------------------*/
+    AccessMutex.lock_shared();
+
+    /*-----------------------------------------------------*\
+    | Initialize variables                                  |
+    \*-----------------------------------------------------*/
+    unsigned int data_size                  = 0;
+
+    /*-----------------------------------------------------*\
+    | Calculate data size                                   |
+    \*-----------------------------------------------------*/
+    data_size                              += sizeof(data_size);
+    data_size                              += sizeof(mode_idx);
+    data_size                              += GetModeDescriptionSize(modes[mode_idx], protocol_version);
+
+    /*-----------------------------------------------------*\
+    | Create data buffer                                    |
+    \*-----------------------------------------------------*/
+    unsigned char* data_buf                 = new unsigned char[data_size];
+    unsigned char* data_ptr                 = data_buf;
+
+    /*-----------------------------------------------------*\
+    | Copy in data size                                     |
+    \*-----------------------------------------------------*/
+    memcpy(data_ptr, &data_size, sizeof(data_size));
+    data_ptr += sizeof(data_size);
+
+    /*-----------------------------------------------------*\
+    | Copy in mode index                                    |
+    \*-----------------------------------------------------*/
+    memcpy(data_ptr, &mode_idx, sizeof(mode_idx));
+    data_ptr += sizeof(int);
+
+    /*-----------------------------------------------------*\
+    | Copy in mode description                              |
+    \*-----------------------------------------------------*/
+    data_ptr = GetModeDescriptionData(data_ptr, modes[mode_idx], protocol_version);
+
+    /*-----------------------------------------------------*\
+    | Unlock access mutex                                   |
+    \*-----------------------------------------------------*/
+    AccessMutex.unlock_shared();
+
+    *size = data_size;
+    return(data_buf);
 }
