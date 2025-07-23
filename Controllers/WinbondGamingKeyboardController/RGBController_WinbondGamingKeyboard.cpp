@@ -310,7 +310,7 @@ static void InitLayouts(layout_values& keyboard_layouts, KEYBOARD_SIZE kb_size, 
     }
 
     // Ins, Home, PgUp
-    if(kb_size & KEYBOARD_ZONE_EXTRA)
+    if(kb_size & KEYBOARD_ZONE_EXTRA || kb_size & KEYBOARD_ZONE_EXTRA_SHORT)
     {
         for(int i=1; i <= 3; ++i)
         {
@@ -360,7 +360,7 @@ static void InitLayouts(layout_values& keyboard_layouts, KEYBOARD_SIZE kb_size, 
     }
 
     // Del, End, PgDown
-    if(kb_size & KEYBOARD_ZONE_EXTRA)
+    if(kb_size & KEYBOARD_ZONE_EXTRA || kb_size & KEYBOARD_ZONE_EXTRA_SHORT)
     {
         for(int i=5; i <= 7; ++i)
         {
@@ -449,7 +449,7 @@ static void InitLayouts(layout_values& keyboard_layouts, KEYBOARD_SIZE kb_size, 
         kvs.push_back( KV(5,12) ); // Right Shift
     }
 
-    if(kb_size & KEYBOARD_ZONE_EXTRA)
+    if(kb_size & KEYBOARD_ZONE_EXTRA || kb_size & KEYBOARD_ZONE_EXTRA_SHORT)
     {
         kvs.push_back( KV(5,14) ); // Up
     }
@@ -490,7 +490,7 @@ static void InitLayouts(layout_values& keyboard_layouts, KEYBOARD_SIZE kb_size, 
         }
     }
 
-    if(kb_size & KEYBOARD_ZONE_EXTRA)
+    if(kb_size & KEYBOARD_ZONE_EXTRA || kb_size & KEYBOARD_ZONE_EXTRA_SHORT)
         kvs.push_back( KV(6,17) ); // Left
 
     /* Message 7: -------------------------------------------------------*\
@@ -498,7 +498,7 @@ static void InitLayouts(layout_values& keyboard_layouts, KEYBOARD_SIZE kb_size, 
     |   5 = NumEnter, more likely: 3 = Num0, 5 = NumDec)                  |
     \*-------------------------------------------------------------------*/
 
-    if(kb_size & KEYBOARD_ZONE_EXTRA)
+    if(kb_size & KEYBOARD_ZONE_EXTRA || kb_size & KEYBOARD_ZONE_EXTRA_SHORT)
     {
         kvs.push_back( KV(7,0) ); // Down
         kvs.push_back( KV(7,1) ); // Right
