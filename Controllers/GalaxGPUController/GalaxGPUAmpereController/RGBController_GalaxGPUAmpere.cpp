@@ -70,7 +70,15 @@ RGBController_GalaxGPUAmpere::RGBController_GalaxGPUAmpere(GalaxGPUAmpereControl
 
     SetupZones();
 
-    active_mode = controller->GetMode();
+    int device_mode = controller->GetMode();
+    for (size_t i = 0; i < modes.size(); i++)
+    {
+        if(device_mode == modes[i].value)
+        {
+            active_mode = i;
+            break;
+        }
+    }
 }
 
 RGBController_GalaxGPUAmpere::~RGBController_GalaxGPUAmpere()
