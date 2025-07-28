@@ -127,7 +127,7 @@ void RGBController_GalaxGPUAmpere::ResizeZone(int /* zone */, int /* new_size */
 
 void RGBController_GalaxGPUAmpere::DeviceUpdateLEDs()
 {
-    if(active_mode == GALAX_AMPERE_MODE_OFF)
+    if(modes[active_mode].value == GALAX_AMPERE_MODE_OFF)
     {
         controller->SetLEDColors(0, 0, 0);
         return;
