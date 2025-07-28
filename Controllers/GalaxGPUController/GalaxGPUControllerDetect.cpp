@@ -12,8 +12,10 @@
 #include "Detector.h"
 #include "GalaxGPUv1Controller.h"
 #include "GalaxGPUv2Controller.h"
+#include "GalaxGPUAmpereController.h"
 #include "RGBController_GalaxGPUv1.h"
 #include "RGBController_GalaxGPUv2.h"
+#include "RGBController_GalaxGPUAmpere.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 
@@ -45,7 +47,16 @@ bool TestForGalaxGPUController(i2c_smbus_interface* bus, unsigned char address)
             break;
         
         /*-----------------------------------------------------------------*\
-        | V1 Controller - RTX 3080                                          |
+        | V2 Controller                                                     |
+        \*-----------------------------------------------------------------*/
+        case 0x51:
+            res = bus->i2c_smbus_read_byte_data(address, 0x00);
+            if (res == 0x80)
+                pass = true;
+            break;
+
+        /*-----------------------------------------------------------------*\
+        | Ampere Controller                                                 |
         \*-----------------------------------------------------------------*/
         case 0x23:
             res = bus->i2c_smbus_read_byte_data(address, 0x00);
@@ -53,15 +64,6 @@ bool TestForGalaxGPUController(i2c_smbus_interface* bus, unsigned char address)
             {
                 pass = true;
             }
-            break;
-
-        /*-----------------------------------------------------------------*\
-        | V2 Controller                                                     |
-        \*-----------------------------------------------------------------*/
-        case 0x51:
-            res = bus->i2c_smbus_read_byte_data(address, 0x00);
-            if (res == 0x80)
-                pass = true;
             break;
     }
 
@@ -87,7 +89,6 @@ void DetectGalaxGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const
             | V1 Controller                                                     |
             \*-----------------------------------------------------------------*/
             case 0x32:
-            case 0x23:
                 {
                     GalaxGPUv1Controller*     controller     = new GalaxGPUv1Controller(bus, i2c_addr);
                     RGBController_GalaxGPUv1* rgb_controller = new RGBController_GalaxGPUv1(controller);
@@ -106,6 +107,18 @@ void DetectGalaxGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const
                     RGBController_GalaxGPUv2* rgb_controller = new RGBController_GalaxGPUv2(controller);
                     rgb_controller->name                     = name;
 
+                    ResourceManager::get()->RegisterRGBController(rgb_controller);
+                }
+                break;
+
+            /*-----------------------------------------------------------------*\
+            | Ampere Controller                                                 |
+            \*-----------------------------------------------------------------*/
+            case 0x23:
+                {
+                    GalaxGPUAmpereController*     controller     = new GalaxGPUAmpereController(bus, i2c_addr);
+                    RGBController_GalaxGPUAmpere* rgb_controller = new RGBController_GalaxGPUAmpere(controller);
+                    rgb_controller->name                         = name;
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
                 }
                 break;
