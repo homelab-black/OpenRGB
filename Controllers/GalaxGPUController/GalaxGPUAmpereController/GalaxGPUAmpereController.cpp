@@ -82,7 +82,7 @@ unsigned char GalaxGPUAmpereController::GetMode()
     {
         mode = GALAX_AMPERE_MODE_BREATHING_CYCLE;
     }
-    else if(data1 == GALAX_AMPERE_MODE_RAINBOW_DATA_1 && data2 == GALAX_AMPERE_MODE_RAINBOW_DATA_2)
+    else if(data1 == GALAX_AMPERE_MODE_SPECTRUM_CYCLE_DATA_1 && data2 == GALAX_AMPERE_MODE_SPECTRUM_CYCLE_DATA_2)
     {
         mode = GALAX_AMPERE_MODE_SPECTRUM_CYCLE;
     }
@@ -121,8 +121,8 @@ void GalaxGPUAmpereController::SetMode(unsigned char mode)
         break;
 
     case GALAX_AMPERE_MODE_SPECTRUM_CYCLE:
-        reg1 = GALAX_AMPERE_MODE_RAINBOW_DATA_1;
-        reg2 = GALAX_AMPERE_MODE_RAINBOW_DATA_2;
+        reg1 = GALAX_AMPERE_MODE_SPECTRUM_CYCLE_DATA_1;
+        reg2 = GALAX_AMPERE_MODE_SPECTRUM_CYCLE_DATA_2;
         break;
 
     case GALAX_AMPERE_MODE_OFF:
