@@ -45,14 +45,16 @@ bool TestForGalaxGPUController(i2c_smbus_interface* bus, unsigned char address)
                     pass = true;
             }
             break;
-        
+
         /*-----------------------------------------------------------------*\
         | V2 Controller                                                     |
         \*-----------------------------------------------------------------*/
         case 0x51:
             res = bus->i2c_smbus_read_byte_data(address, 0x00);
-            if (res == 0x80)
+            if(res == 0x80)
+            {
                 pass = true;
+            }
             break;
 
         /*-----------------------------------------------------------------*\
