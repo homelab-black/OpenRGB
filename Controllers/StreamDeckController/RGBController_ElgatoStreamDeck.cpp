@@ -117,7 +117,7 @@ void RGBController_ElgatoStreamDeck::UpdateSingleLED(int /*led*/)
     DeviceUpdateLEDs();
 }
 
-void RGBController_ElgatoStreamDeck::ResizeZone(int /*zone*/, int /*new_size*/)
+void RGBController_ElgatoStreamDeck::DeviceResizeZone(int /*zone*/, int /*new_size*/)
 {
 
 }
