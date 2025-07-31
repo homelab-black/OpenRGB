@@ -28,4 +28,12 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+
+public:
+    using       RGBController::name;
+    using       RGBController::vendor;
+    using       RGBController::description;
+    using       RGBController::location;
+    using       RGBController::serial;
+    using       RGBController::type;
 };
