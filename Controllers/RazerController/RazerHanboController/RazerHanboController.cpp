@@ -205,7 +205,7 @@ razer_hanbo_report RazerHanboController::razer_hanbo_create_report(unsigned char
 {
     /*---------------------------------------------------------*\
     | One type supports both requests and responses.            |
-    | Requests start at header[1] to provide a dummy byte.      |
+    | Requests start at header[1] to provide a debug byte.      |
     | Responses provide 0 to this function for consistency      |
     \*---------------------------------------------------------*/
     razer_hanbo_report new_report;

@@ -30,7 +30,7 @@
 | The Hanbo does not advertise HID report IDs.              |
 | In this case under Windows, payloads sent to hidapi must  |
 | be prefixed with a byte of value 0 even if this exceeds   |
-| the device report length. This dummy byte never ends up   |
+| the device report length. This debug byte never ends up   |
 | on the wire. Hidapi via libusb under Linux is compatible  |
 | with this behavior. This is generally not compatible with |
 | hidraw when using it directly.                            |

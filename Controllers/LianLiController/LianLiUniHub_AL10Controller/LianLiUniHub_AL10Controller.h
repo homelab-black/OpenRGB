@@ -44,7 +44,7 @@ enum
 
 enum
 {
-    UNIHUB_AL10_ANY_FAN_COUNT_000          = 0xFF,   /* Fan count for 0 fans (dummy value) */
+    UNIHUB_AL10_ANY_FAN_COUNT_000          = 0xFF,   /* Fan count for 0 fans (debug value) */
     UNIHUB_AL10_ANY_FAN_COUNT_001          = 0x00,   /* Fan count for 1 fan        */
     UNIHUB_AL10_ANY_FAN_COUNT_002          = 0x01,   /* Fan count for 2 fans       */
     UNIHUB_AL10_ANY_FAN_COUNT_003          = 0x02,   /* Fan count for 3 fans       */
