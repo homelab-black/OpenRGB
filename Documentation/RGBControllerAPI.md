@@ -296,11 +296,11 @@ Sets the color value of all LEDs in the `colors` vector.
 
 Sets the color value of all LEDs in the given zone in the `colors` vector.
 
-### `int GetMode()`
+### `int GetActiveMode()`
 
 Returns the active mode index of the device.  The returned int should line up with the `modes` vector.
 
-### `void SetMode(int mode)`
+### `void SetActiveMode(int mode)`
 
 Sets the active mode index of the device.  The mode should be the index in the `modes` vector of the mode you wish to set.
 

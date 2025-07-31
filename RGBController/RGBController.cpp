@@ -110,14 +110,9 @@ device_type RGBController::GetDeviceType()
     return(type);
 }
 
-std::string RGBController::GetModeName(unsigned int mode)
+unsigned int RGBController::GetFlags()
 {
-    return(modes[mode].name);
-}
-
-std::string RGBController::GetZoneName(unsigned int zone)
-{
-    return(zones[zone].name);
+    return(flags);
 }
 
 std::string RGBController::GetLEDName(unsigned int led)
@@ -1950,21 +1945,6 @@ void RGBController::SetupColors()
     }
 }
 
-unsigned int RGBController::GetLEDsInZone(unsigned int zone)
-{
-    unsigned int leds_count = zones[zone].leds_count;
-
-    if(zones[zone].flags & ZONE_FLAG_RESIZE_EFFECTS_ONLY)
-    {
-        if(leds_count > 1)
-        {
-            leds_count = 1;
-        }
-    }
-
-    return(leds_count);
-}
-
 RGBColor RGBController::GetLED(unsigned int led)
 {
     if(led < colors.size())
@@ -2001,6 +1981,9 @@ void RGBController::SetAllZoneLEDs(int zone, RGBColor color)
     }
 }
 
+/*---------------------------------------------------------*\
+| Hidden Flag Functions                                     |
+\*---------------------------------------------------------*/
 bool RGBController::GetHidden()
 {
     return(flags & CONTROLLER_FLAG_HIDDEN);
@@ -2020,12 +2003,138 @@ void RGBController::SetHidden(bool hidden)
     }
 }
 
-int RGBController::GetMode()
+/*---------------------------------------------------------*\
+| Zone Functions                                            |
+\*---------------------------------------------------------*/
+std::size_t RGBController::GetZoneCount()
+{
+    return(zones.size());
+}
+
+unsigned int RGBController::GetZoneFlags(unsigned int zone)
+{
+    return(zones[zone].flags);
+}
+
+unsigned int RGBController::GetZoneLEDsCount(unsigned int zone)
+{
+    return(zones[zone].leds_count);
+}
+
+unsigned int RGBController::GetZoneLEDsMax(unsigned int zone)
+{
+    return(zones[zone].leds_max);
+}
+
+unsigned int RGBController::GetZoneLEDsMin(unsigned int zone)
+{
+    return(zones[zone].leds_min);
+}
+
+std::string RGBController::GetZoneName(unsigned int zone)
+{
+    return(zones[zone].name);
+}
+
+unsigned int RGBController::GetZoneStartIndex(unsigned int zone)
+{
+    return(zones[zone].start_idx);
+}
+
+zone_type RGBController::GetZoneType(unsigned int zone)
+{
+    return(zones[zone].type);
+}
+
+unsigned int RGBController::GetLEDsInZone(unsigned int zone)
+{
+    unsigned int leds_count = zones[zone].leds_count;
+
+    if(zones[zone].flags & ZONE_FLAG_RESIZE_EFFECTS_ONLY)
+    {
+        if(leds_count > 1)
+        {
+            leds_count = 1;
+        }
+    }
+
+    return(leds_count);
+}
+
+/*---------------------------------------------------------*\
+| Mode Functions                                            |
+\*---------------------------------------------------------*/
+std::size_t RGBController::GetModeCount()
+{
+    return(modes.size());
+}
+
+unsigned int RGBController::GetModeBrightness(unsigned int mode)
+{
+    return(modes[mode].brightness);
+}
+
+unsigned int RGBController::GetModeBrightnessMax(unsigned int mode)
+{
+    return(modes[mode].brightness_max);
+}
+
+unsigned int RGBController::GetModeBrightnessMin(unsigned int mode)
+{
+    return(modes[mode].brightness_min);
+}
+
+std::size_t RGBController::GetModeColorsCount(unsigned int mode)
+{
+    return(modes[mode].colors.size());
+}
+
+unsigned int RGBController::GetModeColorsMax(unsigned int mode)
+{
+    return(modes[mode].colors_max);
+}
+
+unsigned int RGBController::GetModeColorsMin(unsigned int mode)
+{
+    return(modes[mode].colors_min);
+}
+
+unsigned int RGBController::GetModeFlags(unsigned int mode)
+{
+    return(modes[mode].flags);
+}
+
+std::string RGBController::GetModeName(unsigned int mode)
+{
+    return(modes[mode].name);
+}
+
+unsigned int RGBController::GetModeSpeed(unsigned int mode)
+{
+    return(modes[mode].speed);
+}
+
+unsigned int RGBController::GetModeSpeedMax(unsigned int mode)
+{
+    return(modes[mode].speed_max);
+}
+
+unsigned int RGBController::GetModeSpeedMin(unsigned int mode)
+{
+    return(modes[mode].speed_min);
+}
+
+int RGBController::GetModeValue(unsigned int mode)
+{
+    return(modes[mode].value);
+}
+
+int RGBController::GetActiveMode()
 {
     return(active_mode);
 }
 
-void RGBController::SetMode(int mode)
+void RGBController::SetActiveMode(int mode)
 {
     active_mode = mode;
 
