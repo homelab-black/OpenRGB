@@ -1,9 +1,10 @@
 /*---------------------------------------------------------*\
 | GalaxGPUv2Controller.h                                    |
 |                                                           |
-|   RGBController for Galax GPUs (Xtreme Tuner)             |
+|   Driver for GALAX/KFA2 RTX 30 Series GPU                 |
 |                                                           |
-|   Daniel Stuart  (daniel.stuart14)            26 may 2025 |
+|   Muhamad Visat                               27 Jul 2025 |
+|   Original work by Niels Westphal (crashniels)            |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-only                   |
@@ -18,65 +19,66 @@ typedef unsigned char galax_gpu_dev_id;
 
 enum
 {
-    GALAX_V2_RED_REGISTER                      = 0x02, /* Red Register */
-    GALAX_V2_GREEN_REGISTER                    = 0x03, /* Green Register */
-    GALAX_V2_BLUE_REGISTER                     = 0x04, /* Blue Register */
-    GALAX_V2_SPEED_REGISTER_A                  = 0x21, /* Speed Register A */
-    GALAX_V2_SPEED_REGISTER_B                  = 0x22, /* Speed Register B */
-    GALAX_V2_SYNC_REGISTER                     = 0x27, /* Sync Register */
-    GALAX_V2_BRIGHTNESS_REGISTER               = 0x2D, /* Brightness Register */
-    GALAX_V2_MODE_REGISTER                     = 0x30, /* Mode Register */
-    GALAX_V2_SAVE_REGISTER                     = 0x40, /* Save Register */
+    GALAX_V2_RED_REGISTER                      = 0x02, /* Red register */
+    GALAX_V2_GREEN_REGISTER                    = 0x03, /* Green register */
+    GALAX_V2_BLUE_REGISTER                     = 0x04, /* Blue register */
+    GALAX_V2_MODE_REGISTER_1                   = 0x05, /* Mode register 1 */
+    GALAX_V2_MODE_REGISTER_2                   = 0x06, /* Mode register 2 */
+    GALAX_V2_SAVE_REGISTER                     = 0x08, /* Save register */
 };
 
 enum
 {
-    GALAX_V2_MODE_STATIC_VALUE                 = 0x01, /* Static Mode */
-    GALAX_V2_MODE_BREATHING_VALUE              = 0x02, /* Breathing Mode */
-    GALAX_V2_MODE_RAINBOW_VALUE                = 0x16, /* Rainbow Mode */
-    GALAX_V2_MODE_OFF_VALUE                    = 0x19, /* Off Mode */
+    GALAX_V2_MODE_STATIC                      = 0x00, /* Static mode */
+    GALAX_V2_MODE_BREATHING                   = 0x01, /* Breathing mode */
+    GALAX_V2_MODE_BREATHING_CYCLE             = 0x02, /* Breathing Cycle mode */
+    GALAX_V2_MODE_SPECTRUM_CYCLE              = 0x03, /* Spectrum Cycle mode */
+    GALAX_V2_MODE_OFF                         = 0x04, /* Off mode */
 };
 
 enum
 {
-    GALAX_V2_SYNC_OFF                          = 0x00, /* Sync Off */
-    GALAX_V2_SYNC_ON                           = 0x01, /* Sync On */
-};
+    GALAX_V2_MODE_STATIC_DATA_1               = 0x00,
+    GALAX_V2_MODE_STATIC_DATA_2               = 0x20,
 
-enum
-{
-    GALAX_V2_SAVE_VALUE                        = 0x5A, /* Save Value */
+    GALAX_V2_MODE_BREATHING_DATA_1            = 0x04,
+    GALAX_V2_MODE_BREATHING_DATA_2            = 0x20,
+
+    GALAX_V2_MODE_BREATHING_CYCLE_DATA_1      = 0x84,
+    GALAX_V2_MODE_BREATHING_CYCLE_DATA_2      = 0x40,
+
+    GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_1       = 0x84,
+    GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_2       = 0x02,
+
+    GALAX_V2_MODE_OFF_DATA_1                  = 0x00,
+    GALAX_V2_MODE_OFF_DATA_2                  = 0x01,
+
+    GALAX_V2_SAVE_DATA                        = 0x5A,
 };
 
 class GalaxGPUv2Controller
 {
 public:
-    GalaxGPUv2Controller(i2c_smbus_interface* bus, galax_gpu_dev_id);
+    GalaxGPUv2Controller(i2c_smbus_interface* bus, galax_gpu_dev_id dev);
     ~GalaxGPUv2Controller();
 
     std::string   GetDeviceName();
     std::string   GetDeviceLocation();
+
     unsigned char GetLEDRed();
     unsigned char GetLEDGreen();
     unsigned char GetLEDBlue();
-    unsigned char GetMode();
-    unsigned char GetSync();
-    unsigned char GetSpeed();
-    unsigned char GetBrightness();
     void          SetLEDColors(unsigned char red, unsigned char green, unsigned char blue);
-    void          SetMode(unsigned char value);
-    void          SetSync(unsigned char value);
-    void          SetSpeed(unsigned char value);
-    void          SetBrightness(unsigned char value);
+
+    unsigned char GetMode();
+    void          SetMode(unsigned char mode);
     void          SaveMode();
 
-    unsigned char GalaxGPURegisterRead(unsigned char reg);
-    void          GalaxGPURegisterWrite(unsigned char reg, unsigned char val);
-
-    bool          direct = false;                                                // Temporary solution to check if we are in "Direct" mode
-
 private:
-    char                    device_name[16];
-    i2c_smbus_interface *   bus;
-    galax_gpu_dev_id        dev;
+    i2c_smbus_interface* bus;
+    galax_gpu_dev_id     dev;
+    std::string          device_name;
+
+    unsigned char RegisterRead(unsigned char reg);
+    void          RegisterWrite(unsigned char reg, unsigned char val);
 };

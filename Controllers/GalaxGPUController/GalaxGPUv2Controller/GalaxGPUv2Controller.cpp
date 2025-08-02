@@ -1,15 +1,17 @@
 /*---------------------------------------------------------*\
 | GalaxGPUv2Controller.cpp                                  |
 |                                                           |
-|   RGBController for Galax GPUs (Xtreme Tuner)             |
+|   Driver for GALAX/KFA2 RTX 30 Series GPU                 |
 |                                                           |
-|   Daniel Stuart  (daniel.stuart14)            26 may 2025 |
+|   Muhamad Visat                               27 Jul 2025 |
+|   Original work by Niels Westphal (crashniels)            |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-#include <cstring>
+#include <cstdio>
+#include "LogManager.h"
 #include "GalaxGPUv2Controller.h"
 
 GalaxGPUv2Controller::GalaxGPUv2Controller(i2c_smbus_interface* bus, galax_gpu_dev_id dev)
@@ -17,7 +19,8 @@ GalaxGPUv2Controller::GalaxGPUv2Controller(i2c_smbus_interface* bus, galax_gpu_d
     this->bus = bus;
     this->dev = dev;
 
-    strcpy(device_name, "Galax RTX GPU"); // Would be nice to get the actual GPU name. Using this as a placeholder.
+    // Would be nice to get the actual GPU name. Using this as a placeholder.
+    device_name = "GALAX/KFA2 RTX 30 Series GPU";
 }
 
 GalaxGPUv2Controller::~GalaxGPUv2Controller()
@@ -42,79 +45,114 @@ std::string GalaxGPUv2Controller::GetDeviceLocation()
 
 unsigned char GalaxGPUv2Controller::GetLEDRed()
 {
-    return(GalaxGPURegisterRead(GALAX_V2_RED_REGISTER));
+    return(RegisterRead(GALAX_V2_RED_REGISTER));
 }
 
 unsigned char GalaxGPUv2Controller::GetLEDGreen()
 {
-    return(GalaxGPURegisterRead(GALAX_V2_GREEN_REGISTER));
+    return(RegisterRead(GALAX_V2_GREEN_REGISTER));
 }
 
 unsigned char GalaxGPUv2Controller::GetLEDBlue()
 {
-    return(GalaxGPURegisterRead(GALAX_V2_BLUE_REGISTER));
-}
-
-unsigned char GalaxGPUv2Controller::GetMode()
-{
-    return GalaxGPURegisterRead(GALAX_V2_MODE_REGISTER);
-}
-
-unsigned char GalaxGPUv2Controller::GetSync()
-{
-    return GalaxGPURegisterRead(GALAX_V2_SYNC_REGISTER);
-}
-
-unsigned char GalaxGPUv2Controller::GetSpeed()
-{
-    return GalaxGPURegisterRead(GALAX_V2_SPEED_REGISTER_A);
-}
-
-unsigned char GalaxGPUv2Controller::GetBrightness()
-{
-    return GalaxGPURegisterRead(GALAX_V2_BRIGHTNESS_REGISTER);
+    return(RegisterRead(GALAX_V2_BLUE_REGISTER));
 }
 
 void GalaxGPUv2Controller::SetLEDColors(unsigned char red, unsigned char green, unsigned char blue)
 {
-    GalaxGPURegisterWrite(GALAX_V2_RED_REGISTER, red);
-    GalaxGPURegisterWrite(GALAX_V2_GREEN_REGISTER, green);
-    GalaxGPURegisterWrite(GALAX_V2_BLUE_REGISTER, blue);
+    RegisterWrite(GALAX_V2_RED_REGISTER, red);
+    RegisterWrite(GALAX_V2_GREEN_REGISTER, green);
+    RegisterWrite(GALAX_V2_BLUE_REGISTER, blue);
 }
 
-void GalaxGPUv2Controller::SetMode(unsigned char value)
+unsigned char GalaxGPUv2Controller::GetMode()
 {
-    GalaxGPURegisterWrite(GALAX_V2_MODE_REGISTER, value);
+    unsigned char mode = GALAX_V2_MODE_BREATHING_CYCLE;
+    unsigned char data1 = RegisterRead(GALAX_V2_MODE_REGISTER_1);
+    unsigned char data2 = RegisterRead(GALAX_V2_MODE_REGISTER_2);
+
+    if(data1 == GALAX_V2_MODE_STATIC_DATA_1 && data2 == GALAX_V2_MODE_STATIC_DATA_2)
+    {
+        mode = GALAX_V2_MODE_STATIC;
+    }
+    else if(data1 == GALAX_V2_MODE_BREATHING_DATA_1 && data2 == GALAX_V2_MODE_BREATHING_DATA_2)
+    {
+        mode = GALAX_V2_MODE_BREATHING;
+    }
+    else if(data1 == GALAX_V2_MODE_BREATHING_CYCLE_DATA_1 && data2 == GALAX_V2_MODE_BREATHING_CYCLE_DATA_2)
+    {
+        mode = GALAX_V2_MODE_BREATHING_CYCLE;
+    }
+    else if(data1 == GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_1 && data2 == GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_2)
+    {
+        mode = GALAX_V2_MODE_SPECTRUM_CYCLE;
+    }
+    else if(data1 == GALAX_V2_MODE_OFF_DATA_1 && data2 == GALAX_V2_MODE_OFF_DATA_2)
+    {
+        mode = GALAX_V2_MODE_OFF;
+    }
+    else
+    {
+        LOG_DEBUG("[GALAX GPU v2] GetMode: Couldn't determine mode from data1 & data2: 0x%x, 0x%x", data1, data2);
+    }
+
+    return(mode);
 }
 
-void GalaxGPUv2Controller::SetSync(unsigned char value)
+void GalaxGPUv2Controller::SetMode(unsigned char mode)
 {
-    GalaxGPURegisterWrite(GALAX_V2_SYNC_REGISTER, value);
-}
+    unsigned char reg1;
+    unsigned char reg2;
 
-void GalaxGPUv2Controller::SetSpeed(unsigned char value)
-{
-    // We just duplicate the value to both speed registers
-    GalaxGPURegisterWrite(GALAX_V2_SPEED_REGISTER_A, value);
-    GalaxGPURegisterWrite(GALAX_V2_SPEED_REGISTER_B, value);
-}
+    switch(mode)
+    {
+    case GALAX_V2_MODE_STATIC:
+        reg1 = GALAX_V2_MODE_STATIC_DATA_1;
+        reg2 = GALAX_V2_MODE_STATIC_DATA_2;
+        break;
 
-void GalaxGPUv2Controller::SetBrightness(unsigned char value)
-{
-    GalaxGPURegisterWrite(GALAX_V2_BRIGHTNESS_REGISTER, value);
+    case GALAX_V2_MODE_BREATHING:
+        reg1 = GALAX_V2_MODE_BREATHING_DATA_1;
+        reg2 = GALAX_V2_MODE_BREATHING_DATA_2;
+        break;
+
+    case GALAX_V2_MODE_BREATHING_CYCLE:
+        reg1 = GALAX_V2_MODE_BREATHING_CYCLE_DATA_1;
+        reg2 = GALAX_V2_MODE_BREATHING_CYCLE_DATA_2;
+        break;
+
+    case GALAX_V2_MODE_SPECTRUM_CYCLE:
+        reg1 = GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_1;
+        reg2 = GALAX_V2_MODE_SPECTRUM_CYCLE_DATA_2;
+        break;
+
+    case GALAX_V2_MODE_OFF:
+        reg1 = GALAX_V2_MODE_OFF_DATA_1;
+        reg2 = GALAX_V2_MODE_OFF_DATA_2;
+        SetLEDColors(0, 0, 0);
+        break;
+
+    default:
+        LOG_WARNING("[GALAX GPU v2] SetMode: Unknown mode value %d", mode);
+        return;
+    }
+
+    RegisterWrite(GALAX_V2_MODE_REGISTER_1, reg1);
+    RegisterWrite(GALAX_V2_MODE_REGISTER_2, reg2);
 }
 
 void GalaxGPUv2Controller::SaveMode()
 {
-    GalaxGPURegisterWrite(GALAX_V2_SAVE_REGISTER, GALAX_V2_SAVE_VALUE);
+    RegisterWrite(GALAX_V2_SAVE_REGISTER, GALAX_V2_SAVE_DATA);
 }
 
-unsigned char GalaxGPUv2Controller::GalaxGPURegisterRead(unsigned char reg)
+unsigned char GalaxGPUv2Controller::RegisterRead(unsigned char reg)
 {
     return(bus->i2c_smbus_read_byte_data(dev, reg));
 }
 
-void GalaxGPUv2Controller::GalaxGPURegisterWrite(unsigned char reg, unsigned char val)
+void GalaxGPUv2Controller::RegisterWrite(unsigned char reg, unsigned char val)
 {
+    LOG_DEBUG("[GALAX GPU v2] RegisterWrite: 0x%x -> 0x%x", reg, val);
     bus->i2c_smbus_write_byte_data(dev, reg, val);
 }
