@@ -9,8 +9,6 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-#include <chrono>
-#include <thread>
 #include "RGBController_MSIOptix.h"
 
 /**------------------------------------------------------------------*\
@@ -164,7 +162,7 @@ RGBController_MSIOptix::RGBController_MSIOptix(MSIOptixController* controller_pt
 
     mode Lightning;
     Lightning.name                      = "Lightning";
-    Lightning.value                     = LIGHNING_MODE_VALUE;
+    Lightning.value                     = LIGHTNING_MODE_VALUE;
     Lightning.flags                     = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
     Lightning.color_mode                = MODE_COLORS_MODE_SPECIFIC;
     Lightning.colors_min                = 1;
@@ -344,16 +342,16 @@ void RGBController_MSIOptix::SetupZones()
 
     new_zone.name       = "Backside";
     new_zone.type       = ZONE_TYPE_LINEAR;
-    new_zone.leds_min   = MSI_OPTIX_NUMBER_OF_LEDS;
-    new_zone.leds_max   = MSI_OPTIX_NUMBER_OF_LEDS;
-    new_zone.leds_count = MSI_OPTIX_NUMBER_OF_LEDS;
+    new_zone.leds_min   = controller->GetLEDCount();
+    new_zone.leds_max   = controller->GetLEDCount();
+    new_zone.leds_count = controller->GetLEDCount();
     new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 
     leds.resize(new_zone.leds_count);
 
-    for(unsigned int i = 0; i < MSI_OPTIX_NUMBER_OF_LEDS; i++)
+    for(unsigned int i = 0; i < controller->GetLEDCount(); i++)
     {
         leds[i].name = "LED " + std::to_string(i);
     }

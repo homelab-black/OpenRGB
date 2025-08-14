@@ -13,11 +13,12 @@
 #include "MSIOptixController.h"
 #include "StringUtils.h"
 
-MSIOptixController::MSIOptixController(hid_device* dev_handle, const hid_device_info& info)
+MSIOptixController::MSIOptixController(hid_device* dev_handle, const hid_device_info& info, unsigned int leds)
 {
     dev                 = dev_handle;
     location            = info.path;
     version             = "";
+    led_count           = leds;
 }
 
 MSIOptixController::~MSIOptixController()
@@ -28,6 +29,11 @@ MSIOptixController::~MSIOptixController()
 std::string MSIOptixController::GetDeviceLocation()
 {
     return("HID: " + location);
+}
+
+unsigned int MSIOptixController::GetLEDCount()
+{
+    return(led_count);
 }
 
 std::string MSIOptixController::GetSerialString()
@@ -59,7 +65,7 @@ unsigned char MSIOptixController::GetMysteriousFlag(unsigned char mode_value)
         case DOUBLE_FLASHING_MODE_VALUE:
         case STATIC_MODE_VALUE:
         case METEOR_MODE_VALUE:
-        case LIGHNING_MODE_VALUE:
+        case LIGHTNING_MODE_VALUE:
         case PLANETARY_MODE_VALUE:
         case DOUBLE_METEOR_MODE_VALUE:
         case ENERGY_MODE_VALUE:
@@ -121,7 +127,7 @@ void MSIOptixController::SetDirect(std::vector<RGBColor> colors, unsigned char b
     \*-----------------------------------------*/
     offset += MSI_OPTIX_DIRECT_COLOR_OFFSET;
 
-    for(unsigned int i = 0; i < MSI_OPTIX_NUMBER_OF_LEDS; i++)
+    for(unsigned int i = 0; i < GetLEDCount(); i++)
     {
         usb_buf[++offset] =  RGBGetRValue(colors[i]);
         usb_buf[++offset] =  RGBGetGValue(colors[i]);
@@ -194,7 +200,7 @@ void MSIOptixController::SetMode(std::vector<RGBColor> colors, unsigned char bri
         \*-----------------------------------------*/
         offset += MSI_OPTIX_DIRECT_COLOR_OFFSET;
 
-        for(unsigned int i = 0; i < MSI_OPTIX_NUMBER_OF_LEDS; i++)
+        for(unsigned int i = 0; i < GetLEDCount(); i++)
         {
             usb_buf[++offset] =  RGBGetRValue(colors[i]);
             usb_buf[++offset] =  RGBGetGValue(colors[i]);
