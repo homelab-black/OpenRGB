@@ -27,12 +27,13 @@ struct fusion2_config
 
 enum
 {
-    RGB_FUSION2_BLACKWELL_GPU_REG_MODE              = 0x12, // Limits updates to at most 9 per second, required for all modes but static/direct
+    RGB_FUSION2_BLACKWELL_GPU_REG_MODE              = 0x12, // Limits updates to at most 9 per second
     RGB_FUSION2_BLACKWELL_GPU_REG_COLOR             = 0x16, // Used for 'Intelligent' mode, faster updates (used for direct mode)
 };
 
 enum
 {
+    RGB_FUSION2_BLACKWELL_GPU_MODE_DIRECT          = 0x00, // Used for Intelligent mode (0x16) and Off (0x12)
     RGB_FUSION2_BLACKWELL_GPU_MODE_STATIC          = 0x01,
     RGB_FUSION2_BLACKWELL_GPU_MODE_BREATHING       = 0x02,
     RGB_FUSION2_BLACKWELL_GPU_MODE_FLASHING        = 0x03,
@@ -68,18 +69,21 @@ enum
 class RGBFusion2BlackwellGPUController
 {
 public:
-    RGBFusion2BlackwellGPUController(i2c_smbus_interface* bus, rgb_fusion_dev_id dev);
+    RGBFusion2BlackwellGPUController(i2c_smbus_interface* bus, rgb_fusion_dev_id dev, std::string dev_name);
     ~RGBFusion2BlackwellGPUController();
 
     RGBColor        zone_color[RGB_FUSION_2_BLACKWELL_GPU_NUMBER_OF_ZONES];
 
     std::string     GetDeviceLocation();
+    std::string     GetDeviceName();
+
     void            SaveConfig();
 
     void            SetZone(uint8_t zone, uint8_t mode, fusion2_config zone_config);
     void            SetMode(uint8_t type, uint8_t zone, uint8_t mode, fusion2_config zone_config);
+
 private:
     i2c_smbus_interface*    bus;
     rgb_fusion_dev_id       dev;
-
+    std::string             name;
 };

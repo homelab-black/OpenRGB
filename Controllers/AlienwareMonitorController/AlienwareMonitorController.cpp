@@ -15,10 +15,11 @@
 
 #include "AlienwareMonitorController.h"
 
-AlienwareMonitorController::AlienwareMonitorController(hid_device *dev_handle, const char *path)
+AlienwareMonitorController::AlienwareMonitorController(hid_device *dev_handle, const char *path, std::string dev_name)
 {
     dev         = dev_handle;
     location    = path;
+    name        = dev_name;
 
     Initialize();
 }
@@ -31,6 +32,11 @@ AlienwareMonitorController::~AlienwareMonitorController()
 std::string AlienwareMonitorController::GetLocation()
 {
     return("HID: " + location);
+}
+
+std::string AlienwareMonitorController::GetName()
+{
+    return(name);
 }
 
 std::string AlienwareMonitorController::GetSerialString()
@@ -56,6 +62,7 @@ void AlienwareMonitorController::SendColor(unsigned char led_id, unsigned char r
 
     memset(packet, 0xFF, sizeof(packet));
 
+    packet[0] = 0x00;
     packet[1] = 0x92;
     packet[2] = 0x37;
     packet[3] = 0x0a;
@@ -87,6 +94,7 @@ void AlienwareMonitorController::Initialize()
 
     memset(packet, 0xFF, sizeof(packet));
 
+    packet[0] = 0x00;
     packet[1] = 0x95;
     packet[2] = 0x00;
     packet[3] = 0x00;
@@ -101,6 +109,7 @@ void AlienwareMonitorController::Initialize()
 
     memset(packet, 0xFF, sizeof(packet));
 
+    packet[0] = 0x00;
     packet[1] = 0x92;
     packet[2] = 0x37;
     packet[3] = 0x08;
@@ -123,6 +132,7 @@ void AlienwareMonitorController::Initialize()
 
     memset(packet, 0x00, sizeof(packet));
 
+    packet[0] = 0x00;
     packet[1] = 0x93;
     packet[2] = 0x37;
     packet[3] = 0x12;

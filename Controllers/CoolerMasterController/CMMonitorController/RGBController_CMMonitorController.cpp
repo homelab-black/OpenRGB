@@ -27,13 +27,13 @@
 RGBController_CMMonitorController::RGBController_CMMonitorController(CMMonitorController* controller_ptr)
 {
     controller                  = controller_ptr;
-    name                        = "CoolerMaster LED Controller A1";
+
+    name                        = controller->GetNameString();
     vendor                      = "CoolerMaster";
     type                        = DEVICE_TYPE_MONITOR;
-    description                 = name;
+    description                 = "CoolerMaster Monitor Device";
     location                    = controller->GetDeviceLocation();
     serial                      = controller->GetSerialString();
-    version                     = "";
 
     mode Direct;
     Direct.name                 = "Direct";
@@ -195,11 +195,6 @@ void RGBController_CMMonitorController::UpdateZoneLEDs(int /*zone*/)
 void RGBController_CMMonitorController::UpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
-}
-
-void RGBController_CMMonitorController::SetCustomMode()
-{
-    active_mode = 0;
 }
 
 void RGBController_CMMonitorController::DeviceUpdateMode()

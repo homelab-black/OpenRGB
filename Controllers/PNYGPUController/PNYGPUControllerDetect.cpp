@@ -33,10 +33,8 @@ void DetectPNYGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const s
         return;
     }
 
-    PNYGPUController*     controller        = new PNYGPUController(bus, i2c_addr);
+    PNYGPUController*     controller        = new PNYGPUController(bus, i2c_addr, name);
     RGBController_PNYGPU* rgb_controller    = new RGBController_PNYGPU(controller);
-    rgb_controller->name                    = name;
-    rgb_controller->vendor                  = name.substr(0, name.find(' '));
 
     ResourceManager::get()->RegisterRGBController(rgb_controller);
 } /* DetectPNYGPUControllers() */
@@ -74,6 +72,7 @@ REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4070 Ti SUPER GamingPro",  DetectPN
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4080 GamingPro",           DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4080_DEV,         PALIT_SUB_VEN,  PALIT_RTX4080_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4080 SUPER GamingPro",     DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4080S_DEV,        PALIT_SUB_VEN,  PALIT_RTX4080_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4090 Gamerock",            DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4090_DEV,         PALIT_SUB_VEN,  PALIT_RTX4090_GAMEROCK_SUB_DEV,             0x49);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5070 GamingPro",           DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5070_DEV,         PALIT_SUB_VEN,  PALIT_RTX5070_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5090 Gamerock",            DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5090_DEV,         PALIT_SUB_VEN,  PALIT_RTX5090_GAMEROCK_SUB_DEV,             0x49);
 REGISTER_I2C_PCI_DETECTOR("NVIDIA GeForce RTX 2060 SUPER",              DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX2060_TU106_DEV,   NVIDIA_SUB_VEN, NVIDIA_RTX2060_TU106_DEV,                   0x49);
 REGISTER_I2C_PCI_DETECTOR("NVIDIA GeForce RTX 2080 SUPER",              DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX2080S_DEV,        NVIDIA_SUB_VEN, NVIDIA_RTX2080S_DEV,                        0x49);

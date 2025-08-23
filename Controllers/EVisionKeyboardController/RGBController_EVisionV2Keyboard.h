@@ -19,12 +19,11 @@
 class RGBController_EVisionV2Keyboard : public RGBController
 {
 public:
-    RGBController_EVisionV2Keyboard(EVisionV2KeyboardController* controller_ptr, EVisionV2KeyboardPart part);
+    RGBController_EVisionV2Keyboard(EVisionV2KeyboardController* controller_ptr, EVisionV2KeyboardPart kb_part);
     ~RGBController_EVisionV2Keyboard();
 
     void SetupZones() override;
     void ResizeZone(int zone, int new_size) override;
-    void SetCustomMode() override;
 
     void DeviceUpdateLEDs() override;
     void UpdateZoneLEDs(int zone) override;

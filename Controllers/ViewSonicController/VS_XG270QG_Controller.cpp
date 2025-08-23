@@ -14,10 +14,11 @@
 #include "StringUtils.h"
 #include "VS_XG270QG_Controller.h"
 
-VS_XG270QG_Controller::VS_XG270QG_Controller(hid_device* device, const char* path)
+VS_XG270QG_Controller::VS_XG270QG_Controller(hid_device* device, const char* path, std::string dev_name)
 {
-    dev = device;
-    location = path;
+    dev         = device;
+    location    = path;
+    name        = dev_name;
 }
 
 VS_XG270QG_Controller::~VS_XG270QG_Controller()
@@ -27,7 +28,12 @@ VS_XG270QG_Controller::~VS_XG270QG_Controller()
 
 std::string VS_XG270QG_Controller::GetLocation()
 {
-    return location;
+    return(location);
+}
+
+std::string VS_XG270QG_Controller::GetName()
+{
+    return(name);
 }
 
 std::string VS_XG270QG_Controller::GetSerial()
@@ -43,9 +49,9 @@ std::string VS_XG270QG_Controller::GetSerial()
     return(StringUtils::wstring_to_string(serial_string));
 }
 
-void VS_XG270QG_Controller::SetMode(uint8_t mode, uint8_t r, uint8_t g, uint8_t b)
+void VS_XG270QG_Controller::SetMode(uint8_t mode1, uint8_t r1, uint8_t g1, uint8_t b1, uint8_t mode2, uint8_t r2, uint8_t g2, uint8_t b2)
 {
-    SendModeComplete(mode, r, g, b, mode, r, g, b);
+    SendModeComplete(mode1, r1, g1, b1, mode2, r2, g2, b2);
 }
 
 void VS_XG270QG_Controller::SendModeComplete
@@ -54,7 +60,8 @@ void VS_XG270QG_Controller::SendModeComplete
     uint8_t mode2, uint8_t r2, uint8_t g2, uint8_t b2
     )
 {
-    uint8_t data[] = {
+    uint8_t data[] =
+    {
         0x02,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00,

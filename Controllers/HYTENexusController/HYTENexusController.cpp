@@ -24,10 +24,11 @@ using namespace std::chrono_literals;
 |   https://hyte.com/nexus/nexus-playground                 |
 \*---------------------------------------------------------*/
 
-HYTENexusController::HYTENexusController(char* port, unsigned short pid)
+HYTENexusController::HYTENexusController(char* port, unsigned short pid, std::string dev_name)
 {
     port_name   = port;
     device_pid  = pid;
+    name        = dev_name;
 
     /*-----------------------------------------------------*\
     | Initialize channels based on PID                      |
@@ -106,6 +107,11 @@ std::string HYTENexusController::GetFirmwareVersion()
 std::string HYTENexusController::GetLocation()
 {
     return(port_name);
+}
+
+std::string HYTENexusController::GetName()
+{
+    return(name);
 }
 
 void HYTENexusController::KeepaliveThreadFunction()
@@ -195,11 +201,14 @@ void HYTENexusController::LEDStreaming(unsigned char channel, unsigned short led
     }
 
     /*-----------------------------------------------------*\
+    | The default data length is (led_count * 3) + 7        |
+    \*-----------------------------------------------------*/
+    unsigned int bytes_to_send = ((led_count * 3) + 7);
+
+    /*-----------------------------------------------------*\
     | The HYTE THICC Q60 requires 90 bytes to be sent for   |
     | the 4th channel (logo) even though it only has 4 LEDs |
     \*-----------------------------------------------------*/
-    unsigned char bytes_to_send = ((led_count * 3) + 7);
-
     if((device_pid == HYTE_THICC_Q60_PID)
     && (channel == 3)
     && (bytes_to_send < 90))
@@ -207,14 +216,23 @@ void HYTENexusController::LEDStreaming(unsigned char channel, unsigned short led
         bytes_to_send = 90;
     }
 
+    /*-----------------------------------------------------*\
+    | The HYTE Nexus Portal NP50 requires 750 bytes to be   |
+    | sent for the 3rd channel, no matter how many LEDs it  |
+    | has connected                                         |
+    \*-----------------------------------------------------*/
+    if((device_pid == HYTE_NEXUS_PORTAL_NP50_PID)
+    && (channel == 2)
+    && (bytes_to_send < 750))
+    {
+        bytes_to_send = 750;
+    }
+
+    port_mutex.lock();
     serialport->serial_write((char *)command_buf, bytes_to_send);
     serialport->serial_flush_tx();
     serialport->serial_flush_rx();
-
-    /*-----------------------------------------------------*\
-    | Wait 10ms for device process command                  |
-    \*-----------------------------------------------------*/
-    std::this_thread::sleep_for(5ms);
+    port_mutex.unlock();
 }
 
 void HYTENexusController::ReadChannelInfo(unsigned char channel)
@@ -233,6 +251,7 @@ void HYTENexusController::ReadChannelInfo(unsigned char channel)
     command_buf[2] = 0x01;
     command_buf[3] = (channel + 1);
 
+    port_mutex.lock();
     serialport->serial_write((char *)command_buf, sizeof(command_buf));
     serialport->serial_flush_tx();
 
@@ -265,6 +284,7 @@ void HYTENexusController::ReadChannelInfo(unsigned char channel)
 
     serialport->serial_read((char *)receive_buf, sizeof(receive_buf));
     serialport->serial_flush_rx();
+    port_mutex.unlock();
 
     channels[channel].num_devices = 0;
     memset(&channels[channel].devices, 0, sizeof(channels[channel].devices));
@@ -300,6 +320,7 @@ void HYTENexusController::ReadDeviceInfo()
     command_buf[2] = 0x01;
     command_buf[3] = 0x00;
 
+    port_mutex.lock();
     serialport->serial_write((char *)command_buf, sizeof(command_buf));
     serialport->serial_flush_tx();
 
@@ -330,6 +351,7 @@ void HYTENexusController::ReadDeviceInfo()
 
     serialport->serial_read((char *)receive_buf, sizeof(receive_buf));
     serialport->serial_flush_rx();
+    port_mutex.unlock();
 
     /*-----------------------------------------------------*\
     | Update last update time                               |
@@ -353,6 +375,7 @@ void HYTENexusController::ReadFirmwareVersion()
     command_buf[2] = 0x02;
     command_buf[3] = 0x00;
 
+    port_mutex.lock();
     serialport->serial_write((char *)command_buf, sizeof(command_buf));
     serialport->serial_flush_tx();
 
@@ -375,6 +398,7 @@ void HYTENexusController::ReadFirmwareVersion()
 
     serialport->serial_read((char *)receive_buf, sizeof(receive_buf));
     serialport->serial_flush_rx();
+    port_mutex.unlock();
 
     /*-----------------------------------------------------*\
     | Format Firmware Version string                        |

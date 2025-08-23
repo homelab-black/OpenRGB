@@ -15,10 +15,11 @@
 
 using namespace std::chrono_literals;
 
-RGBFusion2BlackwellGPUController::RGBFusion2BlackwellGPUController(i2c_smbus_interface* bus, rgb_fusion_dev_id dev)
+RGBFusion2BlackwellGPUController::RGBFusion2BlackwellGPUController(i2c_smbus_interface* bus, rgb_fusion_dev_id dev, std::string dev_name)
 {
-    this->bus = bus;
-    this->dev = dev;
+    this->bus   = bus;
+    this->dev   = dev;
+    this->name  = dev_name;
 }
 
 RGBFusion2BlackwellGPUController::~RGBFusion2BlackwellGPUController()
@@ -34,6 +35,11 @@ std::string RGBFusion2BlackwellGPUController::GetDeviceLocation()
     return_string.append(", address ");
     return_string.append(addr);
     return("I2C: " + return_string);
+}
+
+std::string RGBFusion2BlackwellGPUController::GetDeviceName()
+{
+    return(name);
 }
 
 void RGBFusion2BlackwellGPUController::SaveConfig()
@@ -56,7 +62,7 @@ void RGBFusion2BlackwellGPUController::SetMode(uint8_t type, uint8_t zone, uint8
     * SZ is the amount of colors that will be sent in the format of 3 bytes RGB          *
     *                                                                                    *
     \************************************************************************************/
-    uint8_t zone_pkt[64] = {type, 0x01, mode, zone_config.speed, zone_config.brightness, RGBGetRValue(this->zone_color[zone]), RGBGetGValue(this->zone_color[zone]), RGBGetBValue(this->zone_color[zone]), 0x00, zone, zone_config.numberOfColors, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t zone_pkt[64] = {type, 0x01, mode, zone_config.speed, zone_config.brightness, (uint8_t)RGBGetRValue(this->zone_color[zone]), (uint8_t)RGBGetGValue(this->zone_color[zone]), (uint8_t)RGBGetBValue(this->zone_color[zone]), 0x00, zone, zone_config.numberOfColors, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     if(zone_config.numberOfColors > 0)
     {
@@ -79,7 +85,7 @@ void RGBFusion2BlackwellGPUController::SetZone(uint8_t zone, uint8_t mode, fusio
         zone_config.brightness = RGB_FUSION2_BLACKWELL_GPU_BRIGHTNESS_MAX;
 
     uint8_t type = RGB_FUSION2_BLACKWELL_GPU_REG_COLOR;
-    if(mode != RGB_FUSION2_BLACKWELL_GPU_MODE_STATIC)
+    if(mode != RGB_FUSION2_BLACKWELL_GPU_MODE_DIRECT)
         type = RGB_FUSION2_BLACKWELL_GPU_REG_MODE;
 
     SetMode(type, zone, mode, zone_config);

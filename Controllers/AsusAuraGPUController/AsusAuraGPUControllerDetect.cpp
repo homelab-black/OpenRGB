@@ -56,9 +56,8 @@ void DetectAsusAuraGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, co
 {
     if(TestForAsusAuraGPUController(bus, i2c_addr))
     {
-        AuraGPUController*     controller     = new AuraGPUController(bus, i2c_addr);
+        AuraGPUController*     controller     = new AuraGPUController(bus, i2c_addr, name);
         RGBController_AuraGPU* rgb_controller = new RGBController_AuraGPU(controller);
-        rgb_controller->name                  = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -74,6 +73,7 @@ REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1050 Ti Gaming OC",       
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1050 Ti Gaming OC",          DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1050TI_DEV,       ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1050TI_O4G_GAMING_2,      0x29);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1060 Gaming",                DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1060_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1060_6G_GAMING,           0x29);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1060 Gaming",                DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1060_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1060,                     0x29);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1060 Gaming",                DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1060_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1060_865B,                0x29);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1070 Gaming",                DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1070_8G_GAMING,           0x29);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1070 Gaming OC",             DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1070_O8G_GAMING,          0x29);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce GTX 1070 OC",                    DetectAsusAuraGPUControllers,   NVIDIA_VEN,     NVIDIA_GTX1070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_GTX1070_OC,                  0x29);

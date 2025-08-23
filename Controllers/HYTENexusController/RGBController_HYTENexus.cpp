@@ -33,7 +33,7 @@ RGBController_HYTENexus::RGBController_HYTENexus(HYTENexusController* controller
 {
     controller          = controller_ptr;
 
-    name                = "HYTE Nexus Device";
+    name                = controller->GetName();
     vendor              = "HYTE";
     description         = "HYTE Nexus Device";
     type                = DEVICE_TYPE_LEDSTRIP;
@@ -52,7 +52,7 @@ RGBController_HYTENexus::RGBController_HYTENexus(HYTENexusController* controller
 
 RGBController_HYTENexus::~RGBController_HYTENexus()
 {
-
+    delete controller;
 }
 
 void RGBController_HYTENexus::SetupZones()

@@ -18,6 +18,7 @@
 #include "NetworkProtocol.h"
 #include "net_port.h"
 #include "ProfileManager.h"
+#include "ResourceManager.h"
 
 #define MAXSOCK 32
 #define TCP_TIMEOUT_SECONDS 5
@@ -82,6 +83,7 @@ public:
 
     void                                ProcessRequest_ClientProtocolVersion(SOCKET client_sock, unsigned int data_size, char * data);
     void                                ProcessRequest_ClientString(SOCKET client_sock, unsigned int data_size, char * data);
+    void                                ProcessRequest_RescanDevices();
 
     void                                SendReply_ControllerCount(SOCKET client_sock);
     void                                SendReply_ControllerData(SOCKET client_sock, unsigned int dev_idx, unsigned int protocol_version);
@@ -120,6 +122,8 @@ protected:
     ProfileManagerInterface*            profile_manager;
 
     std::vector<NetworkPlugin>          plugins;
+
+    std::mutex                          send_in_progress;
 
 private:
 #ifdef WIN32

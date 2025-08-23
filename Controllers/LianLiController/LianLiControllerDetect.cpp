@@ -207,7 +207,7 @@ void DetectLianLiUniHubSLInfinity(hid_device_info* info, const std::string& name
     }
 }   /* DetectLianLiUniHubSLInfinity() */
 
-void DetectLianLiStrimerControllers(hid_device_info* info, const std::string& name)
+void DetectLianLiStrimerControllers(hid_device_info* info, const std::string& /*name*/)
 {
     hid_device* dev = hid_open_path(info->path);
 
@@ -215,7 +215,6 @@ void DetectLianLiStrimerControllers(hid_device_info* info, const std::string& na
     {
         LianLiStrimerLConnectController*     controller       = new LianLiStrimerLConnectController(dev, info->path);
         RGBController_LianLiStrimerLConnect* rgb_controller   = new RGBController_LianLiStrimerLConnect(controller);
-        rgb_controller->name                            = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -227,9 +226,9 @@ void DetectLianLiGAIITrinity(hid_device_info* info, const std::string& /*name*/)
 
     if(dev)
     {
-        LianLiGAIITrinityController*     controller     = new LianLiGAIITrinityController(dev);
+        LianLiGAIITrinityController*     controller     = new LianLiGAIITrinityController(dev, info->path);
         RGBController_LianLiGAIITrinity* rgb_controller = new RGBController_LianLiGAIITrinity(controller);
-        rgb_controller->location                        = "HID: " + std::string(info->path);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }

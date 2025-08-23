@@ -28,7 +28,7 @@ RGBController_DRGB::RGBController_DRGB(DRGBController* controller_ptr)
 {
     controller  = controller_ptr;
 
-    name        = "DRGB Controller";
+    name        = controller->GetNameString();
     vendor      = "DRGB";
     description = "DRGB Controller Device";
     type        = DEVICE_TYPE_LEDSTRIP;
@@ -88,6 +88,16 @@ void RGBController_DRGB::SetupZones()
             NUM_Channel_led = 256;
             Version         = 4;
             break;
+        case DRGB_AG_04_V4F_PID:
+            NUM_CHANNELS    = 4;
+            NUM_Channel_led = 256;
+            Version         = 4;
+            break;
+        case DRGB_AG_16_V4F_PID:
+            NUM_CHANNELS    = 16;
+            NUM_Channel_led = 256;
+            Version         = 4;
+            break;
 
         case DRGB_LED_V5_PID:
             NUM_CHANNELS    = 8;
@@ -119,7 +129,7 @@ void RGBController_DRGB::SetupZones()
             NUM_Channel_led = 256;
             Version         = 4;
             break;
-            
+
         case DRGB_LED_V3_PID:
             NUM_CHANNELS    = 8;
             NUM_Channel_led = 256;

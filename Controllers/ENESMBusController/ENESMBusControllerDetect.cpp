@@ -111,7 +111,7 @@ static const unsigned char aura_mobo_addresses[] =
 *                                                                                          *
 \******************************************************************************************/
 
-unsigned char ENERegisterRead(i2c_smbus_interface* bus, ene_dev_id dev, ene_register reg)
+static unsigned char ENERegisterRead(i2c_smbus_interface* bus, ene_dev_id dev, ene_register reg)
 {
     //Write ENE register
     bus->i2c_smbus_write_word_data(dev, 0x00, ((reg << 8) & 0xFF00) | ((reg >> 8) & 0x00FF));
@@ -130,7 +130,7 @@ unsigned char ENERegisterRead(i2c_smbus_interface* bus, ene_dev_id dev, ene_regi
 *                                                                                          *
 \******************************************************************************************/
 
-void ENERegisterWrite(i2c_smbus_interface* bus, ene_dev_id dev, ene_register reg, unsigned char val)
+static void ENERegisterWrite(i2c_smbus_interface* bus, ene_dev_id dev, ene_register reg, unsigned char val)
 {
     //Write ENE register
     bus->i2c_smbus_write_word_data(dev, 0x00, ((reg << 8) & 0xFF00) | ((reg >> 8) & 0x00FF));
@@ -262,7 +262,7 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
             {
                 int res = busses[bus]->i2c_smbus_write_quick(0x77, I2C_SMBUS_WRITE);
 
-                if (res < 0)
+                if(res < 0)
                 {
                     LOG_DEBUG("[ENE SMBus DRAM] No device detected at 0x77, aborting remap");
 
@@ -296,7 +296,7 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
                 if (TestForENESMBusController(busses[bus], addr_list[address_list_idx]))
                 {
                     ENESMBusInterface_i2c_smbus* interface      = new ENESMBusInterface_i2c_smbus(busses[bus]);
-                    ENESMBusController*          controller     = new ENESMBusController(interface, addr_list[address_list_idx]);
+                    ENESMBusController*          controller     = new ENESMBusController(interface, addr_list[address_list_idx], "ENE DRAM", DEVICE_TYPE_DRAM);
                     RGBController_ENESMBus*      rgb_controller = new RGBController_ENESMBus(controller);
 
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
@@ -337,10 +337,8 @@ void DetectENESMBusMotherboardControllers(std::vector<i2c_smbus_interface*> &bus
                         DMIInfo dmi;
 
                         ENESMBusInterface_i2c_smbus* interface      = new ENESMBusInterface_i2c_smbus(busses[bus]);
-                        ENESMBusController*          controller     = new ENESMBusController(interface, aura_mobo_addresses[address_list_idx]);
+                        ENESMBusController*          controller     = new ENESMBusController(interface, aura_mobo_addresses[address_list_idx], "ASUS " + dmi.getMainboard(), DEVICE_TYPE_MOTHERBOARD);
                         RGBController_ENESMBus*      rgb_controller = new RGBController_ENESMBus(controller);
-
-                        rgb_controller->name = "ASUS " + dmi.getMainboard();
 
                         ResourceManager::get()->RegisterRGBController(rgb_controller);
                     }
@@ -371,11 +369,8 @@ void DetectENESMBusGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, co
     if(TestForENESMBusController(bus, i2c_addr))
     {
         ENESMBusInterface_i2c_smbus* interface      = new ENESMBusInterface_i2c_smbus(bus);
-        ENESMBusController*          controller     = new ENESMBusController(interface, i2c_addr);
+        ENESMBusController*          controller     = new ENESMBusController(interface, i2c_addr, name, DEVICE_TYPE_GPU);
         RGBController_ENESMBus*      rgb_controller = new RGBController_ENESMBus(controller);
-
-        rgb_controller->name                        = name;
-        rgb_controller->type                        = DEVICE_TYPE_GPU;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -412,6 +407,7 @@ REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3060 Ti V2 OC",           
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 OC",                         DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_OC,                     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_GAMING,             0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 White OC",                   DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_WHITE,              0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 V2 Gaming",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_LHR_DEV,     ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_8G_V2_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 V2 Gaming OC",               DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_LHR_DEV,     ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_V2_GAMING,          0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 V2 White OC",                DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_LHR_DEV,     ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_V2_WHITE,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 3070 Gaming",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_3070_8G_GAMING,                    0x67);
@@ -523,6 +519,8 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5090 Gaming",                   
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_16G_GAMING,            0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING,           0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC BTF",                    DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF,       0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL LC GeForce RTX 5090 OC",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING,        0x67);
 
 /*-----------------------------------------*\

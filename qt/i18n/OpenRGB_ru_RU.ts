@@ -2,60 +2,11 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
-    <name>DetectorTableModel</name>
+    <name>DMXSettingsEntry</name>
     <message>
-        <source>Name</source>
-        <translation>Название устройства</translation>
+        <source>DMX Device</source>
+        <translation type="unfinished"></translation>
     </message>
-    <message>
-        <source>Enabled</source>
-        <translation>Обнаружение</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBClientInfoPageUi</name>
-    <message>
-        <source>Port:</source>
-        <translation>Порт:</translation>
-    </message>
-    <message>
-        <source>Connect</source>
-        <translation>Подключиться</translation>
-    </message>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Connected Clients</source>
-        <translation>Подключенные клиенты</translation>
-    </message>
-    <message>
-        <source>Protocol Version</source>
-        <translation>Версия протокола</translation>
-    </message>
-    <message>
-        <source>Save Connection</source>
-        <translation>Сохранить подключение</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBConsolePageUi</name>
-    <message>
-        <source>Log level</source>
-        <translation>Уровень логирования</translation>
-    </message>
-    <message>
-        <source>Refresh logs</source>
-        <translation>Обновить лог</translation>
-    </message>
-    <message>
-        <source>Clear log</source>
-        <translation>Очистить лог</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBDMXSettingsEntryUi</name>
     <message>
         <source>Brightness Channel:</source>
         <translation>Канал яркости:</translation>
@@ -86,22 +37,321 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBDMXSettingsPageUi</name>
+    <name>DetectorTableModel</name>
     <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
+        <source>Name</source>
+        <translation>Название устройства</translation>
+    </message>
+    <message>
+        <source>Enabled</source>
+        <translation>Обнаружение</translation>
+    </message>
+</context>
+<context>
+    <name>E131SettingsEntry</name>
+    <message>
+        <source>E1.31 Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start Channel:</source>
+        <translation>Начальный канал:</translation>
+    </message>
+    <message>
+        <source>Number of LEDs:</source>
+        <translation>Количество светодиодов:</translation>
+    </message>
+    <message>
+        <source>Start Universe:</source>
+        <translation type="unfinished">Начальная вселенная:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Название:</translation>
+    </message>
+    <message>
+        <source>Matrix Order:</source>
+        <translation type="unfinished">Порядок матрицы:</translation>
+    </message>
+    <message>
+        <source>Matrix Height:</source>
+        <translation type="unfinished">Высота матрицы:</translation>
+    </message>
+    <message>
+        <source>Matrix Width:</source>
+        <translation type="unfinished">Ширина матрицы:</translation>
+    </message>
+    <message>
+        <source>Type:</source>
+        <translation type="unfinished">Тип:</translation>
+    </message>
+    <message>
+        <source>IP (Unicast):</source>
+        <translation>IP (одноадресный):</translation>
+    </message>
+    <message>
+        <source>Universe Size:</source>
+        <translation type="unfinished">Размер вселенной:</translation>
+    </message>
+    <message>
+        <source>Keepalive Time:</source>
+        <translation type="unfinished">Таймаут:</translation>
+    </message>
+    <message>
+        <source>RGB Order:</source>
+        <translation type="unfinished">Порядок RGB:</translation>
+    </message>
+    <message>
+        <source>Single</source>
+        <translation>Однородная область</translation>
+    </message>
+    <message>
+        <source>Linear</source>
+        <translation>Линейная область</translation>
+    </message>
+    <message>
+        <source>Matrix</source>
+        <translation>Матрица</translation>
+    </message>
+    <message>
+        <source>Horizontal Top Left</source>
+        <translation>Горизонтально, слева направо и сверху вниз</translation>
+    </message>
+    <message>
+        <source>Horizontal Top Right</source>
+        <translation>Горизонтально, справа налево и сверху вниз</translation>
+    </message>
+    <message>
+        <source>Horizontal Bottom Left</source>
+        <translation>Горизонтально, слева направо и снизу вверх</translation>
+    </message>
+    <message>
+        <source>Horizontal Bottom Right</source>
+        <translation>Горизонтально, справа налево и снизу вверх</translation>
+    </message>
+    <message>
+        <source>Vertical Top Left</source>
+        <translation>Вертикально, сверху вниз и слева направо</translation>
+    </message>
+    <message>
+        <source>Vertical Top Right</source>
+        <translation>Вертикально, сверху вниз и справа налево</translation>
+    </message>
+    <message>
+        <source>Vertical Bottom Left</source>
+        <translation>Вертикально, снизу вверх и слева направо</translation>
+    </message>
+    <message>
+        <source>Vertical Bottom Right</source>
+        <translation>Вертикально, снизу вверх и справа налево</translation>
+    </message>
+</context>
+<context>
+    <name>ElgatoKeyLightSettingsEntry</name>
+    <message>
+        <source>Elgato Key Light</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+</context>
+<context>
+    <name>ElgatoLightStripSettingsEntry</name>
+    <message>
+        <source>Elgato Light Strip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+</context>
+<context>
+    <name>GoveeSettingsEntry</name>
+    <message>
+        <source>Govee Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+</context>
+<context>
+    <name>KasaSmartSettingsEntry</name>
+    <message>
+        <source>Kasa Smart Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Название</translation>
+    </message>
+</context>
+<context>
+    <name>LIFXSettingsEntry</name>
+    <message>
+        <source>LIFX Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Название</translation>
+    </message>
+</context>
+<context>
+    <name>ManualDevice</name>
+    <message>
+        <source>E1.31 (including WLED)</source>
+        <translation>E1.31 (включая WLED)</translation>
+    </message>
+    <message>
+        <source>QMK (built with ORGB support)</source>
+        <translation>QMK (собранное с поддержкой ORGB)</translation>
+    </message>
+    <message>
+        <source>Serial Device</source>
+        <translation>Устройство последовательного порта (Arduino)</translation>
+    </message>
+</context>
+<context>
+    <name>ManualDevicesSettingsPage</name>
+    <message>
+        <source>Add Device...</source>
+        <translation>Добавить устройство...</translation>
     </message>
     <message>
         <source>Remove</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
+        <source>Save and Rescan</source>
+        <translation>Сохранить и обновить список устройств</translation>
+    </message>
+    <message>
+        <source>Save without Rescan</source>
+        <translation>Сохранить без обновления</translation>
     </message>
 </context>
 <context>
-    <name>OpenRGBDeviceInfoPageUi</name>
+    <name>NanoleafNewDeviceDialog</name>
+    <message>
+        <source>New Nanoleaf device</source>
+        <translation type="unfinished">Добавить устройство Nanoleaf</translation>
+    </message>
+    <message>
+        <source>IP address:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+</context>
+<context>
+    <name>NanoleafScanDialog</name>
+    <message>
+        <source>To pair, hold the on-off button down for 5-7 seconds until the LED starts flashing in a pattern, a new entry should appear in the list below, then click the &quot;Pair&quot; button on the entry within 30 seconds.</source>
+        <translation>Для сопряжения, удерживайте кнопку &quot;Вкл-выкл.&quot; 5-7 секунд, пока светодиод не начнёт мигать, после чего в списке ниже появится новая строка, на которой в течение 30 секунд нужно нажать кнопку &quot;Связать&quot;.</translation>
+    </message>
+    <message>
+        <source>Scan</source>
+        <translation>Сканировать</translation>
+    </message>
+    <message>
+        <source>Add manually</source>
+        <translation>Добавить вручную</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+</context>
+<context>
+    <name>NanoleafSettingsEntry</name>
+    <message>
+        <source>Nanoleaf Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+    <message>
+        <source>Auth Key:</source>
+        <translation>Ключ авторизации:</translation>
+    </message>
+    <message>
+        <source>Unpair</source>
+        <translation>Разъединить</translation>
+    </message>
+    <message>
+        <source>Pair</source>
+        <translation>Связать</translation>
+    </message>
+</context>
+<context>
+    <name>OpenRGBClientInfoPage</name>
+    <message>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation>Подключиться</translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Connected Clients</source>
+        <translation>Подключенные клиенты</translation>
+    </message>
+    <message>
+        <source>Protocol Version</source>
+        <translation>Версия протокола</translation>
+    </message>
+    <message>
+        <source>Save Connection</source>
+        <translation>Сохранить подключение</translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation>Разъединить</translation>
+    </message>
+</context>
+<context>
+    <name>OpenRGBConsolePage</name>
+    <message>
+        <source>Log level</source>
+        <translation>Уровень логирования</translation>
+    </message>
+    <message>
+        <source>Refresh logs</source>
+        <translation>Обновить лог</translation>
+    </message>
+    <message>
+        <source>Clear log</source>
+        <translation>Очистить лог</translation>
+    </message>
+</context>
+<context>
+    <name>OpenRGBDeviceInfoPage</name>
     <message>
         <source>Name:</source>
         <translation>Название:</translation>
@@ -130,9 +380,13 @@
         <source>Serial:</source>
         <translation>Серийный номер:</translation>
     </message>
+    <message>
+        <source>Flags:</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBDevicePageUi</name>
+    <name>OpenRGBDevicePage</name>
     <message>
         <source>G:</source>
         <translation></translation>
@@ -226,9 +480,93 @@
         <source>Save To Device</source>
         <translation>Сохранить на устройстве</translation>
     </message>
+    <message>
+        <source>Set individual LEDs to static colors.  Safe for use with software-driven effects.</source>
+        <translation>Устанавливает статичный цвет для каждого светодиода. Безопасен для использования с программными эффектами.</translation>
+    </message>
+    <message>
+        <source>Set individual LEDs to static colors.  Not safe for use with software-driven effects.</source>
+        <translation>Устанавливает статичный цвет для каждого светодиода. Небезопасен для использования с программными эффектами.</translation>
+    </message>
+    <message>
+        <source>Sets the entire device or a zone to a single color.</source>
+        <translation>Задаёт один цвет для всего устройства или области.</translation>
+    </message>
+    <message>
+        <source>Gradually fades between fully off and fully on.</source>
+        <translation>Плавно включается и выключается.</translation>
+    </message>
+    <message>
+        <source>Abruptly changes between fully off and fully on.</source>
+        <translation>Резко включается и выключается.</translation>
+    </message>
+    <message>
+        <source>Gradually cycles through the entire color spectrum.  All lights on the device are the same color.</source>
+        <translation>Плавно меняет цвет по радуге. Все светодиоды устройства одного цвета.</translation>
+    </message>
+    <message>
+        <source>Gradually cycles through the entire color spectrum.  Produces a rainbow pattern that moves.</source>
+        <translation>Плавно меняет цвет. Создаёт движущуюся радугу.</translation>
+    </message>
+    <message>
+        <source>Flashes lights when keys or buttons are pressed.</source>
+        <translation>Вспыхивает при нажатии клавишей или кнопок.</translation>
+    </message>
+    <message>
+        <source>Entire Device</source>
+        <translation>Устройство целиком</translation>
+    </message>
+    <message>
+        <source>Entire Zone</source>
+        <translation>Область целиком</translation>
+    </message>
+    <message>
+        <source>Entire Segment</source>
+        <translation>Сегмент целиком</translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation>Влево</translation>
+    </message>
+    <message>
+        <source>Right</source>
+        <translation>Вправо</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>Вверх</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>Вниз</translation>
+    </message>
+    <message>
+        <source>Horizontal</source>
+        <translation>Горизонтально</translation>
+    </message>
+    <message>
+        <source>Vertical</source>
+        <translation>Вертикально</translation>
+    </message>
+    <message>
+        <source>Saved To Device</source>
+        <translation>Сохранено на устройстве</translation>
+    </message>
+    <message>
+        <source>Saving Not Supported</source>
+        <translation>Сохранение не поддерживается</translation>
+    </message>
+    <message>
+        <source>All Zones</source>
+        <translation>Все области</translation>
+    </message>
+    <message>
+        <source>Mode Specific</source>
+        <translation>Задаётся режимом</translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBDialogUi</name>
+    <name>OpenRGBDialog</name>
     <message>
         <source>OpenRGB</source>
         <translation></translation>
@@ -281,120 +619,97 @@
         <source>Save Profile with custom name</source>
         <translation>Сохранить профиль с другим названием</translation>
     </message>
-</context>
-<context>
-    <name>OpenRGBE131SettingsEntryUi</name>
     <message>
-        <source>Start Channel:</source>
-        <translation>Начальный канал:</translation>
+        <source>Show/Hide</source>
+        <translation>Показать/скрыть</translation>
     </message>
     <message>
-        <source>Number of LEDs:</source>
-        <translation>Количество светодиодов:</translation>
+        <source>Profiles</source>
+        <translation>Профили</translation>
     </message>
     <message>
-        <source>Start Universe:</source>
-        <translatorcomment>Not sure if the term should be translated</translatorcomment>
-        <translation>Начальная вселенная:</translation>
+        <source>Quick Colors</source>
+        <translation>Палитра</translation>
     </message>
     <message>
-        <source>Name:</source>
-        <translation>Название:</translation>
+        <source>Red</source>
+        <translation>Красный</translation>
     </message>
     <message>
-        <source>Matrix Order:</source>
-        <translation>Порядок матрицы:</translation>
+        <source>Yellow</source>
+        <translation>Жёлтый</translation>
     </message>
     <message>
-        <source>Matrix Height:</source>
-        <translation>Высота матрицы:</translation>
+        <source>Green</source>
+        <translation>Зелёный</translation>
     </message>
     <message>
-        <source>Matrix Width:</source>
-        <translation>Ширина матрицы:</translation>
+        <source>Cyan</source>
+        <translation>Бирюзовый</translation>
     </message>
     <message>
-        <source>Type:</source>
-        <translation>Тип:</translation>
+        <source>Blue</source>
+        <translation>Синий</translation>
     </message>
     <message>
-        <source>IP (Unicast):</source>
-        <translation>IP (одноадресный):</translation>
+        <source>Magenta</source>
+        <translation>Лиловый</translation>
     </message>
     <message>
-        <source>Universe Size:</source>
-        <translation>Размер вселенной:</translation>
+        <source>White</source>
+        <translation>Белый</translation>
     </message>
     <message>
-        <source>Keepalive Time:</source>
-        <translation>Таймаут:</translation>
+        <source>Lights Off</source>
+        <translation>Цвета выкл.</translation>
     </message>
     <message>
-        <source>RGB Order:</source>
-        <translation>Порядок RGB:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBE131SettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
+        <source>Exit</source>
+        <translation>Выход</translation>
     </message>
     <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
+        <source>Plugins</source>
+        <translation>Подключаемые модули</translation>
     </message>
     <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoKeyLightSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoKeyLightSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
+        <source>Supported Devices</source>
+        <translation>Поддерживаемые устройства</translation>
     </message>
     <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
+        <source>General Settings</source>
+        <translation>Общие настройки</translation>
     </message>
     <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
+        <source>SMBus Tools</source>
+        <translation>Инструменты SMBus</translation>
     </message>
-</context>
-<context>
-    <name>OpenRGBElgatoLightStripSettingsEntryUi</name>
     <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
+        <source>SDK Client</source>
+        <translation>Клиент SDK</translation>
+    </message>
+    <message>
+        <source>SDK Server</source>
+        <translation>Сервер SDK</translation>
+    </message>
+    <message>
+        <source>Do you really want to delete this profile?</source>
+        <translation>Вы действительно хотите удалить этот профиль?</translation>
+    </message>
+    <message>
+        <source>Log Console</source>
+        <translation>Консоль журналирования</translation>
+    </message>
+    <message>
+        <source>About OpenRGB</source>
+        <translation>О программе OpenRGB</translation>
+    </message>
+    <message>
+        <source>Manually Added Devices</source>
+        <translation>Добавляемые вручную устройства</translation>
     </message>
 </context>
 <context>
-    <name>OpenRGBElgatoLightStripSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBHardwareIDsDialogUi</name>
+    <name>OpenRGBHardwareIDsDialog</name>
     <message>
         <source>Copy to clipboard</source>
         <translation>Скопировать в буфер обмена</translation>
@@ -417,200 +732,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBKasaSmartSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Название</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBKasaSmartSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBLIFXSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Название</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBLIFXSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafNewDeviceDialogUi</name>
-    <message>
-        <source>New Nanoleaf device</source>
-        <translation>Добавить устройство Nanoleaf</translation>
-    </message>
-    <message>
-        <source>IP address:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation>Порт:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation>Порт:</translation>
-    </message>
-    <message>
-        <source>Auth Key:</source>
-        <translation>Ключ авторизации:</translation>
-    </message>
-    <message>
-        <source>Unpair</source>
-        <translation>Разъединить</translation>
-    </message>
-    <message>
-        <source>Pair</source>
-        <translation>Связать</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Scan</source>
-        <translation>Сканировать</translation>
-    </message>
-    <message>
-        <source>To pair, hold the on-off button down for 5-7 seconds until the LED starts flashing in a pattern, then click the &quot;Pair&quot; button within 30 seconds.</source>
-        <translation>Для выполнения сопряжения, удерживайте кнопку включения/выключения в течение 5-7 секунд пока не начнётся мерцание светодиодов, а затем в течение 30 секунд щёлкните кнопку &quot;Связать&quot; (&quot;Pair&quot;).</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsHueSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation>IP:</translation>
-    </message>
-    <message>
-        <source>Entertainment Mode:</source>
-        <translation>Развлекательный режим:</translation>
-    </message>
-    <message>
-        <source>Username:</source>
-        <translation>Имя пользователя:</translation>
-    </message>
-    <message>
-        <source>Client Key:</source>
-        <translation>Ключ клиента:</translation>
-    </message>
-    <message>
-        <source>Unpair Bridge</source>
-        <translation>Разорвать мост</translation>
-    </message>
-    <message>
-        <source>MAC:</source>
-        <translation>MAC:</translation>
-    </message>
-    <message>
-        <source>Auto Connect Group:</source>
-        <translation>Автоматически подключаться к этой группе:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsHueSettingsPageUi</name>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-    <message>
-        <source>After adding a Hue entry and saving, restart OpenRGB and press the Sync button on your Hue bridge to pair it.</source>
-        <translation>После добавления устройств Hue и сохранения, перезапустите OpenRGB, затем нажмите кнопку Sync на мосте Hue bridge для установления связи.</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsWizSettingsEntryUi</name>
-    <message>
-        <source>Use Cool White</source>
-        <translation>Холодный белый</translation>
-    </message>
-    <message>
-        <source>Use Warm White</source>
-        <translation>Тёплый белый</translation>
-    </message>
-    <message>
-        <source>IP:</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>White Strategy:</source>
-        <translation>Расчёт белого:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsWizSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPluginsEntryUi</name>
+    <name>OpenRGBPluginsEntry</name>
     <message>
         <source>Version:</source>
         <translation>Версия:</translation>
@@ -649,7 +771,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBPluginsPageUi</name>
+    <name>OpenRGBPluginsPage</name>
     <message>
         <source>Install Plugin</source>
         <translation>Установить подключаемый модуль</translation>
@@ -662,9 +784,37 @@
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Looking for plugins? See the official list at &lt;a href=&quot;https://openrgb.org/plugins.html&quot;&gt;OpenRGB.org&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Посмотрите список подключаемых модулей на официальном сайте &lt;a href=&quot;https://openrgb.org/plugins.html&quot;&gt;OpenRGB.org&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
+    <message>
+        <source>Install OpenRGB Plugin</source>
+        <translation>Установить подключаемый модуль OpenRGB</translation>
+    </message>
+    <message>
+        <source>Plugin files (*.dll *.dylib *.so *.so.*)</source>
+        <translation>Файлы подключаемых модулей (*.dll *.dylib *.so; *.so.*)</translation>
+    </message>
+    <message>
+        <source>Replace Plugin</source>
+        <translation>Заменить подключаемый модуль</translation>
+    </message>
+    <message>
+        <source>A plugin with this filename is already installed.  Are you sure you want to replace this plugin?</source>
+        <translation>Подключаемый модуль с таким названием уже существует. Заменить установленный подключаемый модуль?</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to remove this plugin?</source>
+        <translation>Удалить подключаемый модуль?</translation>
+    </message>
+    <message>
+        <source>Restart Needed</source>
+        <translation>Требуется перезапуск</translation>
+    </message>
+    <message>
+        <source>The plugin will be fully removed after restarting OpenRGB.</source>
+        <translation>Плагин будет полностью удалён после перезапуска OpenRGB.</translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBProfileSaveDialogUi</name>
+    <name>OpenRGBProfileSaveDialog</name>
     <message>
         <source>Profile Name</source>
         <translation>Название профиля</translation>
@@ -679,75 +829,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBQMKORGBSettingsEntryUi</name>
-    <message>
-        <source>Name:</source>
-        <translation>Название:</translation>
-    </message>
-    <message>
-        <source>USB PID:</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>USB VID:</source>
-        <translation></translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBQMKORGBSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBSerialSettingsEntryUi</name>
-    <message>
-        <source>Baud:</source>
-        <translation>Бод:</translation>
-    </message>
-    <message>
-        <source>Name:</source>
-        <translation>Название:</translation>
-    </message>
-    <message>
-        <source>Number of LEDs:</source>
-        <translation>Количество светодиодов:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation>Порт:</translation>
-    </message>
-    <message>
-        <source>Protocol:</source>
-        <translation>Протокол:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBSerialSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBServerInfoPageUi</name>
+    <name>OpenRGBServerInfoPage</name>
     <message>
         <source>Stop Server</source>
         <translation>Остановить сервер</translation>
@@ -788,16 +870,20 @@
         <source>Client Name</source>
         <translation>Имя клиента</translation>
     </message>
+    <message>
+        <source>Stopping...</source>
+        <translation>Остановка…</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>Включен</translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPageUi</name>
+    <name>OpenRGBSettingsPage</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Загружать геометрию окна</translation>
-    </message>
-    <message>
-        <source>90000</source>
-        <translation></translation>
     </message>
     <message>
         <source>Run Zone Checks on Rescan</source>
@@ -920,9 +1006,21 @@
         <source>Language</source>
         <translation>Язык</translation>
     </message>
+    <message>
+        <source>A problem occurred enabling Start at Login.</source>
+        <translation>Проблема при включении автозапуска.</translation>
+    </message>
+    <message>
+        <source>English - US</source>
+        <translation>Русский</translation>
+    </message>
+    <message>
+        <source>System Default</source>
+        <translation>Определяется ОС</translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBSoftwareInfoPageUi</name>
+    <name>OpenRGBSoftwareInfoPage</name>
     <message>
         <source>Build Date:</source>
         <translation>Дата сборки:</translation>
@@ -967,9 +1065,45 @@
         <source>&lt;a href=&quot;https://gitlab.com/CalcProgrammer1/OpenRGB&quot;&gt;https://gitlab.com/CalcProgrammer1/OpenRGB&lt;/a&gt;</source>
         <translation></translation>
     </message>
+    <message>
+        <source>Qt Version Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Qt Version:</source>
+        <translation>Версия Qt:</translation>
+    </message>
+    <message>
+        <source>OS Version:</source>
+        <translation>Версия ОС:</translation>
+    </message>
+    <message>
+        <source>OS Version Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GNU General Public License, version 2</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>License:</source>
+        <translation>Лицензия:</translation>
+    </message>
+    <message>
+        <source>Copyright:</source>
+        <translation>Авторское право:</translation>
+    </message>
+    <message>
+        <source>Adam Honse, OpenRGB Team</source>
+        <translation>Adam Honse, команда OpenRGB</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;OpenRGB&lt;/b&gt;, an open-source RGB control utility</source>
+        <translation>&lt;b&gt;OpenRGB&lt;/b&gt;, открытый инструментарий управления RGB-подсветкой</translation>
+    </message>
 </context>
 <context>
-    <name>OpenRGBSupportedDevicesPageUi</name>
+    <name>OpenRGBSupportedDevicesPage</name>
     <message>
         <source>Filter:</source>
         <translation>Фильтр:</translation>
@@ -988,7 +1122,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSystemInfoPageUi</name>
+    <name>OpenRGBSystemInfoPage</name>
     <message>
         <source>SMBus Adapters:</source>
         <translation>Адаптеры SMBus:</translation>
@@ -1043,45 +1177,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBYeelightSettingsEntryUi</name>
-    <message>
-        <source>IP:</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>?</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Music Mode:</source>
-        <translation>Режим захвата звука:</translation>
-    </message>
-    <message>
-        <source>Override host IP:</source>
-        <translation>Указать IP-адрес узла:</translation>
-    </message>
-    <message>
-        <source>Left blank for auto discovering host ip</source>
-        <translation>Оставьте пустым для автообнаружения IP узла</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBYeelightSettingsPageUi</name>
-    <message>
-        <source>Add</source>
-        <translation>Добавить</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation>Удалить</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation>Сохранить</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBZoneResizeDialogUi</name>
+    <name>OpenRGBZoneResizeDialog</name>
     <message>
         <source>Resize Zone</source>
         <translation>Изменить размер области</translation>
@@ -1100,7 +1196,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBZonesBulkResizerUi</name>
+    <name>OpenRGBZonesBulkResizer</name>
     <message>
         <source>Zones Resizer</source>
         <translation>Изменение размера зон</translation>
@@ -1120,6 +1216,107 @@
     <message>
         <source>Ignore</source>
         <translation>Игнорировать</translation>
+    </message>
+    <message>
+        <source>Resize the zones</source>
+        <translation>Изменение размера областей</translation>
+    </message>
+    <message>
+        <source>Controller</source>
+        <translation>Контроллер</translation>
+    </message>
+    <message>
+        <source>Zone</source>
+        <translation>Область</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Размер</translation>
+    </message>
+</context>
+<context>
+    <name>PhilipsHueSettingsEntry</name>
+    <message>
+        <source>Philips Hue Bridge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Entertainment Mode:</source>
+        <translation>Развлекательный режим:</translation>
+    </message>
+    <message>
+        <source>Auto Connect Group:</source>
+        <translation>Автоматически подключаться к этой группе:</translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>Client Key:</source>
+        <translation>Ключ клиента:</translation>
+    </message>
+    <message>
+        <source>Username:</source>
+        <translation>Имя пользователя:</translation>
+    </message>
+    <message>
+        <source>MAC:</source>
+        <translation>MAC:</translation>
+    </message>
+    <message>
+        <source>Unpair Bridge</source>
+        <translation>Разорвать сопряжение с мостом</translation>
+    </message>
+</context>
+<context>
+    <name>PhilipsWizSettingsEntry</name>
+    <message>
+        <source>Philips Wiz Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use Cool White</source>
+        <translation>Холодный белый</translation>
+    </message>
+    <message>
+        <source>Use Warm White</source>
+        <translation>Тёплый белый</translation>
+    </message>
+    <message>
+        <source>IP:</source>
+        <translation>IP:</translation>
+    </message>
+    <message>
+        <source>White Strategy:</source>
+        <translation>Расчёт белого:</translation>
+    </message>
+    <message>
+        <source>Average</source>
+        <translation>По среднему</translation>
+    </message>
+    <message>
+        <source>Minimum</source>
+        <translation>По наименьшему</translation>
+    </message>
+</context>
+<context>
+    <name>QMKORGBSettingsEntry</name>
+    <message>
+        <source>QMK Device</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Название:</translation>
+    </message>
+    <message>
+        <source>USB PID:</source>
+        <translation></translation>
+    </message>
+    <message>
+        <source>USB VID:</source>
+        <translation></translation>
     </message>
 </context>
 <context>
@@ -1144,374 +1341,65 @@
     </message>
 </context>
 <context>
-    <name>TabLabelUi</name>
+    <name>SerialSettingsEntry</name>
+    <message>
+        <source>Serial Device</source>
+        <translation type="unfinished">Устройство последовательного порта (Arduino)</translation>
+    </message>
+    <message>
+        <source>Baud:</source>
+        <translation>Скорость (бод):</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Название:</translation>
+    </message>
+    <message>
+        <source>Number of LEDs:</source>
+        <translation>Количество светодиодов:</translation>
+    </message>
+    <message>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+    <message>
+        <source>Protocol:</source>
+        <translation>Протокол:</translation>
+    </message>
+</context>
+<context>
+    <name>TabLabel</name>
     <message>
         <source>device name</source>
         <translation>название устройства</translation>
     </message>
 </context>
 <context>
-    <name>Ui::OpenRGBClientInfoPage</name>
+    <name>YeelightSettingsEntry</name>
     <message>
-        <source>Disconnect</source>
-        <translation>Разъединить</translation>
+        <source>Yeelight Device</source>
+        <translation type="unfinished"></translation>
     </message>
-</context>
-<context>
-    <name>Ui::OpenRGBDevicePage</name>
     <message>
-        <source>Set individual LEDs to static colors.  Safe for use with software-driven effects.</source>
-        <translation>Устанавливает статичный цвет для каждого светодиода. Безопасен для использования с программными эффектами.</translation>
+        <source>IP:</source>
+        <translation>IP:</translation>
     </message>
     <message>
-        <source>Set individual LEDs to static colors.  Not safe for use with software-driven effects.</source>
-        <translation>Устанавливает статичный цвет для каждого светодиода. Небезопасен для использования с программными эффектами.</translation>
+        <source>?</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Sets the entire device or a zone to a single color.</source>
-        <translation>Задаёт один цвет для всего устройства или области.</translation>
+        <source>Music Mode:</source>
+        <translation>Режим захвата звука:</translation>
     </message>
     <message>
-        <source>Gradually fades between fully off and fully on.</source>
-        <translation>Плавно включается и выключается.</translation>
+        <source>Override host IP:</source>
+        <translation>Указать IP-адрес узла:</translation>
     </message>
     <message>
-        <source>Abruptly changes between fully off and fully on.</source>
-        <translation>Резко включается и выключается.</translation>
+        <source>Left blank for auto discovering host ip</source>
+        <translation>Оставьте пустым для автообнаружения IP узла</translation>
     </message>
-    <message>
-        <source>Gradually cycles through the entire color spectrum.  All lights on the device are the same color.</source>
-        <translation>Плавно меняет цвет по радуге. Все светодиоды устройства одного цвета.</translation>
-    </message>
-    <message>
-        <source>Gradually cycles through the entire color spectrum.  Produces a rainbow pattern that moves.</source>
-        <translation>Плавно меняет цвет. Создаёт движущуюся радугу.</translation>
-    </message>
-    <message>
-        <source>Flashes lights when keys or buttons are pressed.</source>
-        <translation>Вспыхивает при нажатии клавишей или кнопок.</translation>
-    </message>
-    <message>
-        <source>Entire Device</source>
-        <translation>Устройство целиком</translation>
-    </message>
-    <message>
-        <source>Entire Zone</source>
-        <translation>Область целиком</translation>
-    </message>
-    <message>
-        <source>Entire Segment</source>
-        <translation>Сегмент целиком</translation>
-    </message>
-    <message>
-        <source>Left</source>
-        <translation>Влево</translation>
-    </message>
-    <message>
-        <source>Right</source>
-        <translation>Вправо</translation>
-    </message>
-    <message>
-        <source>Up</source>
-        <translation>Вверх</translation>
-    </message>
-    <message>
-        <source>Down</source>
-        <translation>Вниз</translation>
-    </message>
-    <message>
-        <source>Horizontal</source>
-        <translation>Горизонтально</translation>
-    </message>
-    <message>
-        <source>Vertical</source>
-        <translation>Вертикально</translation>
-    </message>
-    <message>
-        <source>Saved To Device</source>
-        <translation>Сохранено на устройстве</translation>
-    </message>
-    <message>
-        <source>Save To Device</source>
-        <translation>Сохранить на устройстве</translation>
-    </message>
-    <message>
-        <source>Saving Not Supported</source>
-        <translation>Сохранение не поддерживается</translation>
-    </message>
-    <message>
-        <source>All Zones</source>
-        <translation>Все области</translation>
-    </message>
-    <message>
-        <source>Mode Specific</source>
-        <translation>Задаётся режимом</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBDialog</name>
-    <message>
-        <source>Show/Hide</source>
-        <translation>Показать/скрыть</translation>
-    </message>
-    <message>
-        <source>Profiles</source>
-        <translation>Профили</translation>
-    </message>
-    <message>
-        <source>Quick Colors</source>
-        <translation>Палитра</translation>
-    </message>
-    <message>
-        <source>Red</source>
-        <translation>Красный</translation>
-    </message>
-    <message>
-        <source>Yellow</source>
-        <translation>Жёлтый</translation>
-    </message>
-    <message>
-        <source>Green</source>
-        <translation>Зелёный</translation>
-    </message>
-    <message>
-        <source>Cyan</source>
-        <translation>Бирюзовый</translation>
-    </message>
-    <message>
-        <source>Blue</source>
-        <translation>Синий</translation>
-    </message>
-    <message>
-        <source>Magenta</source>
-        <translation>Лиловый</translation>
-    </message>
-    <message>
-        <source>White</source>
-        <translation>Белый</translation>
-    </message>
-    <message>
-        <source>Lights Off</source>
-        <translation>Цвета выкл.</translation>
-    </message>
-    <message>
-        <source>Exit</source>
-        <translation>Выход</translation>
-    </message>
-    <message>
-        <source>Plugins</source>
-        <translation>Подключаемые модули</translation>
-    </message>
-    <message>
-        <source>Software</source>
-        <translation>Приложение</translation>
-    </message>
-    <message>
-        <source>Supported Devices</source>
-        <translation>Поддерживаемые устройства</translation>
-    </message>
-    <message>
-        <source>General Settings</source>
-        <translation>Общие настройки</translation>
-    </message>
-    <message>
-        <source>DMX Devices</source>
-        <translation>Устройства DMX</translation>
-    </message>
-    <message>
-        <source>E1.31 Devices</source>
-        <translation>Устройства E1.31</translation>
-    </message>
-    <message>
-        <source>Kasa Smart Devices</source>
-        <translation>Устройства Kasa Smart</translation>
-    </message>
-    <message>
-        <source>Philips Hue Devices</source>
-        <translation>Устройства Philips Hue</translation>
-    </message>
-    <message>
-        <source>Philips Wiz Devices</source>
-        <translation>Устройства Philips Wiz</translation>
-    </message>
-    <message>
-        <source>OpenRGB QMK Protocol</source>
-        <translation>Протокол OpenRGB QMK</translation>
-    </message>
-    <message>
-        <source>Serial Devices</source>
-        <translation>Устройства последовательного порта</translation>
-    </message>
-    <message>
-        <source>Yeelight Devices</source>
-        <translation>Устройства Yeelight</translation>
-    </message>
-    <message>
-        <source>SMBus Tools</source>
-        <translation>Инструменты SMBus</translation>
-    </message>
-    <message>
-        <source>SDK Client</source>
-        <translation>Клиент SDK</translation>
-    </message>
-    <message>
-        <source>SDK Server</source>
-        <translation>Сервер SDK</translation>
-    </message>
-    <message>
-        <source>Delete Profile</source>
-        <translation>Удалить профиль</translation>
-    </message>
-    <message>
-        <source>Do you really want to delete this profile?</source>
-        <translation>Вы действительно хотите удалить этот профиль?</translation>
-    </message>
-    <message>
-        <source>Log Console</source>
-        <translation>Консоль журналирования</translation>
-    </message>
-    <message>
-        <source>LIFX Devices</source>
-        <translation>Устройства LIFX</translation>
-    </message>
-    <message>
-        <source>Nanoleaf Devices</source>
-        <translation>Устройства Nanoleaf</translation>
-    </message>
-    <message>
-        <source>Elgato KeyLight Devices</source>
-        <translation>Устройства Elgato KeyLight</translation>
-    </message>
-    <message>
-        <source>Elgato LightStrip Devices</source>
-        <translation>Устройства Elgato LightStrip</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBE131SettingsEntry</name>
-    <message>
-        <source>Single</source>
-        <translation>Однородная область</translation>
-    </message>
-    <message>
-        <source>Linear</source>
-        <translation>Линейная область</translation>
-    </message>
-    <message>
-        <source>Matrix</source>
-        <translation>Матрица</translation>
-    </message>
-    <message>
-        <source>Horizontal Top Left</source>
-        <translation>Горизонтально, слева направо и сверху вниз</translation>
-    </message>
-    <message>
-        <source>Horizontal Top Right</source>
-        <translation>Горизонтально, справа налево и сверху вниз</translation>
-    </message>
-    <message>
-        <source>Horizontal Bottom Left</source>
-        <translation>Горизонтально, слева направо и снизу вверх</translation>
-    </message>
-    <message>
-        <source>Horizontal Bottom Right</source>
-        <translation>Горизонтально, справа налево и снизу вверх</translation>
-    </message>
-    <message>
-        <source>Vertical Top Left</source>
-        <translation>Вертикально, сверху вниз и слева направо</translation>
-    </message>
-    <message>
-        <source>Vertical Top Right</source>
-        <translation>Вертикально, сверху вниз и справа налево</translation>
-    </message>
-    <message>
-        <source>Vertical Bottom Left</source>
-        <translation>Вертикально, снизу вверх и слева направо</translation>
-    </message>
-    <message>
-        <source>Vertical Bottom Right</source>
-        <translation>Вертикально, снизу вверх и справа налево</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBPhilipsWizSettingsEntry</name>
-    <message>
-        <source>Average</source>
-        <translation>По среднему</translation>
-    </message>
-    <message>
-        <source>Minimum</source>
-        <translation>По наименьшему</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBPluginsPage</name>
-    <message>
-        <source>Install OpenRGB Plugin</source>
-        <translation>Установить подключаемый модуль OpenRGB</translation>
-    </message>
-    <message>
-        <source>Plugin files (*.dll *.dylib *.so *.so.*)</source>
-        <translation>Файлы подключаемых модулей (*.dll *.dylib *.so; *.so.*)</translation>
-    </message>
-    <message>
-        <source>Replace Plugin</source>
-        <translation>Заменить подключаемый модуль</translation>
-    </message>
-    <message>
-        <source>A plugin with this filename is already installed.  Are you sure you want to replace this plugin?</source>
-        <translation>Подключаемый модуль с таким названием уже существует. Заменить установленный подключаемый модуль?</translation>
-    </message>
-    <message>
-        <source>Remove Plugin</source>
-        <translation>Удалить подключаемый модуль</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to remove this plugin?</source>
-        <translation>Удалить подключаемый модуль?</translation>
-    </message>
-    <message>
-        <source>Restart Needed</source>
-        <translation>Требуется перезапуск</translation>
-    </message>
-    <message>
-        <source>The plugin will be fully removed after restarting OpenRGB.</source>
-        <translation>Плагин будет полностью удалён после перезапуска OpenRGB.</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBServerInfoPage</name>
-    <message>
-        <source>Stopping...</source>
-        <translation>Остановка…</translation>
-    </message>
-    <message>
-        <source>Online</source>
-        <translation>Включен</translation>
-    </message>
-    <message>
-        <source>Offline</source>
-        <translation>Отключен</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBSettingsPage</name>
-    <message>
-        <source>A problem occurred enabling Start at Login.</source>
-        <translation>Проблема при включении автозапуска.</translation>
-    </message>
-    <message>
-        <source>English - US</source>
-        <translation>Русский</translation>
-    </message>
-    <message>
-        <source>System Default</source>
-        <translation>Определяется ОС</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBYeelightSettingsEntry</name>
     <message>
         <source>Choose an IP...</source>
         <translation>Выберите IP адрес…</translation>
@@ -1519,25 +1407,6 @@
     <message>
         <source>Choose the correct IP for the host</source>
         <translation>Выберите правильный IP адрес узла</translation>
-    </message>
-</context>
-<context>
-    <name>Ui::OpenRGBZonesBulkResizer</name>
-    <message>
-        <source>Resize the zones</source>
-        <translation>Изменение размера областей</translation>
-    </message>
-    <message>
-        <source>Controller</source>
-        <translation>Контроллер</translation>
-    </message>
-    <message>
-        <source>Zone</source>
-        <translation>Область</translation>
-    </message>
-    <message>
-        <source>Size</source>
-        <translation>Размер</translation>
     </message>
 </context>
 </TS>

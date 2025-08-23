@@ -17,10 +17,11 @@
 #include "LogManager.h"
 
 
-HyperXAlloyOriginsCoreController::HyperXAlloyOriginsCoreController(hid_device* dev_handle, hid_device_info* dev_info)
+HyperXAlloyOriginsCoreController::HyperXAlloyOriginsCoreController(hid_device* dev_handle, hid_device_info* dev_info, std::string dev_name)
 {
-    dev              = dev_handle;
-    location         = dev_info->path;
+    dev             = dev_handle;
+    location        = dev_info->path;
+    name            = dev_name;
 
     /*-----------------------------------------------------*\
     | Get the firmware version from the device info         |
@@ -42,6 +43,11 @@ HyperXAlloyOriginsCoreController::~HyperXAlloyOriginsCoreController()
 std::string HyperXAlloyOriginsCoreController::GetDeviceLocation()
 {
     return("HID " + location);
+}
+
+std::string HyperXAlloyOriginsCoreController::GetNameString()
+{
+    return(name);
 }
 
 std::string HyperXAlloyOriginsCoreController::GetSerialString()
@@ -133,9 +139,13 @@ void HyperXAlloyOriginsCoreController::SetLEDsDirect(std::vector<RGBColor> color
     | transfer the colors to the buffer. Max 94 colors to avoid buffer overflow.  |
     \*---------------------------------------------------------------------------*/
     if(colors.size() > 94)
+    {
         total_colors = 94;
+    }
     else
-        total_colors = colors.size();
+    {
+        total_colors = (unsigned int)colors.size();
+    }
 
     for(unsigned int color_idx = 0; color_idx < total_colors; color_idx++)
     {

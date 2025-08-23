@@ -15,9 +15,10 @@
 #include <sstream>
 #include "HYTEMousematController_Linux.h"
 
-HYTEMousematController::HYTEMousematController(libusb_device_handle* dev_handle)
+HYTEMousematController::HYTEMousematController(libusb_device_handle* dev_handle, std::string dev_name)
 {
-    dev = dev_handle;
+    dev     = dev_handle;
+    name    = dev_name;
 
     /*-----------------------------------------------------*\
     | Fill in location string with USB ID                   |
@@ -32,12 +33,19 @@ HYTEMousematController::HYTEMousematController(libusb_device_handle* dev_handle)
 
 HYTEMousematController::~HYTEMousematController()
 {
-
+    libusb_release_interface(dev, 0);
+    libusb_attach_kernel_driver(dev, 0);
+    libusb_close(dev);
 }
 
 std::string HYTEMousematController::GetLocation()
 {
     return(location);
+}
+
+std::string HYTEMousematController::GetName()
+{
+    return(name);
 }
 
 void HYTEMousematController::FirmwareAnimationControl(bool enabled)

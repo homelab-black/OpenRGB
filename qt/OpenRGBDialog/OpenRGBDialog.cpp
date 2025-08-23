@@ -1,4 +1,4 @@
-﻿/*---------------------------------------------------------*\
+/*---------------------------------------------------------*\
 | OpenRGBDialog.cpp                                         |
 |                                                           |
 |   User interface for OpenRGB main window                  |
@@ -7,8 +7,6 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-#include <string>
-#include <functional>
 #include "OpenRGBDialog.h"
 #include "LogManager.h"
 #include "PluginManager.h"
@@ -23,19 +21,25 @@
 #include "TabLabel.h"
 #include "OpenRGBZonesBulkResizer.h"
 #include "OpenRGBThemeManager.h"
+#include "OpenRGBFont.h"
+
+#include "ui_OpenRGBDialog.h"
+
 #include <QLabel>
 #include <QTabBar>
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QStyleFactory>
 #include <QKeyEvent>
-#include "OpenRGBFont.h"
+#include <QCheckBox>
+#include <QSpinBox>
+
+#include <string>
+#include <functional>
 
 #ifdef __APPLE__
 #include "macutils.h"
 #endif
-
-using namespace Ui;
 
 static int GetIcon(device_type type)
 {
@@ -146,6 +150,13 @@ static void DeletePluginCallback(void * this_ptr, OpenRGBPluginEntry* plugin)
     this_obj->RemovePlugin(plugin);
 }
 
+static void DetectionStartedCallback(void * this_ptr)
+{
+    OpenRGBDialog * this_obj = (OpenRGBDialog *)this_ptr;
+
+    QMetaObject::invokeMethod(this_obj, "onDetectionStarted", Qt::QueuedConnection);
+}
+
 static void DetectionEndedCallback(void * this_ptr)
 {
     OpenRGBDialog * this_obj = (OpenRGBDialog *)this_ptr;
@@ -161,7 +172,6 @@ static void DialogShowCallback(void * this_ptr, PLogMessage msg)
     QMetaObject::invokeMethod(this_obj, "onShowDialogMessage", Qt::QueuedConnection);
 }
 
-
 bool OpenRGBDialog::IsMinimizeOnClose()
 {
     json ui_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("UserInterface");
@@ -174,7 +184,7 @@ bool OpenRGBDialog::IsMinimizeOnClose()
     return false;
 }
 
-OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new OpenRGBDialogUi)
+OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::OpenRGBDialog)
 {
     ui->setupUi(this);
 
@@ -231,11 +241,11 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     {
         QRect set_window;
 
-        /*-----------------------------------------------------*\
-        | x and y can be set independent of width and height    |
-        | QT attempts to clamp these values in case the user    |
-        | enters invalid numbers                                |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | x and y can be set independent of width and       |
+        | height.  QT attempts to clamp these values in     |
+        | case the user enters invalid numbers.             |
+        \*-------------------------------------------------*/
         if( ui_settings["geometry"].contains("x")
          && ui_settings["geometry"].contains("y"))
         {
@@ -302,6 +312,7 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     \*-----------------------------------------------------*/
     ResourceManager::get()->RegisterDetectionProgressCallback(UpdateDetectionProgressCallback, this);
     ResourceManager::get()->RegisterDeviceListChangeCallback(UpdateDeviceListCallback, this);
+    ResourceManager::get()->RegisterDetectionStartCallback(DetectionStartedCallback, this);
     ResourceManager::get()->RegisterDetectionEndCallback(DetectionEndedCallback, this);
 
     /*-----------------------------------------------------*\
@@ -385,14 +396,18 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     connect(actionLightsOff, SIGNAL(triggered()), this, SLOT(on_LightsOff()));
     trayIconMenu->addAction(actionLightsOff);
 
+    QAction* actionReScan = new QAction(tr("Rescan Devices"), this);
+    connect(actionReScan, SIGNAL(triggered()), this, SLOT(on_ButtonRescan_clicked()));
+    trayIconMenu->addAction(actionReScan);
+
     actionExit = new QAction(tr("Exit"), this );
     connect( actionExit, SIGNAL( triggered() ), this, SLOT( on_Exit() ));
     trayIconMenu->addAction(actionExit);
 
-    /*-------------------------------------------------*\
-    | If tray minimize flag isn't in the config, set    |
-    | default value to false                            |
-    \*-------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | If tray minimize flag isn't in the config, set        |
+    | default value to false                                |
+    \*-----------------------------------------------------*/
     if(!ui_settings.contains("minimize_on_close"))
     {
         ui_settings["minimize_on_close"] = false;
@@ -401,10 +416,10 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
 
     connect(trayIcon,SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(on_ReShow(QSystemTrayIcon::ActivationReason)));
 
-    /*-------------------------------------------------*\
-    | If Greyscale Tray Icon flag is not set in config  |
-    | then set the default value to false               |
-    \*-------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | If Greyscale Tray Icon flag is not set in config then |
+    | set the default value to false                        |
+    \*-----------------------------------------------------*/
     if(!ui_settings.contains("greyscale_tray_icon"))
     {
         ui_settings["greyscale_tray_icon"] = false;
@@ -434,6 +449,9 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     trayIcon->setContextMenu(trayIconMenu);
     trayIcon->show();
 
+    /*-----------------------------------------------------*\
+    | Initialize the theme manager                          |
+    \*-----------------------------------------------------*/
     OpenRGBThemeManager::Init();
 
     /*-----------------------------------------------------*\
@@ -485,69 +503,9 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     AddPluginsPage();
 
     /*-----------------------------------------------------*\
-    | Add the DMX settings page                             |
+    | Add the Manually Added Devices settings page          |
     \*-----------------------------------------------------*/
-    AddDMXSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the E1.31 settings page                           |
-    \*-----------------------------------------------------*/
-    AddE131SettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Govee settings page                           |
-    \*-----------------------------------------------------*/
-    AddGoveeSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Kasa Smart settings page                      |
-    \*-----------------------------------------------------*/
-    AddKasaSmartSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the LIFX settings page                            |
-    \*-----------------------------------------------------*/
-    AddLIFXSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Serial settings page                          |
-    \*-----------------------------------------------------*/
-    AddSerialSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the QMK OpenRGB Protocol settings page            |
-    \*-----------------------------------------------------*/
-    AddQMKORGBSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Philips Hue settings page                     |
-    \*-----------------------------------------------------*/
-    AddPhilipsHueSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Philips Wiz settings page                     |
-    \*-----------------------------------------------------*/
-    AddPhilipsWizSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Yeelight settings page                        |
-    \*-----------------------------------------------------*/
-    AddYeelightSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the Nanoleaf settings page                        |
-    \*-----------------------------------------------------*/
-    AddNanoleafSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the ElgatoKeyLight settings page                  |
-    \*-----------------------------------------------------*/
-    AddElgatoKeyLightSettingsPage();
-
-    /*-----------------------------------------------------*\
-    | Add the ElgatoLightStrip settings page                |
-    \*-----------------------------------------------------*/
-    AddElgatoLightStripSettingsPage();
+    AddManualDevicesSettingsPage();
 
     /*-----------------------------------------------------*\
     | Add the SMBus Tools page if enabled                   |
@@ -581,6 +539,14 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Open
     \*-----------------------------------------------------*/
     connect(qApp, &QCoreApplication::aboutToQuit, this, &OpenRGBDialog::handleAboutToQuit);
 
+    /*-----------------------------------------------------*\
+    | Handle the condition where detection ended before we  |
+    | finished initializing/registering detection callback  |
+    \*-----------------------------------------------------*/
+    if(ResourceManager::get()->GetDetectionPercent() >= 100)
+    {
+        onDetectionEnded();
+    }
 }
 
 OpenRGBDialog::~OpenRGBDialog()
@@ -619,6 +585,7 @@ void OpenRGBDialog::handleAboutToQuit()
         }
     }
 
+    disconnect(qApp, &QCoreApplication::aboutToQuit, this, &OpenRGBDialog::handleAboutToQuit);
     QCloseEvent* closeEvent = new QCloseEvent;
     this->closeEvent(closeEvent);
     delete closeEvent;
@@ -632,10 +599,11 @@ void OpenRGBDialog::changeEvent(QEvent *event)
         ui->retranslateUi(this);
         for(int i = 0; i < ui->MainTabBar->count(); i++)
         {
-            /*-----------------------------------------------------*\
-            | if the objectName is either of the SDK tabs           |
-            |   then translate tab text (TODO: improve workaround)  |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | If the objectName is either of the SDK tabs   |
+            | then translate tab text (TODO: improve        |
+            | workaround)                                   |
+            \*---------------------------------------------*/
             std::string label = ui->MainTabBar->widget(i)->objectName().toStdString();
 
             if(label.substr(0,3) == "SDK")
@@ -666,9 +634,10 @@ void OpenRGBDialog::closeEvent(QCloseEvent *event)
         {
             on_ButtonLoadProfile_clicked();
 
-            /*-----------------------------------------------------*\
-            | Pause briefly to ensure that all profiles are loaded. |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Pause briefly to ensure that all profiles are |
+            | loaded.                                       |
+            \*---------------------------------------------*/
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
 
@@ -712,10 +681,10 @@ bool OpenRGBDialog::SelectConfigProfile(const std::string name)
             json profile = autoload_profiles[name];
             if (profile.contains("enabled") && profile["enabled"].get<bool>() && profile.contains("name"))
             {
-                /*-----------------------------------------------------*\
-                | Set the profile name from settings and check the      |
-                |   profile combobox for a match                        |
-                \*-----------------------------------------------------*/
+                /*-----------------------------------------*\
+                | Set the profile name from settings and    |
+                | check the profile combobox for a match    |
+                \*-----------------------------------------*/
                 std::string profile_name = profile["name"].get<std::string>();
                 int profile_index        = ui->ProfileBox->findText(QString::fromStdString(profile_name));
 
@@ -804,223 +773,19 @@ void OpenRGBDialog::AddSettingsPage()
     connect(this, SIGNAL(ProfileListChanged()), SettingsPage, SLOT(UpdateProfiles()));
 }
 
-void OpenRGBDialog::AddDMXSettingsPage()
+void OpenRGBDialog::AddManualDevicesSettingsPage()
 {
     /*-----------------------------------------------------*\
     | Create the Settings page                              |
     \*-----------------------------------------------------*/
-    DMXSettingsPage = new OpenRGBDMXSettingsPage();
+    manualDevicesPage = new ManualDevicesSettingsPage();
 
-    ui->SettingsTabBar->addTab(DMXSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::serial, tr("DMX Devices"), (char *)"DMX Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddE131SettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    E131SettingsPage = new OpenRGBE131SettingsPage();
-
-    ui->SettingsTabBar->addTab(E131SettingsPage, "");
+    ui->SettingsTabBar->addTab(manualDevicesPage, "");
 
     /*-----------------------------------------------------*\
     | Create the tab label                                  |
     \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::data, tr("E1.31 Devices"), (char *)"E1.31 Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddGoveeSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    GoveeSettingsPage = new OpenRGBGoveeSettingsPage();
-
-    ui->SettingsTabBar->addTab(GoveeSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Govee Devices"), (char *)"Govee Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddKasaSmartSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    KasaSmartSettingsPage = new OpenRGBKasaSmartSettingsPage();
-
-    ui->SettingsTabBar->addTab(KasaSmartSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Kasa Smart Devices"), (char *)"Kasa Smart Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddLIFXSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    LIFXSettingsPage = new OpenRGBLIFXSettingsPage();
-
-    ui->SettingsTabBar->addTab(LIFXSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("LIFX Devices"), (char *)"LIFX Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddPhilipsHueSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    PhilipsHueSettingsPage = new OpenRGBPhilipsHueSettingsPage();
-
-    ui->SettingsTabBar->addTab(PhilipsHueSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Philips Hue Devices"), (char *)"Philips Hue Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddPhilipsWizSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    PhilipsWizSettingsPage = new OpenRGBPhilipsWizSettingsPage();
-
-    ui->SettingsTabBar->addTab(PhilipsWizSettingsPage, "");
-
-      /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Philips Wiz Devices"), (char *)"Philips Wiz Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddQMKORGBSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    QMKORGBSettingsPage = new OpenRGBQMKORGBSettingsPage();
-
-    ui->SettingsTabBar->addTab(QMKORGBSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::keyboard, tr("OpenRGB QMK Protocol"), (char *)"OpenRGB QMK Protocol", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddSerialSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    SerialSettingsPage = new OpenRGBSerialSettingsPage();
-
-    ui->SettingsTabBar->addTab(SerialSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SerialSettingsTabLabel = new TabLabel(OpenRGBFont::serial, tr("Serial Devices"), (char *)"Serial Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SerialSettingsTabLabel);
-}
-
-void OpenRGBDialog::AddYeelightSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    YeelightSettingsPage = new OpenRGBYeelightSettingsPage();
-
-    ui->SettingsTabBar->addTab(YeelightSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Yeelight Devices"), (char *)"Yeelight Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddNanoleafSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    NanoleafSettingsPage = new OpenRGBNanoleafSettingsPage();
-
-    ui->SettingsTabBar->addTab(NanoleafSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Nanoleaf Devices"), (char *)"Nanoleaf Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddElgatoKeyLightSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    ElgatoKeyLightSettingsPage = new OpenRGBElgatoKeyLightSettingsPage();
-
-    ui->SettingsTabBar->addTab(ElgatoKeyLightSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Elgato KeyLight Devices"), (char *)"Elgato KeyLight Devices", (char *)context);
-
-    ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-}
-
-void OpenRGBDialog::AddElgatoLightStripSettingsPage()
-{
-    /*-----------------------------------------------------*\
-    | Create the Settings page                              |
-    \*-----------------------------------------------------*/
-    ElgatoLightStripSettingsPage = new OpenRGBElgatoLightStripSettingsPage();
-
-    ui->SettingsTabBar->addTab(ElgatoLightStripSettingsPage, "");
-
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Elgato LightStrip Devices"), (char *)"Elgato LightStrip Devices", (char *)context);
+    TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::bulb, tr("Manually Added Devices"), (char *)"Manually Added Devices", (char *)context);
 
     ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
 }
@@ -1122,8 +887,6 @@ void OpenRGBDialog::RemovePlugin(OpenRGBPluginEntry* plugin)
         {
             trayIconMenu->removeAction(plugin->traymenu->menuAction());
         }
-
-        //delete plugin->traymenu;
     }
 
     /*-----------------------------------------------------*\
@@ -1161,7 +924,6 @@ void OpenRGBDialog::RemovePlugin(OpenRGBPluginEntry* plugin)
                 if(dynamic_cast<OpenRGBPluginContainer*>(plugin_parent_widget->widget(tab_idx))->plugin_widget == plugin->widget)
                 {
                     plugin_parent_widget->removeTab(tab_idx);
-                    //delete plugin->widget;
                     break;
                 }
             }
@@ -1201,17 +963,6 @@ void OpenRGBDialog::AddClientTab()
         ClientInfoPage = new OpenRGBClientInfoPage();
         ClientInfoPage->setObjectName(QString("SDK Client"));
         ui->MainTabBar->insertTab(2, ClientInfoPage, tr("SDK Client"));
-    }
-}
-
-void OpenRGBDialog::AddClient(NetworkClient* new_client)
-{
-    /*-----------------------------------------------------*\
-    | Add a client to the client information page           |
-    \*-----------------------------------------------------*/
-    if(ClientInfoPage != NULL)
-    {
-        ClientInfoPage->AddClient(new_client);
     }
 }
 
@@ -1255,9 +1006,9 @@ void OpenRGBDialog::UpdateDevicesList()
     \*-----------------------------------------------------*/
     for(unsigned int controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
     {
-        /*-----------------------------------------------------*\
-        | Loop through each tab in the devices tab bar          |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Loop through each tab in the devices tab bar      |
+        \*-------------------------------------------------*/
         bool found = false;
 
         for(int tab_idx = 0; tab_idx < ui->DevicesTabBar->count(); tab_idx++)
@@ -1266,10 +1017,11 @@ void OpenRGBDialog::UpdateDevicesList()
 
             if(dynamic_cast<OpenRGBDevicePage*>(page) != nullptr)
             {
-                /*-----------------------------------------------------*\
-                | If the current tab matches the current controller,    |
-                | move the tab to the correct position                  |
-                \*-----------------------------------------------------*/
+                /*-----------------------------------------*\
+                | If the current tab matches the current    |
+                | controller, move the tab to the correct   |
+                | position                                  |
+                \*-----------------------------------------*/
                 if(controllers[controller_idx] == ((OpenRGBDevicePage*)page)->GetController())
                 {
                     found = true;
@@ -1281,62 +1033,66 @@ void OpenRGBDialog::UpdateDevicesList()
 
         if(!found)
         {
-            /*-----------------------------------------------------*\
-            | The controller does not have a tab already created    |
-            | Create a new tab and move it to the correct position  |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | The controller does not have a tab already    |
+            | created.  Create a new tab and move it to the |
+            | correct position                              |
+            \*---------------------------------------------*/
             OpenRGBDevicePage *NewPage = new OpenRGBDevicePage(controllers[controller_idx]);
             ui->DevicesTabBar->addTab(NewPage, "");
 
-            /*-----------------------------------------------------*\
-            | Connect the page's Set All button to the Set All slot |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Connect the page's Set All button to the Set  |
+            | All slot                                      |
+            \*---------------------------------------------*/
             connect(NewPage,
                     SIGNAL(SetAllDevices(unsigned char, unsigned char, unsigned char)),
                     this,
                     SLOT(on_SetAllDevices(unsigned char, unsigned char, unsigned char)));
 
-            /*-----------------------------------------------------*\
-            | Connect the page's Resize signal to the Save Size slot|
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Connect the page's Resize signal to the Save  |
+            | Size slot                                     |
+            \*---------------------------------------------*/
             connect(NewPage,
                     SIGNAL(SaveSizeProfile()),
                     this,
                     SLOT(on_SaveSizeProfile()));
 
-            /*-----------------------------------------------------*\
-            | Create the tab label                                  |
-            \*-----------------------------------------------------*/
-            TabLabel* NewTabLabel = new TabLabel(GetIcon(controllers[controller_idx]->type), QString::fromStdString(controllers[controller_idx]->name), (char *)controllers[controller_idx]->name.c_str(), (char *)context);
+            /*---------------------------------------------*\
+            | Create the tab label                          |
+            \*---------------------------------------------*/
+            TabLabel* NewTabLabel = new TabLabel(GetIcon(controllers[controller_idx]->type), QString::fromStdString(controllers[controller_idx]->GetName()), (char *)controllers[controller_idx]->GetName().c_str(), (char *)context);
 
             ui->DevicesTabBar->tabBar()->setTabButton(ui->DevicesTabBar->count() - 1, QTabBar::LeftSide, NewTabLabel);
-            ui->DevicesTabBar->tabBar()->setTabToolTip(ui->DevicesTabBar->count() - 1, QString::fromStdString(controllers[controller_idx]->name));
+            ui->DevicesTabBar->tabBar()->setTabToolTip(ui->DevicesTabBar->count() - 1, QString::fromStdString(controllers[controller_idx]->GetName()));
 
-            /*-----------------------------------------------------*\
-            | Now move the new tab to the correct position          |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Now move the new tab to the correct position  |
+            \*---------------------------------------------*/
             ui->DevicesTabBar->tabBar()->moveTab(ui->DevicesTabBar->count() - 1, controller_idx);
         }
 
-        /*-----------------------------------------------------*\
-        | Loop through each tab in the information tab bar      |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Loop through each tab in the information tab bar  |
+        \*-------------------------------------------------*/
         found = false;
 
         for(int tab_idx = 0; tab_idx < ui->InformationTabBar->count(); tab_idx++)
         {
-            /*-----------------------------------------------------*\
-            | If type is a device info page, check it               |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | If type is a device info page, check it       |
+            \*---------------------------------------------*/
             std::string type_str = ui->InformationTabBar->widget(tab_idx)->metaObject()->className();
-            if(type_str == "Ui::OpenRGBDeviceInfoPage")
+            if(type_str == "OpenRGBDeviceInfoPage")
             {
                 OpenRGBDeviceInfoPage* page = (OpenRGBDeviceInfoPage*) ui->InformationTabBar->widget(tab_idx);
 
-                /*-----------------------------------------------------*\
-                | If the current tab matches the current controller,    |
-                | move the tab to the correct position                  |
-                \*-----------------------------------------------------*/
+                /*-----------------------------------------*\
+                | If the current tab matches the current    |
+                | controller, move the tab to the correct   |
+                | position                                  |
+                \*-----------------------------------------*/
                 if(controllers[controller_idx] == page->GetController())
                 {
                     found = true;
@@ -1348,24 +1104,25 @@ void OpenRGBDialog::UpdateDevicesList()
 
         if(!found)
         {
-            /*-----------------------------------------------------*\
-            | The controller does not have a tab already created    |
-            | Create a new tab and move it to the correct position  |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | The controller does not have a tab already    |
+            | created.  Create a new tab and move it to     |
+            | the correct position.                         |
+            \*---------------------------------------------*/
             OpenRGBDeviceInfoPage *NewPage = new OpenRGBDeviceInfoPage(controllers[controller_idx]);
             ui->InformationTabBar->addTab(NewPage, "");
 
-            /*-----------------------------------------------------*\
-            | Create the tab label                                  |
-            \*-----------------------------------------------------*/
-            TabLabel* NewTabLabel = new TabLabel(GetIcon(controllers[controller_idx]->type), QString::fromStdString(controllers[controller_idx]->name), (char *)controllers[controller_idx]->name.c_str(), (char *)context);
+            /*---------------------------------------------*\
+            | Create the tab label                          |
+            \*---------------------------------------------*/
+            TabLabel* NewTabLabel = new TabLabel(GetIcon(controllers[controller_idx]->type), QString::fromStdString(controllers[controller_idx]->GetName()), (char *)controllers[controller_idx]->GetName().c_str(), (char *)context);
 
             ui->InformationTabBar->tabBar()->setTabButton(ui->InformationTabBar->count() - 1, QTabBar::LeftSide, NewTabLabel);
-            ui->InformationTabBar->tabBar()->setTabToolTip(ui->InformationTabBar->count() - 1, QString::fromStdString(controllers[controller_idx]->name));
+            ui->InformationTabBar->tabBar()->setTabToolTip(ui->InformationTabBar->count() - 1, QString::fromStdString(controllers[controller_idx]->GetName()));
 
-            /*-----------------------------------------------------*\
-            | Now move the new tab to the correct position          |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Now move the new tab to the correct position  |
+            \*---------------------------------------------*/
             ui->InformationTabBar->tabBar()->moveTab(ui->InformationTabBar->count() - 1, controller_idx);
         }
     }
@@ -1393,14 +1150,14 @@ void OpenRGBDialog::UpdateDevicesList()
     {
         found = false;
 
-        /*-----------------------------------------------------*\
-        | Remove all remaining device information tabs, leaving |
-        | other information tabs alone                          |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Remove all remaining device information tabs,     |
+        | leaving other information tabs alone              |
+        \*-------------------------------------------------*/
         for(std::size_t tab_idx = controllers.size(); tab_idx < (std::size_t)ui->InformationTabBar->count(); tab_idx++)
         {
             std::string type_str = ui->InformationTabBar->widget(base_tab)->metaObject()->className();
-            if(type_str == "Ui::OpenRGBDeviceInfoPage")
+            if(type_str == "OpenRGBDeviceInfoPage")
             {
                 found = true;
                 QWidget* tab_widget = ui->InformationTabBar->widget(base_tab);
@@ -1431,22 +1188,22 @@ void OpenRGBDialog::UpdateProfileList()
 
     if(profile_manager != NULL)
     {
-        /*-----------------------------------------------------*\
-        | Clear profile combo box and tray icon menu            |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Clear profile combo box and tray icon menu        |
+        \*-------------------------------------------------*/
         ui->ProfileBox->clear();
         profileMenu->clear();
 
         for(std::size_t profile_index = 0; profile_index < profile_manager->profile_list.size(); profile_index++)
         {
-            /*-----------------------------------------------------*\
-            | Fill in profile combo box                             |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Fill in profile combo box                     |
+            \*---------------------------------------------*/
             ui->ProfileBox->addItem(profile_manager->profile_list[profile_index].c_str());
 
-            /*-----------------------------------------------------*\
-            | Fill in profile tray icon menu                        |
-            \*-----------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Fill in profile tray icon menu                |
+            \*---------------------------------------------*/
             QAction* actionProfileSelected = new QAction(profile_manager->profile_list[profile_index].c_str(), this);
             actionProfileSelected->setObjectName(profile_manager->profile_list[profile_index].c_str());
             connect(actionProfileSelected, SIGNAL(triggered()), this, SLOT(on_ProfileSelected()));
@@ -1477,13 +1234,13 @@ void OpenRGBDialog::OnResume()
 
 void OpenRGBDialog::on_Exit()
 {
-    /*-----------------------------------------------*\
-    | This is the exit from the tray icon             |
-    | NOT the main exit button (top right on Windows) |
-    |                                                 |
-    | The hide is important, otherwise it won't close |
-    | when minimize on close is enabled               |
-    \*-----------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | This is the exit from the tray icon NOT the main exit |
+    | button (top right on Windows)                         |
+    |                                                       |
+    | The hide is important, otherwise it won't close when  |
+    | minimize on close is enabled                          |
+    \*-----------------------------------------------------*/
     this->hide();
     trayIcon->hide();
     close();
@@ -1549,16 +1306,37 @@ void OpenRGBDialog::onDetectionProgressUpdated()
     }
 }
 
+void OpenRGBDialog::onDetectionStarted()
+{
+    /*-----------------------------------------------------*\
+    | Hide devices view on rescan so it stops handling      |
+    | paint events.                                         |
+    | Memorize previous value of device_view_showing and    |
+    | restore it.                                           |
+    \*-----------------------------------------------------*/
+    bool device_view_showing_prev = device_view_showing;
+
+    HideLEDView();
+
+    device_view_showing = device_view_showing_prev;
+
+    /*-----------------------------------------------------*\
+    | Show the detection progress bar.                      |
+    \*-----------------------------------------------------*/
+    SetDetectionViewState(true);
+}
+
 void OpenRGBDialog::onDetectionEnded()
 {
-    /*-------------------------------------------------------*\
-    | Detect unconfigured zones and prompt for resizing       |
-    \*-------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Detect unconfigured zones and prompt for resizing     |
+    \*-----------------------------------------------------*/
     OpenRGBZonesBulkResizer::RunChecks(this);
 
-    /*-------------------------------------------------------*\
-    | Load plugins after the first detection (ONLY the first) |
-    \*-------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Load plugins after the first detection (ONLY the      |
+    | first)                                                |
+    \*-----------------------------------------------------*/
     if(!plugins_loaded)
     {
         plugin_manager->ScanAndLoadPlugins();
@@ -1586,9 +1364,9 @@ void OpenRGBDialog::on_SaveSizeProfile()
 
     if(profile_manager != NULL)
     {
-        /*---------------------------------------------------------*\
-        | Save the profile                                          |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Save the profile                                  |
+        \*-------------------------------------------------*/
         profile_manager->SaveProfile("sizes", true);
     }
 }
@@ -1678,10 +1456,10 @@ void OpenRGBDialog::onShowDialogMessage()
 
     if(DontShowAgain)
     {
-        /*-----------------------------------------------------*\
-        | Add hash of dialog text to no-show list in LogManager |
-        | settings                                              |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Add hash of dialog text to no-show list in        |
+        | LogManager settings                               |
+        \*-------------------------------------------------*/
         log_manager_settings["dialog_no_show_hashes"].push_back(hash);
 
         settings_manager->SetSettings(log_manager_string, log_manager_settings);
@@ -1713,20 +1491,20 @@ void OpenRGBDialog::on_ReShow(QSystemTrayIcon::ActivationReason reason)
     }
 }
 
-void Ui::OpenRGBDialog::on_ProfileSelected()
+void OpenRGBDialog::on_ProfileSelected()
 {
     ProfileManager* profile_manager = ResourceManager::get()->GetProfileManager();
 
     if(profile_manager != NULL)
     {
-        /*---------------------------------------------------------*\
-        | Get the profile filename from the selected object         |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Get the profile filename from the selected object |
+        \*-------------------------------------------------*/
         std::string profile_name = QObject::sender()->objectName().toStdString();
 
-        /*---------------------------------------------------------*\
-        | Load the profile                                          |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Load the profile                                  |
+        \*-------------------------------------------------*/
         if(profile_manager->LoadProfile(profile_name))
         {
             for(int device = 0; device < ui->DevicesTabBar->count(); device++)
@@ -1739,20 +1517,20 @@ void Ui::OpenRGBDialog::on_ProfileSelected()
     }
 }
 
-void Ui::OpenRGBDialog::on_ButtonLoadProfile_clicked()
+void OpenRGBDialog::on_ButtonLoadProfile_clicked()
 {
     ProfileManager* profile_manager = ResourceManager::get()->GetProfileManager();
 
     if(profile_manager != NULL)
     {
-        /*---------------------------------------------------------*\
-        | Get the profile filename from the profiles list           |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Get the profile filename from the profiles list   |
+        \*-------------------------------------------------*/
         std::string profile_name = ui->ProfileBox->currentText().toStdString();
 
-        /*---------------------------------------------------------*\
-        | Load the profile                                          |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Load the profile                                  |
+        \*-------------------------------------------------*/
         if(profile_manager->LoadProfile(profile_name))
         {
             for(int device = 0; device < ui->DevicesTabBar->count(); device++)
@@ -1763,26 +1541,26 @@ void Ui::OpenRGBDialog::on_ButtonLoadProfile_clicked()
     }
 }
 
-void Ui::OpenRGBDialog::on_ButtonDeleteProfile_clicked()
+void OpenRGBDialog::on_ButtonDeleteProfile_clicked()
 {
     ProfileManager* profile_manager = ResourceManager::get()->GetProfileManager();
 
     if(profile_manager != NULL)
     {
-        /*---------------------------------------------------------*\
-        | Get the profile filename from the profiles list           |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Get the profile filename from the profiles list   |
+        \*-------------------------------------------------*/
         std::string profile_name = ui->ProfileBox->currentText().toStdString();
 
-        /*---------------------------------------------------------*\
-        | Confirm we want to delete the profile                     |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Confirm we want to delete the profile             |
+        \*-------------------------------------------------*/
         QMessageBox::StandardButton reply;
         reply = QMessageBox::question(this, tr("Delete Profile"), tr("Do you really want to delete this profile?"), QMessageBox::Yes|QMessageBox::No);
 
-        /*---------------------------------------------------------*\
-        | Load the profile                                          |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Load the profile                                  |
+        \*-------------------------------------------------*/
         if(reply == QMessageBox::Yes)
         {
             profile_manager->DeleteProfile(profile_name);
@@ -1792,7 +1570,7 @@ void Ui::OpenRGBDialog::on_ButtonDeleteProfile_clicked()
     }
 }
 
-void Ui::OpenRGBDialog::on_ButtonToggleDeviceView_clicked()
+void OpenRGBDialog::on_ButtonToggleDeviceView_clicked()
 {
     if(device_view_showing)
     {
@@ -1804,12 +1582,17 @@ void Ui::OpenRGBDialog::on_ButtonToggleDeviceView_clicked()
     }
 }
 
-void Ui::OpenRGBDialog::ShowLEDView()
+void OpenRGBDialog::ShowLEDView()
 {
     for(int device = 0; device < ui->DevicesTabBar->count(); device++)
     {
         OpenRGBDevicePage* device_page = qobject_cast<OpenRGBDevicePage *>(ui->DevicesTabBar->widget(device));
-        if(device_page) // Check the cast to make sure it is a device and not plugin
+
+        /*-------------------------------------------------*\
+        | Check the cast to make sure it is a device and    |
+        | not plugin                                        |
+        \*-------------------------------------------------*/
+        if(device_page)
         {
             device_page->ShowDeviceView();
         }
@@ -1817,7 +1600,7 @@ void Ui::OpenRGBDialog::ShowLEDView()
     device_view_showing = true;
 }
 
-void Ui::OpenRGBDialog::HideLEDView()
+void OpenRGBDialog::HideLEDView()
 {
     for(int device = 0; device < ui->DevicesTabBar->count(); device++)
     {
@@ -1827,26 +1610,27 @@ void Ui::OpenRGBDialog::HideLEDView()
 }
 
 
-void Ui::OpenRGBDialog::on_ButtonStopDetection_clicked()
+void OpenRGBDialog::on_ButtonStopDetection_clicked()
 {
-    /*---------------------------------------------------------*\
-    | Notify the detection thread that it has to die            |
-    \*---------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Notify the detection thread that it has to die        |
+    \*-----------------------------------------------------*/
     ResourceManager::get()->StopDeviceDetection();
 
-    /*---------------------------------------------------------*\
-    | Pretend we're done already by hiding the progress bar     |
-    \*---------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Pretend we're done already by hiding the progress bar |
+    \*-----------------------------------------------------*/
     SetDetectionViewState(false);
 }
 
-void Ui::OpenRGBDialog::SetDetectionViewState(bool detection_showing)
+void OpenRGBDialog::SetDetectionViewState(bool detection_showing)
 {
     if(detection_showing)
     {
-        /*---------------------------------------------------------*\
-        | Show the detection progress and hide the normal buttons   |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Show the detection progress and hide the normal   |
+        | buttons                                           |
+        \*-------------------------------------------------*/
         ui->ButtonToggleDeviceView->setVisible(false);
         ui->ButtonRescan->setVisible(false);
         ui->ButtonLoadProfile->setVisible(false);
@@ -1860,9 +1644,10 @@ void Ui::OpenRGBDialog::SetDetectionViewState(bool detection_showing)
     }
     else
     {
-        /*---------------------------------------------------------*\
-        | Hide the detection progress and show the normal buttons   |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Hide the detection progress and show the normal   |
+        | buttons                                           |
+        \*-------------------------------------------------*/
         ui->DetectionProgressBar->setVisible(false);
         ui->DetectionProgressLabel->setVisible(false);
         ui->ButtonStopDetection->setVisible(false);
@@ -1894,14 +1679,14 @@ void OpenRGBDialog::SaveProfile()
 
     if(profile_manager != NULL)
     {
-        /*---------------------------------------------------------*\
-        | Get the profile filename from the profiles list           |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Get the profile filename from the profiles list   |
+        \*-------------------------------------------------*/
         std::string filename = ui->ProfileBox->currentText().toStdString();
 
-        /*---------------------------------------------------------*\
-        | Save the profile                                          |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Save the profile                                  |
+        \*-------------------------------------------------*/
         profile_manager->SaveProfile(filename);
     }
 }
@@ -1914,21 +1699,21 @@ void OpenRGBDialog::SaveProfileAs()
     {
         OpenRGBProfileSaveDialog dialog;
 
-        /*---------------------------------------------------------*\
-        | Open Profile Name Dialog                                  |
-        \*---------------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Open Profile Name Dialog                          |
+        \*-------------------------------------------------*/
         std::string profile_name = dialog.show();
 
         if(!profile_name.empty())
         {
-            /*---------------------------------------------------------*\
-            | Extension .orp - OpenRgb Profile                          |
-            \*---------------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Extension .orp - OpenRgb Profile              |
+            \*---------------------------------------------*/
             std::string filename = profile_name;
 
-            /*---------------------------------------------------------*\
-            | Save the profile                                          |
-            \*---------------------------------------------------------*/
+            /*---------------------------------------------*\
+            | Save the profile                              |
+            \*---------------------------------------------*/
             if(profile_manager->SaveProfile(filename))
             {
                 UpdateProfileList();
@@ -1939,32 +1724,15 @@ void OpenRGBDialog::SaveProfileAs()
     }
 }
 
-void Ui::OpenRGBDialog::on_ButtonRescan_clicked()
+void OpenRGBDialog::on_ButtonRescan_clicked()
 {
-    /*---------------------------------------------------------*\
-    | Hide devices view on rescan so it stops handling paint    |
-    | events.                                                   |
-    | Memorize previous value of device_view_showing and        |
-    | restore it.                                               |
-    \*---------------------------------------------------------*/
-    bool device_view_showing_prev = device_view_showing;
-
-    HideLEDView();
-
-    device_view_showing = device_view_showing_prev;
-
-    /*---------------------------------------------------------*\
-    | Show the detection progress bar.                          |
-    \*---------------------------------------------------------*/
-    SetDetectionViewState(true);
-
-    /*---------------------------------------------------------*\
-    | Show the detection progress bar.                          |
-    \*---------------------------------------------------------*/
-    ResourceManager::get()->DetectDevices();
+    /*-----------------------------------------------------*\
+    | Rescan devices in ResourceManager                     |
+    \*-----------------------------------------------------*/
+    ResourceManager::get()->RescanDevices();
 }
 
-void Ui::OpenRGBDialog::on_ActionSaveProfile_triggered()
+void OpenRGBDialog::on_ActionSaveProfile_triggered()
 {
     if(ui->ProfileBox->currentIndex() >= 0)
     {
@@ -1976,45 +1744,45 @@ void Ui::OpenRGBDialog::on_ActionSaveProfile_triggered()
     }
 }
 
-void Ui::OpenRGBDialog::on_ActionSaveProfileAs_triggered()
+void OpenRGBDialog::on_ActionSaveProfileAs_triggered()
 {
     SaveProfileAs();
 }
 
 
-void Ui::OpenRGBDialog::on_InformationTabBar_currentChanged(int tab_idx)
+void OpenRGBDialog::on_InformationTabBar_currentChanged(int tab_idx)
 {
     TogglePluginsVisibility(tab_idx, ui->InformationTabBar);
 }
 
-void Ui::OpenRGBDialog::on_DevicesTabBar_currentChanged(int tab_idx)
+void OpenRGBDialog::on_DevicesTabBar_currentChanged(int tab_idx)
 {
     TogglePluginsVisibility(tab_idx, ui->DevicesTabBar);
 }
 
-void Ui::OpenRGBDialog::on_MainTabBar_currentChanged(int tab_idx)
+void OpenRGBDialog::on_MainTabBar_currentChanged(int tab_idx)
 {
     TogglePluginsVisibility(tab_idx, ui->MainTabBar);
 }
 
-void Ui::OpenRGBDialog::on_SettingsTabBar_currentChanged(int tab_idx)
+void OpenRGBDialog::on_SettingsTabBar_currentChanged(int tab_idx)
 {
     TogglePluginsVisibility(tab_idx, ui->SettingsTabBar);
 }
 
-void Ui::OpenRGBDialog::TogglePluginsVisibility(int tab_idx, QTabWidget* tabBar)
+void OpenRGBDialog::TogglePluginsVisibility(int tab_idx, QTabWidget* tabBar)
 {
-    /*---------------------------------------------------------*\
-    | Hide all plugins                                          |
-    \*---------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Hide all plugins                                      |
+    \*-----------------------------------------------------*/
     for(int i = 0; i < (tabBar->count()); i++)
     {
         QWidget* tab = tabBar->widget(i);
 
-        /*-----------------------------------------------------*\
-        | Dynamic cast is essential in this check to ensure the |
-        | tab is actually a plugin container                    |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Dynamic cast is essential in this check to ensure |
+        | the tab is actually a plugin container            |
+        \*-------------------------------------------------*/
         if((i != tab_idx) && (dynamic_cast<OpenRGBPluginContainer*>(tab) != nullptr))
         {
             ((OpenRGBPluginContainer*) tab)->Hide();
@@ -2022,15 +1790,15 @@ void Ui::OpenRGBDialog::TogglePluginsVisibility(int tab_idx, QTabWidget* tabBar)
         }
     }
 
-    /*---------------------------------------------------------*\
-    | Show plugin if needed                                     |
-    \*---------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Show plugin if needed                                 |
+    \*-----------------------------------------------------*/
     QWidget* tab = tabBar->widget(tab_idx);
 
-    /*---------------------------------------------------------*\
-    | Dynamic cast is essential in this check to ensure the tab |
-    | is actually a plugin container                            |
-    \*---------------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | Dynamic cast is essential in this check to ensure the |
+    | tab is actually a plugin container                    |
+    \*-----------------------------------------------------*/
     if(dynamic_cast<OpenRGBPluginContainer*>(tab) != nullptr)
     {
         ((OpenRGBPluginContainer*) tab)->Show();
@@ -2038,7 +1806,7 @@ void Ui::OpenRGBDialog::TogglePluginsVisibility(int tab_idx, QTabWidget* tabBar)
     }
 }
 
-void Ui::OpenRGBDialog::AddConsolePage()
+void OpenRGBDialog::AddConsolePage()
 {
     OpenRGBConsolePage* page = new OpenRGBConsolePage();
 

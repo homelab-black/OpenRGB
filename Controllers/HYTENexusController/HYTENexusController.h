@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <mutex>
 #include <string>
 #include <thread>
 #include "RGBController.h"
@@ -52,11 +53,12 @@ enum
 class HYTENexusController
 {
 public:
-    HYTENexusController(char* port, unsigned short pid);
+    HYTENexusController(char* port, unsigned short pid, std::string dev_name);
     ~HYTENexusController();
 
     std::string GetFirmwareVersion();
     std::string GetLocation();
+    std::string GetName();
     std::string GetDeviceName(unsigned int device_type);
 
     void LEDStreaming(unsigned char channel, unsigned short num_leds, RGBColor* colors);
@@ -67,7 +69,9 @@ public:
 
 private:
     std::string                                         firmware_version;
+    std::string                                         name;
     std::string                                         port_name;
+    std::mutex                                          port_mutex;
     serial_port *                                       serialport = nullptr;
     std::chrono::time_point<std::chrono::steady_clock>  last_update_time;
     std::atomic<bool>                                   keepalive_thread_run;

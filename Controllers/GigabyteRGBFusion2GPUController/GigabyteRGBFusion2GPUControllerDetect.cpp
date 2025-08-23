@@ -91,9 +91,8 @@ void DetectGigabyteRGBFusion2GPUControllers(i2c_smbus_interface* bus, uint8_t i2
     // Check for RGB Fusion2 controller
     if(TestForGigabyteRGBFusion2GPUController(bus, i2c_addr))
     {
-        RGBFusion2GPUController*     controller     = new RGBFusion2GPUController(bus, i2c_addr);
+        RGBFusion2GPUController*     controller     = new RGBFusion2GPUController(bus, i2c_addr, name);
         RGBController_RGBFusion2GPU* rgb_controller = new RGBController_RGBFusion2GPU(controller);
-        rgb_controller->name                        = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -167,14 +166,16 @@ REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 4080 MASTER",             
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 4090 AERO OC",                         DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4090_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_RTX4090_AERO_OC_24G_SUB_DEV,           0x71);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 4090 GAMING OC",                       DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4090_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_RTX4090_GAMING_OC_24G_SUB_DEV,         0x71);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 4090 MASTER",                    DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4090_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RTX4090_MASTER_24G_SUB_DEV,      0x71);
-REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 5090 MASTER",                    DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX5090_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RTX5090_MASTER_32G_SUB_DEV,      0x71);
-REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 5090 MASTER ICE",                DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX5090_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RTX5090_MASTER_ICE_32G_SUB_DEV,  0x71);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 5090 D MASTER",                  DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX5090D_DEV,        GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RTX5090D_MASTER_32G_SUB_DEV,     0x71);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 5090 GAMING OC",                       DetectGigabyteRGBFusion2GPUControllers, NVIDIA_VEN, NVIDIA_RTX5090D_DEV,        GIGABYTE_SUB_VEN,   GIGABYTE_RTX5090_GAMING_OC_32G_SUB_DEV,         0x71);
 
 /*-----------------------------------------*\
 |  AMD GPUs                                 |
 \*-----------------------------------------*/
 
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 7800 XT GAMING OC",                      DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI32_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_RX7800XT_GAMING_OC_16G_SUB_DEV,        0x62);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 7900 GRE GAMING OC",                     DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI31_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_RX7900GRE_GAMING_OC_16G_SUB_DEV,       0x62);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 7900 XT GAMING OC",                      DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI31_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_RX7900XT_GAMING_OC_20G_SUB_DEV,        0x62);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS RX 6750 XT ELITE 12G",                       DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI22_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RX_6750_XT_ELITE_12G_SUB_DEV,    0x70);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS Radeon RX 9070 XT Elite",                    DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI48_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_AORUS_RX9070XT_ELITE_16G_SUB_DEV,      0x73);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING OC",                      DetectGigabyteRGBFusion2GPUControllers, AMD_GPU_VEN, AMD_NAVI48_DEV,            GIGABYTE_SUB_VEN,   GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV,        0x73);

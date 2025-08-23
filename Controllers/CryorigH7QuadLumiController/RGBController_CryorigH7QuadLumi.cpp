@@ -26,7 +26,7 @@ RGBController_CryorigH7QuadLumi::RGBController_CryorigH7QuadLumi(CryorigH7QuadLu
 {
     controller  = controller_ptr;
 
-    name        = "CRYORIG H7 Quad Lumi";
+    name        = controller->GetName();
     vendor      = "CRYORIG";
     type        = DEVICE_TYPE_COOLER;
     description = "CRYORIG H7 Quad Lumi Device";
@@ -205,11 +205,6 @@ void RGBController_CryorigH7QuadLumi::UpdateSingleLED(int led)
     unsigned int zone_idx = leds[led].value;
 
     controller->SetChannelLEDs(zone_idx, zones[zone_idx].colors, zones[zone_idx].leds_count);
-}
-
-void RGBController_CryorigH7QuadLumi::SetCustomMode()
-{
-    active_mode = 0;
 }
 
 void RGBController_CryorigH7QuadLumi::DeviceUpdateMode()

@@ -41,6 +41,7 @@ enum
     FURY_MODEL_BEAST_DDR5             = 0x10,
     FURY_MODEL_RENEGADE_DDR5          = 0x11,
     FURY_MODEL_BEAST_RGB_WHITE_DDR5   = 0x12,
+    FURY_MODEL_BEAST2_DDR5            = 0x15,
     FURY_MODEL_BEAST_WHITE_DDR4       = 0x21,
     FURY_MODEL_BEAST_DDR4             = 0x23,
 };
@@ -123,9 +124,11 @@ enum
 class KingstonFuryDRAMController
 {
 public:
-    KingstonFuryDRAMController(i2c_smbus_interface* bus, unsigned char base_addr, std::vector<int> slots);
+    KingstonFuryDRAMController(i2c_smbus_interface* bus, unsigned char base_addr, std::vector<int> slots, std::string dev_name);
 
     std::string     GetDeviceLocation();
+    std::string     GetDeviceName();
+
     unsigned int    GetLEDCount();
     unsigned int    GetLEDPerDIMM();
     unsigned int    GetSlotCount();
@@ -151,5 +154,6 @@ private:
     i2c_smbus_interface*    bus;
     std::vector<int>        slots;
     unsigned char           base_addr;
+    std::string             name;
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
 };

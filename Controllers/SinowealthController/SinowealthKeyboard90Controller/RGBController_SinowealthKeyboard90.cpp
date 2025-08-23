@@ -28,7 +28,7 @@ RGBController_SinowealthKeyboard90::RGBController_SinowealthKeyboard90(Sinowealt
 {
     controller                      = controller_ptr;
 
-    name                            = "Genesis Thor 300";
+    name                            = controller->GetNameString();
     vendor                          = "Sinowealth";
     type                            = DEVICE_TYPE_KEYBOARD;
     description                     = "Generic Sinowealth Keyboard";
@@ -154,14 +154,6 @@ void RGBController_SinowealthKeyboard90::UpdateZoneLEDs(int /*zone*/)
 void RGBController_SinowealthKeyboard90::UpdateSingleLED(int /*key*/)
 {
     DeviceUpdateLEDs();
-}
-
-void RGBController_SinowealthKeyboard90::SetCustomMode()
-{
-    /*---------------------------------------------------------*\
-    | In our case, custom mode is on index MODE_CUSTOM          |
-    \*---------------------------------------------------------*/
-    active_mode = MODE_CUSTOM;
 }
 
 void RGBController_SinowealthKeyboard90::DeviceUpdateMode()

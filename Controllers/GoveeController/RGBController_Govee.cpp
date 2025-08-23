@@ -99,7 +99,7 @@ void RGBController_Govee::DeviceUpdateLEDs()
 
     if(modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
-        controller->SendRazerData(&colors[0], colors.size());
+        controller->SendRazerData(&colors[0], (unsigned int)colors.size());
     }
 }
 
@@ -120,7 +120,7 @@ void RGBController_Govee::DeviceUpdateMode()
         unsigned char red = RGBGetRValue(modes[active_mode].colors[0]);
         unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
         unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
-        controller->SetColor(red, grn, blu, 255);
+        controller->SetColor(red, grn, blu);
     }
     else
     {

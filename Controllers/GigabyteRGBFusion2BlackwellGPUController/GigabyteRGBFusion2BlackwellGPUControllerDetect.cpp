@@ -83,9 +83,8 @@ void DetectGigabyteRGBFusion2BlackwellGPUControllers(i2c_smbus_interface* bus, u
     // Check for RGB Fusion2 controller
     if(TestForGigabyteRGBFusion2BlackwellGPUController(bus, i2c_addr))
     {
-        RGBFusion2BlackwellGPUController* controller = new RGBFusion2BlackwellGPUController(bus, i2c_addr);
+        RGBFusion2BlackwellGPUController*     controller     = new RGBFusion2BlackwellGPUController(bus, i2c_addr, name);
         RGBController_RGBFusion2BlackwellGPU* rgb_controller = new RGBController_RGBFusion2BlackwellGPU(controller, led_zones);
-        rgb_controller->name = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -156,8 +155,14 @@ REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 5080 Gaming OC",                
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 5080 Xtreme Waterforce",            DetectGigabyteRGBFusion2BlackwellWaterforceLayoutGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5080_DEV,     GIGABYTE_SUB_VEN, GIGABYTE_RTX5080_XTREME_WATERFORCE_16G_SUB_DEV,   0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 5090 Gaming OC",                    DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,        NVIDIA_VEN, NVIDIA_RTX5090_DEV,     GIGABYTE_SUB_VEN, GIGABYTE_RTX5090_GAMING_OC_32G_SUB_DEV,           0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce RTX 5090 Xtreme Waterforce",            DetectGigabyteRGBFusion2BlackwellWaterforceLayoutGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5090_DEV,     GIGABYTE_SUB_VEN, GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV,   0x75);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 5090 MASTER",                 DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,        NVIDIA_VEN, NVIDIA_RTX5090_DEV,     GIGABYTE_SUB_VEN, GIGABYTE_AORUS_RTX5090_MASTER_32G_SUB_DEV,        0x75);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS GeForce RTX 5090 MASTER ICE",             DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,        NVIDIA_VEN, NVIDIA_RTX5090_DEV,     GIGABYTE_SUB_VEN, GIGABYTE_AORUS_RTX5090_MASTER_ICE_32G_SUB_DEV,    0x75);
 
 /*-----------------------------------------*\
 |  AMD GPUs                                 |
 \*-----------------------------------------*/
+
+REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS Radeon RX 9070 XT Elite",                 DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,        AMD_GPU_VEN, AMD_NAVI48_DEV,        GIGABYTE_SUB_VEN, GIGABYTE_AORUS_RX9070XT_ELITE_16G_SUB_DEV,        0x75);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING OC",                   DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,        AMD_GPU_VEN, AMD_NAVI48_DEV,        GIGABYTE_SUB_VEN, GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV,          0x75);
+
 

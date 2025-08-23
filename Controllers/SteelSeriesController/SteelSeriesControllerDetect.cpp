@@ -89,16 +89,17 @@
 #define STEELSERIES_ARCTIS_5_PID                    0x1250
 #define STEELSERIES_ARCTIS_5_V2_PID                 0x12AA
 
-/*--------------------------------------------------------------*\
-| Mousemat product IDs                                           |
-\*--------------------------------------------------------------*/
-#define STEELSERIES_QCK_PRISM_CLOTH_MED_PID                 0x150A
-#define STEELSERIES_QCK_PRISM_CLOTH_XL_PID                  0x150D
-#define STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_PID          0x151E
-#define STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEON_RIDER_PID  0x1514
-#define STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEO_NOIR_PID    0x151C
-#define STEELSERIES_QCK_PRISM_CLOTH_3XL_PID                 0x1516
-#define STEELSERIES_QCK_PRISM_CLOTH_4XL_PID                 0x1518
+/*------------------------------------------------------------------*\
+| Mousemat product IDs                                               |
+\*------------------------------------------------------------------*/
+#define STEELSERIES_QCK_PRISM_CLOTH_MED_PID                     0x150A
+#define STEELSERIES_QCK_PRISM_CLOTH_XL_PID                      0x150D
+#define STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_PID              0x151E
+#define STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEON_RIDER_PID      0x1514
+#define STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEO_NOIR_PID        0x151C
+#define STEELSERIES_QCK_PRISM_CLOTH_3XL_PID                     0x1516
+#define STEELSERIES_QCK_PRISM_CLOTH_4XL_PID                     0x1518
+#define STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_LIGHTFALL_ED_PID 0X1520
 
 /*-----------------------------------------------------*\
 | Keyboard product IDs                                  |
@@ -119,11 +120,12 @@
 void DetectSteelSeriesAerox3(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesAerox3Controller* controller             = new SteelSeriesAerox3Controller(dev, AEROX_3, info->path);
-        RGBController_SteelSeriesRival3* rgb_controller     = new RGBController_SteelSeriesRival3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesAerox3Controller*     controller     = new SteelSeriesAerox3Controller(dev, AEROX_3, info->path, name);
+        RGBController_SteelSeriesRival3* rgb_controller = new RGBController_SteelSeriesRival3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -131,11 +133,12 @@ void DetectSteelSeriesAerox3(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesAeroxWireless(hid_device_info* info, const std::string& name, steelseries_type proto_type)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesAeroxWirelessController* controller             = new SteelSeriesAeroxWirelessController(dev, proto_type, info->path);
-        RGBController_SteelSeriesRival3* rgb_controller     = new RGBController_SteelSeriesRival3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesAeroxWirelessController* controller     = new SteelSeriesAeroxWirelessController(dev, proto_type, info->path, name);
+        RGBController_SteelSeriesRival3*    rgb_controller = new RGBController_SteelSeriesRival3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -153,11 +156,12 @@ void DetectSteelSeriesAerox3WirelessWired(hid_device_info* info, const std::stri
 void DetectSteelSeriesAerox5(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesAerox5Controller* controller             = new SteelSeriesAerox5Controller(dev, AEROX_3, info->path);
-        RGBController_SteelSeriesRival3* rgb_controller     = new RGBController_SteelSeriesRival3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesAerox5Controller*     controller     = new SteelSeriesAerox5Controller(dev, AEROX_3, info->path, name);
+        RGBController_SteelSeriesRival3* rgb_controller = new RGBController_SteelSeriesRival3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -205,11 +209,12 @@ void DetectSteelSeriesAerox9WirelessWired(hid_device_info* info, const std::stri
 void DetectSteelSeriesApex3Full(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesApexTZoneController* controller          = new SteelSeriesApexTZoneController(dev, info->path);
-        RGBController_SteelSeriesApex3* rgb_controller      = new RGBController_SteelSeriesApex3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesApexTZoneController* controller     = new SteelSeriesApexTZoneController(dev, info->path, name);
+        RGBController_SteelSeriesApex3* rgb_controller = new RGBController_SteelSeriesApex3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -217,11 +222,12 @@ void DetectSteelSeriesApex3Full(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesApex3TKL(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesApex8ZoneController* controller          = new SteelSeriesApex8ZoneController(dev, info->path);
-        RGBController_SteelSeriesApex3* rgb_controller      = new RGBController_SteelSeriesApex3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesApex8ZoneController* controller     = new SteelSeriesApex8ZoneController(dev, info->path, name);
+        RGBController_SteelSeriesApex3* rgb_controller = new RGBController_SteelSeriesApex3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -229,11 +235,12 @@ void DetectSteelSeriesApex3TKL(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesApex(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesApexController* controller               = new SteelSeriesApexController(dev, APEX, info->path);
-        RGBController_SteelSeriesApex* rgb_controller       = new RGBController_SteelSeriesApex(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesApexController*     controller     = new SteelSeriesApexController(dev, APEX, info->path, name);
+        RGBController_SteelSeriesApex* rgb_controller = new RGBController_SteelSeriesApex(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -241,11 +248,12 @@ void DetectSteelSeriesApex(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesApexM(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesApexMController* controller              = new SteelSeriesApexMController(dev, APEX_M, info->path);
-        RGBController_SteelSeriesApex* rgb_controller       = new RGBController_SteelSeriesApex(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesApexMController*    controller     = new SteelSeriesApexMController(dev, APEX_M, info->path, name);
+        RGBController_SteelSeriesApex* rgb_controller = new RGBController_SteelSeriesApex(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -253,11 +261,12 @@ void DetectSteelSeriesApexM(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesApexOld(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesOldApexController* controller            = new SteelSeriesOldApexController(dev, APEX_OLD, info->path);
-        RGBController_SteelSeriesOldApex* rgb_controller    = new RGBController_SteelSeriesOldApex(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesOldApexController*     controller     = new SteelSeriesOldApexController(dev, APEX_OLD, info->path, name);
+        RGBController_SteelSeriesOldApex* rgb_controller = new RGBController_SteelSeriesOldApex(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -265,11 +274,12 @@ void DetectSteelSeriesApexOld(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesHeadset(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesSiberiaController* controller            = new SteelSeriesSiberiaController(dev, info->path);
-        RGBController_SteelSeriesSiberia* rgb_controller    = new RGBController_SteelSeriesSiberia(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesSiberiaController*     controller     = new SteelSeriesSiberiaController(dev, info->path, name);
+        RGBController_SteelSeriesSiberia* rgb_controller = new RGBController_SteelSeriesSiberia(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -277,11 +287,12 @@ void DetectSteelSeriesHeadset(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesMousemat(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesQCKMatController* controller             = new SteelSeriesQCKMatController(dev, info->path);
-        RGBController_SteelSeriesQCKMat* rgb_controller     = new RGBController_SteelSeriesQCKMat(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesQCKMatController*     controller     = new SteelSeriesQCKMatController(dev, info->path, name);
+        RGBController_SteelSeriesQCKMat* rgb_controller = new RGBController_SteelSeriesQCKMat(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -289,11 +300,12 @@ void DetectSteelSeriesMousemat(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival100(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRivalController* controller              = new SteelSeriesRivalController(dev, RIVAL_100, info->path);
-        RGBController_SteelSeriesRival* rgb_controller      = new RGBController_SteelSeriesRival(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRivalController*     controller     = new SteelSeriesRivalController(dev, RIVAL_100, info->path, name);
+        RGBController_SteelSeriesRival* rgb_controller = new RGBController_SteelSeriesRival(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -301,11 +313,12 @@ void DetectSteelSeriesRival100(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival300(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRivalController* controller              = new SteelSeriesRivalController(dev, RIVAL_300, info->path);
-        RGBController_SteelSeriesRival* rgb_controller      = new RGBController_SteelSeriesRival(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRivalController*     controller     = new SteelSeriesRivalController(dev, RIVAL_300, info->path, name);
+        RGBController_SteelSeriesRival* rgb_controller = new RGBController_SteelSeriesRival(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -313,11 +326,12 @@ void DetectSteelSeriesRival300(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival600(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRivalController* controller              = new SteelSeriesRivalController(dev, RIVAL_600, info->path);
-        RGBController_SteelSeriesRival* rgb_controller      = new RGBController_SteelSeriesRival(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRivalController*     controller     = new SteelSeriesRivalController(dev, RIVAL_600, info->path, name);
+        RGBController_SteelSeriesRival* rgb_controller = new RGBController_SteelSeriesRival(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -326,11 +340,12 @@ void DetectSteelSeriesRival600(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival650(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRivalController* controller              = new SteelSeriesRivalController(dev, RIVAL_650, info->path);
-        RGBController_SteelSeriesRival* rgb_controller      = new RGBController_SteelSeriesRival(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRivalController*     controller     = new SteelSeriesRivalController(dev, RIVAL_650, info->path, name);
+        RGBController_SteelSeriesRival* rgb_controller = new RGBController_SteelSeriesRival(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -338,11 +353,12 @@ void DetectSteelSeriesRival650(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival700(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRivalController* controller              = new SteelSeriesRivalController(dev, RIVAL_700, info->path);
-        RGBController_SteelSeriesRival* rgb_controller      = new RGBController_SteelSeriesRival(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRivalController*     controller     = new SteelSeriesRivalController(dev, RIVAL_700, info->path, name);
+        RGBController_SteelSeriesRival* rgb_controller = new RGBController_SteelSeriesRival(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -351,11 +367,12 @@ void DetectSteelSeriesRival700(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesRival3(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesRival3Controller* controller             = new SteelSeriesRival3Controller(dev, RIVAL_3, info->path);
-        RGBController_SteelSeriesRival3* rgb_controller     = new RGBController_SteelSeriesRival3(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesRival3Controller*     controller     = new SteelSeriesRival3Controller(dev, RIVAL_3, info->path, name);
+        RGBController_SteelSeriesRival3* rgb_controller = new RGBController_SteelSeriesRival3(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -363,11 +380,12 @@ void DetectSteelSeriesRival3(hid_device_info* info, const std::string& name)
 void DetectSteelSeriesSensei(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev)
     {
-        SteelSeriesSenseiController* controller             = new SteelSeriesSenseiController(dev, SENSEI, info->path);
-        RGBController_SteelSeriesSensei* rgb_controller     = new RGBController_SteelSeriesSensei(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesSenseiController*     controller     = new SteelSeriesSenseiController(dev, SENSEI, info->path, name);
+        RGBController_SteelSeriesSensei* rgb_controller = new RGBController_SteelSeriesSensei(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -378,9 +396,9 @@ void DetectSteelSeriesArctis5(hid_device_info* info, const std::string& name)
 
     if(dev)
     {
-        SteelSeriesArctis5Controller*     controller        = new SteelSeriesArctis5Controller(dev, *info);
-        RGBController_SteelSeriesArctis5* rgb_controller    = new RGBController_SteelSeriesArctis5(controller);
-        rgb_controller->name                                = name;
+        SteelSeriesArctis5Controller*     controller     = new SteelSeriesArctis5Controller(dev, *info, name);
+        RGBController_SteelSeriesArctis5* rgb_controller = new RGBController_SteelSeriesArctis5(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -435,16 +453,17 @@ REGISTER_HID_DETECTOR_I("SteelSeries Siberia 350",                          Dete
 REGISTER_HID_DETECTOR_I("SteelSeries Arctis 5",                             DetectSteelSeriesArctis5,   STEELSERIES_VID, STEELSERIES_ARCTIS_5_PID,                  5  );
 REGISTER_HID_DETECTOR_I("SteelSeries Arctis 5",                             DetectSteelSeriesArctis5,   STEELSERIES_VID, STEELSERIES_ARCTIS_5_V2_PID,               5  );
 
-/*-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Mousemats                                                                                                                                                                                 |
-\*-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth Medium",                       DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_MED_PID,                   0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL",                           DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_PID,                    0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL Destiny Ed.",               DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_PID,            0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL CS:GO Neon Rider Ed.",      DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEON_RIDER_PID,    0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL CS:GO Neo Noir Ed.",        DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEO_NOIR_PID,      0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth 3XL",                          DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_3XL_PID,                   0  );
-REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth 4XL",                          DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_4XL_PID,                   0  );
+/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
+| Mousemats                                                                                                                                                                                    |
+\*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth Medium",                       DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_MED_PID,                      0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL",                           DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_PID,                       0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL Destiny Ed.",               DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_PID,               0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL Destiny Lightfall Ed.",     DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_DESTINY_LIGHTFALL_ED_PID,  0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL CS:GO Neon Rider Ed.",      DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEON_RIDER_PID,       0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth XL CS:GO Neo Noir Ed.",        DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_XL_CSGO_NEO_NOIR_PID,         0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth 3XL",                          DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_3XL_PID,                      0  );
+REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth 4XL",                          DetectSteelSeriesMousemat,  STEELSERIES_VID, STEELSERIES_QCK_PRISM_CLOTH_4XL_PID,                      0  );
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                                                 |

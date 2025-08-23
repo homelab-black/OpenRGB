@@ -35,9 +35,8 @@ void DetectLenovoLegionUSBControllers(hid_device_info* info, const std::string& 
 
     if(dev)
     {
-        LenovoUSBController*     controller      = new LenovoUSBController(dev, info->path, info->product_id);
+        LenovoUSBController*     controller      = new LenovoUSBController(dev, info->path, info->product_id, name);
         RGBController_LenovoUSB* rgb_controller  = new RGBController_LenovoUSB(controller);
-        rgb_controller->name                     = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -49,9 +48,8 @@ void DetectLenovoLegionUSBControllersGen7And8(hid_device_info* info, const std::
 
     if(dev)
     {
-        LenovoGen7And8USBController*    controller      = new LenovoGen7And8USBController(dev, info->path, info->product_id);
+        LenovoGen7And8USBController*    controller      = new LenovoGen7And8USBController(dev, info->path, info->product_id, name);
         LenovoRGBController_Gen7_8*     rgb_controller  = new LenovoRGBController_Gen7_8(controller);
-        rgb_controller->name                            = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -62,6 +60,7 @@ REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 5",   DetectLenovoLegionUSBControl
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 5",  DetectLenovoLegionUSBControllers,         ITE_VID, LEGION_Y750S,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 6",   DetectLenovoLegionUSBControllers,         ITE_VID, LEGION_Y760,    LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 6",  DetectLenovoLegionUSBControllers,         ITE_VID, LEGION_Y760S,   LENOVO_PAGE, LENOVO_USAGE);
+REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 7",  DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_S7GEN7,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 7",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN7,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 8",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN8,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 9",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN9,   LENOVO_PAGE, LENOVO_USAGE);

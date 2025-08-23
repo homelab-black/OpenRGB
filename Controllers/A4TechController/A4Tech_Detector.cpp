@@ -33,9 +33,8 @@ void DetectA4TechMouseControllers(hid_device_info* info, const std::string& name
 
     if(dev)
     {
-        BloodyMouseController* controller           = new BloodyMouseController(dev, info->path, info->product_id);
+        BloodyMouseController* controller           = new BloodyMouseController(dev, info->path, info->product_id, name);
         RGBController_BloodyMouse* rgb_controller   = new RGBController_BloodyMouse(controller);
-        rgb_controller->name                        = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -47,9 +46,8 @@ void DetectBloodyB820R(hid_device_info* info, const std::string& name)
 
     if(dev)
     {
-        BloodyB820RController*     controller     = new BloodyB820RController(dev, info->path);
+        BloodyB820RController*     controller     = new BloodyB820RController(dev, info->path, name);
         RGBController_BloodyB820R* rgb_controller = new RGBController_BloodyB820R(controller);
-        rgb_controller->name                      = name;
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }

@@ -10,14 +10,11 @@
 #pragma once
 
 #include <string>
-#include <vector>
 #include <QMainWindow>
 #include <QTimer>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QSlider>
-
-#include "ui_OpenRGBDialog.h"
 
 #include "OpenRGBClientInfoPage.h"
 #include "OpenRGBPluginsPage/OpenRGBPluginsPage.h"
@@ -25,19 +22,8 @@
 #include "OpenRGBSystemInfoPage.h"
 #include "OpenRGBSupportedDevicesPage.h"
 #include "OpenRGBSettingsPage.h"
-#include "OpenRGBDMXSettingsPage/OpenRGBDMXSettingsPage.h"
-#include "OpenRGBE131SettingsPage/OpenRGBE131SettingsPage.h"
-#include "OpenRGBElgatoKeyLightSettingsPage/OpenRGBElgatoKeyLightSettingsPage.h"
-#include "OpenRGBElgatoLightStripSettingsPage/OpenRGBElgatoLightStripSettingsPage.h"
-#include "OpenRGBGoveeSettingsPage/OpenRGBGoveeSettingsPage.h"
-#include "OpenRGBKasaSmartSettingsPage/OpenRGBKasaSmartSettingsPage.h"
-#include "OpenRGBLIFXSettingsPage/OpenRGBLIFXSettingsPage.h"
-#include "OpenRGBPhilipsHueSettingsPage/OpenRGBPhilipsHueSettingsPage.h"
-#include "OpenRGBPhilipsWizSettingsPage/OpenRGBPhilipsWizSettingsPage.h"
-#include "OpenRGBQMKORGBSettingsPage/OpenRGBQMKORGBSettingsPage.h"
-#include "OpenRGBSerialSettingsPage/OpenRGBSerialSettingsPage.h"
-#include "OpenRGBYeelightSettingsPage/OpenRGBYeelightSettingsPage.h"
-#include "OpenRGBNanoleafSettingsPage/OpenRGBNanoleafSettingsPage.h"
+#include "ManualDevicesSettingsPage/ManualDevicesSettingsPage.h"
+
 #include "PluginManager.h"
 #include "SuspendResume.h"
 
@@ -53,7 +39,7 @@ namespace Ui
     class OpenRGBDialog;
 }
 
-class Ui::OpenRGBDialog : public QMainWindow, private SuspendResumeListener
+class OpenRGBDialog : public QMainWindow, private SuspendResumeListener
 {
     Q_OBJECT
 
@@ -61,7 +47,6 @@ public:
     explicit OpenRGBDialog(QWidget *parent = 0);
     ~OpenRGBDialog();
 
-    void AddClient(NetworkClient* new_client);
     void AddClientTab();
     void AddI2CToolsPage();
     void AddServerTab();
@@ -89,64 +74,50 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    const char* context = "Ui::OpenRGBDialog";
+    /*-----------------------------------------------------*\
+    | Context string                                        |
+    \*-----------------------------------------------------*/
+    const char *                    context             = "OpenRGBDialog";
 
-    /*-------------------------------------*\
-    | Page pointers                         |
-    \*-------------------------------------*/
-    OpenRGBClientInfoPage *ClientInfoPage;
-    OpenRGBPluginsPage *PluginsPage;
-    OpenRGBSystemInfoPage *SMBusToolsPage;
-    OpenRGBSoftwareInfoPage *SoftInfoPage;
-    OpenRGBSupportedDevicesPage *SupportedPage;
-    OpenRGBSettingsPage *SettingsPage;
-    OpenRGBDMXSettingsPage *DMXSettingsPage;
-    OpenRGBE131SettingsPage *E131SettingsPage;
-    OpenRGBElgatoKeyLightSettingsPage *ElgatoKeyLightSettingsPage;
-    OpenRGBElgatoLightStripSettingsPage *ElgatoLightStripSettingsPage;
-    OpenRGBGoveeSettingsPage *GoveeSettingsPage;
-    OpenRGBKasaSmartSettingsPage *KasaSmartSettingsPage;
-    OpenRGBLIFXSettingsPage *LIFXSettingsPage;
-    OpenRGBPhilipsHueSettingsPage *PhilipsHueSettingsPage;
-    OpenRGBPhilipsWizSettingsPage *PhilipsWizSettingsPage;
-    OpenRGBQMKORGBSettingsPage *QMKORGBSettingsPage;
-    OpenRGBSerialSettingsPage *SerialSettingsPage;
-    OpenRGBYeelightSettingsPage *YeelightSettingsPage;
-    OpenRGBNanoleafSettingsPage *NanoleafSettingsPage;
+    /*-----------------------------------------------------*\
+    | Page pointers                                         |
+    \*-----------------------------------------------------*/
+    OpenRGBClientInfoPage *         ClientInfoPage;
+    OpenRGBPluginsPage *            PluginsPage;
+    OpenRGBSystemInfoPage *         SMBusToolsPage;
+    OpenRGBSoftwareInfoPage *       SoftInfoPage;
+    OpenRGBSupportedDevicesPage *   SupportedPage;
+    OpenRGBSettingsPage *           SettingsPage;
 
-    bool ShowI2CTools = false;
-    bool plugins_loaded = false;
+    ManualDevicesSettingsPage *     manualDevicesPage;
 
-    /*-------------------------------------*\
-    | System tray icon and menu             |
-    \*-------------------------------------*/
-    QSystemTrayIcon* trayIcon;
-    QMenu* trayIconMenu;
-    QMenu* profileMenu;
+    PluginManager *                 plugin_manager      = nullptr;
 
-    /*-------------------------------------*\
-    | User interface                        |
-    \*-------------------------------------*/
-    Ui::OpenRGBDialogUi *ui;
+    bool                            device_view_showing = false;
+    bool                            ShowI2CTools        = false;
+    bool                            plugins_loaded      = false;
+
+    /*-----------------------------------------------------*\
+    | System tray icon and menu                             |
+    \*-----------------------------------------------------*/
+    QSystemTrayIcon *               trayIcon;
+    QMenu *                         trayIconMenu;
+    QMenu *                         profileMenu;
+
+    QAction *                       actionExit;
+    QString                         dialog_message;
+
+    /*-----------------------------------------------------*\
+    | User interface                                        |
+    \*-----------------------------------------------------*/
+    Ui::OpenRGBDialog *ui;
 
     void AddSoftwareInfoPage();
     void AddSupportedDevicesPage();
     void AddSettingsPage();
-    void AddDMXSettingsPage();
-    void AddE131SettingsPage();
-    void AddElgatoKeyLightSettingsPage();
-    void AddElgatoLightStripSettingsPage();
-    void AddGoveeSettingsPage();
-    void AddKasaSmartSettingsPage();
-    void AddLIFXSettingsPage();
-    void AddPhilipsHueSettingsPage();
-    void AddPhilipsWizSettingsPage();
-    void AddQMKORGBSettingsPage();
-    void AddSerialSettingsPage();
-    void AddYeelightSettingsPage();
-    void AddNanoleafSettingsPage();
     void AddPluginsPage();
     void AddConsolePage();
+    void AddManualDevicesSettingsPage();
 
     void ClearDevicesList();
     void UpdateDevicesList();
@@ -159,13 +130,6 @@ private:
     void SaveProfileAs();
 
     void TogglePluginsVisibility(int, QTabWidget*);
-
-    bool device_view_showing = false;
-
-    PluginManager* plugin_manager = nullptr;
-
-    QAction* actionExit;
-    QString dialog_message;
 
     void ShowLEDView();
     void HideLEDView();
@@ -185,6 +149,7 @@ private slots:
     void on_QuickWhite();
     void onDeviceListUpdated();
     void onDetectionProgressUpdated();
+    void onDetectionStarted();
     void onDetectionEnded();
     void on_SetAllDevices(unsigned char red, unsigned char green, unsigned char blue);
     void on_SaveSizeProfile();

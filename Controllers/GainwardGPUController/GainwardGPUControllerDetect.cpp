@@ -77,9 +77,8 @@ void DetectGainwardGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, co
             \*-----------------------------------------------------------------*/
             case 0x08:
                 {
-                    GainwardGPUv1Controller*     controller     = new GainwardGPUv1Controller(bus, i2c_addr);
+                    GainwardGPUv1Controller*     controller     = new GainwardGPUv1Controller(bus, i2c_addr, name);
                     RGBController_GainwardGPUv1* rgb_controller = new RGBController_GainwardGPUv1(controller);
-                    rgb_controller->name                        = name;
 
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
                 }
@@ -90,9 +89,8 @@ void DetectGainwardGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, co
             \*-----------------------------------------------------------------*/
             case 0x49:
                 {
-                    GainwardGPUv2Controller*     controller     = new GainwardGPUv2Controller(bus, i2c_addr);
+                    GainwardGPUv2Controller*     controller     = new GainwardGPUv2Controller(bus, i2c_addr, name);
                     RGBController_GainwardGPUv2* rgb_controller = new RGBController_GainwardGPUv2(controller);
-                    rgb_controller->name                        = name;
 
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
                 }
@@ -112,3 +110,4 @@ REGISTER_I2C_PCI_DETECTOR("Gainward GeForce RTX 3070 Ti Phoenix",       DetectGa
 REGISTER_I2C_PCI_DETECTOR("Gainward GeForce RTX 3080 Phoenix",          DetectGainwardGPUControllers,   NVIDIA_VEN, NVIDIA_RTX3080_DEV,     GAINWARD_SUB_VEN,   NVIDIA_RTX3080_DEV,             0x49);
 REGISTER_I2C_PCI_DETECTOR("Gainward GeForce RTX 3080 Ti Phoenix",       DetectGainwardGPUControllers,   NVIDIA_VEN, NVIDIA_RTX3080TI_DEV,   GAINWARD_SUB_VEN,   NVIDIA_RTX3080TI_DEV,           0x49);
 REGISTER_I2C_PCI_DETECTOR("Gainward GeForce RTX 3090 Phoenix",          DetectGainwardGPUControllers,   NVIDIA_VEN, NVIDIA_RTX3090_DEV,     GAINWARD_SUB_VEN,   NVIDIA_RTX3090_DEV,             0x49);
+REGISTER_I2C_PCI_DETECTOR("Gainward GeForce RTX 3090 Ti Phantom",       DetectGainwardGPUControllers,   NVIDIA_VEN, NVIDIA_RTX3090TI_DEV,   GAINWARD_SUB_VEN,   GAINWARD_RTX_3090TI_PHANTOM,    0x49);

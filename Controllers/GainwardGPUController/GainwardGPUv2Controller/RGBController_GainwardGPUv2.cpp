@@ -26,10 +26,10 @@ RGBController_GainwardGPUv2::RGBController_GainwardGPUv2(GainwardGPUv2Controller
 {
     controller                  = controller_ptr;
 
-    name                        = "Gainward GPU";
+    name                        = controller->GetDeviceName();
     vendor                      = "Gainward";
     type                        = DEVICE_TYPE_GPU;
-    description                 = "Gainward RTX GPU";
+    description                 = "Gainward GPU V2 Device";
     location                    = controller->GetDeviceLocation();
 
     mode Static;
@@ -146,11 +146,6 @@ void RGBController_GainwardGPUv2::UpdateZoneLEDs(int /*zone*/)
 void RGBController_GainwardGPUv2::UpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
-}
-
-void RGBController_GainwardGPUv2::SetCustomMode()
-{
-    active_mode = 0;
 }
 
 void RGBController_GainwardGPUv2::DeviceUpdateMode()

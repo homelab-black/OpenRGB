@@ -12,10 +12,12 @@
 #include "MSIMysticLight112Controller.h"
 #include "MSIMysticLight162Controller.h"
 #include "MSIMysticLight185Controller.h"
+#include "MSIMysticLight761Controller.h"
 #include "RGBController_MSIMysticLight64.h"
 #include "RGBController_MSIMysticLight112.h"
 #include "RGBController_MSIMysticLight162.h"
 #include "RGBController_MSIMysticLight185.h"
+#include "RGBController_MSIMysticLight761.h"
 #include "dmiinfo.h"
 #include "LogManager.h"
 
@@ -48,40 +50,62 @@ void DetectMSIMysticLightControllers
     if(dev != nullptr)
     {
         unsigned char temp_buffer[200];
-        temp_buffer[0] = 0x52;
-        size_t packet_length = hid_get_feature_report(dev, temp_buffer, 200);
-        DMIInfo dmi;
+        temp_buffer[0]              = 0x52;
 
-        if((packet_length >= sizeof(FeaturePacket_185)) && (packet_length <= (sizeof(FeaturePacket_185) + 1)))
+        size_t      packet_length   = hid_get_feature_report(dev, temp_buffer, 200);
+
+        DMIInfo     dmi;
+        std::string dmi_name        = "MSI " + dmi.getMainboard();
+
+        if((packet_length >= sizeof(FeaturePacket_185)) && (packet_length <= (sizeof(FeaturePacket_185) + 1)))  //WHY r we doing this ? why not ==
         {
-            MSIMysticLight185Controller*     controller     = new MSIMysticLight185Controller(dev, info->path, info->product_id);
+            MSIMysticLight185Controller*     controller     = new MSIMysticLight185Controller(dev, info->path, info->product_id, dmi_name);
             RGBController_MSIMysticLight185* rgb_controller = new RGBController_MSIMysticLight185(controller);
-            rgb_controller->name = "MSI " + dmi.getMainboard();
+
             ResourceManager::get()->RegisterRGBController(rgb_controller);
         }
         else if((packet_length >= sizeof(FeaturePacket_162)) && (packet_length <= (sizeof(FeaturePacket_162) + 1)))
         {
-            MSIMysticLight162Controller*     controller     = new MSIMysticLight162Controller(dev, info->path, info->product_id);
+            MSIMysticLight162Controller*     controller     = new MSIMysticLight162Controller(dev, info->path, info->product_id, dmi_name);
             RGBController_MSIMysticLight162* rgb_controller = new RGBController_MSIMysticLight162(controller);
-            rgb_controller->name = "MSI " + dmi.getMainboard();
+
             ResourceManager::get()->RegisterRGBController(rgb_controller);
         }
         else if((packet_length >= sizeof(FeaturePacket_112)) && (packet_length <= (sizeof(FeaturePacket_112) + 1)))
         {
-            MSIMysticLight112Controller*     controller     = new MSIMysticLight112Controller(dev, info->path);
+            MSIMysticLight112Controller*     controller     = new MSIMysticLight112Controller(dev, info->path, dmi_name);
             RGBController_MSIMysticLight112* rgb_controller = new RGBController_MSIMysticLight112(controller);
-            rgb_controller->name = "MSI " + dmi.getMainboard();
+
             ResourceManager::get()->RegisterRGBController(rgb_controller);
         }
         else    // no supported length returned
         {
-            std::string name = "MSI " + dmi.getMainboard();
-            LOG_INFO("No matching driver found for %s, packet length = %d", name.c_str(), packet_length);
-            return;
+            unsigned char second_buffer[1000];
+            second_buffer[0] = 0x51;
+
+            for(int i = 1; i < 1000; i++)
+            {
+                second_buffer[i] = 0x0;
+            }
+
+            size_t packet_length_new_attempt = hid_get_feature_report(dev, second_buffer, 1000);
+
+            if(packet_length_new_attempt >=290 && packet_length_new_attempt <= 291)
+            {
+                MSIMysticLight761Controller*     controller     = new MSIMysticLight761Controller(dev, info->path, info->product_id, dmi_name);
+                RGBController_MSIMysticLight761* rgb_controller = new RGBController_MSIMysticLight761(controller);
+
+                ResourceManager::get()->RegisterRGBController(rgb_controller);
+
+            }
+            else
+            {
+                LOG_INFO("No matching driver found for %s, packet length = %d", dmi_name.c_str(), packet_length);
+                return;
+            }
         }
     }
 }
-
 
 void DetectMSIMysticLight64Controllers
     (
@@ -90,10 +114,12 @@ void DetectMSIMysticLight64Controllers
     )
 {
     hid_device* dev = hid_open_path(info->path);
+
     if(dev != nullptr)
     {
         MSIMysticLight64Controller*     controller     = new MSIMysticLight64Controller(dev, info->path);
         RGBController_MSIMysticLight64* rgb_controller = new RGBController_MSIMysticLight64(controller);
+
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -144,6 +170,7 @@ REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D07",    DetectMSIMysticLightCont
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D08",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D08,   0x0001, 0x00);
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D09",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D09,   0x0001, 0x00);
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D13",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D13,   0x0001, 0x00);
+REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D14",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D14,   0x0001, 0x00);
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D15",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D15,   0x0001, 0x00);
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D17",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D17,   0x0001, 0x00);
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7D18",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0x7D18,   0x0001, 0x00);
@@ -196,6 +223,7 @@ REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_7E10",    DetectMSIMysticLightCont
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light MS_B926",    DetectMSIMysticLightControllers,   MSI_USB_VID,    0xB926,   0x0001, 0x00);
 // Detector for the set of common boards
 REGISTER_HID_DETECTOR_PU("MSI Mystic Light Common",     DetectMSIMysticLightControllers,   MSI_USB_VID_COMMON,  MSI_USB_PID_COMMON, 0x0001, 0x00);
+REGISTER_HID_DETECTOR_PU("MSI Mystic Light X870",     DetectMSIMysticLightControllers,   MSI_USB_VID_COMMON,  MSI_USB_PID_COMMON, 0xFF00, 0x01);
 /*---------------------------------------------------------------------------------------------------------*\
 | Dummy entries for boards using commwn VID and PID                                                         |
 |                                                                                                           |

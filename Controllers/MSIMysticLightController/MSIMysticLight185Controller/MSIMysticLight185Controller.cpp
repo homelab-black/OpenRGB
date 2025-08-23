@@ -220,8 +220,6 @@ const std::vector<MSI_ZONE> zones_set18 =
     MSI_ZONE_J_PIPE_1
 };
 
-
-
 /*---------------------------------------------------------------------------------------------------------------------------------*\
 | Definition of the board sepcific configurations (number of onboard LEDs and supported zones).                                     |
 |                                                                                                                                   |
@@ -267,7 +265,8 @@ static const mystic_light_185_config board_configs[] =
     { 0x7D07, 4,  5,  0, 2, &zones_set7,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MPG Z590 GAMING EDGE WIFI
     { 0x7D08, 6,  0,  0, 2, &zones_set0,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG Z590 TOMAHAWK
     { 0x7D09, 6,  0,  0, 2, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // Z590-A PRO WIFI
-    { 0x7D13, 6,  0,  0, 1, &zones_set1,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },      // MEG B550 UNIFY
+    { 0x7D13, 6,  0,  0, 1, &zones_set1,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MEG B550 UNIFY
+    { 0x7D14, 6,  0,  0, 1, &zones_set5,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // A520M PRO
     { 0x7D15, 6,  0,  0, 2, &zones_set0,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B560 TOMAHAWK WIFI
     { 0x7D17, 6,  0,  0, 2, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B560M MORTAR
     { 0x7D18, 6,  0,  0, 2, &zones_set5,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B560M PRO-VDH
@@ -335,21 +334,20 @@ Color* per_led_jrainbow1_sync;
 Color* per_led_jrainbow2_sync;
 Color* per_led_jcorsair_sync;
 
-
 MSIMysticLight185Controller::MSIMysticLight185Controller
     (
     hid_device*     handle,
-    const char      *path,
-    unsigned short  pid
+    const char*     path,
+    unsigned short  pid,
+    std::string     dev_name
     )
 {
-    dev = handle;
+    dev         = handle;
+    location    = path;
+    name        = dev_name;
 
     if(dev)
     {
-        location = path;
-
-        ReadName();
         ReadFwVersion();
         ReadSettings();
     }
@@ -1046,31 +1044,6 @@ bool MSIMysticLight185Controller::ReadFwVersion()
     | failed                                                |
     \*-----------------------------------------------------*/
     return (ret_val > 0);
-}
-
-void MSIMysticLight185Controller::ReadName()
-{
-    wchar_t tname[256];
-
-    /*-----------------------------------------------------*\
-    | Get the manufacturer string from HID                  |
-    \*-----------------------------------------------------*/
-    hid_get_manufacturer_string(dev, tname, 256);
-
-    /*-----------------------------------------------------*\
-    | Convert to std::string                                |
-    \*-----------------------------------------------------*/
-    name = StringUtils::wstring_to_string(tname);
-
-    /*-----------------------------------------------------*\
-    | Get the product string from HID                       |
-    \*-----------------------------------------------------*/
-    hid_get_product_string(dev, tname, 256);
-
-    /*-----------------------------------------------------*\
-    | Append the product string to the manufacturer string  |
-    \*-----------------------------------------------------*/
-    name.append(" ").append(StringUtils::wstring_to_string(tname));
 }
 
 MSI_MODE MSIMysticLight185Controller::GetMode()
