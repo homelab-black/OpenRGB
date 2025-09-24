@@ -83,13 +83,6 @@ void RGBController_Arctic::SetupZones()
     SetupColors();
 }
 
-void RGBController_Arctic::ResizeZone(int /* zone */, int /* new_size */)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
-}
-
 void RGBController_Arctic::DeviceUpdateLEDs()
 {
     last_update_time = std::chrono::steady_clock::now();
@@ -97,12 +90,12 @@ void RGBController_Arctic::DeviceUpdateLEDs()
     controller->SetChannels(colors);
 }
 
-void RGBController_Arctic::UpdateZoneLEDs(int /* zone */)
+void RGBController_Arctic::DeviceUpdateZoneLEDs(int /* zone */)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_Arctic::UpdateSingleLED(int /* led */)
+void RGBController_Arctic::DeviceUpdateSingleLED(int /* led */)
 {
     DeviceUpdateLEDs();
 }
@@ -123,7 +116,7 @@ void RGBController_Arctic::KeepaliveThreadFunction()
         sleep_time = ARCTIC_KEEPALIVE_PERIOD - (std::chrono::steady_clock::now() - last_update_time);
         if(sleep_time <= ARCTIC_SLEEP_THRESHOLD)
         {
-            UpdateLEDs();   // Already protected thru a device update thread
+            UpdateLEDsInternal();   // Already protected thru a device update thread
             std::this_thread::sleep_for(ARCTIC_KEEPALIVE_PERIOD);
         }
         else

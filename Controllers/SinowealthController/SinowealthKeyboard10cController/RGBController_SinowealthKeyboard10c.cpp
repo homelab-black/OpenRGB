@@ -138,25 +138,18 @@ void RGBController_SinowealthKeyboard10c::SetupZones()
     SetupColors();
 }
 
-void RGBController_SinowealthKeyboard10c::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
-}
-
 void RGBController_SinowealthKeyboard10c::DeviceUpdateLEDs()
 {
     last_update_time = std::chrono::steady_clock::now();
     controller->SetLEDsDirect(colors);
 }
 
-void RGBController_SinowealthKeyboard10c::UpdateZoneLEDs(int /*zone*/)
+void RGBController_SinowealthKeyboard10c::DeviceUpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_SinowealthKeyboard10c::UpdateSingleLED(int /*led*/)
+void RGBController_SinowealthKeyboard10c::DeviceUpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
@@ -171,7 +164,7 @@ void RGBController_SinowealthKeyboard10c::KeepaliveThreadFunction()
     {
         if(active_mode == MODE_DIRECT && (std::chrono::steady_clock::now() - last_update_time) > 1s)
         {
-            UpdateLEDs();
+            UpdateLEDsInternal();
         }
         std::this_thread::sleep_for(500ms);
     }

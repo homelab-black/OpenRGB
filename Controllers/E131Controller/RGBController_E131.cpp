@@ -371,13 +371,6 @@ void RGBController_E131::SetupZones()
     SetupColors();
 }
 
-void RGBController_E131::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
-}
-
 void RGBController_E131::DeviceUpdateLEDs()
 {
     int color_idx = 0;
@@ -442,12 +435,12 @@ void RGBController_E131::DeviceUpdateLEDs()
     }
 }
 
-void RGBController_E131::UpdateZoneLEDs(int /*zone*/)
+void RGBController_E131::DeviceUpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_E131::UpdateSingleLED(int /*led*/)
+void RGBController_E131::DeviceUpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
@@ -463,7 +456,7 @@ void RGBController_E131::KeepaliveThreadFunction()
     {
         if((std::chrono::steady_clock::now() - last_update_time) > ( keepalive_delay * 0.95f ) )
         {
-            UpdateLEDs();
+            UpdateLEDsInternal();
         }
         std::this_thread::sleep_for(keepalive_delay / 2);
     }

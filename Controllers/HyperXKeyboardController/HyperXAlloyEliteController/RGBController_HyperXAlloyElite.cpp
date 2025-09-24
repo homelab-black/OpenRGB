@@ -311,13 +311,6 @@ void RGBController_HyperXAlloyElite::SetupZones()
     SetupColors();
 }
 
-void RGBController_HyperXAlloyElite::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
-}
-
 void RGBController_HyperXAlloyElite::DeviceUpdateLEDs()
 {
     last_update_time = std::chrono::steady_clock::now();
@@ -332,12 +325,12 @@ void RGBController_HyperXAlloyElite::DeviceUpdateLEDs()
     }
 }
 
-void RGBController_HyperXAlloyElite::UpdateZoneLEDs(int /*zone*/)
+void RGBController_HyperXAlloyElite::DeviceUpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_HyperXAlloyElite::UpdateSingleLED(int /*led*/)
+void RGBController_HyperXAlloyElite::DeviceUpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
@@ -363,7 +356,7 @@ void RGBController_HyperXAlloyElite::KeepaliveThreadFunction()
         {
             if((std::chrono::steady_clock::now() - last_update_time) > std::chrono::milliseconds(50))
             {
-                UpdateLEDs();
+                UpdateLEDsInternal();
             }
         }
         std::this_thread::sleep_for(10ms);;
