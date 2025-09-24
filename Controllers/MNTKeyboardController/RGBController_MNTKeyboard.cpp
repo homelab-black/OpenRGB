@@ -65,14 +65,14 @@ void RGBController_MNTKeyboard::DeviceUpdateLEDs()
     delete[] color_map;
 }
 
-void RGBController_MNTKeyboard::ResizeZone(int, int)
+void RGBController_MNTKeyboard::DeviceResizeZone(int, int)
 {
 }
-void RGBController_MNTKeyboard::UpdateZoneLEDs(int)
+void RGBController_MNTKeyboard::DeviceUpdateZoneLEDs(int)
 {
     DeviceUpdateLEDs();
 }
-void RGBController_MNTKeyboard::UpdateSingleLED(int)
+void RGBController_MNTKeyboard::DeviceUpdateSingleLED(int)
 {
     DeviceUpdateLEDs();
 }
