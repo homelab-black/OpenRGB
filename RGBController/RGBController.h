@@ -18,6 +18,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <shared_mutex>
 #include "nlohmann/json.hpp"
 
 /*---------------------------------------------------------*\
@@ -581,11 +582,6 @@ public:
     void                    ResizeZone(int zone, int new_size);
 
     /*-----------------------------------------------------*\
-    | Functions not part of interface for internal use only |
-    \*-----------------------------------------------------*/
-    void                    SetupColors();
-
-    /*-----------------------------------------------------*\
     | Functions to be implemented in device implementation  |
     \*-----------------------------------------------------*/
     virtual void            DeviceResizeZone(int zone, int new_size);
@@ -625,6 +621,12 @@ protected:
     std::vector<mode>       modes;          /* Modes                    */
     std::vector<zone>       zones;          /* Zones                    */
 
+    /*-----------------------------------------------------*\
+    | Functions not part of interface for internal use only |
+    \*-----------------------------------------------------*/
+    unsigned int            LEDsInZone(unsigned int zone);
+    void                    SetupColors();
+
 private:
     /*-----------------------------------------------------*\
     | Device thread variables                               |
@@ -640,6 +642,11 @@ private:
     std::mutex                          UpdateMutex;
     std::vector<RGBControllerCallback>  UpdateCallbacks;
     std::vector<void *>                 UpdateCallbackArgs;
+
+    /*-----------------------------------------------------*\
+    | Access mutex variables                                |
+    \*-----------------------------------------------------*/
+    std::shared_mutex       AccessMutex;
 
     /*-----------------------------------------------------*\
     | Certain internal OpenRGB framework classes can modify |
