@@ -18,6 +18,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <shared_mutex>
 #include "nlohmann/json.hpp"
 
 /*---------------------------------------------------------*\
@@ -642,8 +643,14 @@ protected:
     std::vector<zone>       zones;          /* Zones                    */
 
     /*-----------------------------------------------------*\
+    | Access mutex variables                                |
+    \*-----------------------------------------------------*/
+    std::shared_mutex       AccessMutex;
+
+    /*-----------------------------------------------------*\
     | Functions not part of interface for internal use only |
     \*-----------------------------------------------------*/
+    unsigned int            LEDsInZone(unsigned int zone);
     void                    SetupColors();
     void                    UpdateLEDsInternal();
 
