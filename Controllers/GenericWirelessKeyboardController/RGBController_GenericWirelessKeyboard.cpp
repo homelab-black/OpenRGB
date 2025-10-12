@@ -211,7 +211,8 @@ void RGBController_GenericWirelessKeyboard::UpdateLEDs()
 
     for(int i = 0; i < colors.size(); ++i)
     {
-        new_color_map[colors[i]].push_back(leds[i].value);
+        RGBColor color = QuantizeColor(colors[i]);
+        new_color_map[color].push_back(leds[i].value);
     }
 
     if(new_color_map == led_color_map)
@@ -257,7 +258,7 @@ void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction()
         if(active_mode == 0)
         {
             if((std::chrono::steady_clock::now() - last_update_time) >
-               100ms)
+               20ms)
             {
                 controller->SetLEDColors(led_color_map);
                 last_update_time = std::chrono::steady_clock::now();
@@ -265,4 +266,25 @@ void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction()
         }
         std::this_thread::sleep_for(5ms);
     }
+}
+
+/*---------------------------------------------------------*\
+| Quantize a 24-bit color down to a 15-bit color palette    |
+| to group similar colors and reduce packet size.           |
+\*---------------------------------------------------------*/
+RGBColor RGBController_GenericWirelessKeyboard::QuantizeColor(RGBColor color)
+{
+    unsigned char r = RGBGetRValue(color);
+    unsigned char g = RGBGetGValue(color);
+    unsigned char b = RGBGetBValue(color);
+
+    const int bits_to_discard = 5;
+
+    unsigned char mask = 0xFF << bits_to_discard;
+
+    unsigned char r_quantized = r & mask;
+    unsigned char g_quantized = g & mask;
+    unsigned char b_quantized = b & mask;
+
+    return ToRGBColor(r_quantized, g_quantized, b_quantized);
 }
