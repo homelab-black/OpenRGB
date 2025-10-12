@@ -1,16 +1,18 @@
 #pragma once
 
+#include "GenericWirelessKeyboardController.h"
 #include "RGBController.h"
 #include "RGBController_Dummy.h"
-#include "GenericWirelessKeyboardController.h"
+#include <unordered_map>
 
 class RGBController_GenericWirelessKeyboard : public RGBController_Dummy
 {
-public:
-    RGBController_GenericWirelessKeyboard(GenericWirelessKeyboardController *controller);
+  public:
+    RGBController_GenericWirelessKeyboard(
+        GenericWirelessKeyboardController *controller);
     ~RGBController_GenericWirelessKeyboard();
 
-protected:
+  protected:
     void SetupZones() override;
     void UpdateLEDs() override;
     void SetCustomMode() override;
@@ -23,9 +25,10 @@ protected:
 
     void KeepaliveThreadFunction();
 
-private:
-    GenericWirelessKeyboardController *controller;
-    std::atomic<bool> keepalive_thread_run;
-    std::thread *keepalive_thread;
-    std::chrono::time_point<std::chrono::steady_clock> last_update_time;
+  private:
+    GenericWirelessKeyboardController                       *controller;
+    std::unordered_map<RGBColor, std::vector<unsigned char>> led_color_map;
+    std::atomic<bool>                                        keepalive_thread_run;
+    std::thread                                             *keepalive_thread;
+    std::chrono::time_point<std::chrono::steady_clock>       last_update_time;
 };
