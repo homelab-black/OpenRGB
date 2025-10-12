@@ -200,7 +200,7 @@ void RGBController_GenericWirelessKeyboard::SetupZones() {
 }
 
 void RGBController_GenericWirelessKeyboard::UpdateLEDs() {
-    controller->SetLEDColors(leds, colors);
+  controller->SetLEDColors(leds, colors);
 }
 
 void RGBController_GenericWirelessKeyboard::SetCustomMode() {}
@@ -208,14 +208,16 @@ void RGBController_GenericWirelessKeyboard::SetCustomMode() {}
 void RGBController_GenericWirelessKeyboard::ResizeZone(int /*zone*/,
                                                        int /*new_size*/) {}
 
-void RGBController_GenericWirelessKeyboard::DeviceUpdateLEDs() { UpdateLEDs(); }
+void RGBController_GenericWirelessKeyboard::DeviceUpdateLEDs() {
+  // UpdateLEDs();
+}
 
 void RGBController_GenericWirelessKeyboard::UpdateZoneLEDs(int /*zone*/) {
-  UpdateLEDs();
+  //   UpdateLEDs();
 }
 
 void RGBController_GenericWirelessKeyboard::UpdateSingleLED(int /*led*/) {
-  UpdateLEDs();
+  //   UpdateLEDs();
 }
 
 void RGBController_GenericWirelessKeyboard::DeviceUpdateMode() {}
@@ -223,11 +225,10 @@ void RGBController_GenericWirelessKeyboard::DeviceUpdateMode() {}
 void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction() {
   while (keepalive_thread_run) {
     if (active_mode == 0) {
-      if ((std::chrono::steady_clock::now() - last_update_time) >
-          std::chrono::milliseconds(500)) {
-        UpdateLEDs();
-      }
+      UpdateLEDs();
+      //   if ((std::chrono::steady_clock::now() - last_update_time) > 100ms) {
+      //   }
     }
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(20ms);
   }
 }
