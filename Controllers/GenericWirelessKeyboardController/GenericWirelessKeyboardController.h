@@ -11,7 +11,9 @@ public:
     GenericWirelessKeyboardController(hid_device* dev_handle, const std::string& path, const std::string& name);
     ~GenericWirelessKeyboardController();
 
-    void SendColors(const std::vector<RGBColor>& colors);
+    std::vector<std::array<unsigned char, 14>> SplitChunks(const std::vector<unsigned char>& data);
+    void SetSolidColor(const RGBColor& color);
+    void SetLEDColors(std::vector<led>& leds, std::vector<RGBColor>& colors);
     std::string GetName();
     std::string GetLocation();
 

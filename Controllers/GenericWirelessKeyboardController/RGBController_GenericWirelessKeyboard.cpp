@@ -200,7 +200,7 @@ void RGBController_GenericWirelessKeyboard::SetupZones() {
 }
 
 void RGBController_GenericWirelessKeyboard::UpdateLEDs() {
-  controller->SendColors(colors);
+    controller->SetLEDColors(leds, colors);
 }
 
 void RGBController_GenericWirelessKeyboard::SetCustomMode() {}
