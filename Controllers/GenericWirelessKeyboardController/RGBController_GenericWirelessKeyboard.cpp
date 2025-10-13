@@ -299,21 +299,35 @@ void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction()
     }
 }
 
-/*---------------------------------------------------------*\
-| Quantize a 24-bit color down to a 15-bit color palette    |
-| to group similar colors and reduce packet size.           |
-\*---------------------------------------------------------*/
 RGBColor RGBController_GenericWirelessKeyboard::QuantizeColor(RGBColor color, unsigned char bits_to_discard)
 {
+// A value of 0 means no quantization.
+    if(bits_to_discard <= 0)
+    {
+        return color;
+    }
+    // Don't discard all the bits.
+    if(bits_to_discard >= 8)
+    {
+        bits_to_discard = 7;
+    }
+
     unsigned char r = RGBGetRValue(color);
     unsigned char g = RGBGetGValue(color);
     unsigned char b = RGBGetBValue(color);
 
-    unsigned char mask = 0xFF << bits_to_discard;
+    // 1. Reduce precision by shifting right. This gets the most significant bits.
+    unsigned char r_reduced = r >> bits_to_discard;
+    unsigned char g_reduced = g >> bits_to_discard;
+    unsigned char b_reduced = b >> bits_to_discard;
 
-    unsigned char r_quantized = r & mask;
-    unsigned char g_quantized = g & mask;
-    unsigned char b_quantized = b & mask;
+    // 2. Scale back up to the 0-255 range by copying the high bits into the low bits.
+    // This is a standard graphics technique for converting, e.g., a 5-bit color to 8-bit.
+    // It preserves the endpoints of the range (0 stays 0, max stays max).
+    int bits_to_keep = 8 - bits_to_discard;
+    unsigned char r_quantized = (r_reduced << bits_to_discard) | (r_reduced >> (bits_to_keep - bits_to_discard));
+    unsigned char g_quantized = (g_reduced << bits_to_discard) | (g_reduced >> (bits_to_keep - bits_to_discard));
+    unsigned char b_quantized = (b_reduced << bits_to_discard) | (b_reduced >> (bits_to_keep - bits_to_discard));
 
     return ToRGBColor(r_quantized, g_quantized, b_quantized);
 }
