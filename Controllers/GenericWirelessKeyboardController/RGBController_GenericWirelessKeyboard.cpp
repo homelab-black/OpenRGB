@@ -221,7 +221,12 @@ void RGBController_GenericWirelessKeyboard::UpdateLEDs()
     }
 
     color_changed = true;
-    led_color_map = std::move(new_color_map);
+
+    if(led_color_map_lock.try_lock())
+    {
+        led_color_map = std::move(new_color_map);
+        led_color_map_lock.unlock();
+    }
 }
 
 void RGBController_GenericWirelessKeyboard::SetCustomMode()
@@ -260,7 +265,13 @@ void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction()
         {
             if((std::chrono::steady_clock::now() - last_update_time) > (color_changed ? 5ms : 100ms))
             {
+                if(!led_color_map_lock.try_lock()) {
+                    continue;
+                }
+
                 controller->SetLEDColors(led_color_map);
+                led_color_map_lock.unlock();
+
                 last_update_time = std::chrono::steady_clock::now();
                 color_changed = false;
             }
