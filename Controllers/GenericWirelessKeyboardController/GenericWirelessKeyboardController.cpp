@@ -116,7 +116,8 @@ void GenericWirelessKeyboardController::SetLEDColors(std::unordered_map<RGBColor
         return;
     }
 
-    if(led_color_map.size() == 1)
+    // TODO: Remove 99 magic number
+    if(led_color_map.size() == 1 && led_color_map.begin()->second.size() == 99)
     {
         SendSolidColor(led_color_map.begin()->first);
     }
