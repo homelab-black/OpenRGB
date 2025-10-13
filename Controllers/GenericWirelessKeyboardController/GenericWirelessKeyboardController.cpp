@@ -102,12 +102,10 @@ void GenericWirelessKeyboardController::SendLEDColors(std::unordered_map<RGBColo
         {
             LOG_ERROR("Unable to write to Generic Wireless Keyboard");
         }
+
         LOG_ERROR("Written %d packet(s).", chunks.size());
 
-        if(i < chunks.size() - 1)
-        {
-            std::this_thread::sleep_for(20ms);
-        }
+        std::this_thread::sleep_for(5ms);
     }
 }
 

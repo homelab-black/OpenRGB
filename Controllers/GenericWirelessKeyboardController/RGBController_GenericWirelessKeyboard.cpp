@@ -209,7 +209,7 @@ void RGBController_GenericWirelessKeyboard::UpdateLEDs()
 {
     std::unordered_map<RGBColor, std::vector<unsigned char>> new_color_map;
 
-    for(int i = 0; i < colors.size(); ++i)
+    for(size_t i = 0; i < colors.size(); ++i)
     {
         RGBColor color = QuantizeColor(colors[i]);
         new_color_map[color].push_back(leds[i].value);
@@ -220,6 +220,7 @@ void RGBController_GenericWirelessKeyboard::UpdateLEDs()
         return;
     }
 
+    color_changed = true;
     led_color_map = std::move(new_color_map);
 }
 
@@ -257,14 +258,14 @@ void RGBController_GenericWirelessKeyboard::KeepaliveThreadFunction()
     {
         if(active_mode == 0)
         {
-            if((std::chrono::steady_clock::now() - last_update_time) >
-               20ms)
+            if((std::chrono::steady_clock::now() - last_update_time) > (color_changed ? 5ms : 100ms))
             {
                 controller->SetLEDColors(led_color_map);
                 last_update_time = std::chrono::steady_clock::now();
+                color_changed = false;
             }
         }
-        std::this_thread::sleep_for(5ms);
+        std::this_thread::sleep_for(1ms);
     }
 }
 
@@ -278,7 +279,7 @@ RGBColor RGBController_GenericWirelessKeyboard::QuantizeColor(RGBColor color)
     unsigned char g = RGBGetGValue(color);
     unsigned char b = RGBGetBValue(color);
 
-    const int bits_to_discard = 5;
+    unsigned char bits_to_discard = 5;
 
     unsigned char mask = 0xFF << bits_to_discard;
 
