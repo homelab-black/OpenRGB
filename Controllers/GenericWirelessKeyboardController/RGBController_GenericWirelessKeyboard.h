@@ -24,7 +24,7 @@ class RGBController_GenericWirelessKeyboard : public RGBController_Dummy
     void DeviceUpdateMode() override;
 
     void KeepaliveThreadFunction();
-    RGBColor QuantizeColor(RGBColor color);
+    RGBColor QuantizeColor(RGBColor color, unsigned char bits_to_discard);
 
   private:
     GenericWirelessKeyboardController                       *controller;
