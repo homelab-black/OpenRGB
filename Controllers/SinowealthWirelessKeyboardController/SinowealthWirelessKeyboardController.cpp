@@ -1,19 +1,18 @@
-#include "GenericWirelessKeyboardController.h"
+#include "SinowealthWirelessKeyboardController.h"
 #include "LogManager.h"
-#include <map>
 
 using namespace std::chrono_literals;
 
-GenericWirelessKeyboardController::GenericWirelessKeyboardController(
-    hid_device *dev_handle, const std::string &path,
-    const std::string &dev_name)
+SinowealthWirelessKeyboardController::SinowealthWirelessKeyboardController(hid_device*        dev_handle,
+                                                                           const std::string& path,
+                                                                           const std::string& dev_name)
 {
     dev      = dev_handle;
     location = path;
     name     = dev_name;
 }
 
-GenericWirelessKeyboardController::~GenericWirelessKeyboardController()
+SinowealthWirelessKeyboardController::~SinowealthWirelessKeyboardController()
 {
     if(dev)
     {
@@ -23,8 +22,7 @@ GenericWirelessKeyboardController::~GenericWirelessKeyboardController()
 }
 
 std::vector<std::vector<unsigned char>>
-GenericWirelessKeyboardController::SplitChunks(
-    const std::vector<unsigned char> &data)
+SinowealthWirelessKeyboardController::SplitChunks(const std::vector<unsigned char>& data)
 {
     const size_t                            max_chunk_size = 14;
     std::vector<std::vector<unsigned char>> result;
@@ -33,8 +31,7 @@ GenericWirelessKeyboardController::SplitChunks(
     while(offset < data.size())
     {
         size_t                     end = std::min(max_chunk_size, data.size() - offset);
-        std::vector<unsigned char> chunk(data.begin() + offset,
-                                         data.begin() + offset + end);
+        std::vector<unsigned char> chunk(data.begin() + offset, data.begin() + offset + end);
         result.push_back(chunk);
         offset += end;
     }
@@ -42,8 +39,13 @@ GenericWirelessKeyboardController::SplitChunks(
     return result;
 }
 
-void GenericWirelessKeyboardController::SendSolidColor(const RGBColor &color)
+void SinowealthWirelessKeyboardController::SendSolidColor(const RGBColor& color)
 {
+    if(!lock.try_lock())
+    {
+        return;
+    }
+
     unsigned char packet[20] = {0x13, 0x88, 0x01, 0x00, 0x23};
 
     packet[5] = RGBGetRValue(color);
@@ -56,15 +58,24 @@ void GenericWirelessKeyboardController::SendSolidColor(const RGBColor &color)
 
     if(res < 0)
     {
-        LOG_ERROR("Unable to write to Generic Wireless Keyboard");
+        LOG_ERROR("Unable to write to Sinowealth Wireless Keyboard");
     }
+
+    lock.unlock();
 }
 
-void GenericWirelessKeyboardController::SendLEDColors(std::unordered_map<RGBColor, std::vector<unsigned char>> led_color_map)
+void SinowealthWirelessKeyboardController::SendLEDColors(
+    std::unordered_map<RGBColor, std::vector<unsigned char>> led_color_map)
 {
+    if(!lock.try_lock())
+    {
+        return;
+    }
+
     std::vector<unsigned char> payload;
 
-    for(std::unordered_map<RGBColor, std::vector<unsigned char>>::const_iterator it = led_color_map.begin(); it != led_color_map.end(); ++it)
+    for(std::unordered_map<RGBColor, std::vector<unsigned char>>::const_iterator it = led_color_map.begin();
+        it != led_color_map.end(); ++it)
     {
         payload.push_back(RGBGetRValue(it->first));
         payload.push_back(RGBGetGValue(it->first));
@@ -100,52 +111,30 @@ void GenericWirelessKeyboardController::SendLEDColors(std::unordered_map<RGBColo
 
         if(res < 0)
         {
-            LOG_ERROR("Unable to write to Generic Wireless Keyboard");
+            LOG_ERROR("Unable to write to Sinowealth Wireless Keyboard");
         }
 
         LOG_ERROR("Written %d packet(s).", chunks.size());
 
         std::this_thread::sleep_for(5ms);
     }
-}
-
-void GenericWirelessKeyboardController::SetLEDColors(std::unordered_map<RGBColor, std::vector<unsigned char>> led_color_map)
-{
-    if(!lock.try_lock())
-    {
-        return;
-    }
-
-    // TODO: Remove 99 magic number
-    if(led_color_map.size() == 1 && led_color_map.begin()->second.size() == 99)
-    {
-        SendSolidColor(led_color_map.begin()->first);
-    }
-    else
-    {
-        SendLEDColors(led_color_map);
-    }
 
     lock.unlock();
 }
 
-std::string
-GenericWirelessKeyboardController::GetName()
+std::string SinowealthWirelessKeyboardController::GetName()
 {
     return name;
 }
 
-std::string
-GenericWirelessKeyboardController::GetLocation()
+std::string SinowealthWirelessKeyboardController::GetLocation()
 {
     return location;
 }
 
-uint8_t
-GenericWirelessKeyboardController::CalculateCrc(const unsigned char *report,
-                                                size_t               len)
+unsigned char SinowealthWirelessKeyboardController::CalculateCrc(const unsigned char* report, size_t len)
 {
-    uint8_t crc = 0;
+    unsigned char crc = 0;
     // Loop over the correct length (19 bytes)
     for(size_t i = 0; i < len - 1; i++)
     {
