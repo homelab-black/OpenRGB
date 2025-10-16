@@ -19,8 +19,6 @@ RGBController_SinowealthWirelessKeyboardFullColor::RGBController_SinowealthWirel
     active_mode = 0;
 
     SetupZones();
-
-    keepalive_thread_run = true;
 }
 
 void RGBController_SinowealthWirelessKeyboardFullColor::SetupZones()

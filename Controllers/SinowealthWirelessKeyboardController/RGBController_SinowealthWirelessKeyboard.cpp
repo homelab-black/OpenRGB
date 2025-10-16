@@ -12,11 +12,11 @@ RGBController_SinowealthWirelessKeyboard::RGBController_SinowealthWirelessKeyboa
     description = "Sinowealth Wireless Keyboard";
     location    = controller->GetLocation();
 
-    /*------------------------------------------------------*\
+    /*---------------------------------------------------------*\
     | The Sinowealth Wireless Keyboard requires a steady stream |
-    | of packets in order to not revert out of direct mode.  |
-    | Start a thread to continuously refresh the device      |
-    \*------------------------------------------------------*/
+    | of packets in order to not revert out of direct mode.     |
+    | Start a thread to continuously refresh the device         |
+    \*---------------------------------------------------------*/
     keepalive_thread_run = true;
     keepalive_thread     = new std::thread(&RGBController_SinowealthWirelessKeyboard::KeepaliveThreadFunction, this);
 }
