@@ -36,12 +36,6 @@ public:
         bool                            load_settings
         )                                                                            = 0;
 
-    virtual std::vector<RGBController*> LoadProfileToList
-        (
-        std::string profile_name,
-        bool sizes = false
-        )                                                                            = 0;
-
     virtual void SetConfigurationDirectory(const filesystem::path& directory)        = 0;
 protected:
     virtual ~ProfileManagerInterface() {};
@@ -74,16 +68,14 @@ public:
         bool                            load_settings
         );
 
-    std::vector<RGBController*> LoadProfileToList
-        (
-        std::string     profile_name,
-        bool            sizes = false
-        );
+    std::vector<RGBController*> LoadControllersFromProfile(nlohmann::json profile_json);
+    nlohmann::json              ReadProfileFile(filesystem::path profile_filepath);
 
-    void SetConfigurationDirectory(const filesystem::path& directory);
+    void                        SetConfigurationDirectory(const filesystem::path& directory);
 
 private:
     filesystem::path configuration_directory;
+    filesystem::path profile_directory;
 
     void UpdateProfileList();
     bool LoadProfileWithOptions

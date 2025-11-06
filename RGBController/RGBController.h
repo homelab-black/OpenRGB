@@ -19,6 +19,7 @@
 #include <chrono>
 #include <mutex>
 #include <shared_mutex>
+#include "nlohmann/json.hpp"
 
 /*---------------------------------------------------------*\
 | RGB Color Type and Conversion Macros                      |
@@ -115,6 +116,9 @@ public:
 \*---------------------------------------------------------*/
 typedef struct
 {
+    /*-----------------------------------------------------*\
+    | LED Information                                       |
+    \*-----------------------------------------------------*/
     std::string         name;   /* LED name                     */
     unsigned int        value;  /* Device-specific LED value    */
 } led;
@@ -376,6 +380,21 @@ public:
     virtual void                    SetSegmentDescription(unsigned char* data_buf)                                      = 0;
 
     /*-----------------------------------------------------*\
+    | JSON Description Functions                            |
+    \*-----------------------------------------------------*/
+    virtual nlohmann::json          GetDeviceDescriptionJSON()                                                          = 0;
+    virtual nlohmann::json          GetLEDDescriptionJSON(int led)                                                      = 0;
+    virtual nlohmann::json          GetModeDescriptionJSON(int mode)                                                    = 0;
+    virtual nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment)                                    = 0;
+    virtual nlohmann::json          GetZoneDescriptionJSON(int zone)                                                    = 0;
+
+    virtual void                    SetDeviceDescriptionJSON(nlohmann::json controller_json)                            = 0;
+    virtual led                     SetLEDDescriptionJSON(nlohmann::json led_json)                                      = 0;
+    virtual mode                    SetModeDescriptionJSON(nlohmann::json mode_json)                                    = 0;
+    virtual segment                 SetSegmentDescriptionJSON(nlohmann::json segment_json)                              = 0;
+    virtual zone                    SetZoneDescriptionJSON(nlohmann::json zone_json)                                    = 0;
+
+    /*-----------------------------------------------------*\
     | Update Callback Functions                             |
     \*-----------------------------------------------------*/
     virtual void                    RegisterUpdateCallback(RGBControllerCallback new_callback, void * new_callback_arg) = 0;
@@ -521,6 +540,21 @@ public:
 
     unsigned char *         GetSegmentDescription(int zone, segment new_segment);
     void                    SetSegmentDescription(unsigned char* data_buf);
+
+    /*-----------------------------------------------------*\
+    | JSON Description Functions                            |
+    \*-----------------------------------------------------*/
+    nlohmann::json          GetDeviceDescriptionJSON();
+    nlohmann::json          GetLEDDescriptionJSON(int led);
+    nlohmann::json          GetModeDescriptionJSON(int mode);
+    nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment);
+    nlohmann::json          GetZoneDescriptionJSON(int zone);
+
+    void                    SetDeviceDescriptionJSON(nlohmann::json controller_json);
+    led                     SetLEDDescriptionJSON(nlohmann::json led_json);
+    mode                    SetModeDescriptionJSON(nlohmann::json mode_json);
+    segment                 SetSegmentDescriptionJSON(nlohmann::json segment_json);
+    zone                    SetZoneDescriptionJSON(nlohmann::json zone_json);
 
     /*-----------------------------------------------------*\
     | Update Callback Functions                             |

@@ -21,9 +21,12 @@
 #define OPENRGB_PROFILE_HEADER  "OPENRGB_PROFILE"
 #define OPENRGB_PROFILE_VERSION OPENRGB_SDK_PROTOCOL_VERSION
 
+#include "PluginManager.h"
+extern PluginManager * g_plugin_manager;
+
 ProfileManager::ProfileManager(const filesystem::path& config_dir)
 {
-    configuration_directory = config_dir;
+    SetConfigurationDirectory(config_dir);
     UpdateProfileList();
 }
 
@@ -54,29 +57,34 @@ bool ProfileManager::SaveProfile(std::string profile_name, bool sizes)
         /*---------------------------------------------------------*\
         | Determine file extension                                  |
         \*---------------------------------------------------------*/
-        if(sizes)
-        {
-            filename += ".ors";
-        }
-        else
-        {
-            filename += ".orp";
-        }
+        //if(sizes)
+        //{
+        //    filename += ".ors";
+        //}
+        //else
+        //{
+        //    filename += ".orp";
+        //}
+        filename += ".json";
 
         /*---------------------------------------------------------*\
         | Open an output file in binary mode                        |
         \*---------------------------------------------------------*/
-        filesystem::path profile_path = configuration_directory / filesystem::u8path(filename);
-        std::ofstream controller_file(profile_path, std::ios::out | std::ios::binary | std::ios::trunc);
+        filesystem::path profile_path = profile_directory / filesystem::u8path(filename);
+        std::ofstream controller_file(profile_path, std::ios::out );//| std::ios::binary | std::ios::trunc);
 
         /*---------------------------------------------------------*\
         | Write header                                              |
         | 16 bytes - "OPENRGB_PROFILE"                              |
         | 4 bytes - Version, unsigned int                           |
         \*---------------------------------------------------------*/
-        unsigned int profile_version = OPENRGB_PROFILE_VERSION;
-        controller_file.write(OPENRGB_PROFILE_HEADER, 16);
-        controller_file.write((char *)&profile_version, sizeof(unsigned int));
+        //unsigned int profile_version = OPENRGB_PROFILE_VERSION;
+        //controller_file.write(OPENRGB_PROFILE_HEADER, 16);
+        //controller_file.write((char *)&profile_version, sizeof(unsigned int));
+
+        nlohmann::json profile_json;
+
+        profile_json["profile_version"] = OPENRGB_PROFILE_VERSION;
 
         /*---------------------------------------------------------*\
         | Write controller data for each controller                 |
@@ -93,15 +101,29 @@ bool ProfileManager::SaveProfile(std::string profile_name, bool sizes)
                 break;
             }
 
-            unsigned char *controller_data = controllers[controller_index]->GetDeviceDescription(profile_version);
-            unsigned int controller_size;
+            //unsigned char *controller_data = controllers[controller_index]->GetDeviceDescription(profile_version);
+            //unsigned int controller_size;
 
-            memcpy(&controller_size, controller_data, sizeof(controller_size));
+            //memcpy(&controller_size, controller_data, sizeof(controller_size));
 
-            controller_file.write((const char *)controller_data, controller_size);
+            //controller_file.write((const char *)controller_data, controller_size);
 
-            delete[] controller_data;
+            //delete[] controller_data;
+
+            nlohmann::json controller_json = controllers[controller_index]->GetDeviceDescriptionJSON();
+
+            profile_json["controllers"][controller_index] = controller_json;
         }
+
+        /*---------------------------------------------------------*\
+        | Get plugin profile data                                   |
+        \*---------------------------------------------------------*/
+        if(g_plugin_manager != NULL)
+        {
+            profile_json["plugins"] = g_plugin_manager->OnProfileSave();
+        }
+
+        controller_file << std::setw(4) << profile_json << std::endl;
 
         /*---------------------------------------------------------*\
         | Close the file when done                                  |
@@ -124,6 +146,10 @@ bool ProfileManager::SaveProfile(std::string profile_name, bool sizes)
 void ProfileManager::SetConfigurationDirectory(const filesystem::path& directory)
 {
     configuration_directory = directory;
+    profile_directory       = configuration_directory / filesystem::u8path("profiles");
+
+    filesystem::create_directories(profile_directory);
+
     UpdateProfileList();
 }
 
@@ -139,88 +165,22 @@ bool ProfileManager::LoadSizeFromProfile(std::string profile_name)
     return(LoadProfileWithOptions(profile_name, true, false));
 }
 
-std::vector<RGBController*> ProfileManager::LoadProfileToList
-    (
-    std::string     profile_name,
-    bool            sizes
-    )
+std::vector<RGBController*> ProfileManager::LoadControllersFromProfile(nlohmann::json profile_json)
 {
     std::vector<RGBController*> temp_controllers;
-    unsigned int                controller_size;
-    unsigned int                controller_offset = 0;
-
-    filesystem::path filename = configuration_directory / filesystem::u8path(profile_name);
 
     /*---------------------------------------------------------*\
-    | Determine file extension                                  |
+    | Read list of controllers from profile                     |
     \*---------------------------------------------------------*/
-    if(sizes)
+    if(profile_json.contains("controllers"))
     {
-        filename.concat(".ors");
-    }
-    else
-    {
-        if(filename.extension() != ".orp")
+        for(std::size_t controller_idx = 0; controller_idx < profile_json["controllers"].size(); controller_idx++)
         {
-            filename.concat(".orp");
-        }
-    }
+            RGBController_Dummy * temp_controller = new RGBController_Dummy();
 
-    /*---------------------------------------------------------*\
-    | Open input file in binary mode                            |
-    \*---------------------------------------------------------*/
-    std::ifstream controller_file(filename, std::ios::in | std::ios::binary);
+            temp_controller->SetDeviceDescriptionJSON(profile_json["controllers"][controller_idx]);
 
-    /*---------------------------------------------------------*\
-    | Read and verify file header                               |
-    \*---------------------------------------------------------*/
-    char            profile_string[16]  = "";
-    unsigned int    profile_version     = 0;
-
-    controller_file.read(profile_string, 16);
-    controller_file.read((char *)&profile_version, sizeof(unsigned int));
-
-    /*---------------------------------------------------------*\
-    | Profile version started at 1 and protocol version started |
-    | at 0.  Version 1 profiles should use protocol 0, but 2 or |
-    | greater should be synchronized                            |
-    \*---------------------------------------------------------*/
-    if(profile_version == 1)
-    {
-        profile_version = 0;
-    }
-
-    controller_offset += 16 + sizeof(unsigned int);
-    controller_file.seekg(controller_offset);
-
-    if(strcmp(profile_string, OPENRGB_PROFILE_HEADER) == 0)
-    {
-        if(profile_version <= OPENRGB_PROFILE_VERSION)
-        {
-            /*---------------------------------------------------------*\
-            | Read controller data from file until EOF                  |
-            \*---------------------------------------------------------*/
-            while(!(controller_file.peek() == EOF))
-            {
-                controller_file.read((char *)&controller_size, sizeof(controller_size));
-
-                unsigned char *controller_data = new unsigned char[controller_size];
-
-                controller_file.seekg(controller_offset);
-
-                controller_file.read((char *)controller_data, controller_size);
-
-                RGBController_Dummy *temp_controller = new RGBController_Dummy();
-
-                temp_controller->ReadDeviceDescription(controller_data, profile_version);
-
-                temp_controllers.push_back(temp_controller);
-
-                delete[] controller_data;
-
-                controller_offset += controller_size;
-                controller_file.seekg(controller_offset);
-            }
+            temp_controllers.push_back(temp_controller);
         }
     }
 
@@ -396,9 +356,25 @@ bool ProfileManager::LoadProfileWithOptions
     std::vector<RGBController *> controllers = ResourceManager::get()->GetRGBControllers();
 
     /*---------------------------------------------------------*\
+    | Read the profile JSON from the file                       |
+    \*---------------------------------------------------------*/
+    filesystem::path filename = profile_directory / profile_name;
+    filename.concat(".json");
+
+    nlohmann::json profile_json = ReadProfileFile(filename);
+
+    /*---------------------------------------------------------*\
     | Open input file in binary mode                            |
     \*---------------------------------------------------------*/
-    temp_controllers = LoadProfileToList(profile_name);
+    temp_controllers = LoadControllersFromProfile(profile_json);
+
+    /*---------------------------------------------------------*\
+    | Signal to plugins that a profile is about to load         |
+    \*---------------------------------------------------------*/
+    if(g_plugin_manager != NULL)
+    {
+        g_plugin_manager->OnProfileAboutToLoad();
+    }
 
     /*---------------------------------------------------------*\
     | Set up used flag vector                                   |
@@ -430,6 +406,14 @@ bool ProfileManager::LoadProfileWithOptions
         delete temp_controllers[controller_idx];
     }
 
+    /*---------------------------------------------------------*\
+    | Get plugin profile data                                   |
+    \*---------------------------------------------------------*/
+    if(g_plugin_manager != NULL && profile_json.contains("plugins"))
+    {
+        g_plugin_manager->OnProfileLoad(profile_json["plugins"]);
+    }
+
     return(ret_val);
 }
 
@@ -437,12 +421,46 @@ void ProfileManager::DeleteProfile(std::string profile_name)
 {
     profile_name = StringUtils::remove_null_terminating_chars(profile_name);
 
-    filesystem::path filename = configuration_directory / profile_name;
-    filename.concat(".orp");
+    filesystem::path filename = profile_directory / profile_name;
+    filename.concat(".json");
 
     filesystem::remove(filename);
 
     UpdateProfileList();
+}
+
+nlohmann::json ProfileManager::ReadProfileFile(filesystem::path profile_filepath)
+{
+    std::ifstream   profile_file(profile_filepath, std::ios::in);
+    nlohmann::json  profile_json;
+
+    /*-------------------------------------------------*\
+    | Read settings into JSON store                     |
+    \*-------------------------------------------------*/
+    if(profile_file)
+    {
+        try
+        {
+            profile_file >> profile_json;
+        }
+        catch(const std::exception& e)
+        {
+            /*-----------------------------------------*\
+            | If an exception was caught, that means    |
+            | the JSON parsing failed.  Clear out any   |
+            | data in the store as it is corrupt.  We   |
+            | could attempt a reload for backup         |
+            | location                                  |
+            \*-----------------------------------------*/
+            LOG_ERROR("[ProfileManager] JSON parsing failed: %s", e.what());
+
+            profile_json.clear();
+        }
+    }
+
+    profile_file.close();
+
+    return(profile_json);
 }
 
 void ProfileManager::UpdateProfileList()
@@ -452,53 +470,26 @@ void ProfileManager::UpdateProfileList()
     /*---------------------------------------------------------*\
     | Load profiles by looking for .orp files in current dir    |
     \*---------------------------------------------------------*/
-    for(const auto & entry : filesystem::directory_iterator(configuration_directory))
+    for(const filesystem::directory_entry entry : filesystem::directory_iterator(profile_directory))
     {
         std::string filename = entry.path().filename().string();
 
-        if(filename.find(".orp") != std::string::npos)
+        if(filename.find(".json") != std::string::npos)
         {
             LOG_INFO("[ProfileManager] Found file: %s attempting to validate header", filename.c_str());
 
             /*---------------------------------------------------------*\
             | Open input file in binary mode                            |
             \*---------------------------------------------------------*/
-            filesystem::path file_path = configuration_directory;
+            filesystem::path file_path = profile_directory;
             file_path.append(filename);
-            std::ifstream profile_file(file_path, std::ios::in | std::ios::binary);
 
-            /*---------------------------------------------------------*\
-            | Read and verify file header                               |
-            \*---------------------------------------------------------*/
-            char            profile_string[16];
-            unsigned int    profile_version;
+            nlohmann::json profile_json = ReadProfileFile(file_path);
 
-            profile_file.read(profile_string, 16);
-            profile_file.read((char *)&profile_version, sizeof(unsigned int));
-
-            if(strcmp(profile_string, OPENRGB_PROFILE_HEADER) == 0)
+            if(!profile_json.empty())
             {
-                if(profile_version <= OPENRGB_PROFILE_VERSION)
-                {
-                    /*---------------------------------------------------------*\
-                    | Add this profile to the list                              |
-                    \*---------------------------------------------------------*/
-                    filename.erase(filename.length() - 4);
-                    profile_list.push_back(filename);
-
-                    LOG_INFO("[ProfileManager] Valid v%i profile found for %s", profile_version, filename.c_str());
-                }
-                else
-                {
-                    LOG_WARNING("[ProfileManager] Profile %s isn't valid for current version (v%i, expected v%i at most)", filename.c_str(), profile_version, OPENRGB_PROFILE_VERSION);
-                }
+                profile_list.push_back(filename.erase(filename.length() - 5));
             }
-            else
-            {
-                LOG_WARNING("[ProfileManager] Profile %s isn't valid: header is missing", filename.c_str());
-            }
-
-            profile_file.close();
         }
     }
 }

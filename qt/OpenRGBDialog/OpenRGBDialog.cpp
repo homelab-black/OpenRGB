@@ -41,6 +41,8 @@
 #include "macutils.h"
 #endif
 
+PluginManager * g_plugin_manager;
+
 static int GetIcon(device_type type)
 {
     /*-----------------------------------------------------*\
@@ -496,6 +498,8 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     plugin_manager = new PluginManager();
     plugin_manager->RegisterAddPluginCallback(&CreatePluginCallback, this);
     plugin_manager->RegisterRemovePluginCallback(&DeletePluginCallback, this);
+
+    g_plugin_manager = plugin_manager;
 
     /*-----------------------------------------------------*\
     | Add the Plugins page                                  |
