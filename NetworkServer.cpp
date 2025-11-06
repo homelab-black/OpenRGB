@@ -910,11 +910,6 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                     profile_manager->LoadProfile(profile_name);
                 }
 
-                for(RGBController* controller : controllers)
-                {
-                    controller->UpdateLEDs();
-                }
-
                 break;
 
             case NET_PACKET_ID_REQUEST_DELETE_PROFILE:
