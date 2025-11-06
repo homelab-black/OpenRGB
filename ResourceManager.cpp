@@ -196,7 +196,7 @@ ResourceManager::ResourceManager()
     \*-----------------------------------------------------*/
     profile_manager         = new ProfileManager(GetConfigurationDirectory());
     server->SetProfileManager(profile_manager);
-    rgb_controllers_sizes   = profile_manager->LoadProfileToList("sizes", true);
+    //rgb_controllers_sizes   = profile_manager->LoadProfileToList("sizes", true);
 }
 
 ResourceManager::~ResourceManager()
@@ -698,7 +698,7 @@ void ResourceManager::SetConfigurationDirectory(const filesystem::path &director
     profile_manager->SetConfigurationDirectory(directory);
 
     rgb_controllers_sizes.clear();
-    rgb_controllers_sizes   = profile_manager->LoadProfileToList("sizes", true);
+    //rgb_controllers_sizes   = profile_manager->LoadProfileToList("sizes", true);
 }
 
 NetworkServer* ResourceManager::GetServer()

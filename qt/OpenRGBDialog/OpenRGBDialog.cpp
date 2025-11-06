@@ -41,6 +41,8 @@
 #include "macutils.h"
 #endif
 
+PluginManager * g_plugin_manager;
+
 static int GetIcon(device_type type)
 {
     /*-----------------------------------------------------*\
@@ -496,6 +498,8 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     plugin_manager = new PluginManager();
     plugin_manager->RegisterAddPluginCallback(&CreatePluginCallback, this);
     plugin_manager->RegisterRemovePluginCallback(&DeletePluginCallback, this);
+
+    g_plugin_manager = plugin_manager;
 
     /*-----------------------------------------------------*\
     | Add the Plugins page                                  |
@@ -1492,6 +1496,14 @@ void OpenRGBDialog::onDetectionEnded()
 
 void OpenRGBDialog::on_SetAllDevices(unsigned char red, unsigned char green, unsigned char blue)
 {
+    /*-----------------------------------------------------*\
+    | Send the about to load profile signal to plugins      |
+    \*-----------------------------------------------------*/
+    g_plugin_manager->OnProfileAboutToLoad();
+
+    /*-----------------------------------------------------*\
+    | Apply the color to all device pages                   |
+    \*-----------------------------------------------------*/
     for(int device = 0; device < ui->DevicesTabBar->count(); device++)
     {
         qobject_cast<OpenRGBDevicePage *>(ui->DevicesTabBar->widget(device))->SetCustomMode(red, green, blue);
