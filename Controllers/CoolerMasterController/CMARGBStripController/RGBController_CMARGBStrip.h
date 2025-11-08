@@ -1,25 +1,26 @@
 /*---------------------------------------------------------*\
-| RGBController_CMGD160Controller.h                         |
+| RGBController_CMARGBStrip.h                               |
 |                                                           |
-|   RGBController for Cooler Master GD160 ARGB Gaming Desk  |
+|   RGBController for Cooler Master ARGB light strip        |
+|   devices                                                 |
 |                                                           |
-|   Logan Phillips (Eclipse)                    16 Oct 2025 |
+|   Morgan Guimard (morg)                       18 Sep 2023 |
+|   Logan Phillips (Eclipse)                    05 Nov 2025 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   Adapted from CMMonitor controller code                  |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
 
 #include "RGBController.h"
-#include "CMGD160Controller.h"
+#include "CMARGBStripController.h"
 
-class RGBController_CMGD160Controller : public RGBController
+class RGBController_CMARGBStrip : public RGBController
 {
 public:
-    RGBController_CMGD160Controller(CMGD160Controller* controller_ptr);
-    ~RGBController_CMGD160Controller();
+    RGBController_CMARGBStrip(CMARGBStripController* controller_ptr, device_type dev_type);
+    ~RGBController_CMARGBStrip();
 
     void SetupZones();
 
@@ -32,5 +33,5 @@ public:
     void DeviceUpdateMode();
 
 private:
-    CMGD160Controller*   controller;
+    CMARGBStripController*  controller;
 };
