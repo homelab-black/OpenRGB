@@ -3596,7 +3596,50 @@ nlohmann::json RGBController::GetZoneDescriptionJSON(int zone)
 
     zone_json["flags"]                                          = zones[zone].flags;
 
+    for(std::size_t mode_idx = 0; mode_idx < zones[zone].modes.size(); mode_idx++)
+    {
+        zone_json["modes"][mode_idx]                            = GetZoneModeDescriptionJSON(zone, mode_idx);
+    }
+
+    if(zones[zone].modes.size() > 0)
+    {
+        zone_json["active_mode"]                                = zones[zone].active_mode;
+    }
+
     return(zone_json);
+}
+
+nlohmann::json RGBController::GetZoneModeDescriptionJSON(int zone, int mode)
+{
+    nlohmann::json mode_json;
+
+    /*-----------------------------------------------------*\
+    | Mode Information                                      |
+    \*-----------------------------------------------------*/
+    mode_json["name"]                                           = zones[zone].modes[mode].name;
+    mode_json["value"]                                          = zones[zone].modes[mode].value;
+    mode_json["flags"]                                          = zones[zone].modes[mode].flags;
+    mode_json["speed_min"]                                      = zones[zone].modes[mode].speed_min;
+    mode_json["speed_max"]                                      = zones[zone].modes[mode].speed_max;
+    mode_json["brightness_min"]                                 = zones[zone].modes[mode].brightness_min;
+    mode_json["brightness_max"]                                 = zones[zone].modes[mode].brightness_max;
+    mode_json["colors_min"]                                     = zones[zone].modes[mode].colors_min;
+    mode_json["colors_max"]                                     = zones[zone].modes[mode].colors_max;
+
+    /*-----------------------------------------------------*\
+    | Mode Settings                                         |
+    \*-----------------------------------------------------*/
+    mode_json["speed"]                                          = zones[zone].modes[mode].speed;
+    mode_json["brightness"]                                     = zones[zone].modes[mode].brightness;
+    mode_json["direction"]                                      = zones[zone].modes[mode].direction;
+    mode_json["color_mode"]                                     = zones[zone].modes[mode].color_mode;
+
+    for(std::size_t color_idx = 0; color_idx < zones[zone].modes[mode].colors.size(); color_idx++)
+    {
+        mode_json["colors"][color_idx]                          = zones[zone].modes[mode].colors[color_idx];
+    }
+
+    return(mode_json);
 }
 
 void RGBController::SetDeviceDescriptionJSON(nlohmann::json controller_json)
@@ -3956,6 +3999,21 @@ zone RGBController::SetZoneDescriptionJSON(nlohmann::json zone_json)
     if(zone_json.contains("flags"))
     {
         new_zone.flags                      = zone_json["flags"];
+    }
+
+    if(zone_json.contains("modes"))
+    {
+        new_zone.modes.resize(zone_json["modes"].size());
+
+        for(std::size_t mode_idx = 0; mode_idx < new_zone.modes.size(); mode_idx++)
+        {
+            new_zone.modes[mode_idx]        = SetModeDescriptionJSON(zone_json["modes"][mode_idx]);
+        }
+    }
+
+    if(zone_json.contains("active_mode"))
+    {
+        new_zone.active_mode                = zone_json["active_mode"];
     }
 
     return(new_zone);
