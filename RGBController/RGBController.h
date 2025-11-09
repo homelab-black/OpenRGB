@@ -431,10 +431,10 @@ public:
     | JSON Description Functions                            |
     \*-----------------------------------------------------*/
     virtual nlohmann::json          GetDeviceDescriptionJSON()                                                                          = 0;
-    virtual nlohmann::json          GetLEDDescriptionJSON(int led)                                                                      = 0;
-    virtual nlohmann::json          GetModeDescriptionJSON(int mode)                                                                    = 0;
-    virtual nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment)                                                    = 0;
-    virtual nlohmann::json          GetZoneDescriptionJSON(int zone)                                                                    = 0;
+    virtual nlohmann::json          GetLEDDescriptionJSON(led led)                                                                      = 0;
+    virtual nlohmann::json          GetModeDescriptionJSON(mode mode)                                                                   = 0;
+    virtual nlohmann::json          GetSegmentDescriptionJSON(segment segment)                                                          = 0;
+    virtual nlohmann::json          GetZoneDescriptionJSON(zone zone)                                                                   = 0;
 
     virtual void                    SetDeviceDescriptionJSON(nlohmann::json controller_json)                                            = 0;
     virtual led                     SetLEDDescriptionJSON(nlohmann::json led_json)                                                      = 0;
@@ -624,10 +624,10 @@ public:
     | JSON Description Functions                            |
     \*-----------------------------------------------------*/
     nlohmann::json          GetDeviceDescriptionJSON();
-    nlohmann::json          GetLEDDescriptionJSON(int led);
-    nlohmann::json          GetModeDescriptionJSON(int mode);
-    nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment);
-    nlohmann::json          GetZoneDescriptionJSON(int zone);
+    nlohmann::json          GetLEDDescriptionJSON(led led);
+    nlohmann::json          GetModeDescriptionJSON(mode mode);
+    nlohmann::json          GetSegmentDescriptionJSON(segment segment);
+    nlohmann::json          GetZoneDescriptionJSON(zone zone);
 
     void                    SetDeviceDescriptionJSON(nlohmann::json controller_json);
     led                     SetLEDDescriptionJSON(nlohmann::json led_json);
