@@ -16,6 +16,7 @@
 #include <QtPlugin>
 #include <QDir>
 #include "OpenRGBPluginInterface.h"
+#include "PluginManagerInterface.h"
 
 struct OpenRGBPluginEntry
 {
@@ -34,7 +35,7 @@ struct OpenRGBPluginEntry
 typedef void (*AddPluginCallback)(void *, OpenRGBPluginEntry* plugin);
 typedef void (*RemovePluginCallback)(void *, OpenRGBPluginEntry* plugin);
 
-class PluginManager
+class PluginManager : public PluginManagerInterface
 {
 public:
     PluginManager();
@@ -52,6 +53,10 @@ public:
 
     void LoadPlugins();
     void UnloadPlugins();
+
+    void OnProfileAboutToLoad();
+    void OnProfileLoad(nlohmann::json profile_data);
+    nlohmann::json OnProfileSave();
 
     std::vector<OpenRGBPluginEntry> ActivePlugins;
 
