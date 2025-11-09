@@ -167,6 +167,7 @@ public:
     std::vector<NetworkClient*>&    GetClients();
     NetworkServer*                  GetServer();
 
+    PluginManagerInterface*         GetPluginManager();
     ProfileManager*                 GetProfileManager();
     SettingsManager*                GetSettingsManager();
 
@@ -189,6 +190,8 @@ public:
     void DisableDetection();
 
     void RescanDevices();
+
+    void SetPluginManager(PluginManagerInterface* plugin_manager_ptr);
 
     void StopDeviceDetection();
 
@@ -256,6 +259,11 @@ private:
     | Initialization completion flag                        |
     \*-----------------------------------------------------*/
     std::atomic<bool>                           init_finished;
+
+    /*-----------------------------------------------------*\
+    | Plugin Manager                                        |
+    \*-----------------------------------------------------*/
+    PluginManagerInterface*                     plugin_manager;
 
     /*-----------------------------------------------------*\
     | Profile Manager                                       |
