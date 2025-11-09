@@ -16,6 +16,7 @@
 #include "filesystem.h"
 
 struct OpenRGBNetworkPlugin;
+class PluginManagerInterface;
 class ProfileManager;
 class RGBController;
 class SettingsManager;
@@ -53,6 +54,7 @@ public:
 
     virtual filesystem::path                    GetConfigurationDirectory()                                                                         = 0;
 
+    virtual PluginManagerInterface*             GetPluginManager()                                                                                  = 0;
     virtual ProfileManager*                     GetProfileManager()                                                                                 = 0;
     virtual SettingsManager*                    GetSettingsManager()                                                                                = 0;
 
