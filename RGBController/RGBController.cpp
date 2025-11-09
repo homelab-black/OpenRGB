@@ -3458,7 +3458,7 @@ nlohmann::json RGBController::GetDeviceDescriptionJSON()
     \*-----------------------------------------------------*/
     for(std::size_t led_idx = 0; led_idx < leds.size(); led_idx++)
     {
-        controller_json["leds"][led_idx]  = GetLEDDescriptionJSON((int)led_idx);
+        controller_json["leds"][led_idx]  = GetLEDDescriptionJSON(leds[led_idx]);
     }
 
     /*-----------------------------------------------------*\
@@ -3474,7 +3474,7 @@ nlohmann::json RGBController::GetDeviceDescriptionJSON()
     \*-----------------------------------------------------*/
     for(std::size_t mode_idx = 0; mode_idx < modes.size(); mode_idx++)
     {
-        controller_json["modes"][mode_idx]  = GetModeDescriptionJSON((int)mode_idx);
+        controller_json["modes"][mode_idx]  = GetModeDescriptionJSON(modes[mode_idx]);
     }
 
     /*-----------------------------------------------------*\
@@ -3482,7 +3482,7 @@ nlohmann::json RGBController::GetDeviceDescriptionJSON()
     \*-----------------------------------------------------*/
     for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
-        controller_json["zones"][zone_idx]  = GetZoneDescriptionJSON((int)zone_idx);
+        controller_json["zones"][zone_idx]  = GetZoneDescriptionJSON(zones[zone_idx]);
     }
 
     /*-----------------------------------------------------*\
@@ -3493,108 +3493,124 @@ nlohmann::json RGBController::GetDeviceDescriptionJSON()
     return(controller_json);
 }
 
-nlohmann::json RGBController::GetLEDDescriptionJSON(int led)
+nlohmann::json RGBController::GetLEDDescriptionJSON(led led)
 {
     nlohmann::json led_json;
 
     /*-----------------------------------------------------*\
     | LED Information                                       |
     \*-----------------------------------------------------*/
-    led_json["name"]                    = leds[led].name;
-    led_json["value"]                   = leds[led].value;
+    led_json["name"]                    = led.name;
+    led_json["value"]                   = led.value;
 
     return(led_json);
 }
 
-nlohmann::json RGBController::GetModeDescriptionJSON(int mode)
+nlohmann::json RGBController::GetMatrixMapDescriptionJSON(matrix_map_type* matrix_map)
+{
+    nlohmann::json matrix_map_json;
+
+    if(matrix_map != NULL)
+    {
+        matrix_map_json["height"]                               = matrix_map->height;
+        matrix_map_json["width"]                                = matrix_map->width;
+
+        for(unsigned int matrix_map_idx = 0; matrix_map_idx < (matrix_map->height * matrix_map->width); matrix_map_idx++)
+        {
+            matrix_map_json["map"][matrix_map_idx]              = matrix_map->map[matrix_map_idx];
+        }
+    }
+
+    return(matrix_map_json);
+}
+
+nlohmann::json RGBController::GetModeDescriptionJSON(mode mode)
 {
     nlohmann::json mode_json;
 
     /*-----------------------------------------------------*\
     | Mode Information                                      |
     \*-----------------------------------------------------*/
-    mode_json["name"]                                           = modes[mode].name;
-    mode_json["value"]                                          = modes[mode].value;
-    mode_json["flags"]                                          = modes[mode].flags;
-    mode_json["speed_min"]                                      = modes[mode].speed_min;
-    mode_json["speed_max"]                                      = modes[mode].speed_max;
-    mode_json["brightness_min"]                                 = modes[mode].brightness_min;
-    mode_json["brightness_max"]                                 = modes[mode].brightness_max;
-    mode_json["colors_min"]                                     = modes[mode].colors_min;
-    mode_json["colors_max"]                                     = modes[mode].colors_max;
+    mode_json["name"]                                           = mode.name;
+    mode_json["value"]                                          = mode.value;
+    mode_json["flags"]                                          = mode.flags;
+    mode_json["speed_min"]                                      = mode.speed_min;
+    mode_json["speed_max"]                                      = mode.speed_max;
+    mode_json["brightness_min"]                                 = mode.brightness_min;
+    mode_json["brightness_max"]                                 = mode.brightness_max;
+    mode_json["colors_min"]                                     = mode.colors_min;
+    mode_json["colors_max"]                                     = mode.colors_max;
 
     /*-----------------------------------------------------*\
     | Mode Settings                                         |
     \*-----------------------------------------------------*/
-    mode_json["speed"]                                          = modes[mode].speed;
-    mode_json["brightness"]                                     = modes[mode].brightness;
-    mode_json["direction"]                                      = modes[mode].direction;
-    mode_json["color_mode"]                                     = modes[mode].color_mode;
+    mode_json["speed"]                                          = mode.speed;
+    mode_json["brightness"]                                     = mode.brightness;
+    mode_json["direction"]                                      = mode.direction;
+    mode_json["color_mode"]                                     = mode.color_mode;
 
-    for(std::size_t color_idx = 0; color_idx < modes[mode].colors.size(); color_idx++)
+    for(std::size_t color_idx = 0; color_idx < mode.colors.size(); color_idx++)
     {
-        mode_json["colors"][color_idx]                          = modes[mode].colors[color_idx];
+        mode_json["colors"][color_idx]                          = mode.colors[color_idx];
     }
 
     return(mode_json);
 }
 
-nlohmann::json RGBController::GetSegmentDescriptionJSON(int zone, int segment)
+nlohmann::json RGBController::GetSegmentDescriptionJSON(segment segment)
 {
     nlohmann::json segment_json;
 
     /*-----------------------------------------------------*\
     | Segment Information                                   |
     \*-----------------------------------------------------*/
-    segment_json["name"]                                        = zones[zone].segments[segment].name;
-    segment_json["type"]                                        = zones[zone].segments[segment].type;
-    segment_json["start_idx"]                                   = zones[zone].segments[segment].start_idx;
-    segment_json["leds_count"]                                  = zones[zone].segments[segment].leds_count;
+    segment_json["name"]                                        = segment.name;
+    segment_json["type"]                                        = segment.type;
+    segment_json["start_idx"]                                   = segment.start_idx;
+    segment_json["leds_count"]                                  = segment.leds_count;
 
-    if(zones[zone].segments[segment].matrix_map != NULL)
+    if(segment.matrix_map != NULL)
     {
-        segment_json["matrix_map"]["height"]                    = zones[zone].segments[segment].matrix_map->height;
-        segment_json["matrix_map"]["width"]                     = zones[zone].segments[segment].matrix_map->width;
-
-        for(unsigned int matrix_map_idx = 0; matrix_map_idx < (zones[zone].segments[segment].matrix_map->height * zones[zone].segments[segment].matrix_map->width); matrix_map_idx++)
-        {
-            segment_json["matrix_map"]["map"][matrix_map_idx]   = zones[zone].segments[segment].matrix_map->map[matrix_map_idx];
-        }
+        segment_json["matrix_map"]                              = GetMatrixMapDescriptionJSON(segment.matrix_map);
     }
 
     return(segment_json);
 }
 
-nlohmann::json RGBController::GetZoneDescriptionJSON(int zone)
+nlohmann::json RGBController::GetZoneDescriptionJSON(zone zone)
 {
     nlohmann::json zone_json;
 
     /*-----------------------------------------------------*\
     | Zone Information                                      |
     \*-----------------------------------------------------*/
-    zone_json["name"]                                           = zones[zone].name;
-    zone_json["type"]                                           = zones[zone].type;
-    zone_json["leds_count"]                                     = zones[zone].leds_count;
-    zone_json["leds_min"]                                       = zones[zone].leds_min;
-    zone_json["leds_max"]                                       = zones[zone].leds_max;
+    zone_json["name"]                                           = zone.name;
+    zone_json["type"]                                           = zone.type;
+    zone_json["leds_count"]                                     = zone.leds_count;
+    zone_json["leds_min"]                                       = zone.leds_min;
+    zone_json["leds_max"]                                       = zone.leds_max;
 
-    if(zones[zone].matrix_map != NULL)
+    if(zone.matrix_map != NULL)
     {
-        zone_json["matrix_map"]["height"]                       = zones[zone].matrix_map->height;
-        zone_json["matrix_map"]["width"]                        = zones[zone].matrix_map->width;
-
-        for(unsigned int matrix_map_idx = 0; matrix_map_idx < (zones[zone].matrix_map->height * zones[zone].matrix_map->width); matrix_map_idx++)
-        {
-            zone_json["matrix_map"]["map"][matrix_map_idx]      = zones[zone].matrix_map->map[matrix_map_idx];
-        }
+        zone_json["matrix_map"]                                 = GetMatrixMapDescriptionJSON(zone.matrix_map);
     }
 
-    for(std::size_t segment_idx = 0; segment_idx < zones[zone].segments.size(); segment_idx++)
+    for(std::size_t segment_idx = 0; segment_idx < zone.segments.size(); segment_idx++)
     {
-        zone_json["segments"][segment_idx]                      = GetSegmentDescriptionJSON(zone, segment_idx);
+        zone_json["segments"][segment_idx]                      = GetSegmentDescriptionJSON(zone.segments[segment_idx]);
     }
 
-    zone_json["flags"]                                          = zones[zone].flags;
+    zone_json["flags"]                                          = zone.flags;
+
+    for(std::size_t mode_idx = 0; mode_idx < zone.modes.size(); mode_idx++)
+    {
+        zone_json["modes"][mode_idx]                            = GetModeDescriptionJSON(zone.modes[mode_idx]);
+    }
+
+    if(zone.modes.size() > 0)
+    {
+        zone_json["active_mode"]                                = zone.active_mode;
+    }
 
     return(zone_json);
 }
@@ -3753,6 +3769,30 @@ led RGBController::SetLEDDescriptionJSON(nlohmann::json led_json)
     return(new_led);
 }
 
+matrix_map_type* RGBController::SetMatrixMapDescriptionJSON(nlohmann::json matrix_map_json)
+{
+    matrix_map_type* matrix_map = NULL;
+
+    if(matrix_map_json["matrix_map"].contains("width") &&
+       matrix_map_json["matrix_map"].contains("height") &&
+       matrix_map_json["matrix_map"].contains("map"))
+    {
+        matrix_map                          = new matrix_map_type;
+
+        matrix_map->width                   = matrix_map_json["matrix_map"]["width"];
+        matrix_map->height                  = matrix_map_json["matrix_map"]["height"];
+
+        matrix_map->map                     = new unsigned int[matrix_map->width * matrix_map->height];
+
+        for(unsigned int matrix_map_idx = 0; matrix_map_idx < matrix_map->width * matrix_map->height; matrix_map_idx++)
+        {
+            matrix_map->map[matrix_map_idx] = matrix_map_json["matrix_map"]["map"][matrix_map_idx];
+        }
+    }
+
+    return(matrix_map);
+}
+
 mode RGBController::SetModeDescriptionJSON(nlohmann::json mode_json)
 {
     mode new_mode;
@@ -3870,22 +3910,7 @@ segment RGBController::SetSegmentDescriptionJSON(nlohmann::json segment_json)
 
     if(segment_json.contains("matrix_map"))
     {
-        if(segment_json["matrix_map"].contains("width") &&
-           segment_json["matrix_map"].contains("height") &&
-           segment_json["matrix_map"].contains("map"))
-        {
-            new_segment.matrix_map                          = new matrix_map_type;
-
-            new_segment.matrix_map->width                   = segment_json["matrix_map"]["width"];
-            new_segment.matrix_map->height                  = segment_json["matrix_map"]["height"];
-
-            new_segment.matrix_map->map                     = new unsigned int[new_segment.matrix_map->width * new_segment.matrix_map->height];
-
-            for(unsigned int matrix_map_idx = 0; matrix_map_idx < new_segment.matrix_map->width * new_segment.matrix_map->height; matrix_map_idx++)
-            {
-                new_segment.matrix_map->map[matrix_map_idx] = segment_json["matrix_map"]["map"][matrix_map_idx];
-            }
-        }
+        new_segment.matrix_map                              = SetMatrixMapDescriptionJSON(segment_json["matrix_map"]);
     }
 
     return(new_segment);
@@ -3925,22 +3950,7 @@ zone RGBController::SetZoneDescriptionJSON(nlohmann::json zone_json)
 
     if(zone_json.contains("matrix_map"))
     {
-        if(zone_json["matrix_map"].contains("width") &&
-           zone_json["matrix_map"].contains("height") &&
-           zone_json["matrix_map"].contains("map"))
-        {
-            new_zone.matrix_map                             = new matrix_map_type;
-
-            new_zone.matrix_map->width                      = zone_json["matrix_map"]["width"];
-            new_zone.matrix_map->height                     = zone_json["matrix_map"]["height"];
-
-            new_zone.matrix_map->map                        = new unsigned int[new_zone.matrix_map->width * new_zone.matrix_map->height];
-
-            for(unsigned int matrix_map_idx = 0; matrix_map_idx < new_zone.matrix_map->width * new_zone.matrix_map->height; matrix_map_idx++)
-            {
-                new_zone.matrix_map->map[matrix_map_idx]    = zone_json["matrix_map"]["map"][matrix_map_idx];
-            }
-        }
+        new_zone.matrix_map                                 = SetMatrixMapDescriptionJSON(zone_json["matrix_map"]);
     }
 
     if(zone_json.contains("segments"))
@@ -3949,13 +3959,28 @@ zone RGBController::SetZoneDescriptionJSON(nlohmann::json zone_json)
 
         for(std::size_t segment_idx = 0; segment_idx < new_zone.segments.size(); segment_idx++)
         {
-            new_zone.segments[segment_idx]  = SetSegmentDescriptionJSON(zone_json["segments"][segment_idx]);
+            new_zone.segments[segment_idx]                  = SetSegmentDescriptionJSON(zone_json["segments"][segment_idx]);
         }
     }
 
     if(zone_json.contains("flags"))
     {
-        new_zone.flags                      = zone_json["flags"];
+        new_zone.flags                                      = zone_json["flags"];
+    }
+
+    if(zone_json.contains("modes"))
+    {
+        new_zone.modes.resize(zone_json["modes"].size());
+
+        for(std::size_t mode_idx = 0; mode_idx < new_zone.modes.size(); mode_idx++)
+        {
+            new_zone.modes[mode_idx]                        = SetModeDescriptionJSON(zone_json["modes"][mode_idx]);
+        }
+    }
+
+    if(zone_json.contains("active_mode"))
+    {
+        new_zone.active_mode                                = zone_json["active_mode"];
     }
 
     return(new_zone);

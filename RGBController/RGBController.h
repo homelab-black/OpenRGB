@@ -431,13 +431,15 @@ public:
     | JSON Description Functions                            |
     \*-----------------------------------------------------*/
     virtual nlohmann::json          GetDeviceDescriptionJSON()                                                                          = 0;
-    virtual nlohmann::json          GetLEDDescriptionJSON(int led)                                                                      = 0;
-    virtual nlohmann::json          GetModeDescriptionJSON(int mode)                                                                    = 0;
-    virtual nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment)                                                    = 0;
-    virtual nlohmann::json          GetZoneDescriptionJSON(int zone)                                                                    = 0;
+    virtual nlohmann::json          GetLEDDescriptionJSON(led led)                                                                      = 0;
+    virtual nlohmann::json          GetMatrixMapDescriptionJSON(matrix_map_type* matrix_map)                                            = 0;
+    virtual nlohmann::json          GetModeDescriptionJSON(mode mode)                                                                   = 0;
+    virtual nlohmann::json          GetSegmentDescriptionJSON(segment segment)                                                          = 0;
+    virtual nlohmann::json          GetZoneDescriptionJSON(zone zone)                                                                   = 0;
 
     virtual void                    SetDeviceDescriptionJSON(nlohmann::json controller_json)                                            = 0;
     virtual led                     SetLEDDescriptionJSON(nlohmann::json led_json)                                                      = 0;
+    virtual matrix_map_type*        SetMatrixMapDescriptionJSON(nlohmann::json matrix_map_json)                                         = 0;
     virtual mode                    SetModeDescriptionJSON(nlohmann::json mode_json)                                                    = 0;
     virtual segment                 SetSegmentDescriptionJSON(nlohmann::json segment_json)                                              = 0;
     virtual zone                    SetZoneDescriptionJSON(nlohmann::json zone_json)                                                    = 0;
@@ -624,13 +626,15 @@ public:
     | JSON Description Functions                            |
     \*-----------------------------------------------------*/
     nlohmann::json          GetDeviceDescriptionJSON();
-    nlohmann::json          GetLEDDescriptionJSON(int led);
-    nlohmann::json          GetModeDescriptionJSON(int mode);
-    nlohmann::json          GetSegmentDescriptionJSON(int zone, int segment);
-    nlohmann::json          GetZoneDescriptionJSON(int zone);
+    nlohmann::json          GetLEDDescriptionJSON(led led);
+    nlohmann::json          GetMatrixMapDescriptionJSON(matrix_map_type* matrix_map);
+    nlohmann::json          GetModeDescriptionJSON(mode mode);
+    nlohmann::json          GetSegmentDescriptionJSON(segment segment);
+    nlohmann::json          GetZoneDescriptionJSON(zone zone);
 
     void                    SetDeviceDescriptionJSON(nlohmann::json controller_json);
     led                     SetLEDDescriptionJSON(nlohmann::json led_json);
+    matrix_map_type*        SetMatrixMapDescriptionJSON(nlohmann::json matrix_map_json);
     mode                    SetModeDescriptionJSON(nlohmann::json mode_json);
     segment                 SetSegmentDescriptionJSON(nlohmann::json segment_json);
     zone                    SetZoneDescriptionJSON(nlohmann::json zone_json);
