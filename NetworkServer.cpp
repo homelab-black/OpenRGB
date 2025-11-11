@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include <cstring>
+#include <queue>
 #include "NetworkServer.h"
 #include "LogManager.h"
 
@@ -565,6 +566,40 @@ int NetworkServer::recv_select(SOCKET s, char *buf, int len, int flags)
     }
 }
 
+void NetworkServer::ControllerListenThread(NetworkServerControllerThread * this_thread)
+{
+    while(this_thread->online == true)
+    {
+        std::unique_lock<std::mutex> start_lock(this_thread->start_mutex);
+        this_thread->start_cv.wait(start_lock);
+
+        while(this_thread->queue.size() > 0)
+        {
+            NetworkServerControllerThreadQueueEntry queue_entry;
+
+            this_thread->queue_mutex.lock();
+            queue_entry = this_thread->queue.front();
+            this_thread->queue.pop();
+            this_thread->queue_mutex.unlock();
+
+            switch(queue_entry.id)
+            {
+                case NET_PACKET_ID_RGBCONTROLLER_UPDATELEDS:
+                    controllers[this_thread->index]->SetColorDescription((unsigned char *)queue_entry.data);
+                    controllers[this_thread->index]->UpdateLEDs();
+                    break;
+
+                case NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE:
+                    controllers[this_thread->index]->SetModeDescription((unsigned char *)queue_entry.data, queue_entry.client_protocol_version);
+                    controllers[this_thread->index]->UpdateMode();
+                    break;
+            }
+
+            delete[] queue_entry.data;
+        }
+    }
+}
+
 void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
 {
     SOCKET client_sock = client_info->client_sock;
@@ -579,6 +614,7 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
         NetPacketHeader header;
         int             bytes_read  = 0;
         char *          data        = NULL;
+        bool            delete_data = true;
 
         for(unsigned int i = 0; i < 4; i++)
         {
@@ -710,6 +746,7 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                 break;
 
             case NET_PACKET_ID_RGBCONTROLLER_UPDATELEDS:
+            case NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE:
                 if(data == NULL)
                 {
                     break;
@@ -731,8 +768,32 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                 {
                     if(header.pkt_dev_idx < controllers.size())
                     {
-                        controllers[header.pkt_dev_idx]->SetColorDescription((unsigned char *)data);
-                        controllers[header.pkt_dev_idx]->UpdateLEDs();
+                        if(controller_threads.size() < controllers.size())
+                        {
+                            for(std::size_t controller_idx = controller_threads.size(); controller_idx < controllers.size(); controller_idx++)
+                            {
+                                NetworkServerControllerThread * new_controller_thread = new NetworkServerControllerThread;
+
+                                new_controller_thread->index    = controller_idx;
+                                new_controller_thread->online   = true;
+                                new_controller_thread->thread   = new std::thread(&NetworkServer::ControllerListenThread, this, new_controller_thread);
+
+                                controller_threads.push_back(new_controller_thread);
+                            }
+                        }
+
+                        controller_threads[header.pkt_dev_idx]->queue_mutex.lock();
+                        NetworkServerControllerThreadQueueEntry new_entry;
+                        new_entry.data                      = data;
+                        new_entry.id                        = header.pkt_id;
+                        new_entry.size                      = header.pkt_size;
+                        new_entry.client_protocol_version   = client_info->client_protocol_version;
+                        controller_threads[header.pkt_dev_idx]->queue.push(new_entry);
+                        controller_threads[header.pkt_dev_idx]->queue_mutex.unlock();
+
+                        controller_threads[header.pkt_dev_idx]->start_cv.notify_all();
+
+                        delete_data = false;
                     }
                 }
                 else
@@ -815,39 +876,39 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                 }
                 break;
 
-            case NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE:
-                if(data == NULL)
-                {
-                    break;
-                }
-
-                /*---------------------------------------------------------*\
-                | Verify the mode description size (first 4 bytes of data)  |
-                | matches the packet size in the header                     |
-                |                                                           |
-                | If protocol version is 4 or below and the legacy SDK      |
-                | compatibility workaround is enabled, ignore this check.   |
-                | This allows backwards compatibility with old versions of  |
-                | SDK applications that didn't properly implement the size  |
-                | field.                                                    |
-                \*---------------------------------------------------------*/
-                if((header.pkt_size == *((unsigned int*)data))
-                || ((client_info->client_protocol_version <= 4)
-                 && (legacy_workaround_enabled)))
-                {
-                    if(header.pkt_dev_idx < controllers.size())
-                    {
-                        controllers[header.pkt_dev_idx]->SetModeDescription((unsigned char *)data, client_info->client_protocol_version);
-                        controllers[header.pkt_dev_idx]->UpdateMode();
-                    }
-                }
-                else
-                {
-                    LOG_ERROR("[NetworkServer] UpdateMode packet has invalid size. Packet size: %d, Data size: %d", header.pkt_size, *((unsigned int*)data));
-                    goto listen_done;
-                }
-                break;
-
+            //case NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE:
+            //    if(data == NULL)
+            //    {
+            //        break;
+            //    }
+//
+            //    /*---------------------------------------------------------*\
+            //    | Verify the mode description size (first 4 bytes of data)  |
+            //    | matches the packet size in the header                     |
+            //    |                                                           |
+            //    | If protocol version is 4 or below and the legacy SDK      |
+            //    | compatibility workaround is enabled, ignore this check.   |
+            //    | This allows backwards compatibility with old versions of  |
+            //    | SDK applications that didn't properly implement the size  |
+            //    | field.                                                    |
+            //    \*---------------------------------------------------------*/
+            //    if((header.pkt_size == *((unsigned int*)data))
+            //    || ((client_info->client_protocol_version <= 4)
+            //     && (legacy_workaround_enabled)))
+            //    {
+            //        if(header.pkt_dev_idx < controllers.size())
+            //        {
+            //            controllers[header.pkt_dev_idx]->SetModeDescription((unsigned char *)data, client_info->client_protocol_version);
+            //            controllers[header.pkt_dev_idx]->UpdateMode();
+            //        }
+            //    }
+            //    else
+            //    {
+            //        LOG_ERROR("[NetworkServer] UpdateMode packet has invalid size. Packet size: %d, Data size: %d", header.pkt_size, *((unsigned int*)data));
+            //        goto listen_done;
+            //    }
+            //    break;
+//
             case NET_PACKET_ID_RGBCONTROLLER_SAVEMODE:
                 if(data == NULL)
                 {
@@ -986,7 +1047,10 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                 break;
         }
 
-        delete[] data;
+        if(delete_data)
+        {
+            delete[] data;
+        }
     }
 
 listen_done:

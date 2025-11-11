@@ -11,9 +11,12 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
-#include <chrono>
+#include <queue>
 #include "OpenRGBNetworkPluginInterface.h"
 #include "RGBController.h"
 #include "NetworkProtocol.h"
@@ -25,6 +28,25 @@
 #define TCP_TIMEOUT_SECONDS 5
 
 typedef void (*NetServerCallback)(void *);
+
+typedef struct
+{
+    char *                      data;
+    unsigned int                id;
+    unsigned int                size;
+    unsigned int                client_protocol_version;
+} NetworkServerControllerThreadQueueEntry;
+
+typedef struct
+{
+    unsigned int                                        index;
+    std::queue<NetworkServerControllerThreadQueueEntry> queue;
+    std::mutex                                          queue_mutex;
+    std::mutex                                          start_mutex;
+    std::condition_variable                             start_cv;
+    std::thread *                                       thread;
+    std::atomic<bool>                                   online;
+} NetworkServerControllerThread;
 
 class NetworkClientInfo
 {
@@ -70,6 +92,7 @@ public:
     void                                StopServer();
 
     void                                ConnectionThreadFunction(int socket_idx);
+    void                                ControllerListenThread(NetworkServerControllerThread * this_thread);
     void                                ListenThreadFunction(NetworkClientInfo * client_sock);
 
     void                                ProcessRequest_ClientProtocolVersion(SOCKET client_sock, unsigned int data_size, char * data);
@@ -98,7 +121,8 @@ protected:
     std::atomic<bool>                   server_online;
     std::atomic<bool>                   server_listening;
 
-    std::vector<RGBController *>&       controllers;
+    std::vector<RGBController *>&               controllers;
+    std::vector<NetworkServerControllerThread *>  controller_threads;
 
     std::mutex                          ServerClientsMutex;
     std::vector<NetworkClientInfo *>    ServerClients;
