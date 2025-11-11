@@ -300,10 +300,20 @@ bool ProfileManager::SaveProfile(std::string profile_name)
             profile_json["plugins"] = g_plugin_manager->OnProfileSave();
         }
 
-        /*-------------------------------------------------*\
-        | Save the profile to file from the JSON            |
-        \*-------------------------------------------------*/
-        SaveProfileFromJSON(profile_json);
+        if(ResourceManager::get()->IsLocalClient())
+        {
+            /*---------------------------------------------*\
+            | Upload the profile to the server              |
+            \*---------------------------------------------*/
+            ResourceManager::get()->GetLocalClient()->ProfileManager_UploadProfile(profile_json.dump());
+        }
+        else
+        {
+            /*---------------------------------------------*\
+            | Save the profile to file from the JSON        |
+            \*---------------------------------------------*/
+            SaveProfileFromJSON(profile_json);
+        }
 
         /*-------------------------------------------------*\
         | Update the profile list                           |
@@ -448,29 +458,42 @@ void ProfileManager::UpdateProfileList()
 {
     profile_list.clear();
 
-    /*-----------------------------------------------------*\
-    | Load profiles by looking for .json files in profile   |
-    | directory                                             |
-    \*-----------------------------------------------------*/
-    for(const filesystem::directory_entry &entry : filesystem::directory_iterator(profile_directory))
+    if(ResourceManager::get()->IsLocalClient())
     {
-        std::string filename = entry.path().filename().string();
+        char * profile_data = ResourceManager::get()->GetLocalClient()->ProfileManager_GetProfileList();
 
-        if(filename.find(".json") != std::string::npos)
+        if(profile_data != NULL)
         {
-            LOG_INFO("[ProfileManager] Found file: %s attempting to validate header", filename.c_str());
+            SetProfileListFromDescription(profile_data);
+            delete[] profile_data;
+        }
+    }
+    else
+    {
+        /*-------------------------------------------------*\
+        | Load profiles by looking for .json files in       |
+        | profile directory                                 |
+        \*-------------------------------------------------*/
+        for(const filesystem::directory_entry &entry : filesystem::directory_iterator(profile_directory))
+        {
+            std::string filename = entry.path().filename().string();
 
-            /*---------------------------------------------*\
-            | Open input file in binary mode                |
-            \*---------------------------------------------*/
-            filesystem::path file_path = profile_directory;
-            file_path.append(filename);
-
-            nlohmann::json profile_json = ReadProfileFileJSON(file_path);
-
-            if(!profile_json.empty())
+            if(filename.find(".json") != std::string::npos)
             {
-                profile_list.push_back(filename.erase(filename.length() - 5));
+                LOG_INFO("[ProfileManager] Found file: %s attempting to validate header", filename.c_str());
+
+                /*-----------------------------------------*\
+                | Open input file in binary mode            |
+                \*-----------------------------------------*/
+                filesystem::path file_path = profile_directory;
+                file_path.append(filename);
+
+                nlohmann::json profile_json = ReadProfileFileJSON(file_path);
+
+                if(!profile_json.empty())
+                {
+                    profile_list.push_back(filename.erase(filename.length() - 5));
+                }
             }
         }
     }
