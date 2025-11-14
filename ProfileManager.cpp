@@ -260,30 +260,15 @@ bool ProfileManager::SaveProfile(std::string profile_name)
     profile_name = StringUtils::remove_null_terminating_chars(profile_name);
 
     /*-----------------------------------------------------*\
-    | Get the list of controllers from the resource manager |
-    \*-----------------------------------------------------*/
-    std::vector<RGBController *> controllers = ResourceManager::get()->GetRGBControllers();
-
-    /*-----------------------------------------------------*\
     | If a name was entered, save the profile file          |
     \*-----------------------------------------------------*/
     if(profile_name != "")
     {
         /*-------------------------------------------------*\
-        | Determine filename for profile                    |
+        | Get the list of controllers from the resource     |
+        | manager                                           |
         \*-------------------------------------------------*/
-        std::string filename = profile_name;
-
-        /*-------------------------------------------------*\
-        | File extension for v6+ profiles is .json          |
-        \*-------------------------------------------------*/
-        filename += ".json";
-
-        /*-------------------------------------------------*\
-        | Open an output file in the profile directory      |
-        \*-------------------------------------------------*/
-        filesystem::path profile_path = profile_directory / filesystem::u8path(filename);
-        std::ofstream controller_file(profile_path, std::ios::out );
+        std::vector<RGBController *> controllers = ResourceManager::get()->GetRGBControllers();
 
         /*-------------------------------------------------*\
         | Start filling in profile json data                |
@@ -291,7 +276,8 @@ bool ProfileManager::SaveProfile(std::string profile_name)
         nlohmann::json profile_json;
 
         profile_json["profile_version"] = OPENRGB_PROFILE_VERSION;
-
+        profile_json["profile_name"]    = profile_name;
+        
         /*-------------------------------------------------*\
         | Write controller data for each controller         |
         \*-------------------------------------------------*/
@@ -313,18 +299,46 @@ bool ProfileManager::SaveProfile(std::string profile_name)
             profile_json["plugins"] = g_plugin_manager->OnProfileSave();
         }
 
-        controller_file << std::setw(4) << profile_json << std::endl;
-
         /*-------------------------------------------------*\
-        | Close the file when done                          |
+        | Save the profile to file from the JSON            |
         \*-------------------------------------------------*/
-        controller_file.close();
-
+        SaveProfileFromJSON(profile_json);
+        
         /*-------------------------------------------------*\
         | Update the profile list                           |
         \*-------------------------------------------------*/
         UpdateProfileList();
 
+        return(true);
+    }
+    else
+    {
+        return(false);
+    }
+}
+
+bool ProfileManager::SaveProfileFromJSON(nlohmann::json profile_json)
+{
+    if(profile_json.contains("profile_name"))
+    {
+        std::string profile_filename = profile_json["profile_name"] + ".json";
+    
+        /*-------------------------------------------------*\
+        | Open an output file in the profile directory      |
+        \*-------------------------------------------------*/
+        filesystem::path profile_path = configuration_directory / profile_filename;
+        std::ofstream profile_file(profile_path, std::ios::out );
+        
+        /*-------------------------------------------------*\
+        | Write the JSON data to the file                   |
+        \*-------------------------------------------------*/
+        profile_file << std::setw(4) << profile_json << std::endl;
+
+        /*-------------------------------------------------*\
+        | Close the file when done                          |
+        \*-------------------------------------------------*/
+        controller_file.close();
+        
         return(true);
     }
     else
@@ -343,7 +357,7 @@ bool ProfileManager::SaveSizes()
     /*-----------------------------------------------------*\
     | Open an output file in the profile directory          |
     \*-----------------------------------------------------*/
-    filesystem::path profile_path = configuration_directory / "sizes.json";
+    filesystem::path profile_path = configuration_directory / "Sizes.json";
     std::ofstream controller_file(profile_path, std::ios::out );
 
     /*-----------------------------------------------------*\
@@ -352,7 +366,8 @@ bool ProfileManager::SaveSizes()
     nlohmann::json profile_json;
 
     profile_json["profile_version"] = OPENRGB_PROFILE_VERSION;
-
+    profile_json["profile_name"]    = "Sizes"
+    
     /*-----------------------------------------------------*\
     | Write controller data for each controller             |
     \*-----------------------------------------------------*/
