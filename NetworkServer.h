@@ -17,10 +17,10 @@
 #include <mutex>
 #include <thread>
 #include <queue>
-#include "OpenRGBNetworkPluginInterface.h"
 #include "RGBController.h"
 #include "NetworkProtocol.h"
 #include "net_port.h"
+#include "PluginManagerInterface.h"
 #include "ProfileManager.h"
 #include "ResourceManager.h"
 #include "SettingsManager.h"
@@ -113,9 +113,6 @@ public:
     void                                SetProfileManager(ProfileManagerInterface* profile_manager_pointer);
     void                                SetSettingsManager(SettingsManagerInterface* settings_manager_pointer);
 
-    void                                RegisterPlugin(OpenRGBNetworkPlugin plugin);
-    void                                UnregisterPlugin(std::string plugin_name);
-
 private:
     /*-----------------------------------------------------*\
     | Server variables                                      |
@@ -160,7 +157,7 @@ private:
     /*-----------------------------------------------------*\
     | Pointers to components that integrate with server     |
     \*-----------------------------------------------------*/
-    std::vector<OpenRGBNetworkPlugin>   plugins;            //TODO: replace with pluginsmanagerinterface
+    PluginManagerInterface*             plugin_manager;
     ProfileManagerInterface*            profile_manager;
     SettingsManagerInterface*           settings_manager;
 
