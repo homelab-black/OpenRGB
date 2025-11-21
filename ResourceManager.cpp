@@ -2108,16 +2108,6 @@ bool ResourceManager::IsAnyDimmDetectorEnabled(json &detector_settings)
     return false;
 }
 
-void ResourceManager::RegisterNetworkPlugin(OpenRGBNetworkPlugin plugin)
-{
-    server->RegisterPlugin(plugin);
-}
-
-void ResourceManager::UnregisterNetworkPlugin(std::string plugin_name)
-{
-    server->UnregisterPlugin(plugin_name);
-}
-
 bool ResourceManager::IsLocalClient()
 {
     return(auto_connection_active);
