@@ -15,7 +15,6 @@
 #include "i2c_smbus.h"
 #include "filesystem.h"
 
-struct OpenRGBNetworkPlugin;
 class PluginManagerInterface;
 class ProfileManager;
 class RGBController;
@@ -60,9 +59,6 @@ public:
 
     virtual void                                UpdateDeviceList()                                                                                  = 0;
     virtual void                                WaitForDeviceDetection()                                                                            = 0;
-
-    virtual void                                RegisterNetworkPlugin(OpenRGBNetworkPlugin plugin)                                                  = 0;
-    virtual void                                UnregisterNetworkPlugin(std::string plugin_name)                                                    = 0;
 
 protected:
     virtual                                    ~ResourceManagerInterface() {};

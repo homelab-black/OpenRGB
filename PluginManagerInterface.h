@@ -16,10 +16,18 @@
 class PluginManagerInterface
 {
 public:
-    virtual void LoadPlugins()                                  = 0;
-    virtual void UnloadPlugins()                                = 0;
+    virtual unsigned int    GetPluginCount()                                    = 0;
+    virtual std::string     GetPluginDescription(unsigned int plugin_idx)       = 0;
+    virtual std::string     GetPluginName(unsigned int plugin_idx)              = 0;
+    virtual unsigned int    GetPluginProtocolVersion(unsigned int plugin_idx)   = 0;
+    virtual std::string     GetPluginVersion(unsigned int plugin_idx)           = 0;
 
-    virtual void OnProfileAboutToLoad()                         = 0;
-    virtual void OnProfileLoad(nlohmann::json profile_data)     = 0;
-    virtual nlohmann::json OnProfileSave()                      = 0;
+    virtual void            LoadPlugins()                                       = 0;
+    virtual void            UnloadPlugins()                                     = 0;
+
+    virtual void            OnProfileAboutToLoad()                              = 0;
+    virtual void            OnProfileLoad(nlohmann::json profile_data)          = 0;
+    virtual nlohmann::json  OnProfileSave()                                     = 0;
+
+    virtual unsigned char * OnSDKCommand(unsigned int plugin_idx, unsigned int pkt_id, unsigned char * pkt_data, unsigned int * pkt_size) = 0;
 };

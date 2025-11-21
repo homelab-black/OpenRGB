@@ -862,21 +862,17 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
                 break;
 
             case NET_PACKET_ID_PLUGINMANAGER_PLUGIN_SPECIFIC:
+                if(plugin_manager)
                 {
-                    unsigned int plugin_pkt_type = *((unsigned int*)(data));
-                    unsigned int plugin_pkt_size = header.pkt_size - (sizeof(unsigned int));
-                    unsigned char* plugin_data = (unsigned char*)(data + sizeof(unsigned int));
+                    unsigned int    plugin_pkt_id   = *((unsigned int*)(data));
+                    unsigned int    plugin_pkt_size = header.pkt_size - (sizeof(unsigned int));
+                    unsigned char*  plugin_data     = (unsigned char*)(data + sizeof(unsigned int));
+                    unsigned char*  output          = plugin_manager->OnSDKCommand(header.pkt_dev_idx, plugin_pkt_id, plugin_data, &plugin_pkt_size);
 
-                    if(header.pkt_dev_idx < plugins.size())
+                    if(output != nullptr)
                     {
-                        OpenRGBNetworkPlugin plugin = plugins[header.pkt_dev_idx];
-                        unsigned char* output = plugin.callback(plugin.callback_arg, plugin_pkt_type, plugin_data, &plugin_pkt_size);
-                        if(output != nullptr)
-                        {
-                            SendReply_PluginSpecific(client_sock, plugin_pkt_type, output, plugin_pkt_size);
-                        }
+                        SendReply_PluginSpecific(client_sock, plugin_pkt_id, output, plugin_pkt_size);
                     }
-                    break;
                 }
                 break;
 
@@ -1291,7 +1287,7 @@ void NetworkServer::SendReply_PluginList(SOCKET client_sock)
     /*---------------------------------------------------------*\
     | Calculate data size                                       |
     \*---------------------------------------------------------*/
-    unsigned short num_plugins = (unsigned short)plugins.size();
+    unsigned short num_plugins = (unsigned short)plugin_manager->GetPluginCount();
 
     data_size += sizeof(data_size);
     data_size += sizeof(num_plugins);
@@ -1299,9 +1295,9 @@ void NetworkServer::SendReply_PluginList(SOCKET client_sock)
     for(unsigned int i = 0; i < num_plugins; i++)
     {
         data_size += sizeof(unsigned short) * 3;
-        data_size += (unsigned int)strlen(plugins[i].name.c_str()) + 1;
-        data_size += (unsigned int)strlen(plugins[i].description.c_str()) + 1;
-        data_size += (unsigned int)strlen(plugins[i].version.c_str()) + 1;
+        data_size += (unsigned int)strlen(plugin_manager->GetPluginName(i).c_str()) + 1;
+        data_size += (unsigned int)strlen(plugin_manager->GetPluginDescription(i).c_str()) + 1;
+        data_size += (unsigned int)strlen(plugin_manager->GetPluginVersion(i).c_str()) + 1;
         data_size += sizeof(unsigned int) * 2;
     }
 
@@ -1327,34 +1323,34 @@ void NetworkServer::SendReply_PluginList(SOCKET client_sock)
         /*---------------------------------------------------------*\
         | Copy in plugin name (size+data)                           |
         \*---------------------------------------------------------*/
-        unsigned short str_len = (unsigned short)strlen(plugins[i].name.c_str()) + 1;
+        unsigned short str_len = (unsigned short)strlen(plugin_manager->GetPluginName(i).c_str()) + 1;
 
         memcpy(&data_buf[data_ptr], &str_len, sizeof(unsigned short));
         data_ptr += sizeof(unsigned short);
 
-        strcpy((char *)&data_buf[data_ptr], plugins[i].name.c_str());
+        strcpy((char *)&data_buf[data_ptr], plugin_manager->GetPluginName(i).c_str());
         data_ptr += str_len;
 
         /*---------------------------------------------------------*\
         | Copy in plugin description (size+data)                    |
         \*---------------------------------------------------------*/
-        str_len = (unsigned short)strlen(plugins[i].description.c_str()) + 1;
+        str_len = (unsigned short)strlen(plugin_manager->GetPluginDescription(i).c_str()) + 1;
 
         memcpy(&data_buf[data_ptr], &str_len, sizeof(unsigned short));
         data_ptr += sizeof(unsigned short);
 
-        strcpy((char *)&data_buf[data_ptr], plugins[i].description.c_str());
+        strcpy((char *)&data_buf[data_ptr], plugin_manager->GetPluginDescription(i).c_str());
         data_ptr += str_len;
 
         /*---------------------------------------------------------*\
         | Copy in plugin version (size+data)                        |
         \*---------------------------------------------------------*/
-        str_len = (unsigned short)strlen(plugins[i].version.c_str()) + 1;
+        str_len = (unsigned short)strlen(plugin_manager->GetPluginVersion(i).c_str()) + 1;
 
         memcpy(&data_buf[data_ptr], &str_len, sizeof(unsigned short));
         data_ptr += sizeof(unsigned short);
 
-        strcpy((char *)&data_buf[data_ptr], plugins[i].version.c_str());
+        strcpy((char *)&data_buf[data_ptr], plugin_manager->GetPluginVersion(i).c_str());
         data_ptr += str_len;
 
         /*---------------------------------------------------------*\
@@ -1366,7 +1362,8 @@ void NetworkServer::SendReply_PluginList(SOCKET client_sock)
         /*---------------------------------------------------------*\
         | Copy in plugin sdk version (data)                         |
         \*---------------------------------------------------------*/
-        memcpy(&data_buf[data_ptr], &plugins[i].protocol_version, sizeof(unsigned int));
+        unsigned int protocol_version = plugin_manager->GetPluginProtocolVersion(i);
+        memcpy(&data_buf[data_ptr], &protocol_version, sizeof(unsigned int));
         data_ptr += sizeof(unsigned int);
     }
 
@@ -1385,15 +1382,15 @@ void NetworkServer::SendReply_PluginList(SOCKET client_sock)
     delete [] data_buf;
 }
 
-void NetworkServer::SendReply_PluginSpecific(SOCKET client_sock, unsigned int pkt_type, unsigned char* data, unsigned int data_size)
+void NetworkServer::SendReply_PluginSpecific(SOCKET client_sock, unsigned int pkt_id, unsigned char* data, unsigned int data_size)
 {
     NetPacketHeader reply_hdr;
 
-    InitNetPacketHeader(&reply_hdr, 0, NET_PACKET_ID_PLUGINMANAGER_PLUGIN_SPECIFIC, data_size + sizeof(pkt_type));
+    InitNetPacketHeader(&reply_hdr, 0, NET_PACKET_ID_PLUGINMANAGER_PLUGIN_SPECIFIC, data_size + sizeof(pkt_id));
 
     send_in_progress.lock();
     send(client_sock, (const char *)&reply_hdr, sizeof(NetPacketHeader), 0);
-    send(client_sock, (const char *)&pkt_type, sizeof(pkt_type), 0);
+    send(client_sock, (const char *)&pkt_id, sizeof(pkt_id), 0);
     send(client_sock, (const char *)data, data_size, 0);
     send_in_progress.unlock();
 
@@ -1408,21 +1405,4 @@ void NetworkServer::SetProfileManager(ProfileManagerInterface* profile_manager_p
 void NetworkServer::SetSettingsManager(SettingsManagerInterface* settings_manager_pointer)
 {
     settings_manager = settings_manager_pointer;
-}
-
-void NetworkServer::RegisterPlugin(OpenRGBNetworkPlugin plugin)
-{
-    plugins.push_back(plugin);
-}
-
-void NetworkServer::UnregisterPlugin(std::string plugin_name)
-{
-    for(std::vector<OpenRGBNetworkPlugin>::iterator it = plugins.begin(); it != plugins.end(); it++)
-    {
-        if(it->name == plugin_name)
-        {
-            plugins.erase(it);
-            break;
-        }
-    }
 }

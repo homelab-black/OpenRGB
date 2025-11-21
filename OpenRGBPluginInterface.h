@@ -16,7 +16,6 @@
 #include <QLabel>
 #include <QMenu>
 #include "nlohmann/json.hpp"
-#include "OpenRGBNetworkPluginInterface.h"
 #include "ResourceManagerInterface.h"
 
 #define OpenRGBPluginInterface_IID  "com.OpenRGBPluginInterface"
@@ -64,6 +63,11 @@ struct OpenRGBPluginInfo
     std::string                 Label;          /* Plugin tab label string                             */
     std::string                 TabIconString;  /* Plugin tab icon string, leave empty to use custom   */
     QImage                      TabIcon;        /* Custom tab icon image (displayed 16x16)             */
+
+    /*-----------------------------------------------------*\
+    | Plugin SDK Details                                    |
+    \*-----------------------------------------------------*/
+    unsigned int                ProtocolVersion;/* Plugin SDK protocol version                         */
 };
 
 class OpenRGBPluginInterface
@@ -87,6 +91,7 @@ public:
     virtual void                OnProfileLoad(nlohmann::json profile_data)                          = 0;
     virtual nlohmann::json      OnProfileSave()                                                     = 0;
     virtual void                Unload()                                                            = 0;
+    virtual unsigned char*      OnSDKCommand(unsigned int pkt_id, unsigned char * pkt_data, unsigned int *pkt_size)      = 0;
 };
 
 Q_DECLARE_INTERFACE(OpenRGBPluginInterface, OpenRGBPluginInterface_IID)

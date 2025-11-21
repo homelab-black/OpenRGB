@@ -198,9 +198,6 @@ public:
     void WaitForInitialization();
     void WaitForDeviceDetection();
 
-    void RegisterNetworkPlugin(OpenRGBNetworkPlugin plugin);
-    void UnregisterNetworkPlugin(std::string plugin_name);
-
     bool IsLocalClient();
     NetworkClient* GetLocalClient();
 

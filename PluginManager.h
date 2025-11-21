@@ -40,6 +40,12 @@ class PluginManager : public PluginManagerInterface
 public:
     PluginManager();
 
+    unsigned int    GetPluginCount();
+    std::string     GetPluginDescription(unsigned int plugin_idx);
+    std::string     GetPluginName(unsigned int plugin_idx);
+    unsigned int    GetPluginProtocolVersion(unsigned int plugin_idx);
+    std::string     GetPluginVersion(unsigned int plugin_idx);
+
     void RegisterAddPluginCallback(AddPluginCallback new_callback, void * new_callback_arg);
     void RegisterRemovePluginCallback(RemovePluginCallback new_callback, void * new_callback_arg);
 
@@ -57,6 +63,8 @@ public:
     void OnProfileAboutToLoad();
     void OnProfileLoad(nlohmann::json profile_data);
     nlohmann::json OnProfileSave();
+
+    unsigned char * OnSDKCommand(unsigned int plugin_idx, unsigned int pkt_id, unsigned char * pkt_data, unsigned int * pkt_size);
 
     std::vector<OpenRGBPluginEntry> ActivePlugins;
 
