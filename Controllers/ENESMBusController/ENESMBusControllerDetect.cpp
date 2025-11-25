@@ -475,6 +475,7 @@ REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC",                
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC BTF",                    DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL LC GeForce RTX 5090 OC",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING,        0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG MATRIX PLATINUM GeForce RTX 5090",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_MATRIX_PLATINUM_RTX_5090_P32G,         0x67);
 
 /*-----------------------------------------*\
 |  AMD GPUs                                 |
@@ -502,4 +503,5 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming OC",               
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming White OC",                 DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI32_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7800XT_O16G_WHITE_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XT_020G_GAMING,                 0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XTX Gaming OC",                      DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XTX_O24G_GAMING,                0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 9070 Gaming OC",                          DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI48_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_9070_016G_GAMING,                   0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 9070 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI48_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_9070XT_016G_GAMING,                 0x67);

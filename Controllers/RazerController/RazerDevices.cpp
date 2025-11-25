@@ -1852,6 +1852,41 @@ static const razer_device blackwidow_v4_pro_75_wired_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Blackwidow V4 75% (Wired) 1532:02A5                    |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       6 Rows, 18 Columns                                      |
+\*-------------------------------------------------------------*/
+static const razer_zone blackwidow_v4_75_wired_zone =
+{
+    ZONE_EN_KEYBOARD,
+    ZONE_TYPE_MATRIX,
+    6,
+    18
+};
+
+static const razer_device blackwidow_v4_75_wired_device =
+{
+    "Razer Blackwidow V4 75% (Wired)",
+    RAZER_BLACKWIDOW_V4_75_WIRED_PID,
+    DEVICE_TYPE_KEYBOARD,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x1F,
+    6,
+    18,
+    {
+        &blackwidow_v4_75_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    &razer_blackwidow_v4_pro_75_wired_layout
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Blackwidow V4 X 1532:0293                              |
 |                                                               |
 |  Zone "Keyboard"                                              |
@@ -7702,6 +7737,41 @@ static const razer_device kraken_kitty_black_v2_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Kraken V3 HyperSense 1532:0533                         |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v3_hs_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_v3_hs_device =
+{
+    "Razer Kraken V3 HyperSense",
+    RAZER_KRAKEN_V3_HYPERSENSE_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &kraken_v3_hs_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Kraken V3 X 1532:0537                                  |
 |                                                               |
 |  Zone "Headset"                                               |
@@ -7727,6 +7797,41 @@ static const razer_device kraken_v3_x_device =
     1,
     {
         &kraken_v3_x_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken V3 1532:0549                                    |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v3_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_v3_device =
+{
+    "Razer Kraken V3",
+    RAZER_KRAKEN_V3_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &kraken_v3_zone,
         NULL,
         NULL,
         NULL,
@@ -8922,6 +9027,7 @@ const razer_device* razer_device_list[] =
     &blackwidow_v4_device,
     &blackwidow_v4_pro_device,
     &blackwidow_v4_pro_75_wired_device,
+    &blackwidow_v4_75_wired_device,
     &blackwidow_v4_x_device,
     &blackwidow_x_chroma_device,
     &blackwidow_x_chroma_te_device,
@@ -9076,7 +9182,9 @@ const razer_device* razer_device_list[] =
     &kraken_ultimate_device,
     &kraken_kitty_device,
     &kraken_kitty_black_v2_device,
+    &kraken_v3_hs_device,
     &kraken_v3_x_device,
+    &kraken_v3_device,
     &kraken_v4_wired_device,
     &kraken_v4_wireless_device,
     &kraken_kitty_v3_pro_wired_device,

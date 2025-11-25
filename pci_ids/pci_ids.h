@@ -363,6 +363,7 @@
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF        0x8A3C
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE      0x8A2E
 #define ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING         0x89EC
+#define ASUS_ROG_MATRIX_PLATINUM_RTX_5090_P32G          0x8A61
 #define ASUS_TUF_RTX_5090_O32G_GAMING                   0x89EE
 #define ASUS_TUF_RTX_5090_32G_GAMING                    0x89EF
 #define ASUS_AREZ_STRIX_VEGA56_08G_GAMING               0x0555
@@ -404,6 +405,7 @@
 #define ASUS_TUF_RX_7800XT_O16G_WHITE_GAMING            0x0601
 #define ASUS_TUF_RX_7900XT_020G_GAMING                  0x05ED
 #define ASUS_TUF_RX_7900XTX_O24G_GAMING                 0x0506
+#define ASUS_TUF_RX_9070_016G_GAMING                    0x0614
 #define ASUS_TUF_RX_9070XT_016G_GAMING                  0x0613
 
 /*-----------------------------------------------------*\
@@ -880,6 +882,7 @@
 #define PALIT_RTX5060TI_WHITE_OC_16G_SUB_DEV            0xF330
 #define PALIT_RTX5070_GAMINGPRO_SUB_DEV                 0xF324
 #define PALIT_RTX5070TI_GAMINGPRO_SUB_DEV               0xF322
+#define PALIT_RTX5080_GAMINGPRO_SUB_DEV                 0xF320
 #define PALIT_RTX5090_GAMEROCK_SUB_DEV                  0xF318
 
 /*-----------------------------------------------------*\
