@@ -456,17 +456,14 @@ void RGBController_YunziiYZ75Keyboard::ResizeZone(int /*zone*/, int /*new_size*/
 
 void RGBController_YunziiYZ75Keyboard::DeviceUpdateLEDs()
 {
-    DeviceUpdateMode();
 }
 
 void RGBController_YunziiYZ75Keyboard::UpdateZoneLEDs(int /*zone*/)
 {
-    DeviceUpdateLEDs();
 }
 
 void RGBController_YunziiYZ75Keyboard::UpdateSingleLED(int /*led*/)
 {
-    DeviceUpdateLEDs();
 }
 
 void RGBController_YunziiYZ75Keyboard::DeviceUpdateMode()
