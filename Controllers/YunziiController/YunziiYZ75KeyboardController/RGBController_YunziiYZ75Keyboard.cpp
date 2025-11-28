@@ -52,18 +52,15 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Off.value                               = YUNZII_KEYBOARD_MODE_NONE;
     modes.push_back(Off);
     
-    mode On;
-    On.name                                 = "Always On";
-    On.flags                                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
-    On.color_mode                           = MODE_COLORS_RANDOM;
-    On.colors_min                           = 1;
-    On.colors_max                           = 1;
-    On.colors.resize(1, ToRGBColor(255, 0, 0));
-    On.brightness_min                       = 0;
-    On.brightness_max                       = 4;
-    On.brightness                           = 2;
-    On.value                                = YUNZII_KEYBOARD_MODE_ALWAYS_ON;
-    modes.push_back(On);
+    mode Custom;
+    Custom.name                             = "Custom";
+    Custom.flags                            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
+    Custom.color_mode                       = MODE_COLORS_PER_LED;
+    Custom.brightness_min                   = 0;
+    Custom.brightness_max                   = 4;
+    Custom.brightness                       = 2;
+    Custom.value                            = YUNZII_KEYBOARD_MODE_ALWAYS_ON;
+    modes.push_back(Custom);
 
     mode DynamicBreathing;
     DynamicBreathing.name                   = "Dynamic Breathing";
@@ -350,18 +347,15 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     StripOff.value                          = YUNZII_KEYBOARD_MODE_STRIP_NONE;
     modes.push_back(StripOff);
 
-    mode StripOn;
-    StripOn.name                            = "Always On (Strip)";
-    StripOn.flags                           = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
-    StripOn.color_mode                      = MODE_COLORS_RANDOM;
-    StripOn.colors_min                      = 1;
-    StripOn.colors_max                      = 1;
-    StripOn.colors.resize(1, ToRGBColor(255, 0, 0));
-    StripOn.brightness_min                  = 0;
-    StripOn.brightness_max                  = 4;
-    StripOn.brightness                      = 2;
-    StripOn.value                           = YUNZII_KEYBOARD_MODE_STRIP_ALWAYS_ON;
-    modes.push_back(StripOn);
+    mode StripCustom;
+    StripCustom.name                        = "Custom (Strip)";
+    StripCustom.flags                       = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
+    StripCustom.color_mode                  = MODE_COLORS_PER_LED;
+    StripCustom.brightness_min              = 0;
+    StripCustom.brightness_max              = 4;
+    StripCustom.brightness                  = 2;
+    StripCustom.value                       = YUNZII_KEYBOARD_MODE_STRIP_ALWAYS_ON;
+    modes.push_back(StripCustom);
 
     mode Breath;
     Breath.name                             = "Breath (Strip)";
@@ -439,7 +433,7 @@ void RGBController_YunziiYZ75Keyboard::SetupZones()
     zones.push_back(new_zone);
 
     led new_led;
-    new_led.name = "Light";
+    new_led.name = "Keyboard LEDs";
     leds.push_back(new_led);
 
     SetupColors();
@@ -456,38 +450,69 @@ void RGBController_YunziiYZ75Keyboard::ResizeZone(int /*zone*/, int /*new_size*/
 
 void RGBController_YunziiYZ75Keyboard::DeviceUpdateLEDs()
 {
+    DeviceUpdateMode();
 }
 
 void RGBController_YunziiYZ75Keyboard::UpdateZoneLEDs(int /*zone*/)
 {
+    DeviceUpdateMode();
 }
 
 void RGBController_YunziiYZ75Keyboard::UpdateSingleLED(int /*led*/)
 {
+    DeviceUpdateMode();
 }
 
 void RGBController_YunziiYZ75Keyboard::DeviceUpdateMode()
 {
     int flags = modes[active_mode].flags;
     int value = modes[active_mode].value;
-    int speed_max = modes[active_mode].speed_max;
-    int brightness_max = modes[active_mode].brightness_max;
 
-    int speed = (flags & MODE_FLAG_HAS_SPEED) ? modes[active_mode].speed : speed_max;
-    int brightness = (flags & MODE_FLAG_HAS_BRIGHTNESS) ? modes[active_mode].brightness : brightness_max;
-    int direction = (flags & (MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD | MODE_FLAG_HAS_DIRECTION_HV)) ? modes[active_mode].direction : 0;
+    int speed = modes[active_mode].speed_max;
+    if(flags & MODE_FLAG_HAS_SPEED)
+    {
+        speed = modes[active_mode].speed;
+    }
+
+    int brightness = modes[active_mode].brightness_max;
+    if(flags & MODE_FLAG_HAS_BRIGHTNESS)
+    {
+        brightness = modes[active_mode].brightness;
+    }
+
+    int direction = 0;
+    if(flags & (MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD | MODE_FLAG_HAS_DIRECTION_HV))
+    {
+        direction = modes[active_mode].direction;
+    }
 
     int color_mode = modes[active_mode].color_mode;
-    RGBColor* colors = (color_mode == MODE_COLORS_MODE_SPECIFIC) ? &modes[active_mode].colors[0] : 0;
-    unsigned int num_colors = (color_mode == MODE_COLORS_MODE_SPECIFIC) ? 1 : 0;
-    bool use_random = (color_mode == MODE_COLORS_RANDOM) ? true : false;
 
-    if (value >= YUNZII_KEYBOARD_MODE_STRIP_NONE && value <= YUNZII_KEYBOARD_MODE_STRIP_WAVE)
+    RGBColor* color = 0;
+    int num_colors = 0;
+    if(color_mode == MODE_COLORS_PER_LED)
     {
-        controller->SetLightStripMode(value, colors, num_colors, use_random, speed, brightness, direction);
+        color = &colors[0];
+        num_colors = 1;
+    }
+    else if(color_mode == MODE_COLORS_MODE_SPECIFIC)
+    {
+        color = &modes[active_mode].colors[0];
+        num_colors = 1;
+    }
+
+    bool use_random = false;
+    if(color_mode == MODE_COLORS_RANDOM)
+    {
+        use_random = true;
+    }
+
+    if (value >= YUNZII_KEYBOARD_MODE_NONE && value <= YUNZII_KEYBOARD_MODE_THROUGH_THE_SNOW)
+    {
+        controller->SetLightMode(value, color, num_colors, use_random, speed, brightness, direction);
     }
     else
     {
-        controller->SetLightMode(value, colors, num_colors, use_random, speed, brightness, direction);
+        controller->SetLightStripMode(value, color, num_colors, use_random, speed, brightness, direction);
     }
 }

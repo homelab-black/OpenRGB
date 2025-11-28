@@ -71,26 +71,27 @@ unsigned char YunziiYZ75KeyboardController::Crc(const unsigned char data[], unsi
     return (crc & 0xFF);
 }
 
-void YunziiYZ75KeyboardController::WriteMode(unsigned char zone, unsigned char mode, unsigned char r, unsigned char g, unsigned char b, unsigned char flags, unsigned char speed, unsigned char brightness, unsigned char direction)
+void YunziiYZ75KeyboardController::WriteMode(unsigned char zone, unsigned char mode, unsigned char red, unsigned char grn, unsigned char blu, unsigned char color_mode, unsigned char speed, unsigned char brightness, unsigned char direction)
 {
     unsigned char buf[64+1];
     memset(buf, 0, sizeof(buf));
 
-    buf[0] = 0x00;              // Write
-    buf[1] = zone;              // Zone [0x07: Light, 0x08: Strip]
-    buf[2] = mode;              // Light mode
+    buf[0] = 0x00;                      // Write
+    buf[1] = zone;                      // Zone [0x07: Light, 0x08: Strip]
+    buf[2] = mode;                      // Light mode
     
-    buf[3] = speed;             // Speed
-    buf[4] = brightness;        // Brightness
-    buf[5] = flags;             // Flags: Direction | ColorMode
-                                //    ColorMode [0x7: Color, 0x8: Random]
-                                //    Direction [0x0: Right, 0x1: Left, 0x2: Down, 0x3: Up]
+    buf[3] = speed;                     // Speed
+    buf[4] = brightness;                // Brightness
 
-    buf[6] = r;                 // Red
-    buf[7] = g;                 // Green
-    buf[8] = b;                 // Blue
+    buf[5] = (color_mode & 0xF) | (direction << 4); // Direction | ColorMode
+                                                    //   ColorMode [0x7: Color, 0x8: Random]
+                                                    //   Direction [0x0: Right, 0x1: Left, 0x2: Down, 0x3: Up]
 
-    buf[9] = Crc(buf, 0, 9);    // Crc
+    buf[6] = red;                       // Red
+    buf[7] = grn;                       // Green
+    buf[8] = blu;                       // Blue
+
+    buf[9] = Crc(buf, 0, 9);            // Crc
 
     int ret = hid_send_feature_report(dev, buf, sizeof(buf));
     if(ret < 0)
@@ -165,20 +166,20 @@ void YunziiYZ75KeyboardController::SetLightMode(unsigned int mode, RGBColor* col
             break;
     }
 
-    int r = 0, g = 0, b = 0;
+    int red = 0, grn = 0, blu = 0;
     if (num_colors > 0)
     {
-        r = RGBGetRValue(colors[0]); // RGB
-        g = RGBGetGValue(colors[0]);
-        b = RGBGetBValue(colors[0]);
+        red = RGBGetRValue(colors[0]); // RGB
+        grn = RGBGetGValue(colors[0]);
+        blu = RGBGetBValue(colors[0]);
     }
     
-    int flags = use_random ? 0x08 : 0x07;               // Color mode
-    flags = (flags & 0xF) | (direction << 4);           // Direction
+    int color_mode = use_random ? 0x08 : 0x07;          // Color mode
     speed = std::max(0, std::min(speed, 4));            // Speed
     brightness = std::max(0, std::min(brightness, 4));  // Brightness
+    direction = std::max(0, std::min(direction, 3));    // Direction
 
-    this->WriteMode(zone, mode, r, g, b, flags, speed, brightness, direction);
+    this->WriteMode(zone, mode, red, grn, blu, color_mode, speed, brightness, direction);
 }
 
 
@@ -209,18 +210,18 @@ void YunziiYZ75KeyboardController::SetLightStripMode(unsigned int mode, RGBColor
             break;
     }
 
-    int r = 0, g = 0, b = 0;
+    int red = 0, grn = 0, blu = 0;
     if (num_colors > 0)
     {
-        r = RGBGetRValue(colors[0]); // RGB
-        g = RGBGetGValue(colors[0]);
-        b = RGBGetBValue(colors[0]);
+        red = RGBGetRValue(colors[0]); // RGB
+        grn = RGBGetGValue(colors[0]);
+        blu = RGBGetBValue(colors[0]);
     }
 
-    int flags = use_random ? 0x08 : 0x07;               // Color mode
-    flags = (flags & 0xF) | (direction << 4);           // Direction
+    int color_mode = use_random ? 0x08 : 0x07;          // Color mode
     speed = std::max(0, std::min(speed, 3));            // Speed
     brightness = std::max(0, std::min(brightness, 4));  // Brightness
+    direction = std::max(0, std::min(direction, 3));    // Direction
     
-    this->WriteMode(zone, mode, r, g, b, flags, speed, brightness, direction);
+    this->WriteMode(zone, mode, red, grn, blu, color_mode, speed, brightness, direction);
 }
