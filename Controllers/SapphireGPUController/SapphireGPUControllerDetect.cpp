@@ -12,6 +12,7 @@
 #include "SapphireNitroGlowV3Controller.h"
 #include "RGBController_SapphireNitroGlowV1.h"
 #include "RGBController_SapphireNitroGlowV3.h"
+#include "i2c_amd_gpu.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 
@@ -35,19 +36,13 @@ enum
 
 bool TestForSapphireGPUController(i2c_smbus_interface* bus, unsigned char address)
 {
-    bool pass = false;
-    int res;
-
-    //Read a byte to test for presence
-    res = bus->i2c_smbus_read_byte(address);
-
-    if (res >= 0)
+    if(bus->pci_vendor == AMD_GPU_VEN && !is_amd_gpu_i2c_bus(bus))
     {
-        pass = true;
+        return false;
     }
 
-    return(pass);
-
+    //Read a byte to test for presence
+    return bus->i2c_smbus_read_byte(address) >= 0;
 }   /* TestForSapphireGPUController() */
 
 /******************************************************************************************\
