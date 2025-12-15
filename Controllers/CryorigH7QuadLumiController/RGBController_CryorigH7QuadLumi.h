@@ -20,6 +20,7 @@ public:
     RGBController_CryorigH7QuadLumi(CryorigH7QuadLumiController* controller_ptr);
     ~RGBController_CryorigH7QuadLumi();
 
+    void        SetupModes();
     void        SetupZones();
 
     void        DeviceUpdateLEDs();
