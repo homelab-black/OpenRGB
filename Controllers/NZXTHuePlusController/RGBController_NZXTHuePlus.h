@@ -21,7 +21,9 @@ public:
     RGBController_HuePlus(HuePlusController* controller_ptr);
     ~RGBController_HuePlus();
 
+    void        SetupModes();
     void        SetupZones();
+
     void        DeviceResizeZone(int zone, int new_size);
 
     void        DeviceUpdateLEDs();
