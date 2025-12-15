@@ -20,7 +20,9 @@ public:
     RGBController_NZXTHue2(NZXTHue2Controller* controller_ptr);
     ~RGBController_NZXTHue2();
 
+    void        SetupModes();
     void        SetupZones();
+
     void        DeviceResizeZone(int zone, int new_size);
 
     void        DeviceUpdateLEDs();
