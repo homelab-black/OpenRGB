@@ -20,6 +20,7 @@ public:
     RGBController_CorsairLightingNode(CorsairLightingNodeController* controller_ptr);
     ~RGBController_CorsairLightingNode();
 
+    void        SetupModes();
     void        SetupZones();
 
     void        DeviceResizeZone(int zone, int new_size);
