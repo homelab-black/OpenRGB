@@ -34,6 +34,23 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     location    = controller->GetLocationString();
     serial      = controller->GetSerialString();
 
+    SetupZones();
+    SetupModes();
+}
+
+RGBController_CorsairLightingNode::~RGBController_CorsairLightingNode()
+{
+    delete controller;
+}
+
+void RGBController_CorsairLightingNode::SetupModes()
+{
+    /*-----------------------------------------------------*\
+    | Modes can be set per zone, but brightness is set      |
+    | globally.  Remove the HAS_BRIGHTNESS flag for each    |
+    | mode when setting up the per-zone modes.              |
+    \*-----------------------------------------------------*/
+
     mode Direct;
     Direct.name           = "Direct";
     Direct.value          = 0xFFFF;
@@ -55,6 +72,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     RainbowWave.brightness     = 100;
     modes.push_back(RainbowWave);
 
+    RainbowWave.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(RainbowWave);
+    }
+
     mode ColorShift;
     ColorShift.name           = "Color Shift";
     ColorShift.value          = CORSAIR_LIGHTING_NODE_MODE_COLOR_SHIFT;
@@ -71,6 +94,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     ColorShift.brightness     = 100;
     modes.push_back(ColorShift);
 
+    ColorShift.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(ColorShift);
+    }
+
     mode ColorPulse;
     ColorPulse.name           = "Color Pulse";
     ColorPulse.value          = CORSAIR_LIGHTING_NODE_MODE_COLOR_PULSE;
@@ -86,6 +115,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     ColorPulse.brightness_max = 100;
     ColorPulse.brightness     = 100;
     modes.push_back(ColorPulse);
+
+    ColorPulse.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(ColorPulse);
+    }
 
     mode ColorWave;
     ColorWave.name           = "Color Wave";
@@ -104,6 +139,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     ColorWave.brightness     = 100;
     modes.push_back(ColorWave);
 
+    ColorWave.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(ColorWave);
+    }
+
     mode Static;
     Static.name           = "Static";
     Static.value          = CORSAIR_LIGHTING_NODE_MODE_STATIC;
@@ -117,6 +158,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Static.brightness     = 100;
     modes.push_back(Static);
 
+    Static.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Static);
+    }
+
     mode Temperature;
     Temperature.name           = "Temperature";
     Temperature.value          = CORSAIR_LIGHTING_NODE_MODE_TEMPERATURE;
@@ -129,6 +176,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Temperature.brightness_max = 100;
     Temperature.brightness     = 100;
     modes.push_back(Temperature);
+
+    Temperature.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Temperature);
+    }
 
     mode Visor;
     Visor.name           = "Visor";
@@ -145,6 +198,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Visor.brightness_max = 100;
     Visor.brightness     = 100;
     modes.push_back(Visor);
+
+    Visor.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Visor);
+    }
 
     mode Marquee;
     Marquee.name           = "Marquee";
@@ -163,6 +222,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Marquee.brightness     = 100;
     modes.push_back(Marquee);
 
+    Marquee.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Marquee);
+    }
+
     mode Blink;
     Blink.name           = "Blink";
     Blink.value          = CORSAIR_LIGHTING_NODE_MODE_BLINK;
@@ -178,6 +243,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Blink.brightness_max = 100;
     Blink.brightness     = 100;
     modes.push_back(Blink);
+
+    Blink.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Blink);
+    }
 
     mode Sequential;
     Sequential.name           = "Sequential";
@@ -196,6 +267,12 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Sequential.brightness     = 100;
     modes.push_back(Sequential);
 
+    Sequential.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Sequential);
+    }
+
     mode Rainbow;
     Rainbow.name           = "Rainbow";
     Rainbow.value          = CORSAIR_LIGHTING_NODE_MODE_RAINBOW;
@@ -209,12 +286,11 @@ RGBController_CorsairLightingNode::RGBController_CorsairLightingNode(CorsairLigh
     Rainbow.brightness     = 100;
     modes.push_back(Rainbow);
 
-    SetupZones();
-}
-
-RGBController_CorsairLightingNode::~RGBController_CorsairLightingNode()
-{
-    delete controller;
+    Rainbow.flags         &= ~MODE_FLAG_HAS_BRIGHTNESS;
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        zones[zone_idx].modes.push_back(Rainbow);
+    }
 }
 
 void RGBController_CorsairLightingNode::SetupZones()
@@ -325,32 +401,69 @@ void RGBController_CorsairLightingNode::DeviceUpdateMode()
     }
     else
     {
-        for(int channel = 0; channel < CORSAIR_LIGHTING_NODE_NUM_CHANNELS; channel++)
+        for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
         {
-            unsigned int direction = 0;
-            bool random = (modes[active_mode].color_mode == MODE_COLORS_RANDOM);
+            DeviceUpdateZoneMode(zone_idx);
+        }
+    }
 
-            if(modes[active_mode].direction == MODE_DIRECTION_RIGHT)
+    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+    {
+        controller->SetBrightness(modes[active_mode].brightness);
+    }
+    else
+    {
+        controller->SetBrightness(100);
+    }
+}
+
+void RGBController_CorsairLightingNode::DeviceUpdateZoneMode(int zone)
+{
+    if(modes[active_mode].value == 0xFFFF)
+    {
+        return;
+    }
+    else
+    {
+        unsigned int    direction   = 0;
+        mode*           mode_ptr    = NULL;
+        bool            random      = false;
+
+        if((zones[zone].active_mode >= 0) && (zones[zone].active_mode < (int)zones[zone].modes.size()))
+        {
+            mode_ptr = &zones[zone].modes[zones[zone].active_mode];
+        }
+        else if(active_mode < (int)modes.size())
+        {
+            mode_ptr = &modes[active_mode];
+        }
+
+        if(mode_ptr != NULL)
+        {
+            random = (mode_ptr->color_mode == MODE_COLORS_RANDOM);
+
+            if(mode_ptr->direction == MODE_DIRECTION_RIGHT)
             {
                 direction = 1;
             }
 
             unsigned char mode_colors[9];
+            memset(mode_colors, 0, sizeof(mode_colors));
 
-            if(modes[active_mode].color_mode == MODE_COLORS_MODE_SPECIFIC)
+            if(mode_ptr->color_mode == MODE_COLORS_MODE_SPECIFIC)
             {
-                for(std::size_t i = 0; i < modes[active_mode].colors.size(); i++)
+                for(std::size_t i = 0; i < mode_ptr->colors.size(); i++)
                 {
-                    mode_colors[(3 * i) + 0] = RGBGetRValue(modes[active_mode].colors[i]);
-                    mode_colors[(3 * i) + 1] = RGBGetGValue(modes[active_mode].colors[i]);
-                    mode_colors[(3 * i) + 2] = RGBGetBValue(modes[active_mode].colors[i]);
+                    mode_colors[(3 * i) + 0] = RGBGetRValue(mode_ptr->colors[i]);
+                    mode_colors[(3 * i) + 1] = RGBGetGValue(mode_ptr->colors[i]);
+                    mode_colors[(3 * i) + 2] = RGBGetBValue(mode_ptr->colors[i]);
                 }
             }
 
-            controller->SetChannelEffect(channel,
-                                         zones[channel].leds_count,
-                                         modes[active_mode].value,
-                                         modes[active_mode].speed,
+            controller->SetChannelEffect(zone,
+                                         zones[zone].leds_count,
+                                         mode_ptr->value,
+                                         mode_ptr->speed,
                                          direction,
                                          random,
                                          mode_colors[0],
@@ -363,14 +476,5 @@ void RGBController_CorsairLightingNode::DeviceUpdateMode()
                                          mode_colors[7],
                                          mode_colors[8]);
         }
-    }
-
-    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
-    {
-        controller->SetBrightness(modes[active_mode].brightness);
-    }
-    else
-    {
-        controller->SetBrightness(100);
     }
 }
