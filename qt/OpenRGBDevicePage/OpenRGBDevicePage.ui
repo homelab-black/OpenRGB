@@ -290,7 +290,7 @@
       <item row="0" column="3">
        <widget class="QPushButton" name="EditZoneButton">
         <property name="text">
-         <string>Edit</string>
+         <string>Edit Zone</string>
         </property>
        </widget>
       </item>
