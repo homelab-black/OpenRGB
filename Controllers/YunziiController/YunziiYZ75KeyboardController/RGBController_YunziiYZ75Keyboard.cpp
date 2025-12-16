@@ -52,7 +52,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     
     mode Custom;
     Custom.name                             = "Custom";
-    Custom.flags                            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Custom.flags                            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Custom.color_mode                       = MODE_COLORS_PER_LED;
     Custom.brightness_min                   = 0;
     Custom.brightness_max                   = 4;
@@ -62,7 +62,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode DynamicBreathing;
     DynamicBreathing.name                   = "Dynamic Breathing";
-    DynamicBreathing.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    DynamicBreathing.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     DynamicBreathing.color_mode             = MODE_COLORS_RANDOM;
     DynamicBreathing.colors_min             = 1;
     DynamicBreathing.colors_max             = 1;
@@ -78,7 +78,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode SpectrumCycle;
     SpectrumCycle.name                      = "Spectrum Cycle";
-    SpectrumCycle.flags                     = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    SpectrumCycle.flags                     = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     SpectrumCycle.color_mode                = MODE_COLORS_NONE;
     SpectrumCycle.speed_min                 = 4;
     SpectrumCycle.speed_max                 = 0;
@@ -91,7 +91,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Drift;
     Drift.name                              = "Drift";
-    Drift.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_UD | MODE_FLAG_HAS_DIRECTION_LR;
+    Drift.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_UD | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     Drift.color_mode                        = MODE_COLORS_RANDOM;
     Drift.colors_min                        = 1;
     Drift.colors_max                        = 1;
@@ -108,7 +108,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Ripple;
     Ripple.name                             = "Ripple";
-    Ripple.flags                            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Ripple.flags                            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Ripple.color_mode                       = MODE_COLORS_RANDOM;
     Ripple.colors_min                       = 1;
     Ripple.colors_max                       = 1;
@@ -124,7 +124,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode StarsTwinkly;
     StarsTwinkly.name                       = "Stars Twinkly";
-    StarsTwinkly.flags                      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    StarsTwinkly.flags                      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     StarsTwinkly.color_mode                 = MODE_COLORS_RANDOM;
     StarsTwinkly.colors_min                 = 1;
     StarsTwinkly.colors_max                 = 1;
@@ -140,7 +140,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode SteadyStream;
     SteadyStream.name                       = "Steady Stream";
-    SteadyStream.flags                      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
+    SteadyStream.flags                      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     SteadyStream.color_mode                 = MODE_COLORS_RANDOM;
     SteadyStream.colors_min                 = 1;
     SteadyStream.colors_max                 = 1;
@@ -157,7 +157,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     
     mode Shadowing;
     Shadowing.name                          = "Shadowing";
-    Shadowing.flags                         = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Shadowing.flags                         = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Shadowing.color_mode                    = MODE_COLORS_RANDOM;
     Shadowing.colors_min                    = 1;
     Shadowing.colors_max                    = 1;
@@ -173,7 +173,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode PeaksRising;
     PeaksRising.name                        = "Peaks Rising";
-    PeaksRising.flags                       = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    PeaksRising.flags                       = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     PeaksRising.color_mode                  = MODE_COLORS_RANDOM;
     PeaksRising.colors_min                  = 1;
     PeaksRising.colors_max                  = 1;
@@ -189,7 +189,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Sinewave;
     Sinewave.name                           = "Sine Wave";
-    Sinewave.flags                          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Sinewave.flags                          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Sinewave.color_mode                     = MODE_COLORS_RANDOM;
     Sinewave.colors_min                     = 1;
     Sinewave.colors_max                     = 1;
@@ -205,7 +205,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode CaispringSurging;
     CaispringSurging.name                   = "Caispring Surging";
-    CaispringSurging.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
+    CaispringSurging.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     CaispringSurging.color_mode             = MODE_COLORS_RANDOM;
     CaispringSurging.colors_min             = 1;
     CaispringSurging.colors_max             = 1;
@@ -222,7 +222,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode FlowersBlooming;
     FlowersBlooming.name                    = "Flowers Blooming";
-    FlowersBlooming.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
+    FlowersBlooming.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     FlowersBlooming.color_mode              = MODE_COLORS_RANDOM;
     FlowersBlooming.colors_min              = 1;
     FlowersBlooming.colors_max              = 1;
@@ -239,7 +239,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Laser;
     Laser.name                              = "Laser";
-    Laser.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Laser.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE | MODE_FLAG_AUTOMATIC_SAVE;
     Laser.color_mode                        = MODE_COLORS_RANDOM;
     Laser.colors_min                        = 1;
     Laser.colors_max                        = 1;
@@ -255,7 +255,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode PeakTurn;
     PeakTurn.name                           = "PeakTurn";
-    PeakTurn.flags                          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
+    PeakTurn.flags                          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     PeakTurn.color_mode                     = MODE_COLORS_RANDOM;
     PeakTurn.colors_min                     = 1;
     PeakTurn.colors_max                     = 1;
@@ -272,7 +272,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Wave;
     Wave.name                               = "Wave";
-    Wave.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Wave.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Wave.color_mode                         = MODE_COLORS_RANDOM;
     Wave.colors_min                         = 1;
     Wave.colors_max                         = 1;
@@ -288,7 +288,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Neon;
     Neon.name                               = "Neon";
-    Neon.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Neon.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Neon.color_mode                         = MODE_COLORS_RANDOM;
     Neon.colors_min                         = 1;
     Neon.colors_max                         = 1;
@@ -304,7 +304,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode Snake;
     Snake.name                              = "Snake";
-    Snake.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Snake.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Snake.color_mode                        = MODE_COLORS_RANDOM;
     Snake.colors_min                        = 1;
     Snake.colors_max                        = 1;
@@ -320,7 +320,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
 
     mode ThroughSnow;
     ThroughSnow.name                        = "Through the Snow";
-    ThroughSnow.flags                       = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    ThroughSnow.flags                       = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     ThroughSnow.color_mode                  = MODE_COLORS_RANDOM;
     ThroughSnow.colors_min                  = 1;
     ThroughSnow.colors_max                  = 1;
@@ -436,7 +436,10 @@ void RGBController_YunziiYZ75Keyboard::DeviceUpdateMode()
     // Keyboard zone
     controller->SetLightMode(value, color, use_random, speed, brightness, direction);
     
-    if (color) color++;
+    if(color)
+    {
+        color++;
+    }
 
     // Side zone
     controller->SetLightStripMode(value, color, use_random, speed, brightness, direction);
