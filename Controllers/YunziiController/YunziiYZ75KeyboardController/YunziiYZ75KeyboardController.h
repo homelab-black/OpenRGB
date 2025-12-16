@@ -17,34 +17,25 @@
 
 enum
 {
-    // Light modes
-    YUNZII_KEYBOARD_MODE_NONE = 0,
-    YUNZII_KEYBOARD_MODE_ALWAYS_ON,
-    YUNZII_KEYBOARD_MODE_DYNAMIC_BREATHING,
-    YUNZII_KEYBOARD_MODE_SPECTRUM_CYCLE,
-    YUNZII_KEYBOARD_MODE_DRIFT,
-    YUNZII_KEYBOARD_MODE_WAVES_RIPPLE,
-    YUNZII_KEYBOARD_MODE_STARS_TWINKLY,
-    YUNZII_KEYBOARD_MODE_STEADY_STREAM,
-    YUNZII_KEYBOARD_MODE_SHADOWING,
-    YUNZII_KEYBOARD_MODE_PEAKS_RISING,
-    YUNZII_KEYBOARD_MODE_SINE_WAVE,
-    YUNZII_KEYBOARD_MODE_CAISPRING_SURGING,
-    YUNZII_KEYBOARD_MODE_FLOWERS_BLOOMING,
-    YUNZII_KEYBOARD_MODE_LASER,
-    YUNZII_KEYBOARD_MODE_PEAK_TURN,
-    YUNZII_KEYBOARD_MODE_COLORFUL,
-    YUNZII_KEYBOARD_MODE_SNOW,
-    YUNZII_KEYBOARD_MODE_MATEOR,
-    YUNZII_KEYBOARD_MODE_THROUGH_THE_SNOW,
-
-    // Light strip modes
-    YUNZII_KEYBOARD_MODE_STRIP_NONE,
-    YUNZII_KEYBOARD_MODE_STRIP_ALWAYS_ON,
-    YUNZII_KEYBOARD_MODE_STRIP_BREATH,
-    YUNZII_KEYBOARD_MODE_STRIP_NEON,
-    YUNZII_KEYBOARD_MODE_STRIP_SNAKE,
-    YUNZII_KEYBOARD_MODE_STRIP_WAVE
+    YUNZII_MODE_OFF = 0,
+    YUNZII_MODE_ALWAYS_ON,
+    YUNZII_MODE_DYNAMIC_BREATHING,
+    YUNZII_MODE_SPECTRUM_CYCLE,
+    YUNZII_MODE_DRIFT,
+    YUNZII_MODE_RIPPLE,
+    YUNZII_MODE_STARS_TWINKLY,
+    YUNZII_MODE_STEADY_STREAM,
+    YUNZII_MODE_SHADOWING,
+    YUNZII_MODE_PEAKS_RISING,
+    YUNZII_MODE_SINE_WAVE,
+    YUNZII_MODE_CAISPRING_SURGING,
+    YUNZII_MODE_FLOWERS_BLOOMING,
+    YUNZII_MODE_LASER,
+    YUNZII_MODE_PEAK_TURN,
+    YUNZII_MODE_WAVE,
+    YUNZII_MODE_NEON,
+    YUNZII_MODE_SNAKE,
+    YUNZII_MODE_THROUGH_THE_SNOW
 };
 
 
@@ -60,8 +51,8 @@ public:
     std::string     GetSerialNumber();
     std::string     GetFirmwareVersion();
 
-    void            SetLightMode(unsigned int mode, RGBColor* colors, unsigned int num_colors, bool use_random, int speed, int brightness, int direction);
-    void            SetLightStripMode(unsigned int mode, RGBColor* colors, unsigned int num_colors, bool use_random, int speed, int brightness, int direction);
+    void            SetLightMode(unsigned int mode, RGBColor* color, bool use_random, int speed, int brightness, int direction);
+    void            SetLightStripMode(unsigned int mode, RGBColor* color, bool use_random, int speed, int brightness, int direction);
 
 protected:
     void            WriteMode(unsigned char zone, unsigned char mode, unsigned char r, unsigned char g, unsigned char b, unsigned char color_mode, unsigned char speed, unsigned char brightness, unsigned char direction);

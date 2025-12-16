@@ -83,9 +83,9 @@ void YunziiYZ75KeyboardController::WriteMode(unsigned char zone, unsigned char m
     buf[3] = speed;                     // Speed
     buf[4] = brightness;                // Brightness
 
-    buf[5] = (color_mode & 0xF) | (direction << 4); // Direction | ColorMode
-                                                    //   ColorMode [0x7: Color, 0x8: Random]
-                                                    //   Direction [0x0: Right, 0x1: Left, 0x2: Down, 0x3: Up]
+    buf[5] = (color_mode & 0xF) |       // Direction | ColorMode
+             (direction << 4);          //   ColorMode [0x7: Color, 0x8: Random]
+                                        //   Direction [0x0: Right, 0x1: Left, 0x2: Down, 0x3: Up]
 
     buf[6] = red;                       // Red
     buf[7] = grn;                       // Green
@@ -100,78 +100,78 @@ void YunziiYZ75KeyboardController::WriteMode(unsigned char zone, unsigned char m
     }
 }
 
-void YunziiYZ75KeyboardController::SetLightMode(unsigned int mode, RGBColor* colors, unsigned int num_colors, bool use_random, int speed, int brightness, int direction)
+void YunziiYZ75KeyboardController::SetLightMode(unsigned int mode, RGBColor* color, bool use_random, int speed, int brightness, int direction)
 {
     unsigned char zone = 0x07;  // Light zone
 
     switch(mode)
     {
-        case YUNZII_KEYBOARD_MODE_ALWAYS_ON:
+        case YUNZII_MODE_OFF:
+            mode = 0x00;
+        case YUNZII_MODE_ALWAYS_ON:
             mode = 0x1;
             break;
-        case YUNZII_KEYBOARD_MODE_DYNAMIC_BREATHING:
+        case YUNZII_MODE_DYNAMIC_BREATHING:
             mode = 0x2;
             break;
-        case YUNZII_KEYBOARD_MODE_SPECTRUM_CYCLE:
+        case YUNZII_MODE_SPECTRUM_CYCLE:
             mode = 0x3;
             break;
-        case YUNZII_KEYBOARD_MODE_DRIFT:
+        case YUNZII_MODE_DRIFT:
             mode = 0x4;
             break;
-        case YUNZII_KEYBOARD_MODE_WAVES_RIPPLE:
+        case YUNZII_MODE_RIPPLE:
             mode = 0x5;
             break;
-        case YUNZII_KEYBOARD_MODE_STARS_TWINKLY:
+        case YUNZII_MODE_STARS_TWINKLY:
             mode = 0x6;
             break;
-        case YUNZII_KEYBOARD_MODE_STEADY_STREAM:
+        case YUNZII_MODE_STEADY_STREAM:
             mode = 0x7;
             break;
-        case YUNZII_KEYBOARD_MODE_SHADOWING:
+        case YUNZII_MODE_SHADOWING:
             mode = 0x8;
             break;
-        case YUNZII_KEYBOARD_MODE_PEAKS_RISING:
+        case YUNZII_MODE_PEAKS_RISING:
             mode = 0x9;
             break;
-        case YUNZII_KEYBOARD_MODE_SINE_WAVE:
+        case YUNZII_MODE_SINE_WAVE:
             mode = 0x0A;
             break;
-        case YUNZII_KEYBOARD_MODE_CAISPRING_SURGING:
+        case YUNZII_MODE_CAISPRING_SURGING:
             mode = 0x0B;
             break;
-        case YUNZII_KEYBOARD_MODE_FLOWERS_BLOOMING:
+        case YUNZII_MODE_FLOWERS_BLOOMING:
             mode = 0x0C;
             break;
-        case YUNZII_KEYBOARD_MODE_LASER:
+        case YUNZII_MODE_LASER:
             mode = 0x0E;
             break;
-        case YUNZII_KEYBOARD_MODE_PEAK_TURN:
+        case YUNZII_MODE_PEAK_TURN:
             mode = 0x0F;
             break;
-        case YUNZII_KEYBOARD_MODE_COLORFUL:
+        case YUNZII_MODE_WAVE:
             mode = 0x10;
             break;
-        case YUNZII_KEYBOARD_MODE_SNOW:
+        case YUNZII_MODE_NEON:
             mode = 0x11;
             break;
-        case YUNZII_KEYBOARD_MODE_MATEOR:
+        case YUNZII_MODE_SNAKE:
             mode = 0x12;
             break;
-        case YUNZII_KEYBOARD_MODE_THROUGH_THE_SNOW:
+        case YUNZII_MODE_THROUGH_THE_SNOW:
             mode = 0x13;
             break;
-        case YUNZII_KEYBOARD_MODE_NONE:
         default:
-            mode = 0x00;
-            break;
+            return;
     }
 
     int red = 0, grn = 0, blu = 0;
-    if (num_colors > 0)
+    if (color)
     {
-        red = RGBGetRValue(colors[0]); // RGB
-        grn = RGBGetGValue(colors[0]);
-        blu = RGBGetBValue(colors[0]);
+        red = RGBGetRValue(*color); // RGB
+        grn = RGBGetGValue(*color);
+        blu = RGBGetBValue(*color);
     }
     
     int color_mode = use_random ? 0x08 : 0x07;          // Color mode
@@ -183,39 +183,39 @@ void YunziiYZ75KeyboardController::SetLightMode(unsigned int mode, RGBColor* col
 }
 
 
-void YunziiYZ75KeyboardController::SetLightStripMode(unsigned int mode, RGBColor* colors, unsigned int num_colors, bool use_random, int speed, int brightness, int direction)
+void YunziiYZ75KeyboardController::SetLightStripMode(unsigned int mode, RGBColor* color, bool use_random, int speed, int brightness, int direction)
 {
     unsigned char zone = 0x08;  // Light zone
 
     switch(mode)
     {
-        case YUNZII_KEYBOARD_MODE_STRIP_ALWAYS_ON:
+        case YUNZII_MODE_OFF:
+            break;
+        case YUNZII_MODE_ALWAYS_ON:
             mode = 0x1;
             break;
-        case YUNZII_KEYBOARD_MODE_STRIP_BREATH:
+        case YUNZII_MODE_DYNAMIC_BREATHING:
             mode = 0x02;
             break;
-        case YUNZII_KEYBOARD_MODE_STRIP_NEON:
+        case YUNZII_MODE_NEON:
             mode = 0x03;
             break;
-        case YUNZII_KEYBOARD_MODE_STRIP_SNAKE:
+        case YUNZII_MODE_SNAKE:
             mode = 0x05;
             break;
-        case YUNZII_KEYBOARD_MODE_STRIP_WAVE:
+        case YUNZII_MODE_WAVE:
             mode = 0x04;
             break;
-        case YUNZII_KEYBOARD_MODE_STRIP_NONE:
         default:
-            mode = 0x00;
-            break;
+            return;
     }
 
     int red = 0, grn = 0, blu = 0;
-    if (num_colors > 0)
+    if (color)
     {
-        red = RGBGetRValue(colors[0]); // RGB
-        grn = RGBGetGValue(colors[0]);
-        blu = RGBGetBValue(colors[0]);
+        red = RGBGetRValue(*color); // RGB
+        grn = RGBGetGValue(*color);
+        blu = RGBGetBValue(*color);
     }
 
     int color_mode = use_random ? 0x08 : 0x07;          // Color mode

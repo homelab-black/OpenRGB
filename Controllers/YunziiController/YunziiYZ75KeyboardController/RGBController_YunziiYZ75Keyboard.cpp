@@ -23,10 +23,8 @@
     @detectors DetectYunziiYZ75Keyboard
     @comment
         OpenRGB does not support per-zone effect modes, so we list
-        all available modes for both back light and light strip
-        options, while only appling the colors to the coresponding
-        component for any given mode. Sound based and image effects 
-        are not supported.
+        a combination of modes for both back light and light strip
+        options. Sound based and image effects are not supported.
 \*-------------------------------------------------------------------*/
 
 RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75KeyboardController* controller_ptr)
@@ -34,7 +32,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     controller                              = controller_ptr;
 
     name                                    = controller->GetName();
-    type                                    = DEVICE_TYPE_COOLER;
+    type                                    = DEVICE_TYPE_KEYBOARD;
     description                             = "Yunzii YZ75";
     vendor                                  = controller->GetVendor();
     location                                = controller->GetLocation();
@@ -49,7 +47,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Off.name                                = "Off";
     Off.flags                               = MODE_FLAG_AUTOMATIC_SAVE;
     Off.color_mode                          = MODE_COLORS_NONE;
-    Off.value                               = YUNZII_KEYBOARD_MODE_NONE;
+    Off.value                               = YUNZII_MODE_OFF;
     modes.push_back(Off);
     
     mode Custom;
@@ -59,7 +57,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Custom.brightness_min                   = 0;
     Custom.brightness_max                   = 4;
     Custom.brightness                       = 2;
-    Custom.value                            = YUNZII_KEYBOARD_MODE_ALWAYS_ON;
+    Custom.value                            = YUNZII_MODE_ALWAYS_ON;
     modes.push_back(Custom);
 
     mode DynamicBreathing;
@@ -75,7 +73,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     DynamicBreathing.brightness_min         = 0;
     DynamicBreathing.brightness_max         = 4;
     DynamicBreathing.brightness             = 2;
-    DynamicBreathing.value                  = YUNZII_KEYBOARD_MODE_DYNAMIC_BREATHING;
+    DynamicBreathing.value                  = YUNZII_MODE_DYNAMIC_BREATHING;
     modes.push_back(DynamicBreathing);
 
     mode SpectrumCycle;
@@ -88,7 +86,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     SpectrumCycle.brightness_min            = 0;
     SpectrumCycle.brightness_max            = 4;
     SpectrumCycle.brightness                = 2;
-    SpectrumCycle.value                     = YUNZII_KEYBOARD_MODE_SPECTRUM_CYCLE;
+    SpectrumCycle.value                     = YUNZII_MODE_SPECTRUM_CYCLE;
     modes.push_back(SpectrumCycle);
 
     mode Drift;
@@ -105,24 +103,24 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Drift.brightness_max                    = 4;
     Drift.brightness                        = 2;
     Drift.direction                         = MODE_DIRECTION_UP;
-    Drift.value                             = YUNZII_KEYBOARD_MODE_DRIFT;
+    Drift.value                             = YUNZII_MODE_DRIFT;
     modes.push_back(Drift);
 
-    mode WavesRipple;
-    WavesRipple.name                        = "Waves Ripple";
-    WavesRipple.flags                       = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    WavesRipple.color_mode                  = MODE_COLORS_RANDOM;
-    WavesRipple.colors_min                  = 1;
-    WavesRipple.colors_max                  = 1;
-    WavesRipple.colors.resize(1, ToRGBColor(255, 0, 0));
-    WavesRipple.speed_min                   = 4;
-    WavesRipple.speed_max                   = 0;
-    WavesRipple.speed                       = 2;
-    WavesRipple.brightness_min              = 0;
-    WavesRipple.brightness_max              = 4;
-    WavesRipple.brightness                  = 2;
-    WavesRipple.value                       = YUNZII_KEYBOARD_MODE_WAVES_RIPPLE;
-    modes.push_back(WavesRipple);
+    mode Ripple;
+    Ripple.name                             = "Ripple";
+    Ripple.flags                            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Ripple.color_mode                       = MODE_COLORS_RANDOM;
+    Ripple.colors_min                       = 1;
+    Ripple.colors_max                       = 1;
+    Ripple.colors.resize(1, ToRGBColor(255, 0, 0));
+    Ripple.speed_min                        = 4;
+    Ripple.speed_max                        = 0;
+    Ripple.speed                            = 2;
+    Ripple.brightness_min                   = 0;
+    Ripple.brightness_max                   = 4;
+    Ripple.brightness                       = 2;
+    Ripple.value                            = YUNZII_MODE_RIPPLE;
+    modes.push_back(Ripple);
 
     mode StarsTwinkly;
     StarsTwinkly.name                       = "Stars Twinkly";
@@ -137,7 +135,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     StarsTwinkly.brightness_min             = 0;
     StarsTwinkly.brightness_max             = 4;
     StarsTwinkly.brightness                 = 2;
-    StarsTwinkly.value                      = YUNZII_KEYBOARD_MODE_STARS_TWINKLY;
+    StarsTwinkly.value                      = YUNZII_MODE_STARS_TWINKLY;
     modes.push_back(StarsTwinkly);
 
     mode SteadyStream;
@@ -154,7 +152,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     SteadyStream.brightness_max             = 4;
     SteadyStream.brightness                 = 2;
     SteadyStream.direction                  = MODE_DIRECTION_LEFT;  // Zig-Zag vs Return
-    SteadyStream.value                      = YUNZII_KEYBOARD_MODE_STEADY_STREAM;
+    SteadyStream.value                      = YUNZII_MODE_STEADY_STREAM;
     modes.push_back(SteadyStream);
     
     mode Shadowing;
@@ -170,7 +168,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Shadowing.brightness_min                = 0;
     Shadowing.brightness_max                = 4;
     Shadowing.brightness                    = 2;
-    Shadowing.value                         = YUNZII_KEYBOARD_MODE_SHADOWING;
+    Shadowing.value                         = YUNZII_MODE_SHADOWING;
     modes.push_back(Shadowing);
 
     mode PeaksRising;
@@ -186,7 +184,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     PeaksRising.brightness_min              = 0;
     PeaksRising.brightness_max              = 4;
     PeaksRising.brightness                  = 2;
-    PeaksRising.value                       = YUNZII_KEYBOARD_MODE_PEAKS_RISING;
+    PeaksRising.value                       = YUNZII_MODE_PEAKS_RISING;
     modes.push_back(PeaksRising);
 
     mode Sinewave;
@@ -202,7 +200,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Sinewave.brightness_min                 = 0;
     Sinewave.brightness_max                 = 4;
     Sinewave.brightness                     = 2;
-    Sinewave.value                          = YUNZII_KEYBOARD_MODE_SINE_WAVE;
+    Sinewave.value                          = YUNZII_MODE_SINE_WAVE;
     modes.push_back(Sinewave);
 
     mode CaispringSurging;
@@ -219,7 +217,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     CaispringSurging.brightness_max         = 4;
     CaispringSurging.brightness             = 2;
     CaispringSurging.direction              = MODE_DIRECTION_LEFT;  // Zig-Zag vs Return
-    CaispringSurging.value                  = YUNZII_KEYBOARD_MODE_CAISPRING_SURGING;
+    CaispringSurging.value                  = YUNZII_MODE_CAISPRING_SURGING;
     modes.push_back(CaispringSurging);
 
     mode FlowersBlooming;
@@ -236,7 +234,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     FlowersBlooming.brightness_max          = 4;
     FlowersBlooming.brightness              = 2;
     FlowersBlooming.direction               = MODE_DIRECTION_LEFT;  // Zig-Zag vs Return
-    FlowersBlooming.value                   = YUNZII_KEYBOARD_MODE_FLOWERS_BLOOMING;
+    FlowersBlooming.value                   = YUNZII_MODE_FLOWERS_BLOOMING;
     modes.push_back(FlowersBlooming);
 
     mode Laser;
@@ -252,7 +250,7 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     Laser.brightness_min                    = 0;
     Laser.brightness_max                    = 4;
     Laser.brightness                        = 2;
-    Laser.value                             = YUNZII_KEYBOARD_MODE_LASER;
+    Laser.value                             = YUNZII_MODE_LASER;
     modes.push_back(Laser);
 
     mode PeakTurn;
@@ -269,56 +267,56 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     PeakTurn.brightness_max                 = 4;
     PeakTurn.brightness                     = 2;
     PeakTurn.direction                      = MODE_DIRECTION_LEFT;  // Clockwise vs Anti-Clockwise
-    PeakTurn.value                          = YUNZII_KEYBOARD_MODE_PEAK_TURN;
+    PeakTurn.value                          = YUNZII_MODE_PEAK_TURN;
     modes.push_back(PeakTurn);
 
-    mode Colorful;
-    Colorful.name                           = "Colorful";
-    Colorful.flags                          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Colorful.color_mode                     = MODE_COLORS_RANDOM;
-    Colorful.colors_min                     = 1;
-    Colorful.colors_max                     = 1;
-    Colorful.colors.resize(1, ToRGBColor(255, 0, 0));
-    Colorful.speed_min                      = 4;
-    Colorful.speed_max                      = 0;
-    Colorful.speed                          = 2;
-    Colorful.brightness_min                 = 0;
-    Colorful.brightness_max                 = 4;
-    Colorful.brightness                     = 2;
-    Colorful.value                          = YUNZII_KEYBOARD_MODE_COLORFUL;
-    modes.push_back(Colorful);
+    mode Wave;
+    Wave.name                               = "Wave";
+    Wave.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Wave.color_mode                         = MODE_COLORS_RANDOM;
+    Wave.colors_min                         = 1;
+    Wave.colors_max                         = 1;
+    Wave.colors.resize(1, ToRGBColor(255, 0, 0));
+    Wave.speed_min                          = 4;
+    Wave.speed_max                          = 0;
+    Wave.speed                              = 2;
+    Wave.brightness_min                     = 0;
+    Wave.brightness_max                     = 4;
+    Wave.brightness                         = 2;
+    Wave.value                              = YUNZII_MODE_WAVE;
+    modes.push_back(Wave);
 
-    mode Snow;
-    Snow.name                               = "Snow";
-    Snow.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Snow.color_mode                         = MODE_COLORS_RANDOM;
-    Snow.colors_min                         = 1;
-    Snow.colors_max                         = 1;
-    Snow.colors.resize(1, ToRGBColor(255, 0, 0));
-    Snow.speed_min                          = 4;
-    Snow.speed_max                          = 0;
-    Snow.speed                              = 2;
-    Snow.brightness_min                     = 0;
-    Snow.brightness_max                     = 4;
-    Snow.brightness                         = 2;
-    Snow.value                              = YUNZII_KEYBOARD_MODE_SNOW;
-    modes.push_back(Snow);
+    mode Neon;
+    Neon.name                               = "Neon";
+    Neon.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Neon.color_mode                         = MODE_COLORS_RANDOM;
+    Neon.colors_min                         = 1;
+    Neon.colors_max                         = 1;
+    Neon.colors.resize(1, ToRGBColor(255, 0, 0));
+    Neon.speed_min                          = 4;
+    Neon.speed_max                          = 0;
+    Neon.speed                              = 2;
+    Neon.brightness_min                     = 0;
+    Neon.brightness_max                     = 4;
+    Neon.brightness                         = 2;
+    Neon.value                              = YUNZII_MODE_NEON;
+    modes.push_back(Neon);
 
-    mode Mateor;
-    Mateor.name                             = "Mateor";
-    Mateor.flags                            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Mateor.color_mode                       = MODE_COLORS_RANDOM;
-    Mateor.colors_min                       = 1;
-    Mateor.colors_max                       = 1;
-    Mateor.colors.resize(1, ToRGBColor(255, 0, 0));
-    Mateor.speed_min                        = 4;
-    Mateor.speed_max                        = 0;
-    Mateor.speed                            = 2;
-    Mateor.brightness_min                   = 0;
-    Mateor.brightness_max                   = 4;
-    Mateor.brightness                       = 2;
-    Mateor.value                            = YUNZII_KEYBOARD_MODE_MATEOR;
-    modes.push_back(Mateor);
+    mode Snake;
+    Snake.name                              = "Snake";
+    Snake.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Snake.color_mode                        = MODE_COLORS_RANDOM;
+    Snake.colors_min                        = 1;
+    Snake.colors_max                        = 1;
+    Snake.colors.resize(1, ToRGBColor(255, 0, 0));
+    Snake.speed_min                         = 4;
+    Snake.speed_max                         = 0;
+    Snake.speed                             = 2;
+    Snake.brightness_min                    = 0;
+    Snake.brightness_max                    = 4;
+    Snake.brightness                        = 2;
+    Snake.value                             = YUNZII_MODE_SNAKE;
+    modes.push_back(Snake);
 
     mode ThroughSnow;
     ThroughSnow.name                        = "Through the Snow";
@@ -333,108 +331,39 @@ RGBController_YunziiYZ75Keyboard::RGBController_YunziiYZ75Keyboard(YunziiYZ75Key
     ThroughSnow.brightness_min              = 0;
     ThroughSnow.brightness_max              = 4;
     ThroughSnow.brightness                  = 2;
-    ThroughSnow.value                       = YUNZII_KEYBOARD_MODE_THROUGH_THE_SNOW;
+    ThroughSnow.value                       = YUNZII_MODE_THROUGH_THE_SNOW;
     modes.push_back(ThroughSnow);
-
-    /*---------------------------------------------------------*\
-    | Light strip modes                                         |
-    \*---------------------------------------------------------*/
-
-    mode StripOff;
-    StripOff.name                           = "Off (Strip)";
-    StripOff.flags                          = MODE_FLAG_AUTOMATIC_SAVE;
-    StripOff.color_mode                     = MODE_COLORS_NONE;
-    StripOff.value                          = YUNZII_KEYBOARD_MODE_STRIP_NONE;
-    modes.push_back(StripOff);
-
-    mode StripCustom;
-    StripCustom.name                        = "Custom (Strip)";
-    StripCustom.flags                       = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
-    StripCustom.color_mode                  = MODE_COLORS_PER_LED;
-    StripCustom.brightness_min              = 0;
-    StripCustom.brightness_max              = 4;
-    StripCustom.brightness                  = 2;
-    StripCustom.value                       = YUNZII_KEYBOARD_MODE_STRIP_ALWAYS_ON;
-    modes.push_back(StripCustom);
-
-    mode Breath;
-    Breath.name                             = "Breath (Strip)";
-    Breath.flags                            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Breath.color_mode                       = MODE_COLORS_RANDOM;
-    Breath.colors_min                       = 1;
-    Breath.colors_max                       = 1;
-    Breath.colors.resize(1, ToRGBColor(255, 0, 0));
-    Breath.speed_min                        = 0;
-    Breath.speed_max                        = 3;
-    Breath.speed                            = 2;
-    Breath.brightness_min                   = 0;
-    Breath.brightness_max                   = 4;
-    Breath.brightness                       = 2;
-    Breath.value                            = YUNZII_KEYBOARD_MODE_STRIP_BREATH;
-    modes.push_back(Breath);
-    
-    mode Neon;
-    Neon.name                               = "Neon (Strip)";
-    Neon.flags                              = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Neon.color_mode                         = MODE_COLORS_NONE;
-    Neon.speed_min                          = 0;
-    Neon.speed_max                          = 3;
-    Neon.speed                              = 2;
-    Neon.brightness_min                     = 0;
-    Neon.brightness_max                     = 4;
-    Neon.brightness                         = 2;
-    Neon.value                              = YUNZII_KEYBOARD_MODE_STRIP_NEON;
-    modes.push_back(Neon);
-
-    mode Snake;
-    Snake.name                              = "Snake (Strip)";
-    Snake.flags                             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Snake.color_mode                        = MODE_COLORS_RANDOM;
-    Snake.colors_min                        = 1;
-    Snake.colors_max                        = 1;
-    Snake.colors.resize(1, ToRGBColor(255, 0, 0));
-    Snake.speed_min                         = 0;
-    Snake.speed_max                         = 3;
-    Snake.speed                             = 2;
-    Snake.brightness_min                    = 0;
-    Snake.brightness_max                    = 4;
-    Snake.brightness                        = 2;
-    Snake.value                             = YUNZII_KEYBOARD_MODE_STRIP_SNAKE;
-    modes.push_back(Snake);
-
-    mode Wave;
-    Wave.name                               = "Wave (Strip)";
-    Wave.flags                              = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-    Wave.color_mode                         = MODE_COLORS_RANDOM;
-    Wave.colors_min                         = 1;
-    Wave.colors_max                         = 1;
-    Wave.colors.resize(1, ToRGBColor(255, 0, 0));
-    Wave.speed_min                          = 0;
-    Wave.speed_max                          = 3;
-    Wave.speed                              = 2;
-    Wave.brightness_min                     = 0;
-    Wave.brightness_max                     = 4;
-    Wave.brightness                         = 2;
-    Wave.value                              = YUNZII_KEYBOARD_MODE_STRIP_WAVE;
-    modes.push_back(Wave);
 
     SetupZones();
 }
 
 void RGBController_YunziiYZ75Keyboard::SetupZones()
 {
-    zone new_zone;
-    new_zone.name       = "Keyboard";
-    new_zone.type       = ZONE_TYPE_SINGLE;
-    new_zone.leds_count = 1;
-    new_zone.leds_min   = 1;
-    new_zone.leds_max   = 1;
-    new_zone.matrix_map = NULL;
-    zones.push_back(new_zone);
+    zone kdb_zone;
+    kdb_zone.name       = "Keyboard";
+    kdb_zone.type       = ZONE_TYPE_SINGLE;
+    kdb_zone.leds_count = 1;
+    kdb_zone.leds_min   = 1;
+    kdb_zone.leds_max   = 1;
+    kdb_zone.matrix_map = NULL;
+    zones.push_back(kdb_zone);
 
-    led new_led;
-    new_led.name = "Keyboard LEDs";
-    leds.push_back(new_led);
+    led kdb_led;
+    kdb_led.name = "Keyboard LED";
+    leds.push_back(kdb_led);
+
+    zone side_zone;
+    side_zone.name       = "Side";
+    side_zone.type       = ZONE_TYPE_SINGLE;
+    side_zone.leds_count = 1;
+    side_zone.leds_min   = 1;
+    side_zone.leds_max   = 1;
+    side_zone.matrix_map = NULL;
+    zones.push_back(side_zone);
+
+    led side_led;
+    side_led.name = "Side LED";
+    leds.push_back(side_led);
 
     SetupColors();
 }
@@ -489,16 +418,13 @@ void RGBController_YunziiYZ75Keyboard::DeviceUpdateMode()
     int color_mode = modes[active_mode].color_mode;
 
     RGBColor* color = 0;
-    int num_colors = 0;
     if(color_mode == MODE_COLORS_PER_LED)
     {
         color = &colors[0];
-        num_colors = 1;
     }
     else if(color_mode == MODE_COLORS_MODE_SPECIFIC)
     {
         color = &modes[active_mode].colors[0];
-        num_colors = 1;
     }
 
     bool use_random = false;
@@ -507,12 +433,11 @@ void RGBController_YunziiYZ75Keyboard::DeviceUpdateMode()
         use_random = true;
     }
 
-    if (value >= YUNZII_KEYBOARD_MODE_NONE && value <= YUNZII_KEYBOARD_MODE_THROUGH_THE_SNOW)
-    {
-        controller->SetLightMode(value, color, num_colors, use_random, speed, brightness, direction);
-    }
-    else
-    {
-        controller->SetLightStripMode(value, color, num_colors, use_random, speed, brightness, direction);
-    }
+    // Keyboard zone
+    controller->SetLightMode(value, color, use_random, speed, brightness, direction);
+    
+    if (color) color++;
+
+    // Side zone
+    controller->SetLightStripMode(value, color, use_random, speed, brightness, direction);
 }
