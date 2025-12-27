@@ -6,7 +6,7 @@
 |   Adam Honse (calcprogrammer1@gmail.com)      25 Sep 2020 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "RGBController_LinuxLED_Linux.h"
@@ -30,9 +30,16 @@ RGBController_LinuxLED::RGBController_LinuxLED(LinuxLEDController* controller_pt
     type                = DEVICE_TYPE_LEDSTRIP;
     description         = "Linux Sysfs LED Device";
 
-    location            = "R: " + controller->GetRedPath() + "\r\n" +
+    if(controller->GetRgbPath().empty())
+    {
+        location        = "R: " + controller->GetRedPath() + "\r\n" +
                           "G: " + controller->GetGreenPath() + "\r\n" +
                           "B: " + controller->GetBluePath();
+    }
+    else
+    {
+        location        = controller->GetRgbPath();
+    }
 
     mode Direct;
     Direct.name         = "Direct";

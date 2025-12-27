@@ -6,7 +6,7 @@
 |   Adam Honse (calcprogrammer1@gmail.com)      29 Dec 2019 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "RGBController_NZXTHue2.h"
@@ -18,7 +18,7 @@
     @save :robot:
     @direct :white_check_mark:
     @effects :white_check_mark:
-    @detectors DetectNZXTFanController,DetectNZXTFanController6Channel,DetectNZXTHue2,DetectNZXTHue2Ambient,DetectNZXTHue2Motherboard,DetectNZXTKrakenX3,DetectNZXTRGBController,DetectNZXTSmartDeviceV2
+    @detectors DetectNZXTFanController,DetectNZXTFanController6Channel,DetectNZXTHue2,DetectNZXTHue2Ambient,DetectNZXTHue2Motherboard,DetectNZXTKrakenX3,DetectNZXTRGBController,DetectNZXTSmartDeviceV2,DetectNZXTKrakenElite
     @comment
 \*-------------------------------------------------------------------*/
 
@@ -342,6 +342,10 @@ void RGBController_NZXTHue2::SetupZones()
 
             case 0x1E: //Kraken Elite Ring
                 device_name = "Kraken Elite Ring";
+                break;
+
+            case 0x1F: //F420 RGB
+                device_name = "F420 Core fan case version";
                 break;
 
             default:

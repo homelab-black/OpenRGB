@@ -4,7 +4,7 @@
 |   Detector for ENE SMBus devices                          |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <vector>
@@ -326,7 +326,7 @@ void DetectENESMBusMotherboardControllers(std::vector<i2c_smbus_interface*> &bus
         // Add ENE (ASUS Aura) motherboard controllers
         IF_MOBO_SMBUS(busses[bus]->pci_vendor, busses[bus]->pci_device)
         {
-            if(busses[bus]->pci_subsystem_vendor == ASUS_SUB_VEN || busses[bus]->pci_subsystem_vendor == 0)
+            if(busses[bus]->pci_subsystem_vendor == ASUS_SUB_VEN || busses[bus]->pci_subsystem_vendor == 0 || busses[bus]->pci_subsystem_vendor == 0xFFFF)
             {
                 for (unsigned int address_list_idx = 0; address_list_idx < AURA_MOBO_ADDRESS_COUNT; address_list_idx++)
                 {
@@ -504,7 +504,8 @@ REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming OC",          
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_213S,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_24G_GAMING_88F0,        0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 OC EVA-02",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_024G_EVA_02,            0x67);
-REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_8932,       0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_24G_GAMING_8932,        0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_24G_GAMING_8933,        0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White",               DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_24G_GAMING_WHITE,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White",               DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_24G_GAMING_WHITE_2,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White OC",            DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_WHITE,      0x67);
@@ -517,11 +518,13 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5080 Gaming OC",                
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5090 Gaming OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5090_O32G_GAMING,                  0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5090 Gaming",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5090_32G_GAMING,                   0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING,           0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_16G_GAMING,            0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC BTF",                    DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL LC GeForce RTX 5090 OC",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING,        0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG MATRIX PLATINUM GeForce RTX 5090",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_MATRIX_PLATINUM_RTX_5090_P32G,         0x67);
 
 /*-----------------------------------------*\
 |  AMD GPUs                                 |
@@ -549,4 +552,5 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming OC",               
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming White OC",                 DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI32_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7800XT_O16G_WHITE_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XT_020G_GAMING,                 0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XTX Gaming OC",                      DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XTX_O24G_GAMING,                0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 9070 Gaming OC",                          DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI48_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_9070_016G_GAMING,                   0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 9070 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI48_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_9070XT_016G_GAMING,                 0x67);

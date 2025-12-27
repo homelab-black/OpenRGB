@@ -4,7 +4,7 @@
 |   User interface for resizing zones                       |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -48,5 +48,6 @@ private:
     RGBController* edit_dev;
     unsigned int edit_zone_idx;
 
+    void AddSegmentRow(QString name, unsigned int length, zone_type type);
     void CheckSegmentsValidity();
 };

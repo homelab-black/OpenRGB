@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                22 Jan 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <string.h>
@@ -433,6 +433,7 @@ bool RazerController::SupportsWave()
         case RAZER_BLACKWIDOW_V4_PID:
         case RAZER_BLACKWIDOW_V4_PRO_PID:
         case RAZER_BLACKWIDOW_V4_PRO_75_WIRED_PID:
+        case RAZER_BLACKWIDOW_V4_75_WIRED_PID:
         case RAZER_BLACKWIDOW_V4_X_PID:
         case RAZER_BLACKWIDOW_X_CHROMA_PID:
         case RAZER_BLACKWIDOW_X_CHROMA_TE_PID:
@@ -548,6 +549,7 @@ bool RazerController::SupportsWave()
         case RAZER_O11_DYNAMIC_PID:
         case RAZER_STRIDER_CHROMA_PID:
         case RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID:
+        case RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID:
 
             supports_wave = true;
             break;
@@ -1198,6 +1200,7 @@ std::string RazerController::GetVariantName()
     switch(variant)
     {
         case RAZER_KEYBOARD_VARIANT_BLACK:   return "Black";
+        case RAZER_KEYBOARD_VARIANT_QUARTZ:  return "Quartz";
         case RAZER_KEYBOARD_VARIANT_MERCURY: return "Mercury";
         default:                             return "Unkown Variant";
     }

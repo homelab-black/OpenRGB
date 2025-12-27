@@ -6,7 +6,7 @@
 |   Florian Heilmann (FHeilmann)                19 Oct 2020 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -27,8 +27,8 @@ public:
 
     std::string         GetLocation();
     std::string         GetName();
-    std::string         GetSerial();
-    std::string         GetVersion();
+    virtual std::string GetSerial();
+    virtual std::string GetVersion();
 
     virtual void        SetMode(unsigned char mode, std::vector<RGBColor> colors)  = 0;
 

@@ -4,7 +4,7 @@
 |   RGBController for Lenovo Gen7 and Gen8 devices          |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -51,6 +51,7 @@ private:
     void ReadDeviceSettings();
     std::unordered_map<unsigned int, size_t> led_id_to_index;
     int last_mode = 0;
+    bool direct_enabled = false;
     uint8_t brightness = 0x00;
     uint8_t profile_id = 0x01;
 };

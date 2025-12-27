@@ -6,7 +6,7 @@
 |   Wojciech Lazarski                           03 Jan 2023 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "Detector.h"
@@ -68,6 +68,9 @@ REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 4090 Suprim Liquid X",               
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 4090 Suprim X",                          DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         MSI_SUB_VEN,    MSI_RTX4090_SUPRIM_X_SUB_DEV,                  0x68);
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5070 Ti Gaming Trio OC Plus",            DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5070TI_DEV,       MSI_SUB_VEN,    MSI_RTX5070TI_GAMING_TRIO_SUB_DEV,             0x68);
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5080 Gaming Trio OC",                    DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         MSI_SUB_VEN,    MSI_RTX5080_GAMING_TRIO_OC_SUB_DEV,            0x68);
+REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5080 VANGUARD OC SOC",                   DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         MSI_SUB_VEN,    MSI_RTX5080_VANGUARD_SOC_SUB_DEV,              0x68);
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5080 SUPRIM SOC",                        DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         MSI_SUB_VEN,    MSI_RTX5080_SUPRIM_SOC_SUB_DEV,                0x68);
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5090 Gaming Trio OC",                    DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         MSI_SUB_VEN,    MSI_RTX5090_GAMING_TRIO_SUB_DEV,               0x68);
+REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5090 VANGUARD SOC",                      DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         MSI_SUB_VEN,    MSI_RTX5090_VANGUARD_SOC_SUB_DEV,              0x68);
+REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5090 SUPRIM SOC",                        DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         MSI_SUB_VEN,    MSI_RTX5090_SUPRIM_SOC_SUB_DEV,                0x68);
 REGISTER_I2C_PCI_DETECTOR("MSI GeForce RTX 5090 SUPRIM LIQUID SOC",                 DetectMSIGPUv2Controllers,    NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         MSI_SUB_VEN,    MSI_RTX5090_SUPRIM_LIQUID_SOC_SUB_DEV,         0x68);

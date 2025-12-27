@@ -4,7 +4,7 @@
 |   User interface for OpenRGB device page                  |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -80,11 +80,11 @@ private:
     bool HexFormatRGB       = true;
 
     QColor current_color;
-    void updateColorUi();
-    void colorChanged();
 
     bool autoUpdateEnabled();
-
+    void colorChanged();
+    void getSelectedZone(bool * selected_all_zones, int * selected_zone, int * selected_segment);
+    void updateColorUi();
     QString ModeDescription(const mode& m);
 
 signals:

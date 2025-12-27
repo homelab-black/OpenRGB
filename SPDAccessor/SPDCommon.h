@@ -4,7 +4,7 @@
 |   Common definitions for SPD                              |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -20,6 +20,7 @@ typedef enum
     JEDEC_GSKILL      = 0x044C,
     JEDEC_TEAMGROUP   = 0x046E,
     JEDEC_KINGSTON_2  = 0x300F,
+    JEDEC_KINGSTON_3  = 0x3011,
     JEDEC_MUSHKIN     = 0x8313,
     JEDEC_GIGABYTE    = 0x8971,
     JEDEC_THERMALTAKE = 0x8A41,

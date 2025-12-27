@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                22 Jan 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -157,6 +157,7 @@ enum
 enum
 {
     RAZER_KEYBOARD_VARIANT_BLACK                    = 0x00,
+    RAZER_KEYBOARD_VARIANT_QUARTZ                   = 0x80,
     RAZER_KEYBOARD_VARIANT_MERCURY                  = 0x82,
 };
 

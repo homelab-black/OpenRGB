@@ -6,7 +6,7 @@
 |   Chris M (Dr_No)                             04 Feb 2023 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -50,6 +50,7 @@ enum KEYBOARD_LAYOUT
     KEYBOARD_LAYOUT_ISO_QWERTZ,
     KEYBOARD_LAYOUT_ISO_AZERTY,
     KEYBOARD_LAYOUT_JIS,
+    KEYBOARD_LAYOUT_ABNT2,
 };
 
 enum KEYBOARD_MAP_FILL_TYPE

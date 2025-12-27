@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                22 Jan 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <unordered_set>
@@ -14,12 +14,16 @@
 #include "Detector.h"
 #include "RazerController.h"
 #include "RazerKrakenController.h"
+#include "RazerKrakenV3Controller.h"
+#include "RazerKrakenV4Controller.h"
 #include "RazerHanboController.h"
 #include "RazerDevices.h"
 #include "ResourceManager.h"
 #include "RGBController_Razer.h"
 #include "RGBController_RazerAddressable.h"
 #include "RGBController_RazerKraken.h"
+#include "RGBController_RazerKrakenV3.h"
+#include "RGBController_RazerKrakenV4.h"
 #include "RGBController_RazerHanbo.h"
 
 /******************************************************************************************\
@@ -155,6 +159,48 @@ void DetectRazerKrakenControllers(hid_device_info* info, const std::string& name
 
 /******************************************************************************************\
 *                                                                                          *
+*   DetectRazerKrakenV3Controllers                                                         *
+*                                                                                          *
+*       Tests the USB address to see if a Razer Kraken V3 controller exists there.         *
+*                                                                                          *
+\******************************************************************************************/
+
+void DetectRazerKrakenV3Controllers(hid_device_info* info, const std::string& name)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        RazerKrakenV3Controller* controller = new RazerKrakenV3Controller(dev, info->path, info->product_id, name);
+
+        RGBController_RazerKrakenV3* rgb_controller = new RGBController_RazerKrakenV3(controller);
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}   /* DetectRazerKrakenV3Controllers() */
+
+/******************************************************************************************\
+*                                                                                          *
+*   DetectRazerKrakenV4Controllers                                                         *
+*                                                                                          *
+*       Tests the USB address to see if a Razer Kraken V4 controller exists there.         *
+*                                                                                          *
+\******************************************************************************************/
+
+void DetectRazerKrakenV4Controllers(hid_device_info* info, const std::string& name)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        RazerKrakenV4Controller* controller = new RazerKrakenV4Controller(dev, info->path, info->product_id, name);
+
+        RGBController_RazerKrakenV4* rgb_controller = new RGBController_RazerKrakenV4(controller);
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}   /* DetectRazerKrakenV4Controllers() */
+
+/******************************************************************************************\
+*                                                                                          *
 *   DetectRazerHanboController                                                             *
 *                                                                                          *
 *       Tests the USB address to see if a Razer Hanbo controller exists there.             *
@@ -193,6 +239,7 @@ REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V3 Mini (Wireless)",             Det
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V4",                             DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_V4_PID,                        0x03,   0x01,   0x00);
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V4 Pro",                         DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_V4_PRO_PID,                    0x03,   0x01,   0x00);
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V4 Pro 75% (Wired)",             DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_V4_PRO_75_WIRED_PID,           0x03,   0x0C,   0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V4 75% (Wired)",                 DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_V4_75_WIRED_PID,               0x03,   0x01,   0x00);
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow V4 X",                           DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_V4_X_PID,                      0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow X Chroma",                       DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_X_CHROMA_PID,                  0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Blackwidow X Chroma Tournament Edition",    DetectRazerControllers,        RAZER_VID,  RAZER_BLACKWIDOW_X_CHROMA_TE_PID,               0x02,   0x01,   0x02);
@@ -342,6 +389,13 @@ REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty Edition",                      Det
 REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty Black Edition",                DetectRazerControllers,        RAZER_VID,  RAZER_KRAKEN_KITTY_BLACK_EDITION_PID,           0x01,   0x01,   0x03);
 REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty Black Edition V2",             DetectRazerKrakenControllers,  RAZER_VID,  RAZER_KRAKEN_KITTY_BLACK_EDITION_V2_PID,        0x03,   0x0C,   0x01);
 REGISTER_HID_DETECTOR_IPU("Razer Kraken Ultimate",                           DetectRazerKrakenControllers,  RAZER_VID,  RAZER_KRAKEN_ULTIMATE_PID,                      0x03,   0x0C,   0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken V3 HyperSense",                      DetectRazerKrakenV3Controllers,RAZER_VID,  RAZER_KRAKEN_V3_HYPERSENSE_PID,                 0x03,   0x0C,   0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken V3 X",                               DetectRazerKrakenV3Controllers,RAZER_VID,  RAZER_KRAKEN_V3_X_PID,                          0x03,   0x0C,   0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken V3",                                 DetectRazerKrakenV3Controllers,RAZER_VID,  RAZER_KRAKEN_V3_PID,                            0x03,   0x0C,   0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken V4 (Wired)",                         DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_V4_WIRED_PID,                      0x05,   0xFF14, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken V4 (Wireless)",                      DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_V4_WIRELESS_PID,                   0x05,   0xFF14, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty V3 Pro (Wired)",               DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_KITTY_V3_PRO_WIRED_PID,            0x05,   0xFF14, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty V3 Pro (Wireless)",            DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_KITTY_V3_PRO_WIRELESS_PID,         0x05,   0xFF14, 0x01);
 REGISTER_HID_DETECTOR_I(  "Razer Tiamat 7.1 V2",                             DetectRazerControllers,        RAZER_VID,  RAZER_TIAMAT_71_V2_PID,                         0x00                );
 
 /*-----------------------------------------------------------------------------------------------------*\
@@ -378,6 +432,7 @@ REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Pro",                            Det
 REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_PU("Razer Seiren Emote",                               DetectRazerControllers,        RAZER_VID,  RAZER_SEIREN_EMOTE_PID,                         0x0C,   0x01        );
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 4 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID,            0x0C,   0x01        );
+REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 5 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID,            0x0C,   0x01        );
 REGISTER_HID_DETECTOR_IPU("Razer Hanbo Chroma",                              DetectRazerHanboControllers,   RAZER_VID,  RAZER_HANBO_CHROMA_PID,                         0x00,   0xFF00, 0x01);
 
 /*-----------------------------------------------------------------------------------------------------*\

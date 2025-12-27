@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                04 Sep 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "RazerDevices.h"
@@ -1842,6 +1842,41 @@ static const razer_device blackwidow_v4_pro_75_wired_device =
     18,
     {
         &blackwidow_v4_pro_75_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    &razer_blackwidow_v4_pro_75_wired_layout
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Blackwidow V4 75% (Wired) 1532:02A5                    |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       6 Rows, 18 Columns                                      |
+\*-------------------------------------------------------------*/
+static const razer_zone blackwidow_v4_75_wired_zone =
+{
+    ZONE_EN_KEYBOARD,
+    ZONE_TYPE_MATRIX,
+    6,
+    18
+};
+
+static const razer_device blackwidow_v4_75_wired_device =
+{
+    "Razer Blackwidow V4 75% (Wired)",
+    RAZER_BLACKWIDOW_V4_75_WIRED_PID,
+    DEVICE_TYPE_KEYBOARD,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x1F,
+    6,
+    18,
+    {
+        &blackwidow_v4_75_wired_zone,
         NULL,
         NULL,
         NULL,
@@ -7702,6 +7737,275 @@ static const razer_device kraken_kitty_black_v2_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Kraken V3 HyperSense 1532:0533                         |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v3_hs_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_v3_hs_device =
+{
+    "Razer Kraken V3 HyperSense",
+    RAZER_KRAKEN_V3_HYPERSENSE_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &kraken_v3_hs_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken V3 X 1532:0537                                  |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v3_x_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_v3_x_device =
+{
+    "Razer Kraken V3 X",
+    RAZER_KRAKEN_V3_X_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &kraken_v3_x_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken V3 1532:0549                                    |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v3_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_v3_device =
+{
+    "Razer Kraken V3",
+    RAZER_KRAKEN_V3_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &kraken_v3_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken V4 Wired 1532:056B                              |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Matrix                                                  |
+|       9 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v4_wired_zone =
+{
+    "Headset",
+    ZONE_TYPE_LINEAR,
+    1,
+    9
+};
+
+static const razer_device kraken_v4_wired_device =
+{
+    "Razer Kraken V4 (Wired)",
+    RAZER_KRAKEN_V4_WIRED_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x60,
+    1,
+    9,
+    {
+        &kraken_v4_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken V4 Wireless 1532:056C                           |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Matrix                                                  |
+|       9 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_v4_wireless_zone =
+{
+    "Headset",
+    ZONE_TYPE_LINEAR,
+    1,
+    9
+};
+
+static const razer_device kraken_v4_wireless_device =
+{
+    "Razer Kraken V4 (Wireless)",
+    RAZER_KRAKEN_V4_WIRELESS_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x60,
+    1,
+    9,
+    {
+        &kraken_v4_wireless_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken Kitty V3 Pro Wired 1532:0587                    |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Linear                                                  |
+|       9 LED                                                   |
+|                                                               |
+|  Zone "Ears"                                                  |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_kitty_v3_pro_wired_headset_zone =
+{
+    "Headset",
+    ZONE_TYPE_LINEAR,
+    1,
+    9
+};
+
+static const razer_zone kraken_kitty_v3_pro_wired_ears_zone =
+{
+    "Ears",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_kitty_v3_pro_wired_device =
+{
+    "Razer Kraken Kitty V3 Pro (Wired)",
+    RAZER_KRAKEN_KITTY_V3_PRO_WIRED_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x60,
+    1,
+    10,
+    {
+        &kraken_kitty_v3_pro_wired_headset_zone,
+        &kraken_kitty_v3_pro_wired_ears_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Kraken Kitty V3 Pro Wireless 1532:0588                 |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Linear                                                  |
+|       9 LED                                                   |
+|                                                               |
+|  Zone "Ears"                                                  |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone kraken_kitty_v3_pro_wireless_headset_zone =
+{
+    "Headset",
+    ZONE_TYPE_LINEAR,
+    1,
+    9
+};
+
+static const razer_zone kraken_kitty_v3_pro_wireless_ears_zone =
+{
+    "Ears",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device kraken_kitty_v3_pro_wireless_device =
+{
+    "Razer Kraken Kitty V3 Pro (Wireless)",
+    RAZER_KRAKEN_KITTY_V3_PRO_WIRELESS_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x60,
+    1,
+    10,
+    {
+        &kraken_kitty_v3_pro_wireless_headset_zone,
+        &kraken_kitty_v3_pro_wireless_ears_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Tiamat 7.1 V2                                          |
 |                                                               |
 |  Zone "Controller"                                            |
@@ -8592,6 +8896,42 @@ static const razer_device thunderbolt_4_dock_chroma_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Thunderbolt 5 Dock Chroma                              |
+|                                                               |
+|  Zone "LED Strip"                                             |
+|       Linear                                                  |
+|       12 LEDs                                                 |
+|                                                               |
+\*-------------------------------------------------------------*/
+static const razer_zone thunderbolt_5_dock_chroma_zone =
+{
+    "LED Strip",
+    ZONE_TYPE_LINEAR,
+    1,
+    12
+};
+
+static const razer_device thunderbolt_5_dock_chroma_device =
+{
+    "Razer Thunderbolt 5 Dock Chroma",
+    RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID,
+    DEVICE_TYPE_ACCESSORY,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x3F,
+    1,
+    12,
+    {
+        &thunderbolt_5_dock_chroma_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Hanbo Chroma                                           |
 |                                                               |
 |  Zone "Pump"                                                  |
@@ -8687,6 +9027,7 @@ const razer_device* razer_device_list[] =
     &blackwidow_v4_device,
     &blackwidow_v4_pro_device,
     &blackwidow_v4_pro_75_wired_device,
+    &blackwidow_v4_75_wired_device,
     &blackwidow_v4_x_device,
     &blackwidow_x_chroma_device,
     &blackwidow_x_chroma_te_device,
@@ -8841,6 +9182,13 @@ const razer_device* razer_device_list[] =
     &kraken_ultimate_device,
     &kraken_kitty_device,
     &kraken_kitty_black_v2_device,
+    &kraken_v3_hs_device,
+    &kraken_v3_x_device,
+    &kraken_v3_device,
+    &kraken_v4_wired_device,
+    &kraken_v4_wireless_device,
+    &kraken_kitty_v3_pro_wired_device,
+    &kraken_kitty_v3_pro_wireless_device,
     &tiamat_71_v2_device,
 /*-----------------------------------------------------------------*\
 |  OTHER                                                            |
@@ -8866,6 +9214,7 @@ const razer_device* razer_device_list[] =
     &o11_dynamic_device,
     &seiren_emote_device,
     &thunderbolt_4_dock_chroma_device,
+    &thunderbolt_5_dock_chroma_device,
     &hanbo_chroma_device
 };
 

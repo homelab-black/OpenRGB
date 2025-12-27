@@ -6,7 +6,7 @@
 |   Cooper Hall (geobot19)                      17 Apr 2022 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <hidapi.h>
@@ -63,5 +63,7 @@ REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 6",  DetectLenovoLegionUSBControl
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 7",  DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_S7GEN7,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 7",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN7,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 8",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN8,   LENOVO_PAGE, LENOVO_USAGE);
+REGISTER_HID_DETECTOR_PU("Lenovo Legion 7S Gen 8",  DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_S7GEN8,  LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 9",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN9,   LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 9",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN9_H, LENOVO_PAGE, LENOVO_USAGE);
+REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 10",  DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN10,  LENOVO_PAGE, LENOVO_USAGE);

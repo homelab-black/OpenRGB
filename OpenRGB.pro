@@ -164,7 +164,8 @@ INCLUDEPATH +=                                                                  
     RGBController/                                                                              \
     qt/                                                                                         \
     SPDAccessor/                                                                                \
-    SuspendResume/
+    SuspendResume/                                                                              \
+    dependencies/stb/
 
 HEADERS +=                                                                                      \
     $$GUI_H                                                                                     \
@@ -197,8 +198,8 @@ HEADERS +=                                                                      
     scsiapi/scsiapi.h                                                                           \
     serial_port/find_usb_serial_port.h                                                          \
     serial_port/serial_port.h                                                                   \
-    StringUtils.h                                                                               \
     super_io/super_io.h                                                                         \
+    StringUtils.h                                                                               \
     SuspendResume/SuspendResume.h                                                               \
     AutoStart/AutoStart.h                                                                       \
     KeyboardLayoutManager/KeyboardLayoutManager.h                                               \
@@ -265,7 +266,6 @@ SOURCES +=                                                                      
     net_port/net_port.cpp                                                                       \
     serial_port/serial_port.cpp                                                                 \
     StringUtils.cpp                                                                             \
-    super_io/super_io.cpp                                                                       \
     AutoStart/AutoStart.cpp                                                                     \
     KeyboardLayoutManager/KeyboardLayoutManager.cpp                                             \
     RGBController/RGBController.cpp                                                             \
@@ -329,10 +329,11 @@ win32:QMAKE_CXXFLAGS += /utf-8
 win32:INCLUDEPATH +=                                                                            \
     dependencies/display-library/include                                                        \
     dependencies/hidapi-win/include                                                             \
-    dependencies/winring0/include                                                               \
     dependencies/libusb-1.0.27/include                                                          \
     dependencies/mbedtls-3.2.1/include                                                          \
     dependencies/NVFC                                                                           \
+    dependencies/PawnIO                                                                         \
+    i2c_smbus/Windows                                                                           \
     wmi/                                                                                        \
 
 win32:SOURCES += $$CONTROLLER_CPP_WINDOWS
@@ -340,11 +341,8 @@ win32:SOURCES += $$CONTROLLER_CPP_WINDOWS
 win32:SOURCES +=                                                                                \
     dependencies/hueplusplus-1.2.0/src/WinHttpHandler.cpp                                       \
     dependencies/NVFC/nvapi.cpp                                                                 \
-    i2c_smbus/i2c_smbus_amdadl.cpp                                                              \
-    i2c_smbus/i2c_smbus_i801.cpp                                                                \
-    i2c_smbus/i2c_smbus_nct6775.cpp                                                             \
-    i2c_smbus/i2c_smbus_nvapi.cpp                                                               \
-    i2c_smbus/i2c_smbus_piix4.cpp                                                               \
+    i2c_smbus/Windows/i2c_smbus_amdadl.cpp                                                      \
+    i2c_smbus/Windows/i2c_smbus_nvapi.cpp                                                       \
     scsiapi/scsiapi_windows.c                                                                   \
     serial_port/find_usb_serial_port_win.cpp                                                    \
     SuspendResume/SuspendResume_Windows.cpp                                                     \
@@ -358,31 +356,36 @@ win32:HEADERS +=                                                                
     dependencies/display-library/include/adl_defines.h                                          \
     dependencies/display-library/include/adl_sdk.h                                              \
     dependencies/display-library/include/adl_structures.h                                       \
-    dependencies/winring0/include/OlsApi.h                                                      \
     dependencies/NVFC/nvapi.h                                                                   \
-    i2c_smbus/i2c_smbus_i801.h                                                                  \
-    i2c_smbus/i2c_smbus_nct6775.h                                                               \
-    i2c_smbus/i2c_smbus_nvapi.h                                                                 \
-    i2c_smbus/i2c_smbus_piix4.h                                                                 \
+    dependencies/PawnIO/PawnIOLib.h                                                             \
+    i2c_smbus/Windows/i2c_smbus_amdadl.h                                                        \
+    i2c_smbus/Windows/i2c_smbus_nvapi.h                                                         \
+    i2c_smbus/Windows/i2c_smbus_pawnio.h                                                        \
     wmi/wmi.h                                                                                   \
     AutoStart/AutoStart-Windows.h                                                               \
     SuspendResume/SuspendResume_Windows.h                                                       \
 
 win32:contains(QMAKE_TARGET.arch, x86_64) {
+    win32:SOURCES +=                                                                            \
+        i2c_smbus/Windows/i2c_smbus_pawnio.cpp                                                  \
+        super_io/super_io_pawnio.cpp                                                            \
+
     LIBS +=                                                                                     \
         -lws2_32                                                                                \
         -liphlpapi                                                                              \
-        -L"$$PWD/dependencies/winring0/x64/" -lWinRing0x64                                      \
         -L"$$PWD/dependencies/libusb-1.0.27/VS2019/MS64/dll" -llibusb-1.0                       \
         -L"$$PWD/dependencies/hidapi-win/x64/" -lhidapi                                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x64/" -lmbedcrypto -lmbedtls -lmbedx509         \
+        -L"$$PWD/dependencies/PawnIO/" -lPawnIOLib                                              \
 }
 
 win32:contains(QMAKE_TARGET.arch, x86) {
+    win32:SOURCES +=                                                                            \
+        super_io/super_io.cpp                                                                   \
+
     LIBS +=                                                                                     \
         -lws2_32                                                                                \
         -liphlpapi                                                                              \
-        -L"$$PWD/dependencies/winring0/Win32/" -lWinRing0                                       \
         -L"$$PWD/dependencies/libusb-1.0.27/VS2019/MS32/dll" -llibusb-1.0                       \
         -L"$$PWD/dependencies/hidapi-win/x86/" -lhidapi                                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x86/" -lmbedcrypto -lmbedtls -lmbedx509         \
@@ -401,6 +404,11 @@ win32:DEFINES +=                                                                
 
 win32:RC_ICONS +=                                                                               \
     qt/OpenRGB.ico
+
+win32:DISTFILES += \
+    dependencies/PawnIO/modules/SmbusPIIX4.bin                                                  \
+    dependencies/PawnIO/modules/SmbusI801.bin                                                   \
+    dependencies/PawnIO/modules/LpcIO.bin
 
 #-----------------------------------------------------------------------------------------------#
 # Windows GitLab CI Configuration                                                               #
@@ -423,10 +431,13 @@ win32:UI_DIR      = _intermediate_$$DESTDIR/.ui
 #-----------------------------------------------------------------------------------------------#
 
 win32:contains(QMAKE_TARGET.arch, x86_64) {
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/winring0/x64/WinRing0x64.dll                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/winring0/x64/WinRing0x64.sys                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/libusb-1.0.27/VS2019/MS64/dll/libusb-1.0.dll)\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x64/hidapi.dll                   )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/PawnIOLib.dll                        )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusPIIX4.bin               )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusI801.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusNCT6793.bin             )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/LpcIO.bin                    )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     first.depends = $(first) copydata
     export(first.depends)
     export(copydata.commands)
@@ -434,9 +445,6 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
 }
 
 win32:contains(QMAKE_TARGET.arch, x86) {
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/winring0/Win32/WinRing0.dll                 )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/winring0/Win32/WinRing0.sys                 )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/winring0/x64/WinRing0x64.sys                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/libusb-1.0.27/VS2019/MS32/dll/libusb-1.0.dll)\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x86/hidapi.dll                   )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
 
@@ -461,14 +469,16 @@ contains(QMAKE_PLATFORM, linux) {
 
     HEADERS +=                                                                                  \
     dependencies/NVFC/nvapi.h                                                                   \
-    i2c_smbus/i2c_smbus_linux.h                                                                 \
+    i2c_smbus/Linux/i2c_smbus_linux.h                                                           \
     AutoStart/AutoStart-Linux.h                                                                 \
     SPDAccessor/EE1004Accessor_Linux.h                                                          \
     SPDAccessor/SPD5118Accessor_Linux.h                                                         \
     SuspendResume/SuspendResume_Linux_FreeBSD.h                                                 \
+    super_io/super_io.h                                                                         \
 
     INCLUDEPATH +=                                                                              \
     dependencies/NVFC                                                                           \
+    i2c_smbus/Linux                                                                             \
     /usr/include/mbedtls/                                                                       \
 
     LIBS +=                                                                                     \
@@ -515,14 +525,15 @@ contains(QMAKE_PLATFORM, linux) {
     SOURCES +=                                                                                  \
     dependencies/hueplusplus-1.2.0/src/LinHttpHandler.cpp                                       \
     dependencies/NVFC/nvapi.cpp                                                                 \
-    i2c_smbus/i2c_smbus_linux.cpp                                                               \
+    i2c_smbus/Linux/i2c_smbus_linux.cpp                                                         \
     scsiapi/scsiapi_linux.c                                                                     \
     serial_port/find_usb_serial_port_linux.cpp                                                  \
     AutoStart/AutoStart-Linux.cpp                                                               \
     SPDAccessor/EE1004Accessor_Linux.cpp                                                        \
     SPDAccessor/SPD5118Accessor_Linux.cpp                                                       \
     SuspendResume/SuspendResume_Linux_FreeBSD.cpp                                               \
-    startup/main_Linux_MacOS.cpp                                                                \
+    startup/main_FreeBSD_Linux_MacOS.cpp                                                        \
+    super_io/super_io.cpp                                                                       \
 
     #-------------------------------------------------------------------------------------------#
     # Set up install paths                                                                      #
@@ -577,9 +588,11 @@ contains(QMAKE_PLATFORM, linux) {
     icon.files+=qt/org.openrgb.OpenRGB.png
     metainfo.path=$$PREFIX/share/metainfo/
     metainfo.files+=qt/org.openrgb.OpenRGB.metainfo.xml
-    systemd_service.path=/etc/systemd/system
+    systemd_service.path=$$PREFIX/lib/systemd/system/
     systemd_service.files+=qt/openrgb.service
-    INSTALLS += target desktop icon metainfo udev_rules systemd_service
+    tmpfiles.path=$$PREFIX/lib/tmpfiles.d/
+    tmpfiles.files+=qt/openrgb.conf
+    INSTALLS += target desktop icon metainfo udev_rules systemd_service tmpfiles
 }
 
 #-----------------------------------------------------------------------------------------------#
@@ -598,6 +611,7 @@ contains(QMAKE_PLATFORM, freebsd) {
     HEADERS +=                                                                                  \
     AutoStart/AutoStart-FreeBSD.h                                                               \
     SuspendResume/SuspendResume_Linux_FreeBSD.h                                                 \
+    super_io/super_io.h                                                                         \
 
     HEADERS -=                                                                                  \
     Controllers/SeagateController/RGBController_Seagate.h                                       \
@@ -646,6 +660,8 @@ contains(QMAKE_PLATFORM, freebsd) {
     serial_port/find_usb_serial_port_linux.cpp                                                  \
     AutoStart/AutoStart-FreeBSD.cpp                                                             \
     SuspendResume/SuspendResume_Linux_FreeBSD.cpp                                               \
+    startup/main_FreeBSD_Linux_MacOS.cpp                                                        \
+    super_io/super_io.cpp                                                                       \
 
     SOURCES -=                                                                                  \
     Controllers/SeagateController/RGBController_Seagate.cpp                                     \
@@ -715,7 +731,7 @@ macx {
     AutoStart/AutoStart-MacOS.cpp                                                               \
     qt/macutils.mm                                                                              \
     SuspendResume/SuspendResume_MacOS.cpp                                                       \
-    startup/main_Linux_MacOS.cpp                                                                \
+    startup/main_FreeBSD_Linux_MacOS.cpp                                                        \
 
     SOURCES += $$CONTROLLER_CPP_MACOS
 
@@ -748,6 +764,10 @@ macx:contains(QMAKE_HOST.arch, arm64) {
 
     SOURCES +=                                                                                  \
     scsiapi/scsiapi_macos.c                                                                     \
+    super_io/super_io.cpp                                                                       \
+
+    HEADERS +=                                                                                  \
+    super_io/super_io.h                                                                         \
 
     LIBS +=                                                                                     \
     -L/opt/homebrew/lib                                                                         \
@@ -759,20 +779,23 @@ macx:contains(QMAKE_HOST.arch, arm64) {
 macx:contains(QMAKE_HOST.arch, x86_64) {
     INCLUDEPATH +=                                                                              \
     dependencies/macUSPCIO                                                                      \
+    i2c_smbus/MacOS                                                                             \
     /usr/local/include                                                                          \
     /usr/local/homebrew/include                                                                 \
 
     SOURCES +=                                                                                  \
-    i2c_smbus/i2c_smbus_i801.cpp                                                                \
-    i2c_smbus/i2c_smbus_nct6775.cpp                                                             \
-    i2c_smbus/i2c_smbus_piix4.cpp                                                               \
+    i2c_smbus/MacOS/i2c_smbus_i801.cpp                                                          \
+    i2c_smbus/MacOS/i2c_smbus_nct6775.cpp                                                       \
+    i2c_smbus/MacOS/i2c_smbus_piix4.cpp                                                         \
     scsiapi/scsiapi_macos.c                                                                     \
+    super_io/super_io.cpp                                                                       \
 
     HEADERS +=                                                                                  \
     dependencies/macUSPCIO/macUSPCIOAccess.h                                                    \
-    i2c_smbus/i2c_smbus_i801.h                                                                  \
-    i2c_smbus/i2c_smbus_nct6775.h                                                               \
-    i2c_smbus/i2c_smbus_piix4.h                                                                 \
+    i2c_smbus/MacOS/i2c_smbus_i801.h                                                            \
+    i2c_smbus/MacOS/i2c_smbus_nct6775.h                                                         \
+    i2c_smbus/MacOS/i2c_smbus_piix4.h                                                           \
+    super_io/super_io.h                                                                         \
 
     LIBS +=                                                                                     \
     -L/usr/local/lib                                                                            \

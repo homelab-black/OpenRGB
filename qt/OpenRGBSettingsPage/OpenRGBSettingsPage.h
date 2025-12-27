@@ -4,7 +4,7 @@
 |   User interface for general settings page                |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -78,6 +78,8 @@ private slots:
     void on_OpenSettingsFolderButton_clicked();
     void on_CheckboxLogConsole_clicked();
     void on_CheckboxLogFile_clicked();
+    void on_CheckboxHIDSafeMode_clicked();
+    void on_TextDetectionDelay_valueChanged(int);
     void on_CheckboxAMDSMBusReduceCPU_clicked();
     void on_CheckboxSharedSMBusAccess_clicked();
 

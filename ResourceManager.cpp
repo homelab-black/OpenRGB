@@ -8,7 +8,7 @@
 |   Adam Honse (CalcProgrammer1)                27 Sep 2020 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #ifdef _WIN32
@@ -38,8 +38,8 @@ const char* I2C_ERR_WIN =   QT_TRANSLATE_NOOP("ResourceManager",
                                               "<p>One or more I2C or SMBus interfaces failed to initialize.</p>"
                                               "<p><b>RGB DRAM modules, some motherboards' onboard RGB lighting, and RGB Graphics Cards, will not be available in OpenRGB</b> without I2C or SMBus.</p>"
                                               "<h4>How to fix this:</h4>"
-                                              "<p>On Windows, this is usually caused by a failure to load the WinRing0 driver.</p>"
-                                              "<p>You must run OpenRGB as administrator at least once to allow WinRing0 to set up.</p>"
+                                              "<p>On Windows, this is usually caused by a failure to load the PawnIO driver.</p>"
+                                              "<p>You must first install <a href='https://pawnio.eu/'>PawnIO</a>, then you must OpenRGB as administrator in order to access these devices.</p>"
                                               "<p>See <a href='https://help.openrgb.org/'>help.openrgb.org</a> for additional troubleshooting steps if you keep seeing this message.<br></p>"
                                               "<h3>If you are not using internal RGB on a desktop this message is not important to you.</h3>");
 const char* I2C_ERR_LINUX = QT_TRANSLATE_NOOP("ResourceManager",
@@ -124,6 +124,7 @@ ResourceManager::ResourceManager()
     detection_is_required       = false;
     dynamic_detectors_processed = false;
     init_finished               = false;
+    initial_detection           = true;
     background_thread_running   = true;
 
     /*-----------------------------------------------------*\
@@ -1056,26 +1057,17 @@ void ResourceManager::DetectDevicesCoroutine()
     DetectDeviceMutex.lock();
 
     hid_device_info*    current_hid_device;
-    float               percent             = 0.0f;
-    float               percent_denominator = 0.0f;
+    float               percent                     = 0.0f;
+    float               percent_denominator         = 0.0f;
     json                detector_settings;
-    unsigned int        hid_device_count    = 0;
-    hid_device_info*    hid_devices         = NULL;
-    bool                hid_safe_mode       = false;
+    unsigned int        hid_device_count            = 0;
+    hid_device_info*    hid_devices                 = NULL;
+    bool                hid_safe_mode               = false;
+    unsigned int        initial_detection_delay_ms  = 0;
 
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Start device detection               |");
     LOG_INFO("------------------------------------------------------");
-
-    /*-----------------------------------------------------*\
-    | Reset the size entry used flags vector                |
-    \*-----------------------------------------------------*/
-    detection_size_entry_used.resize(rgb_controllers_sizes.size());
-
-    for(std::size_t size_idx = 0; size_idx < (unsigned int)detection_size_entry_used.size(); size_idx++)
-    {
-        detection_size_entry_used[size_idx] = false;
-    }
 
     /*-----------------------------------------------------*\
     | Open device disable list and read in disabled         |
@@ -1089,6 +1081,39 @@ void ResourceManager::DetectDevicesCoroutine()
     if(detector_settings.contains("hid_safe_mode"))
     {
         hid_safe_mode = detector_settings["hid_safe_mode"];
+    }
+
+    /*-----------------------------------------------------*\
+    | Check initial detection delay setting                 |
+    \*-----------------------------------------------------*/
+    if(detector_settings.contains("initial_detection_delay_ms"))
+    {
+        initial_detection_delay_ms = detector_settings["initial_detection_delay_ms"];
+    }
+
+    /*-----------------------------------------------------*\
+    | If configured, delay detection for the configured     |
+    | time only on first detection                          |
+    \*-----------------------------------------------------*/
+    if(initial_detection)
+    {
+        if(initial_detection_delay_ms != 0)
+        {
+            LOG_INFO("[ResourceManager] Delaying detection for %d ms", initial_detection_delay_ms);
+            std::this_thread::sleep_for(initial_detection_delay_ms * 1ms);
+        }
+
+        initial_detection = false;
+    }
+
+    /*-----------------------------------------------------*\
+    | Reset the size entry used flags vector                |
+    \*-----------------------------------------------------*/
+    detection_size_entry_used.resize(rgb_controllers_sizes.size());
+
+    for(std::size_t size_idx = 0; size_idx < (unsigned int)detection_size_entry_used.size(); size_idx++)
+    {
+        detection_size_entry_used[size_idx] = false;
     }
 
     /*-----------------------------------------------------*\
@@ -1781,6 +1806,22 @@ void ResourceManager::InitCoroutine()
     }
 
     /*-----------------------------------------------------*\
+    | Start server if requested                             |
+    \*-----------------------------------------------------*/
+    if(start_server)
+    {
+        detection_percent = 0;
+        detection_string = "Starting server";
+        DetectionProgressChanged();
+
+        GetServer()->StartServer();
+        if(!GetServer()->GetOnline())
+        {
+            LOG_DEBUG("[ResourceManager] Server failed to start");
+        }
+    }
+
+    /*-----------------------------------------------------*\
     | Perform actual detection if enabled                   |
     | Done in the same thread (InitThread), as we need to   |
     | wait for completion anyway                            |
@@ -1800,22 +1841,6 @@ void ResourceManager::InitCoroutine()
     else
     {
         ProcessPostDetection();
-    }
-
-    /*-----------------------------------------------------*\
-    | Start server if requested                             |
-    \*-----------------------------------------------------*/
-    if(start_server)
-    {
-        detection_percent = 100;
-        detection_string = "Starting server";
-        DetectionProgressChanged();
-
-        GetServer()->StartServer();
-        if(!GetServer()->GetOnline())
-        {
-            LOG_DEBUG("[ResourceManager] Server failed to start");
-        }
     }
 
     /*-----------------------------------------------------*\

@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                09 May 2020 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <cstring>
@@ -287,6 +287,11 @@ void NetworkServer::StartServer()
             WSACleanup();
             return;
         }
+
+        /*---------------------------------------------------------*\
+        | Set socket options - reuse addr                           |
+        \*---------------------------------------------------------*/
+        setsockopt(server_sock[socket_count], SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 
         /*---------------------------------------------------------*\
         | Bind the server socket                                    |
@@ -1052,7 +1057,7 @@ void NetworkServer::ProcessRequest_ClientString(SOCKET client_sock, unsigned int
 
 void NetworkServer::ProcessRequest_RescanDevices()
 {
-    ResourceManager::get()->DetectDevices();
+    ResourceManager::get()->RescanDevices();
 }
 
 void NetworkServer::SendReply_ControllerCount(SOCKET client_sock)

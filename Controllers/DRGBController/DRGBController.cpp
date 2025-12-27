@@ -6,7 +6,7 @@
 |   Zhi Yan                                     25 Jun 2024 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <cstring>
@@ -44,11 +44,11 @@ void DRGBController::KeepaliveThread()
     sleep_buf[0] = 0x65;
     while(keepalive_thread_run.load())
     {
-        if((std::chrono::steady_clock::now() - last_commit_time) > std::chrono::seconds(1))
+        if((std::chrono::steady_clock::now() - last_commit_time) > std::chrono::milliseconds(500))
         {
             SendPacketFS(sleep_buf, 1, 0);
         }
-        std::this_thread::sleep_for(500ms);
+        std::this_thread::sleep_for(300ms);
     }
 }
 
@@ -96,6 +96,12 @@ void DRGBController::SendPacket(unsigned char* colors, unsigned int buf_packets 
     unsigned int    buf_idx = 0;
     memset(usb_buf, 0x00, sizeof(usb_buf));
     usb_buf[0x00]   = 0x00;
+
+    /*-----------------------------------------------------*\
+    | Update last commit time                               |
+    \*-----------------------------------------------------*/
+    last_commit_time = std::chrono::steady_clock::now();
+
     unsigned int    HigCount = LEDtotal / 256 >= 1 ? 1 : 0;
     unsigned int    LowCount = LEDtotal >= DRGB_V4_ONE_PACKAGE_SIZE ? 60 : (LEDtotal % 256) ;
     LEDtotal = LEDtotal <= DRGB_V4_ONE_PACKAGE_SIZE ? 0 : (LEDtotal-DRGB_V4_ONE_PACKAGE_SIZE);
@@ -106,10 +112,7 @@ void DRGBController::SendPacket(unsigned char* colors, unsigned int buf_packets 
         usb_buf[3]  = HigCount;
         usb_buf[4]  = LowCount;
         buf_idx     = i*1020;
-        for(unsigned int k=0;k<1020;k++)
-        {
-            usb_buf[k+5] = colors[buf_idx + k];
-        }
+        memcpy(usb_buf + 5, colors + buf_idx, 1020);
         hid_write(dev, usb_buf, 1025);
         if(LEDtotal)
         {
@@ -122,42 +125,31 @@ void DRGBController::SendPacket(unsigned char* colors, unsigned int buf_packets 
 
 void DRGBController::SendPacketFS(unsigned char* colors, unsigned int buf_packets , unsigned int Array)
 {
-    unsigned char   usb_buf[65];
-    unsigned int    buf_idx = 0;
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-    usb_buf[0x00]   = 0x00;
-    if(Array == 0x64)
+    unsigned char usb_buf[65] = {0};
+    unsigned int current_index = 0;
+
+    /*-----------------------------------------------------*\
+    | Update last commit time                               |
+    \*-----------------------------------------------------*/
+    last_commit_time = std::chrono::steady_clock::now();
+
+    if(Array == 0x64 || Array == 0x47)
     {
+        const unsigned int offset = (Array == 0x64) ? 100 : 92;
+
         for(unsigned int i = 0; i < buf_packets; i++)
         {
-            usb_buf[1]  = i == buf_packets - 1 ? Array + 100 + i : Array + i;
-            buf_idx     = i*63;
-            for(unsigned int k=0;k<63;k++)
-            {
-                usb_buf[k+2] = colors[buf_idx + k];
-            }
-            hid_write(dev, usb_buf, 65);
-        }
-    }
-    else if(Array == 0x47)
-    {
-        for(unsigned int i = 0; i < buf_packets; i++)
-        {
-            usb_buf[1]  = i == buf_packets - 1 ? Array + 92 + i : Array + i;
-            buf_idx     = i*63;
-            for(unsigned int k=0;k<63;k++)
-            {
-                usb_buf[k+2] = colors[buf_idx + k];
-            }
+            const bool is_last_packet = (i == buf_packets - 1);
+            usb_buf[1] = is_last_packet ? (Array + offset + i) : (Array + i);
+            current_index = i * 63;
+            memcpy(usb_buf + 2, colors + current_index, 63);
+
             hid_write(dev, usb_buf, 65);
         }
     }
     else
     {
-        for(unsigned int e=0;e<64;e++)
-        {
-            usb_buf[e+1] = colors[e];
-        }
+        memcpy(usb_buf + 1, colors, 64);
         hid_write(dev, usb_buf, 65);
     }
 }

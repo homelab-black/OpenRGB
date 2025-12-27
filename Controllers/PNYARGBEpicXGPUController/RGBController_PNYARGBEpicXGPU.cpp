@@ -7,7 +7,7 @@
 |   Adam Honse <calcprogrammer1@gmail.com>      01 Aug 2025 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "pci_ids.h"
@@ -143,7 +143,7 @@ void RGBController_PNYARGBEpicXGPU::DeviceUpdateLEDs()
 {
     for(std::size_t i = 0; i < leds.size(); i++)
     {
-        UpdateSingleLED(i);
+        UpdateSingleLED((int)i);
     }
 }
 

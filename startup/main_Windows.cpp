@@ -6,7 +6,7 @@
 |   Housekeeping for Windows service management             |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <algorithm>
@@ -22,6 +22,7 @@
 #include "LogManager.h"
 #include "NetworkServer.h"
 #include "ResourceManager.h"
+#include "StringUtils.h"
 
 using namespace std::chrono_literals;
 
@@ -520,83 +521,6 @@ static void WaitWhileServerOnline(NetworkServer* srv)
 }
 
 /*---------------------------------------------------------*\
-| InstallWinRing0                                           |
-|                                                           |
-|   Install SMBus Driver WinRing0, If not already installed |
-|   (Win32)                                                 |
-\*---------------------------------------------------------*/
-void InstallWinRing0()
-{
-    /*-----------------------------------------------------*\
-    | Driver final location usually                         |
-    | C:\windows\system32\drivers\WinRing0x64.sys           |
-    \*-----------------------------------------------------*/
-    TCHAR winring0_install_location[MAX_PATH];
-    uint system_path_length = GetSystemDirectory(winring0_install_location, MAX_PATH);
-    std::string winring0_filename = "WinRing0.sys";
-    BOOL bIsWow64 = false;
-#if _WIN64
-    winring0_filename = "WinRing0x64.sys";
-#else
-    BOOL (*fnIsWow64Process)(HANDLE, PBOOL) = (BOOL (__cdecl *)(HANDLE, PBOOL))GetProcAddress(GetModuleHandle(TEXT("kernel32")),"IsWow64Process");
-    if (fnIsWow64Process)
-    {
-        fnIsWow64Process(GetCurrentProcess(),&bIsWow64);
-    }
-    if(bIsWow64)
-    {
-        winring0_filename = "WinRing0x64.sys";
-    }
-#endif
-    std::strncat(winring0_install_location, "\\drivers\\", MAX_PATH - system_path_length - 1);
-    std::strncat(winring0_install_location, winring0_filename.c_str(), MAX_PATH - system_path_length - 10);
-
-    std::string driver_name = winring0_filename.substr(0, winring0_filename.size() - 4); // driver name: WinRing0 or WinRing0x64
-    SC_HANDLE manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (manager)
-    {
-        PVOID wow64_fsredirection_OldValue = NULL;
-        if(bIsWow64)
-        {
-            Wow64DisableWow64FsRedirection(&wow64_fsredirection_OldValue);
-        }
-        if(INVALID_FILE_ATTRIBUTES == GetFileAttributes(winring0_install_location) && GetLastError()==ERROR_FILE_NOT_FOUND)
-        {
-            char module_path_buffer[MAX_PATH];
-            GetModuleFileNameA(NULL, module_path_buffer, MAX_PATH);
-            std::string::size_type exe_loc = std::string(module_path_buffer).find_last_of("\\/");
-            std::string driver_source_path = std::string(module_path_buffer).substr(0, exe_loc + 1) + winring0_filename;
-            CopyFile(driver_source_path.c_str(), winring0_install_location, true);
-        }
-        if(bIsWow64)
-        {
-            Wow64RevertWow64FsRedirection(wow64_fsredirection_OldValue);
-        }
-
-        SC_HANDLE service = OpenService(manager, driver_name.c_str(), SERVICE_ALL_ACCESS);
-        if(!service)
-        {
-            std::string service_sys_path = "System32\\Drivers\\" + winring0_filename;
-            service = CreateService(manager,
-               driver_name.c_str(),
-               driver_name.c_str(),
-               SERVICE_ALL_ACCESS,
-               SERVICE_KERNEL_DRIVER,
-               SERVICE_AUTO_START,
-               SERVICE_ERROR_NORMAL,
-               service_sys_path.c_str(),
-               NULL,
-               NULL,
-               NULL,
-               NULL,
-               NULL);
-        }
-        CloseServiceHandle(service);
-        CloseServiceHandle(manager);
-    }
-}
-
-/*---------------------------------------------------------*\
 | common_main                                               |
 |                                                           |
 |   Common entry functionality after determining whether we |
@@ -614,6 +538,23 @@ static int common_main(int argc, char* argv[])
         | doesn't have a way to warn about them             |
         \*-------------------------------------------------*/
         ret_flags = RET_FLAG_START_SERVER | RET_FLAG_NO_AUTO_CONNECT;
+
+        /*-------------------------------------------------*\
+        | Get the path to the executable and create a       |
+        | directory called service_config there, use this   |
+        | as the service's configuration directory          |
+        \*-------------------------------------------------*/
+        WCHAR exe_path_wchar[MAX_PATH];
+        GetModuleFileNameW(NULL, exe_path_wchar, MAX_PATH);
+
+        std::string exe_path_string = StringUtils::wstring_to_string(std::wstring(exe_path_wchar));
+
+        filesystem::path exe_path(exe_path_string);
+        filesystem::path config_path = exe_path.remove_filename() / filesystem::u8path("service_config");
+
+        filesystem::create_directories(config_path);
+
+        ResourceManager::get()->SetConfigurationDirectory(config_path);
     }
     else
     {
@@ -630,11 +571,6 @@ static int common_main(int argc, char* argv[])
     std::thread * InitializeTimerResolutionThread;
     InitializeTimerResolutionThread = new std::thread(InitializeTimerResolutionThreadFunction);
     InitializeTimerResolutionThread->detach();
-
-    /*-----------------------------------------------------*\
-    | Install SMBus Driver WinRing0                         |
-    \*-----------------------------------------------------*/
-    InstallWinRing0();
 
     /*-----------------------------------------------------*\
     | Initialize ResourceManager                            |

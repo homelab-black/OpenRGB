@@ -3,10 +3,10 @@
 |                                                           |
 |   RGBController for Wooting keyboard                      |
 |                                                           |
-|   Diogo Trindade (diogotr7)                   04 Mar 2021 |
+|   Diogo Trindade (diogotr7)                   25 Dec 2025 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once

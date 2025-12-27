@@ -7,7 +7,7 @@
 |   Milan Cermak (krysmanta)                                |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <vector>
@@ -198,3 +198,4 @@ REGISTER_I2C_DIMM_DETECTOR("Kingston Fury DDR4 DRAM",   DetectKingstonFuryDDR4Co
 REGISTER_I2C_DIMM_DETECTOR("Kingston Fury DDR4 DRAM",   DetectKingstonFuryDDR4Controllers,  JEDEC_KINGSTON_2,   SPD_DDR4_SDRAM);
 REGISTER_I2C_DIMM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON,     SPD_DDR5_SDRAM);
 REGISTER_I2C_DIMM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON_2,   SPD_DDR5_SDRAM);
+REGISTER_I2C_DIMM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON_3,   SPD_DDR5_SDRAM);

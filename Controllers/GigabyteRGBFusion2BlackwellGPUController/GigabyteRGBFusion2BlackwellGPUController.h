@@ -4,7 +4,7 @@
 |   Driver for Gigabyte RGB Fusion 2 Blackwell GPU          |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -64,6 +64,7 @@ enum
     RGB_FUSION2_BLACKWELL_GPU_SINGLE_ZONE          = 0,
     RGB_FUSION2_BLACKWELL_GPU_GAMING_LAYOUT        = 1,
     RGB_FUSION2_BLACKWELL_GPU_WATERFORCE_LAYOUT    = 2,
+    RGB_FUSION2_BLACKWELL_GPU_AORUS_WATERFORCE_LAYOUT = 3,
 };
 
 class RGBFusion2BlackwellGPUController

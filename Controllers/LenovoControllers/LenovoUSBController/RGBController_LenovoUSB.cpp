@@ -6,7 +6,7 @@
 |   Cooper Hall (geobot19)                      17 Apr 2022 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <iomanip>
@@ -313,6 +313,9 @@ void RGBController_LenovoUSB::SetupZones()
         case LEGION_7GEN9_H:
             lenovo_zones.push_back(legion7_gen7and8_kbd_ansi);
             lenovo_zones.push_back(legion7_gen7and8_neon);
+            break;
+        case LEGION_S7GEN8:
+            lenovo_zones.push_back(legion7_gen7and8_kbd_ansi);
             break;
     }
 

@@ -4,7 +4,7 @@
 |   PCI Vendor and Device ID constants                      |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 /*---------------------------------------------------------*\
@@ -42,7 +42,9 @@
 #define AMD_NAVI31_DEV                                  0x744C
 #define AMD_NAVI32_DEV                                  0x747E
 #define AMD_NAVI33_DEV                                  0x7480
+#define AMD_NAVI44_DEV                                  0x7590
 #define AMD_NAVI48_DEV                                  0x7550
+#define AMD_NAVI48_DEV1                                 0x7590
 
 /*-----------------------------------------------------*\
 | Intel Device IDs                                      |
@@ -344,7 +346,8 @@
 #define ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_213S        0x88EF
 #define ASUS_ROG_STRIX_RTX_4090_24G_GAMING_88F0         0x88F0
 #define ASUS_ROG_STRIX_RTX_4090_024G_EVA_02             0x890C
-#define ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_8932        0x8932
+#define ASUS_ROG_STRIX_RTX_4090_24G_GAMING_8932         0x8932
+#define ASUS_ROG_STRIX_RTX_4090_24G_GAMING_8933         0x8933
 #define ASUS_ROG_STRIX_RTX_4090_24G_GAMING_WHITE        0x88C4
 #define ASUS_ROG_STRIX_RTX_4090_24G_GAMING_WHITE_2      0x88F2
 #define ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_WHITE       0x88C3
@@ -355,11 +358,13 @@
 #define ASUS_ROG_STRIX_RTX_5070TI_O16G_GAMING_OC        0x8A0D
 #define ASUS_TUF_RTX_5080_O16G_GAMING                   0x89D7
 #define ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING            0x89DE
+#define ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING_WHITE      0x8A2B
 #define ASUS_ROG_ASTRAL_RTX_5080_16G_GAMING             0x89DF
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING            0x89E3
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF        0x8A3C
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE      0x8A2E
 #define ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING         0x89EC
+#define ASUS_ROG_MATRIX_PLATINUM_RTX_5090_P32G          0x8A61
 #define ASUS_TUF_RTX_5090_O32G_GAMING                   0x89EE
 #define ASUS_TUF_RTX_5090_32G_GAMING                    0x89EF
 #define ASUS_AREZ_STRIX_VEGA56_08G_GAMING               0x0555
@@ -401,6 +406,7 @@
 #define ASUS_TUF_RX_7800XT_O16G_WHITE_GAMING            0x0601
 #define ASUS_TUF_RX_7900XT_020G_GAMING                  0x05ED
 #define ASUS_TUF_RX_7900XTX_O24G_GAMING                 0x0506
+#define ASUS_TUF_RX_9070_016G_GAMING                    0x0614
 #define ASUS_TUF_RX_9070XT_016G_GAMING                  0x0613
 
 /*-----------------------------------------------------*\
@@ -451,6 +457,7 @@
 #define EVGA_RTX2070_XC_BLACK_SUB_DEV                   0x2071
 #define EVGA_RTX2070_XC_GAMING_SUB_DEV                  0x2172
 #define EVGA_RTX2070_XC_OC_SUB_DEV                      0x2173
+#define EVGA_RTX2070_FTW3_ULTRA_OC_SUB_DEV              0x2277
 #define EVGA_RTX2070S_BLACK_SUB_DEV                     0x3071
 #define EVGA_RTX2070S_XC_GAMING_SUB_DEV                 0x3172
 #define EVGA_RTX2070S_XC_ULTRA_SUB_DEV                  0x3173
@@ -464,6 +471,7 @@
 #define EVGA_RTX2080_XC_HYBRID_GAMING_SUB_DEV           0x2184
 #define EVGA_RTX2080S_XC_GAMING_SUB_DEV                 0x3182
 #define EVGA_RTX2080S_XC_ULTRA_SUB_DEV                  0x3183
+#define EVGA_RTX2080S_XC_HYBRID_SUB_DEV                 0x3188
 #define EVGA_RTX2080S_FTW3_ULTRA_SUB_DEV                0x3287
 #define EVGA_RTX2080S_FTW3_HYBRID_OC_SUB_DEV            0x3288
 #define EVGA_RTX2080S_FTW3_ULTRA_HC_SUB_DEV             0x3289
@@ -472,6 +480,7 @@
 #define EVGA_RTX2080TI_XC_HYBRID_GAMING_SUB_DEV         0x2384
 #define EVGA_RTX2080TI_XC_HYDRO_COPPER_SUB_DEV          0x2389
 #define EVGA_RTX2080TI_FTW3_ULTRA_SUB_DEV               0x2487
+#define EVGA_RTX2080TI_FTW3_ULTRA_HYDRO_COPPER_SUB_DEV  0x2489
 #define EVGA_RTX3060TI_FTW3_GAMING_SUB_DEV              0x3665
 #define EVGA_RTX3060TI_FTW3_ULTRA_SUB_DEV               0x3667
 #define EVGA_RTX3060TI_FTW3_ULTRA_KL_SUB_DEV            0x4667
@@ -664,6 +673,7 @@
 #define GIGABYTE_RTX4060TI_GAMING_OC_16G_SUB_DEV        0x4112
 #define GIGABYTE_RTX4070_GAMING_OC_12G                  0x40C6
 #define GIGABYTE_RTX4070_GAMING_OC_12G_V2               0x412B
+#define GIGABYTE_RTX4070_AERO_OC_12G_SUB_DEV            0x40E6
 #define GIGABYTE_RTX4070S_GAMING_OC_12G                 0x4138
 #define GIGABYTE_RTX4070S_AERO_OC_12G                   0x4139
 #define GIGABYTE_RTX4070S_EAGLE_OC_ICE_12G              0x4148
@@ -686,6 +696,8 @@
 #define GIGABYTE_RTX4090_AERO_OC_24G_SUB_DEV            0x40E4
 #define GIGABYTE_RTX4090_GAMING_OC_24G_SUB_DEV          0x40BF
 #define GIGABYTE_AORUS_RTX4090_MASTER_24G_SUB_DEV       0x40C0
+#define GIGABYTE_RX7600XT_GAMING_OC_16G_SUB_DEV         0x2418
+#define GIGABYTE_RX7700XT_GAMING_OC_SUB_DEV             0x2414
 #define GIGABYTE_RX7800XT_GAMING_OC_16G_SUB_DEV         0x2413
 #define GIGABYTE_RTX5060TI_GAMING_OC_16G_SUB_DEV        0x4191
 #define GIGABYTE_RTX5070_EAGLE_OC_12G_SUB_DEV           0x417D
@@ -694,18 +706,29 @@
 #define GIGABYTE_RTX5070TI_EAGLE_OC_ICE_16G_SUB_DEV     0x4182
 #define GIGABYTE_RTX5070TI_AERO_OC_16G_SUB_DEV          0x417F
 #define GIGABYTE_RTX5070TI_GAMING_OC_16G_SUB_DEV        0x4181
+#define GIGABYTE_RTX5080_AERO_OC_16G_SUB_DEV            0x4179
 #define GIGABYTE_RTX5080_GAMING_OC_16G_SUB_DEV          0x4176
+#define GIGABYTE_AORUS_RTX5080_XTREME_WATERFORCE_16G_SUB_DEV 0x418A
 #define GIGABYTE_RTX5080_XTREME_WATERFORCE_16G_SUB_DEV  0x418B
 #define GIGABYTE_RTX5090_GAMING_OC_32G_SUB_DEV          0x416F
 #define GIGABYTE_AORUS_RTX5090_MASTER_32G_SUB_DEV       0x416E
 #define GIGABYTE_AORUS_RTX5090_MASTER_ICE_32G_SUB_DEV   0x4199
 #define GIGABYTE_AORUS_RTX5090D_MASTER_32G_SUB_DEV      0x4188
-#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV  0x4172
+#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV1 0x4171
+#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV2 0x4172
 #define GIGABYTE_AORUS_RX_6750_XT_ELITE_12G_SUB_DEV     0x2407
+#define GIGABYTE_RX6900XT_XTREME_WATERFORCE_WB_SUB_DEV  0x2333
+#define GIGABYTE_RX6900XT_GAMING_OC_SUB_DEV             0x232C
+#define GIGABYTE_RX9060XT_GAMING_16G_SUB_DEV            0x2434
+#define GIGABYTE_RX9060XT_GAMING_OC_16G_SUB_DEV         0x2429
 #define GIGABYTE_AORUS_RX9070XT_ELITE_16G_SUB_DEV       0x2426
 #define GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV         0x2424
+#define GIGABYTE_RX9070_GAMING_OC_16G_SUB_DEV           0x2425
+#define GIGABYTE_RX9070XT_GAMING_16G_SUB_DEV            0x2431
 #define GIGABYTE_RX7900GRE_GAMING_OC_16G_SUB_DEV        0x2410
 #define GIGABYTE_RX7900XT_GAMING_OC_20G_SUB_DEV         0x240C
+#define GIGABYTE_RX7600_GAMING_OC_8G_SUB_DEV            0x240B
+#define GIGABYTE_RX7600_GAMING_OC_8G_SUB_DEV2           0x242B
 
 /*-----------------------------------------------------*\
 | MSI Sub-Device IDs                                    |
@@ -788,8 +811,11 @@
 #define MSI_RTX4090_SUPRIM_X_SUB_DEV                    0x5102
 #define MSI_RTX5070TI_GAMING_TRIO_SUB_DEV               0x5315
 #define MSI_RTX5080_GAMING_TRIO_OC_SUB_DEV              0x5315
+#define MSI_RTX5080_VANGUARD_SOC_SUB_DEV                0x5314
 #define MSI_RTX5080_SUPRIM_SOC_SUB_DEV                  0x5313
 #define MSI_RTX5090_GAMING_TRIO_SUB_DEV                 0x5303
+#define MSI_RTX5090_VANGUARD_SOC_SUB_DEV                0x5302
+#define MSI_RTX5090_SUPRIM_SOC_SUB_DEV                  0x5301
 #define MSI_RTX5090_SUPRIM_LIQUID_SOC_SUB_DEV           0x5300
 #define MSI_RX6600XT_GAMING_X_SUB_DEV                   0x5020
 #define MSI_RX6650XT_GAMING_X_SUB_DEV                   0x5026
@@ -859,7 +885,10 @@
 #define PALIT_RTX4070TI_GAMEROCK_SUB_DEV                0xF294
 #define PALIT_RTX4080_GAMINGPRO_SUB_DEV                 0xF298
 #define PALIT_RTX4090_GAMEROCK_SUB_DEV                  0xF296
+#define PALIT_RTX5060TI_WHITE_OC_16G_SUB_DEV            0xF330
 #define PALIT_RTX5070_GAMINGPRO_SUB_DEV                 0xF324
+#define PALIT_RTX5070TI_GAMINGPRO_SUB_DEV               0xF322
+#define PALIT_RTX5080_GAMINGPRO_SUB_DEV                 0xF320
 #define PALIT_RTX5090_GAMEROCK_SUB_DEV                  0xF318
 
 /*-----------------------------------------------------*\
@@ -878,6 +907,8 @@
 #define POWERCOLOR_RED_DEVIL_RX6650XT_SUB_DEV           0x2418
 #define POWERCOLOR_RED_DEVIL_RX6750XT_SUB_DEV           0x2419
 #define POWERCOLOR_RED_DEVIL_RX6950XT_SUB_DEV           0x2420
+
+#define POWERCOLOR_RED_DEVIL_RX9070XT_SUB_DEV           0x2435
 
 /*-----------------------------------------------------*\
 | Sapphire Sub-Device IDs                               |
@@ -905,6 +936,7 @@
 #define SAPPHIRE_NAVI21_TOXIC_SUB_DEV1                  0xF441
 #define SAPPHIRE_NAVI31_NITRO_PLUS_SUB_DEV              0xE471
 #define SAPPHIRE_NAVI48_NITRO_PLUS_SUB_DEV              0xE489
+#define SAPPHIRE_NAVI48_NITRO_PLUS_SUB_DEV1             0xE493
 #define SAPPHIRE_NAVI48_PURE_SUB_DEV                    0x4499
 #define SAPPHIRE_NAVI48_PURE_XT_SUB_DEV                 0x3490
 #define SAPPHIRE_NAVI31_GRE_NITRO_PLUS_SUB_DEV          0xE475
@@ -958,6 +990,7 @@
 
 #define IF_MOBO_SMBUS(ven, dev)                             \
     if((ven == 0) ||                                        \
+    ((ven == 0xFFFF) && (dev == 0xFFFF)) ||                 \
     ((ven == AMD_VEN) && (dev == AMD_FCH_SMBUS_DEV)) ||     \
     ((ven == INTEL_VEN) && (dev == INTEL_ICH10_SMBUS_DEV)) || \
     ((ven == INTEL_VEN) && (dev == INTEL_SUNRISE_POINT_H_SMBUS_DEV)) || \

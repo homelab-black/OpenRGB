@@ -7,7 +7,7 @@
 |   Adam Honse                                  06 Mar 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <algorithm>
@@ -75,6 +75,7 @@ static const mystic_light_162_config board_configs[] =
     { 0x7B18, 6,  &zones_set1 },        // MAG Z390 TOMAHAWK
     { 0x7B50, 6,  &zones_set2 },        // MPG Z390M GAMING EDGE AC
     { 0x7B85, 7,  &zones_set0 },        // B450 GAMING PRO CARBON
+    { 0x7B92, 10, &zones_set0 },        // MEG X399 CREATION
     { 0xB926, 3,  &zones_set3 },        // MPG B460 TRIDENT AS
 };
 

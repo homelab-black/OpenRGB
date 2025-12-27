@@ -8,7 +8,7 @@
 |   Dongguan Yonghang Electronic Technology Co., Ltd        |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -20,6 +20,7 @@ class RGBController_JGINYUEInternalUSBV2 : public RGBController
 {
 public:
     RGBController_JGINYUEInternalUSBV2(JGINYUEInternalUSBV2Controller* controller_ptr);
+    ~RGBController_JGINYUEInternalUSBV2();
 
     void        SetupZones();
 

@@ -6,7 +6,7 @@
 |   KendallMorgan                               17 Oct 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "Detector.h"
@@ -72,7 +72,10 @@ REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4070 Ti SUPER GamingPro",  DetectPN
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4080 GamingPro",           DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4080_DEV,         PALIT_SUB_VEN,  PALIT_RTX4080_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4080 SUPER GamingPro",     DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4080S_DEV,        PALIT_SUB_VEN,  PALIT_RTX4080_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 4090 Gamerock",            DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX4090_DEV,         PALIT_SUB_VEN,  PALIT_RTX4090_GAMEROCK_SUB_DEV,             0x49);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5060 Ti White OC 16GB",    DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5060TI_DEV,       PALIT_SUB_VEN,  PALIT_RTX5060TI_WHITE_OC_16G_SUB_DEV,       0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5070 GamingPro",           DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5070_DEV,         PALIT_SUB_VEN,  PALIT_RTX5070_GAMINGPRO_SUB_DEV,            0x49);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5070 Ti GamingPro",        DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5070TI_DEV,       PALIT_SUB_VEN,  PALIT_RTX5070TI_GAMINGPRO_SUB_DEV,          0x49);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5080 GamingPro",           DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5080_DEV,         PALIT_SUB_VEN,  PALIT_RTX5080_GAMINGPRO_SUB_DEV,            0x49);
 REGISTER_I2C_PCI_DETECTOR("Palit GeForce RTX 5090 Gamerock",            DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX5090_DEV,         PALIT_SUB_VEN,  PALIT_RTX5090_GAMEROCK_SUB_DEV,             0x49);
 REGISTER_I2C_PCI_DETECTOR("NVIDIA GeForce RTX 2060 SUPER",              DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX2060_TU106_DEV,   NVIDIA_SUB_VEN, NVIDIA_RTX2060_TU106_DEV,                   0x49);
 REGISTER_I2C_PCI_DETECTOR("NVIDIA GeForce RTX 2080 SUPER",              DetectPNYGPUControllers,    NVIDIA_VEN, NVIDIA_RTX2080S_DEV,        NVIDIA_SUB_VEN, NVIDIA_RTX2080S_DEV,                        0x49);

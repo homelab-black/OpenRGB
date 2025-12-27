@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MSIMysticLight185Controller.cpp                           |
+| RGBController_MSIMysticLight761.h                         |
 |                                                           |
 |   RGBController for MSI Mystic Light 761-byte motherboard |
 |                                                           |
@@ -7,12 +7,11 @@
 |   rom4ster                                    11 Jun 2025 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
 
-#include <vector>
 #include "RGBController.h"
 #include "MSIMysticLight761Controller.h"
 
@@ -48,6 +47,6 @@ private:
     int         GetDeviceMode();
     void        GetDeviceConfig();
 
-    MSIMysticLight761Controller*    controller;
+    MSIMysticLight761Controller* controller;
     MSI_ZONE                        last_resizable_zone;
 };

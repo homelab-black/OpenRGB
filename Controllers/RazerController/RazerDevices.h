@@ -6,7 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                04 Sep 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
@@ -54,6 +54,7 @@
 #define RAZER_BLACKWIDOW_V4_PRO_PID                     0x028D
 #define RAZER_BLACKWIDOW_V4_X_PID                       0x0293
 #define RAZER_BLACKWIDOW_V4_PRO_75_WIRED_PID            0x02B3
+#define RAZER_BLACKWIDOW_V4_75_WIRED_PID                0x02A5
 #define RAZER_BLACKWIDOW_X_CHROMA_PID                   0x0216
 #define RAZER_BLACKWIDOW_X_CHROMA_TE_PID                0x021A
 #define RAZER_BLADE_2016_PID                            0x020F
@@ -224,6 +225,13 @@
 #define RAZER_KRAKEN_ULTIMATE_PID                       0x0527
 #define RAZER_KRAKEN_V2_PID                             0x0510
 #define RAZER_KRAKEN_KITTY_BLACK_EDITION_V2_PID         0x0560
+#define RAZER_KRAKEN_V3_HYPERSENSE_PID                  0x0533
+#define RAZER_KRAKEN_V3_X_PID                           0x0537
+#define RAZER_KRAKEN_V3_PID                             0x0549
+#define RAZER_KRAKEN_V4_WIRED_PID                       0x056B
+#define RAZER_KRAKEN_V4_WIRELESS_PID                    0x056C
+#define RAZER_KRAKEN_KITTY_V3_PRO_WIRED_PID             0x0587
+#define RAZER_KRAKEN_KITTY_V3_PRO_WIRELESS_PID          0x0588
 #define RAZER_TIAMAT_71_V2_PID                          0x0F03
 
 /*-----------------------------------------------------*\
@@ -259,6 +267,7 @@
 #define RAZER_SEIREN_EMOTE_PID                          0x0F1B
 #define RAZER_STRIDER_CHROMA_PID                        0x0C05
 #define RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID             0x0F21
+#define RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID             0x0F52
 #define RAZER_HANBO_CHROMA_PID                          0x0F35
 
 typedef struct

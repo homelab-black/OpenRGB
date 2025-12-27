@@ -8,7 +8,7 @@
 |   Adam Honse (calcprogrammer1@gmail.com)      15 Dec 2016 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include "net_port.h"
@@ -266,6 +266,11 @@ bool net_port::tcp_server(const char * port)
     myAddress.sin_family = AF_INET;
     myAddress.sin_addr.s_addr = inet_addr("0.0.0.0");
     myAddress.sin_port = htons(atoi(port));
+
+    /*-------------------------------------------------*\
+    | Set socket options - reuse addr                   |
+    \*-------------------------------------------------*/
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 
     /*-------------------------------------------------*\
     | Bind the server socket                            |

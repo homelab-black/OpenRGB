@@ -6,7 +6,7 @@
 |   Adam Honse (calcprogrammer1@gmail.com)      29 Dec 2019 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <cstring>
@@ -243,6 +243,10 @@ void NZXTHue2Controller::UpdateDeviceList()
                 break;
 
             case 0x1E: //Kraken Elite Ring
+                num_leds_in_device = 24;
+                break;
+
+            case 0x1F: //F420 RGB
                 num_leds_in_device = 24;
                 break;
 

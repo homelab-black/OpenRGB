@@ -6,7 +6,7 @@
 |   Mola19                                      03 Mar 2021 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <cmath>
@@ -100,11 +100,13 @@ std::string AuraTUFKeyboardController::GetVersion()
             case AURA_ROG_AZOTH_USB_PID:
             case AURA_ROG_AZOTH_2_4_PID:
             case AURA_TUF_K3_GAMING_PID:
+            case AURA_TUF_K3_GAMING_GEN_II_PID:
             case AURA_ROG_STRIX_FLARE_II_ANIMATE_PID:
             case AURA_ROG_STRIX_SCOPE_NX_WIRELESS_DELUXE_USB_PID:
             case AURA_ROG_STRIX_SCOPE_II_PID:
             case AURA_ROG_STRIX_SCOPE_II_RX_PID:
             case AURA_ROG_STRIX_SCOPE_II_96_WIRELESS_USB_PID:
+            case AURA_ROG_STRIX_SCOPE_II_96_RX_WIRELESS_USB_PID:
                 snprintf(version, 9, "%02X.%02X.%02X", usb_buf_out[6], usb_buf_out[5], usb_buf_out[4]);
                 break;
             case AURA_ROG_STRIX_SCOPE_NX_WIRELESS_DELUXE_2_4_PID:
@@ -510,7 +512,8 @@ void AuraTUFKeyboardController::UpdateDevice
     || device_pid == AURA_ROG_STRIX_SCOPE_NX_WIRELESS_DELUXE_2_4_PID
     || device_pid == AURA_ROG_STRIX_SCOPE_II_PID
     || device_pid == AURA_ROG_STRIX_SCOPE_II_RX_PID
-    || device_pid == AURA_ROG_STRIX_SCOPE_II_96_WIRELESS_USB_PID)
+    || device_pid == AURA_ROG_STRIX_SCOPE_II_96_WIRELESS_USB_PID
+    || device_pid == AURA_ROG_STRIX_SCOPE_II_96_RX_WIRELESS_USB_PID)
     {
         if(mode == AURA_KEYBOARD_MODE_WAVE || mode == AURA_KEYBOARD_MODE_RIPPLE)
         {
