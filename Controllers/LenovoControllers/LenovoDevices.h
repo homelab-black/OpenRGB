@@ -1739,9 +1739,10 @@ static const unsigned int legion7_gen7and8_ansi_leds_map[] =
 
 static const unsigned int legion7_gen10h_vents_leds_map[] = 
 {
-    0,    1,   2,   3,  NA,  NA,   4,   5,   6,   7, 
-    NA,  NA,  NA,  NA,   8,   9,  NA,  NA,  NA,  NA, 
-    10,  11,  12,  13,  NA,  NA,  14,  15,  16,  17 };
+     0,    1,   2,   3,  NA,  NA,   6,   7,   8,   9,
+     NA,  NA,  NA,  NA,   4,   5,  NA,  NA,  NA,  NA,
+     10,  11,  12,  13,  NA,  NA,  14,  15,  16,  17
+ };
 
 /*---------------------*\
 | zone 1, keyboard ANSI |
