@@ -16,6 +16,7 @@
 #include <hidapi.h>
 #include "RGBController.h"
 #include "LogManager.h"
+#include "LenovoDevices.h"
 
 #ifndef HID_MAX_STR
 #define HID_MAX_STR                255
@@ -68,7 +69,7 @@ class LenovoGen7And8USBController
     uint8_t getCurrentProfileId();
     uint8_t getCurrentBrightness();
     void setBrightness(uint8_t brightness);
-    uint8_t getKeyboardId();
+    LENOVO_KEYBOARD getKeyboardType();
     void switchProfileTo(uint8_t profile_id);
     std::vector<led_group> getProfileSettings(uint8_t profile_id);
 

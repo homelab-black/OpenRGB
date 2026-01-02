@@ -39,6 +39,11 @@ LenovoGen7And8USBController::~LenovoGen7And8USBController()
     hid_close(dev);
 }
 
+LENOVO_KEYBOARD LenovoGen7And8USBController::getKeyboardType() {
+    //TODO: retrieve from device
+    return ISO;
+}
+
 uint16_t LenovoGen7And8USBController::getPid()
 {
     return pid;

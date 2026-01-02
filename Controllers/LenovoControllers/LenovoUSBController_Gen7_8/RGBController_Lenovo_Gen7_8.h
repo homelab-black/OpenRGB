@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "LenovoDevices.h"
 #include "RGBController.h"
 #include "LenovoUSBController_Gen7_8.h"
 
@@ -48,10 +49,12 @@ public:
 private:
     LenovoGen7And8USBController* controller;
     std::vector<led_group> GetLedGroups();
+    std::string keyboardToString(LENOVO_KEYBOARD kb);
     void ReadDeviceSettings();
     std::unordered_map<unsigned int, size_t> led_id_to_index;
     int last_mode = 0;
     bool direct_enabled = false;
     uint8_t brightness = 0x00;
     uint8_t profile_id = 0x01;
+    LENOVO_KEYBOARD keyboard_type = ANSI;
 };
