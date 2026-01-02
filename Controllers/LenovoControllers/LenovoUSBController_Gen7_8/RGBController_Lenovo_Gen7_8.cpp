@@ -382,7 +382,7 @@ void LenovoRGBController_Gen7_8::SetupZones()
 
 void LenovoRGBController_Gen7_8::ResizeZone(int /*zone*/, int /*new_size*/)
 {
-    /*--------------------------------------keyboard_type-------------------*\
+    /*-------------------------keyboard_type-------------------*\
     | This device does not support resizing zones               |
     \*---------------------------------------------------------*/
 }
