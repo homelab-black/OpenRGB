@@ -548,6 +548,13 @@ int NetworkServer::recv_select(SOCKET s, char *buf, int len, int flags)
         }
         else
         {
+        /*-------------------------------------------------*\
+        | Set QUICKACK socket option on Linux to improve    |
+        | performance                                       |
+        \*-------------------------------------------------*/
+#ifdef __linux__
+            setsockopt( s, IPPROTO_TCP, TCP_QUICKACK, &yes, sizeof(yes));
+#endif
             return(recv(s, buf, len, flags));
         }
     }
