@@ -164,7 +164,7 @@ void RGBController_SinowealthKeyboard10c::KeepaliveThreadFunction()
     {
         if(active_mode == MODE_DIRECT && (std::chrono::steady_clock::now() - last_update_time) > 1s)
         {
-            UpdateLEDs();
+            UpdateLEDsInternal();
         }
         std::this_thread::sleep_for(500ms);
     }

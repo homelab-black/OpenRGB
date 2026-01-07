@@ -218,7 +218,7 @@ void RGBController_DMX::KeepaliveThreadFunction()
     {
         if((std::chrono::steady_clock::now() - last_update_time) > ( keepalive_delay * 0.95f ) )
         {
-            UpdateLEDs();
+            UpdateLEDsInternal();
         }
         std::this_thread::sleep_for(keepalive_delay / 2);
     }

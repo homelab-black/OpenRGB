@@ -377,7 +377,7 @@ void RGBController_LogitechG910::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     if(active_mode == 0xFFFF)
     {
-        UpdateLEDs();
+        UpdateLEDsInternal();
         return;
     }
 

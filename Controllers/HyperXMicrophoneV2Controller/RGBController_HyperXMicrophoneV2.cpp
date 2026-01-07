@@ -133,7 +133,7 @@ void RGBController_HyperXMicrophoneV2::KeepaliveThread()
     {
         if(!controller->ShouldPauseUpdates() && (std::chrono::steady_clock::now() - last_update_time) > std::chrono::milliseconds(1000))
         {
-            UpdateLEDs();
+            UpdateLEDsInternal();
         }
         std::this_thread::sleep_for(250ms);
     }

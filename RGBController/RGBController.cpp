@@ -3752,6 +3752,11 @@ void RGBController::SetupColors()
     }
 }
 
+void RGBController::UpdateLEDsInternal()
+{
+    CallFlag_UpdateLEDs = true;
+}
+
 /*---------------------------------------------------------*\
 | Functions to be implemented in device implementation      |
 \*---------------------------------------------------------*/

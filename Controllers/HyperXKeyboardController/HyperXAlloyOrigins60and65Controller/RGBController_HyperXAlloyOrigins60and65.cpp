@@ -347,7 +347,7 @@ void RGBController_HyperXAlloyOrigins60and65::KeepaliveThread()
         {
             if((std::chrono::steady_clock::now() - last_update_time) > std::chrono::milliseconds(50))
             {
-                UpdateLEDs();
+                UpdateLEDsInternal();
             }
         }
         std::this_thread::sleep_for(10ms);;

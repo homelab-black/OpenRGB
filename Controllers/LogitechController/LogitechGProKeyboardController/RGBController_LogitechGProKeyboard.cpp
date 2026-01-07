@@ -353,7 +353,7 @@ void RGBController_LogitechGProKeyboard::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     if(active_mode == 0xFFFF)
     {
-        UpdateLEDs();
+        UpdateLEDsInternal();
         return;
     }
 

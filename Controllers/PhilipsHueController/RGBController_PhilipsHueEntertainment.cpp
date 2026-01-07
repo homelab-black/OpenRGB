@@ -141,7 +141,7 @@ void RGBController_PhilipsHueEntertainment::KeepaliveThreadFunction()
         {
             if((std::chrono::steady_clock::now() - last_update_time) > std::chrono::seconds(5))
             {
-                UpdateLEDs();
+                UpdateLEDsInternal();
             }
         }
         std::this_thread::sleep_for(1s);

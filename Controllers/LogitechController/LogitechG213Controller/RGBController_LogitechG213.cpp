@@ -162,7 +162,7 @@ void RGBController_LogitechG213::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     if(active_mode == 0xFFFF)
     {
-        UpdateLEDs();
+        UpdateLEDsInternal();
         return;
     }
 

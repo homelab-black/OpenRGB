@@ -121,7 +121,7 @@ void RGBController_HyperXPulsefireRaid::KeepaliveThread()
         {
             if((std::chrono::steady_clock::now() - last_update_time) > 1s)
             {
-                UpdateLEDs();
+                UpdateLEDsInternal();
             }
         }
 

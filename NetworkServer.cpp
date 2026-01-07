@@ -179,10 +179,19 @@ unsigned int NetworkServer::GetClientProtocolVersion(unsigned int client_num)
 void NetworkServer::DeviceListChanged()
 {
     /*-----------------------------------------------------*\
+    | Register the server's RGBController update handler    |
+    | for each RGBController in the controllers list        |
+    \*-----------------------------------------------------*/
+    //for(std::size_t controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
+    //{
+    //    controllers[controller_idx]->RegisterUpdateCallback();
+    //}
+
+    /*-----------------------------------------------------*\
     | Indicate to the clients that the controller list has  |
     | changed                                               |
     \*-----------------------------------------------------*/
-    for(unsigned int client_idx = 0; client_idx < ServerClients.size(); client_idx++)
+    for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
     {
         SendRequest_DeviceListChanged(ServerClients[client_idx]->client_sock);
     }

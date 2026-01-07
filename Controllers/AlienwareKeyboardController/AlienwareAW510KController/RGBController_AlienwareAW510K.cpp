@@ -402,7 +402,7 @@ void RGBController_AlienwareAW510K::DeviceUpdateMode()
 {
     if(active_mode == 0xFFFF)
     {
-        UpdateLEDs();
+        UpdateLEDsInternal();
         return;
     }
 

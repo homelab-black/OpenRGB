@@ -116,7 +116,7 @@ void RGBController_Arctic::KeepaliveThreadFunction()
         sleep_time = ARCTIC_KEEPALIVE_PERIOD - (std::chrono::steady_clock::now() - last_update_time);
         if(sleep_time <= ARCTIC_SLEEP_THRESHOLD)
         {
-            UpdateLEDs();   // Already protected thru a device update thread
+            UpdateLEDsInternal();   // Already protected thru a device update thread
             std::this_thread::sleep_for(ARCTIC_KEEPALIVE_PERIOD);
         }
         else

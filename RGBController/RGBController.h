@@ -727,6 +727,7 @@ protected:
     \*-----------------------------------------------------*/
     unsigned int            LEDsInZone(unsigned int zone);
     void                    SetupColors();
+    void                    UpdateLEDsInternal();
 
 private:
     /*-----------------------------------------------------*\
