@@ -936,60 +936,84 @@ unsigned int RGBController::GetLEDsInZone(unsigned int zone)
 
 void RGBController::SetZoneActiveMode(unsigned int zone, int mode)
 {
+    AccessMutex.lock();
     if(zone < zones.size())
     {
         zones[zone].active_mode = mode;
+        AccessMutex.unlock();
 
         UpdateZoneMode(zone);
+    }
+    else
+    {
+        AccessMutex.unlock();
     }
 }
 
 void RGBController::SetZoneModeBrightness(unsigned int zone, unsigned int mode, unsigned int brightness)
 {
-    if((zone < zones.size()) && (mode < zones[zone].modes.size()))
+    AccessMutex.lock();
+    if((zone < zones.size())
+    && (mode < zones[zone].modes.size())
+    && (((zones[zone].modes[mode].brightness_max >= zones[zone].modes[mode].brightness_min) && (brightness >= zones[zone].modes[mode].brightness_min) && (brightness <= zones[zone].modes[mode].brightness_max))
+     || ((zones[zone].modes[mode].brightness_max <= zones[zone].modes[mode].brightness_min) && (brightness <= zones[zone].modes[mode].brightness_min) && (brightness >= zones[zone].modes[mode].brightness_max))))
     {
         zones[zone].modes[mode].brightness = brightness;
     }
+    AccessMutex.unlock();
 }
 
 void RGBController::SetZoneModeColor(unsigned int zone, unsigned int mode, unsigned int color_index, RGBColor color)
 {
+    AccessMutex.lock();
     if((zone < zones.size()) && (mode < zones[zone].modes.size()) && (color_index < zones[zone].modes[mode].colors.size()))
     {
         zones[zone].modes[mode].colors[color_index] = color;
     }
+    AccessMutex.unlock();
 }
 
 void RGBController::SetZoneModeColorMode(unsigned int zone, unsigned int mode, unsigned int color_mode)
 {
+    AccessMutex.lock();
     if((zone < zones.size()) && (mode < zones[zone].modes.size()))
     {
         zones[zone].modes[mode].color_mode = color_mode;
     }
+    AccessMutex.unlock();
 }
 
 void RGBController::SetZoneModeColorsCount(unsigned int zone, unsigned int mode, std::size_t count)
 {
+    AccessMutex.lock();
     if((zone < zones.size()) && (mode < zones[zone].modes.size()))
     {
         zones[zone].modes[mode].colors.resize(count);
     }
+    AccessMutex.unlock();
 }
 
 void RGBController::SetZoneModeDirection(unsigned int zone, unsigned int mode, unsigned int direction)
 {
+    AccessMutex.lock();
     if((zone < zones.size()) && (mode < zones[zone].modes.size()))
     {
         zones[zone].modes[mode].direction = direction;
     }
+    AccessMutex.unlock();
 }
 
 void RGBController::SetZoneModeSpeed(unsigned int zone, unsigned int mode, unsigned int speed)
 {
-    if((zone < zones.size()) && (mode < zones[zone].modes.size()))
+    AccessMutex.lock();
+    if((zone < zones.size())
+    && (mode < zones[zone].modes.size())
+    && (((zones[zone].modes[mode].speed_max >= zones[zone].modes[mode].speed_min) && (speed >= zones[zone].modes[mode].speed_min) && (speed <= zones[zone].modes[mode].speed_max))
+     || ((zones[zone].modes[mode].speed_max <= zones[zone].modes[mode].speed_min) && (speed <= zones[zone].modes[mode].speed_min) && (speed >= zones[zone].modes[mode].speed_max))))
     {
         zones[zone].modes[mode].speed = speed;
     }
+    AccessMutex.unlock();
 }
 
 bool RGBController::SupportsPerZoneModes()
@@ -1278,7 +1302,9 @@ int RGBController::GetModeValue(unsigned int mode)
 void RGBController::SetModeBrightness(unsigned int mode, unsigned int brightness)
 {
     AccessMutex.lock();
-    if((mode < modes.size()) && (brightness >= modes[mode].brightness_min) && (brightness <= modes[mode].brightness_max))
+    if((mode < modes.size())
+    && (((modes[mode].brightness_max >= modes[mode].brightness_min) && (brightness >= modes[mode].brightness_min) && (brightness <= modes[mode].brightness_max))
+     || ((modes[mode].brightness_max <= modes[mode].brightness_min) && (brightness <= modes[mode].brightness_min) && (brightness >= modes[mode].brightness_max))))
     {
         modes[mode].brightness = brightness;
     }
@@ -1328,7 +1354,9 @@ void RGBController::SetModeDirection(unsigned int mode, unsigned int direction)
 void RGBController::SetModeSpeed(unsigned int mode, unsigned int speed)
 {
     AccessMutex.lock();
-    if((mode < modes.size()) && (speed >= modes[mode].speed_min) && (speed <= modes[mode].speed_max))
+    if((mode < modes.size())
+    && (((modes[mode].speed_max >= modes[mode].speed_min) && (speed >= modes[mode].speed_min) && (speed <= modes[mode].speed_max))
+     || ((modes[mode].speed_max <= modes[mode].speed_min) && (speed <= modes[mode].speed_min) && (speed >= modes[mode].speed_max))))
     {
         modes[mode].speed = speed;
     }
