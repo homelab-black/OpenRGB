@@ -990,6 +990,10 @@ void NetworkClient::ListenThreadFunction()
                     waiting_on_response_cv.notify_all();
                 }
                 break;
+
+            case NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE:
+                ProcessRequest_RGBController_SignalUpdate(header.pkt_size, data, header.pkt_dev_idx);
+                break;
         }
 
         if(delete_data)
@@ -1067,6 +1071,8 @@ void NetworkClient::ProcessReply_ControllerData(unsigned int data_size, char * d
     \*---------------------------------------------------------*/
     if(data_size == *((unsigned int*)data))
     {
+        data += sizeof(data_size);
+
         RGBController_Network * new_controller   = new RGBController_Network(this, dev_idx);
 
         new_controller->SetDeviceDescription((unsigned char *)data, GetProtocolVersion());
@@ -1167,6 +1173,72 @@ void NetworkClient::ProcessRequest_DeviceListChanged()
     server_initialized                  = false;
 
     change_in_progress = false;
+}
+
+void NetworkClient::ProcessRequest_RGBController_SignalUpdate(unsigned int data_size, char * data, unsigned int dev_idx)
+{
+    unsigned int    pkt_data_size;
+    unsigned int    update_reason;
+
+    /*-----------------------------------------------------*\
+    | Ensure we have this controller in our list            |
+    \*-----------------------------------------------------*/
+    if(dev_idx >= server_controllers.size() || server_controllers.size() == 0)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Create data buffer                                    |
+    \*-----------------------------------------------------*/
+    char * data_ptr                     = data;
+
+    /*-----------------------------------------------------*\
+    | Copy in data size                                     |
+    \*-----------------------------------------------------*/
+    memcpy(&pkt_data_size, data_ptr, sizeof(pkt_data_size));
+    data_ptr += sizeof(pkt_data_size);
+
+    if(pkt_data_size != data_size)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Copy in update reason                                 |
+    \*-----------------------------------------------------*/
+    memcpy(&update_reason, data_ptr, sizeof(update_reason));
+    data_ptr += sizeof(update_reason);
+
+    /*-----------------------------------------------------*\
+    | Process received data according to update reason      |
+    \*-----------------------------------------------------*/
+    switch(update_reason)
+    {
+        /*-------------------------------------------------*\
+        | UpdateLEDs() sends color description              |
+        \*-------------------------------------------------*/
+        case RGBCONTROLLER_UPDATE_REASON_UPDATELEDS:
+            server_controllers[dev_idx]->SetColorDescription((unsigned char *)data_ptr, GetProtocolVersion());
+            break;
+
+        /*-------------------------------------------------*\
+        | Everything else send controller                   |
+        | description                                       |
+        \*-------------------------------------------------*/
+        case RGBCONTROLLER_UPDATE_REASON_UPDATEMODE:
+        case RGBCONTROLLER_UPDATE_REASON_SAVEMODE:
+        case RGBCONTROLLER_UPDATE_REASON_RESIZEZONE:
+        case RGBCONTROLLER_UPDATE_REASON_CLEARSEGMENTS:
+        case RGBCONTROLLER_UPDATE_REASON_ADDSEGMENT:
+        case RGBCONTROLLER_UPDATE_REASON_HIDDEN:
+        case RGBCONTROLLER_UPDATE_REASON_UNHIDDEN:
+        default:
+            server_controllers[dev_idx]->SetDeviceDescription((unsigned char *)data_ptr, GetProtocolVersion());
+            break;
+    }
+
+    server_controllers[dev_idx]->SignalUpdate(update_reason);
 }
 
 void NetworkClient::ProcessRequest_ServerString(unsigned int data_size, char * data)

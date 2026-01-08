@@ -259,7 +259,7 @@ enum
 /*---------------------------------------------------------*\
 | RGBController Callback Types                              |
 \*---------------------------------------------------------*/
-typedef void (*RGBControllerCallback)(void *, unsigned int);
+typedef void (*RGBControllerCallback)(void *, unsigned int, void *);
 
 /*---------------------------------------------------------*\
 | Update Reason Codes                                       |

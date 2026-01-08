@@ -106,6 +106,8 @@ enum
     NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE          = 1101, /* RGBController::UpdateMode()                      */
     NET_PACKET_ID_RGBCONTROLLER_SAVEMODE            = 1102, /* RGBController::SaveMode()                        */
     NET_PACKET_ID_RGBCONTROLLER_UPDATEZONEMODE      = 1103, /* RGBController::UpdateZoneMode()                  */
+
+    NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE        = 1150, /* RGBController::SignalUpdate()                    */
 };
 
 void InitNetPacketHeader

@@ -108,6 +108,8 @@ public:
     void                                SetProfileManager(ProfileManagerInterface* profile_manager_pointer);
     void                                SetSettingsManager(SettingsManagerInterface* settings_manager_pointer);
 
+    void                                SendRequest_RGBController_SignalUpdate(RGBController * controller_ptr, unsigned int update_reason);
+
 private:
     /*-----------------------------------------------------*\
     | Server variables                                      |
@@ -196,10 +198,11 @@ private:
     void                                SendReply_ProtocolVersion(SOCKET client_sock);
     void                                SendReply_ServerString(SOCKET client_sock);
 
-    void                                SendRequest_DeviceListChanged(SOCKET client_sock);
     void                                SendReply_ProfileList(SOCKET client_sock);
     void                                SendReply_PluginList(SOCKET client_sock);
     void                                SendReply_PluginSpecific(SOCKET client_sock, unsigned int pkt_type, unsigned char* data, unsigned int data_size);
+
+    void                                SendRequest_DeviceListChanged(SOCKET client_sock);
 
     /*-----------------------------------------------------*\
     | Private helper functions                              |
