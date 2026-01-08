@@ -174,6 +174,7 @@ private:
     void                                ProcessReply_ControllerData(unsigned int data_size, char * data, unsigned int dev_idx);
     void                                ProcessReply_ProtocolVersion(unsigned int data_size, char * data);
     void                                ProcessRequest_DeviceListChanged();
+    void                                ProcessRequest_RGBController_SignalUpdate(unsigned int data_size, char * data, unsigned int dev_idx);
     void                                ProcessRequest_ServerString(unsigned int data_size, char * data);
 
     void                                SendData_ClientString();

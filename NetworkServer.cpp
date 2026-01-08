@@ -62,6 +62,13 @@ NetworkClientInfo::~NetworkClientInfo()
     }
 }
 
+static void RGBController_UpdateCallback(void * this_ptr, unsigned int update_reason, void * controller_ptr)
+{
+    NetworkServer * this_obj = (NetworkServer *)this_ptr;
+
+    this_obj->SendRequest_RGBController_SignalUpdate((RGBController *)controller_ptr, update_reason);
+}
+
 NetworkServer::NetworkServer(std::vector<RGBController *>& control) : controllers(control)
 {
     host                        = OPENRGB_SDK_HOST;
@@ -83,6 +90,15 @@ NetworkServer::NetworkServer(std::vector<RGBController *>& control) : controller
 NetworkServer::~NetworkServer()
 {
     StopServer();
+
+    /*-----------------------------------------------------*\
+    | Unregister the server's RGBController update handler  |
+    | for each RGBController in the controllers list        |
+    \*-----------------------------------------------------*/
+    for(std::size_t controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
+    {
+        controllers[controller_idx]->UnregisterUpdateCallback(this);
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -182,10 +198,10 @@ void NetworkServer::DeviceListChanged()
     | Register the server's RGBController update handler    |
     | for each RGBController in the controllers list        |
     \*-----------------------------------------------------*/
-    //for(std::size_t controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
-    //{
-    //    controllers[controller_idx]->RegisterUpdateCallback();
-    //}
+    for(std::size_t controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
+    {
+        controllers[controller_idx]->RegisterUpdateCallback(RGBController_UpdateCallback, this);
+    }
 
     /*-----------------------------------------------------*\
     | Indicate to the clients that the controller list has  |
@@ -1462,7 +1478,8 @@ void NetworkServer::SendReply_ControllerData(SOCKET client_sock, unsigned int de
         /*-----------------------------------------------------*\
         | Get data size                                         |
         \*-----------------------------------------------------*/
-        reply_size                  = controllers[dev_idx]->GetDeviceDescriptionSize(protocol_version);
+        reply_size                  = sizeof(reply_size);
+        reply_size                 += controllers[dev_idx]->GetDeviceDescriptionSize(protocol_version);
 
         /*-----------------------------------------------------*\
         | Create data buffer                                    |
@@ -1546,17 +1563,6 @@ void NetworkServer::SendReply_ServerString(SOCKET client_sock)
         }
     }
     ServerClientsMutex.unlock();
-}
-
-void NetworkServer::SendRequest_DeviceListChanged(SOCKET client_sock)
-{
-    NetPacketHeader pkt_hdr;
-
-    InitNetPacketHeader(&pkt_hdr, 0, NET_PACKET_ID_DEVICE_LIST_UPDATED, 0);
-
-    send_in_progress.lock();
-    send(client_sock, (char *)&pkt_hdr, sizeof(NetPacketHeader), 0);
-    send_in_progress.unlock();
 }
 
 void NetworkServer::SendReply_ProfileList(SOCKET client_sock)
@@ -1696,6 +1702,163 @@ void NetworkServer::SendReply_PluginSpecific(SOCKET client_sock, unsigned int pk
     send_in_progress.unlock();
 
     delete [] data;
+}
+
+void NetworkServer::SendRequest_DeviceListChanged(SOCKET client_sock)
+{
+    NetPacketHeader pkt_hdr;
+
+    InitNetPacketHeader(&pkt_hdr, 0, NET_PACKET_ID_DEVICE_LIST_UPDATED, 0);
+
+    send_in_progress.lock();
+    send(client_sock, (char *)&pkt_hdr, sizeof(NetPacketHeader), 0);
+    send_in_progress.unlock();
+}
+
+void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * controller_ptr, unsigned int update_reason)
+{
+    /*-----------------------------------------------------*\
+    | Find the index of this controller in the list         |
+    \*-----------------------------------------------------*/
+    std::size_t                 controller_idx      = 0;
+    bool                        found               = false;
+
+    for(; controller_idx < controllers.size(); controller_idx++)
+    {
+        if(controllers[controller_idx] == controller_ptr)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Only send SignalUpdate requests if the controller is  |
+    | in the list                                           |
+    \*-----------------------------------------------------*/
+    if(found)
+    {
+        /*-------------------------------------------------*\
+        | Send to each connected client with protocol 6 or  |
+        | higher                                            |
+        \*-------------------------------------------------*/
+        for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
+        {
+            if(ServerClients[client_idx]->client_protocol_version >= 6)
+            {
+                SOCKET          client_sock         = ServerClients[client_idx]->client_sock;
+                unsigned int    protocol_version    = ServerClients[client_idx]->client_protocol_version;
+                NetPacketHeader reply_hdr;
+                unsigned char * reply_data;
+                unsigned int    reply_size;
+
+                /*-----------------------------------------*\
+                | Lock controller's access mutex            |
+                \*-----------------------------------------*/
+                controller_ptr->AccessMutex.lock_shared();
+
+                /*-----------------------------------------*\
+                | Get data size                             |
+                \*-----------------------------------------*/
+                reply_size                          = sizeof(reply_size);
+                reply_size                         += sizeof(update_reason);
+
+                switch(update_reason)
+                {
+                    /*-------------------------------------*\
+                    | UpdateLEDs() sends color description  |
+                    \*-------------------------------------*/
+                    case RGBCONTROLLER_UPDATE_REASON_UPDATELEDS:
+                        reply_size                 += controller_ptr->GetColorDescriptionSize(protocol_version);
+                        break;
+
+                    /*-------------------------------------*\
+                    | Everything else send controller       |
+                    | description                           |
+                    \*-------------------------------------*/
+                    case RGBCONTROLLER_UPDATE_REASON_UPDATEMODE:
+                    case RGBCONTROLLER_UPDATE_REASON_SAVEMODE:
+                    case RGBCONTROLLER_UPDATE_REASON_RESIZEZONE:
+                    case RGBCONTROLLER_UPDATE_REASON_CLEARSEGMENTS:
+                    case RGBCONTROLLER_UPDATE_REASON_ADDSEGMENT:
+                    case RGBCONTROLLER_UPDATE_REASON_HIDDEN:
+                    case RGBCONTROLLER_UPDATE_REASON_UNHIDDEN:
+                    default:
+                        reply_size                 += controller_ptr->GetDeviceDescriptionSize(protocol_version);
+                        break;
+                }
+
+                /*-----------------------------------------*\
+                | Create data buffer                        |
+                \*-----------------------------------------*/
+                reply_data                          = new unsigned char[reply_size];
+                unsigned char * data_ptr            = reply_data;
+
+                /*-----------------------------------------*\
+                | Copy in data size                         |
+                \*-----------------------------------------*/
+                memcpy(data_ptr, &reply_size, sizeof(reply_size));
+                data_ptr += sizeof(reply_size);
+
+                /*-----------------------------------------*\
+                | Copy in update reason                     |
+                \*-----------------------------------------*/
+                memcpy(data_ptr, &update_reason, sizeof(update_reason));
+                data_ptr += sizeof(update_reason);
+
+                /*-----------------------------------------*\
+                | Copy in data                              |
+                \*-----------------------------------------*/
+                switch(update_reason)
+                {
+                    /*-------------------------------------*\
+                    | UpdateLEDs() sends color description  |
+                    \*-------------------------------------*/
+                    case RGBCONTROLLER_UPDATE_REASON_UPDATELEDS:
+                        data_ptr                    = controller_ptr->GetColorDescriptionData(data_ptr, protocol_version);
+                        break;
+
+                    /*-------------------------------------*\
+                    | Everything else send controller       |
+                    | description                           |
+                    \*-------------------------------------*/
+                    case RGBCONTROLLER_UPDATE_REASON_UPDATEMODE:
+                    case RGBCONTROLLER_UPDATE_REASON_SAVEMODE:
+                    case RGBCONTROLLER_UPDATE_REASON_RESIZEZONE:
+                    case RGBCONTROLLER_UPDATE_REASON_CLEARSEGMENTS:
+                    case RGBCONTROLLER_UPDATE_REASON_ADDSEGMENT:
+                    case RGBCONTROLLER_UPDATE_REASON_HIDDEN:
+                    case RGBCONTROLLER_UPDATE_REASON_UNHIDDEN:
+                    default:
+                        data_ptr                    = controller_ptr->GetDeviceDescriptionData(data_ptr, protocol_version);
+                        break;
+                }
+
+                /*-----------------------------------------*\
+                | Unlock controller's access mutex          |
+                \*-----------------------------------------*/
+                controller_ptr->AccessMutex.unlock_shared();
+
+                /*-----------------------------------------*\
+                | Initialize packet header                  |
+                \*-----------------------------------------*/
+                InitNetPacketHeader(&reply_hdr, controller_idx, NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE, reply_size);
+
+                /*-----------------------------------------*\
+                | Send packet                               |
+                \*-----------------------------------------*/
+                send_in_progress.lock();
+                send(client_sock, (const char *)&reply_hdr, sizeof(NetPacketHeader), 0);
+                send(client_sock, (const char *)reply_data, reply_size, 0);
+                send_in_progress.unlock();
+
+                /*-----------------------------------------*\
+                | Delete data                               |
+                \*-----------------------------------------*/
+                delete[] reply_data;
+            }
+        }
+    }
 }
 
 /*---------------------------------------------------------*\

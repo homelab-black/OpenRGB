@@ -1754,7 +1754,6 @@ unsigned int RGBController::GetDeviceDescriptionSize(unsigned int protocol_versi
     unsigned short num_leds                 = (unsigned short)leds.size();
     unsigned short num_led_alt_names        = (unsigned short)led_alt_names.size();
 
-    data_size                              += sizeof(data_size);
     data_size                              += sizeof(device_type);
     data_size                              += sizeof(name_len);
     data_size                              += name_len;
@@ -2363,11 +2362,6 @@ unsigned char* RGBController::SetDeviceDescription(unsigned char* data_ptr, unsi
     | Lock access mutex                                     |
     \*-----------------------------------------------------*/
     AccessMutex.lock();
-
-    /*-----------------------------------------------------*\
-    | Skip packet size                                      |
-    \*-----------------------------------------------------*/
-    data_ptr += sizeof(unsigned int);
 
     /*-----------------------------------------------------*\
     | Copy in type                                          |
@@ -3507,6 +3501,20 @@ zone RGBController::SetZoneDescriptionJSON(nlohmann::json zone_json)
 void RGBController::RegisterUpdateCallback(RGBControllerCallback new_callback, void * new_callback_arg)
 {
     UpdateMutex.lock();
+
+    /*-----------------------------------------------------*\
+    | Check to see if this is already registered to avoid   |
+    | registering the same callback multiple times          |
+    \*-----------------------------------------------------*/
+    for(unsigned int callback_idx = 0; callback_idx < UpdateCallbackArgs.size(); callback_idx++ )
+    {
+        if((UpdateCallbacks[callback_idx] == new_callback) && (UpdateCallbackArgs[callback_idx] == new_callback_arg))
+        {
+            UpdateMutex.unlock();
+            return;
+        }
+    }
+
     UpdateCallbacks.push_back(new_callback);
     UpdateCallbackArgs.push_back(new_callback_arg);
     UpdateMutex.unlock();
@@ -3521,8 +3529,6 @@ void RGBController::UnregisterUpdateCallback(void * callback_arg)
         {
             UpdateCallbackArgs.erase(UpdateCallbackArgs.begin() + callback_idx);
             UpdateCallbacks.erase(UpdateCallbacks.begin() + callback_idx);
-
-            break;
         }
     }
     UpdateMutex.unlock();
@@ -3545,7 +3551,7 @@ void RGBController::SignalUpdate(unsigned int update_reason)
     \*-----------------------------------------------------*/
     for(unsigned int callback_idx = 0; callback_idx < UpdateCallbacks.size(); callback_idx++)
     {
-        UpdateCallbacks[callback_idx](UpdateCallbackArgs[callback_idx], update_reason);
+        UpdateCallbacks[callback_idx](UpdateCallbackArgs[callback_idx], update_reason, this);
     }
 
     UpdateMutex.unlock();
