@@ -389,11 +389,7 @@ void RGBController_CougarKeyboard::SetupZones()
     KB_zone.leds_count          = 113;
     KB_zone.leds_min            = KB_zone.leds_count;
     KB_zone.leds_max            = KB_zone.leds_count;
-
-    KB_zone.matrix_map          = new matrix_map_type;
-    KB_zone.matrix_map->height  = 6;
-    KB_zone.matrix_map->width   = COUGARKEYBOARDCONTROLLER_MATRIX_WIDTH;
-    KB_zone.matrix_map->map     = (unsigned int *)&matrix_map;
+    KB_zone.matrix_map.Set(6, COUGARKEYBOARDCONTROLLER_MATRIX_WIDTH, (unsigned int *)&matrix_map);
     zones.push_back(KB_zone);
 
     /*-------------------------------------------------*\

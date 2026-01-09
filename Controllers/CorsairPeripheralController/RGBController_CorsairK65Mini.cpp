@@ -178,24 +178,19 @@ RGBController_CorsairK65Mini::~RGBController_CorsairK65Mini()
 
 void RGBController_CorsairK65Mini::SetupZones()
 {
-    unsigned int zone_size          = 0;
+    unsigned int zone_size                  = 0;
 
     zone keyboard_zone;
-    keyboard_zone.name               = ZONE_EN_KEYBOARD;
-    keyboard_zone.type               = ZONE_TYPE_MATRIX;
+    keyboard_zone.name                      = ZONE_EN_KEYBOARD;
+    keyboard_zone.type                      = ZONE_TYPE_MATRIX;
 
-    keyboard_zone.matrix_map         = new matrix_map_type;
-    keyboard_zone.matrix_map->height = HEIGHT;
-    keyboard_zone.matrix_map->width  = WIDTH;
-
-    keyboard_zone.matrix_map->map    = new unsigned int[HEIGHT * WIDTH];
+    keyboard_zone.matrix_map.Set(HEIGHT, WIDTH, (unsigned int *)matrix_map);
 
     for(unsigned int w = 0; w < WIDTH; w++)
     {
         for(unsigned int h = 0; h < HEIGHT; h++)
         {
             unsigned int key = matrix_map[h][w];
-            keyboard_zone.matrix_map->map[h * WIDTH + w] = key;
 
             if(key != NA)
             {

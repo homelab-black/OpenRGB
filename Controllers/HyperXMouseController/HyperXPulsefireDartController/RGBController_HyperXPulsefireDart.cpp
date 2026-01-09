@@ -99,7 +99,6 @@ void RGBController_HyperXPulsefireDart::SetupZones()
     scroll_zone.leds_min    = 1;
     scroll_zone.leds_max    = 1;
     scroll_zone.leds_count  = 1;
-    scroll_zone.matrix_map  = NULL;
     zones.push_back(scroll_zone);
 
     led scroll_led;
@@ -113,7 +112,6 @@ void RGBController_HyperXPulsefireDart::SetupZones()
     logo_zone.leds_min      = 1;
     logo_zone.leds_max      = 1;
     logo_zone.leds_count    = 1;
-    logo_zone.matrix_map    = NULL;
     zones.push_back(logo_zone);
 
     led logo_led;

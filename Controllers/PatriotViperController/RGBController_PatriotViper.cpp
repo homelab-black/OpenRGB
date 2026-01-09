@@ -141,7 +141,6 @@ void RGBController_PatriotViper::SetupZones()
     new_zone->leds_min      = 5;
     new_zone->leds_max      = 5;
     new_zone->leds_count    = 5;
-    new_zone->matrix_map    = NULL;
     zones.push_back(*new_zone);
 
     /*---------------------------------------------------------*\

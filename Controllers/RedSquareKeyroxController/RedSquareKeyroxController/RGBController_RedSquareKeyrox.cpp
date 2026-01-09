@@ -312,21 +312,19 @@ void RGBController_RedSquareKeyrox::SetupZones()
     unsigned int zone_size = 0;
 
     zone z;
-    z.name               = ZONE_EN_KEYBOARD;
-    z.type               = ZONE_TYPE_MATRIX;
+    z.name                      = ZONE_EN_KEYBOARD;
+    z.type                      = ZONE_TYPE_MATRIX;
 
-    z.matrix_map         = new matrix_map_type;
-    z.matrix_map->height = keyboard->height;
-    z.matrix_map->width  = keyboard->width;
-
-    z.matrix_map->map    = new unsigned int[keyboard->height * keyboard->width];
+    z.matrix_map.height         = keyboard->height;
+    z.matrix_map.width          = keyboard->width;
+    z.matrix_map.map.resize(keyboard->height * keyboard->width);
 
     for(unsigned int h = 0; h < keyboard->height; h++)
     {
         for(unsigned int w = 0; w < keyboard->width; w++)
         {
             unsigned int key = keyboard->matrix_map[h][w];
-            z.matrix_map->map[h * keyboard->width + w] = key;
+            z.matrix_map.map[h * keyboard->width + w] = key;
 
             if(key != NA)
             {

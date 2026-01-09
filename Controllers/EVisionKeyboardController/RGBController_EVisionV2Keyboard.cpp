@@ -786,11 +786,7 @@ void RGBController_EVisionV2Keyboard::SetupZones()
     KB_zone.leds_count          = leds_count;
     KB_zone.leds_min            = KB_zone.leds_count;
     KB_zone.leds_max            = KB_zone.leds_count;
-
-    KB_zone.matrix_map          = new matrix_map_type;
-    KB_zone.matrix_map->height  = EVISION_V2_MATRIX_HEIGHT;
-    KB_zone.matrix_map->width   = EVISION_V2_MATRIX_WIDTH;
-    KB_zone.matrix_map->map     = matrix_map;
+    KB_zone.matrix_map.Set(EVISION_V2_MATRIX_HEIGHT, EVISION_V2_MATRIX_WIDTH, matrix_map);
     zones.push_back(KB_zone);
 
     /*-------------------------------------------------*\

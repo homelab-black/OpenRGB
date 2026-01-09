@@ -77,7 +77,6 @@ void RGBController_SteelSeriesSensei::SetupZones()
     logo_zone.leds_min      = 1;
     logo_zone.leds_max      = 1;
     logo_zone.leds_count    = 1;
-    logo_zone.matrix_map    = NULL;
     zones.push_back(logo_zone);
 
     led logo_led;
@@ -90,7 +89,6 @@ void RGBController_SteelSeriesSensei::SetupZones()
     wheel_zone.leds_min     = 1;
     wheel_zone.leds_max     = 1;
     wheel_zone.leds_count   = 1;
-    wheel_zone.matrix_map   = NULL;
     zones.push_back(wheel_zone);
 
     led wheel_led;

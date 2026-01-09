@@ -179,7 +179,6 @@ void RGBController_CMMMController::Init_Controller()
     mouse_zone.leds_min     = leds_count;
     mouse_zone.leds_max     = leds_count;
     mouse_zone.leds_count   = leds_count;
-    mouse_zone.matrix_map   = NULL;
     zones.push_back(mouse_zone);
 
     int value               = 0;

@@ -231,7 +231,6 @@ void RGBController_CMRGBController::SetupZones()
     new_zone->leds_min      = 1;
     new_zone->leds_max      = 4;
     new_zone->leds_count    = 4;
-    new_zone->matrix_map    = NULL;
 
     for(int i = 1; i <= CM_RGBC_NUM_LEDS; i++)
     {

@@ -56,7 +56,6 @@ void RGBController_RoccatHordeAimo::SetupZones()
     new_zone.leds_min      = NUMBER_OF_LEDS;
     new_zone.leds_max      = NUMBER_OF_LEDS;
     new_zone.leds_count    = NUMBER_OF_LEDS;
-    new_zone.matrix_map    = NULL;
     zones.push_back(new_zone);
 
     for(unsigned int i = 0; i < NUMBER_OF_LEDS; i++)

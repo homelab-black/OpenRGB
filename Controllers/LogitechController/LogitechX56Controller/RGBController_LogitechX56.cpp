@@ -61,7 +61,6 @@ void RGBController_LogitechX56::SetupZones()
     x56_zone.leds_min       = 1;
     x56_zone.leds_max       = 1;
     x56_zone.leds_count     = 1;
-    x56_zone.matrix_map     = NULL;
     zones.push_back(x56_zone);
 
     led x56_led;

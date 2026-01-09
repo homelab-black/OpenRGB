@@ -392,7 +392,6 @@ void RGBController_KingstonFuryDRAM::SetupZones()
         new_zone->leds_min      = controller->GetLEDPerDIMM();
         new_zone->leds_max      = new_zone->leds_min;
         new_zone->leds_count    = new_zone->leds_min;
-        new_zone->matrix_map    = NULL;
 
         zones.push_back(*new_zone);
     }

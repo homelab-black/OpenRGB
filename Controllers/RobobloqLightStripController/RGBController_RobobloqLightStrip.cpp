@@ -142,7 +142,6 @@ void RGBController_RobobloqLightStrip::SetupZones()
         zone.leds_count         = sides[i].count;
         zone.leds_min           = zone.leds_count;
         zone.leds_max           = zone.leds_count;
-        zone.matrix_map         = NULL;
     }
 
     for(int i = 0; i < led_count; i++)

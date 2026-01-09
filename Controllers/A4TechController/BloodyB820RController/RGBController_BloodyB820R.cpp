@@ -187,11 +187,7 @@ void RGBController_BloodyB820R::SetupZones()
     KB_zone.leds_min            = BLOODY_B820R_KEYCOUNT;
     KB_zone.leds_max            = BLOODY_B820R_KEYCOUNT;
     KB_zone.leds_count          = BLOODY_B820R_KEYCOUNT;
-
-    KB_zone.matrix_map          = new matrix_map_type;
-    KB_zone.matrix_map->height  = 6;
-    KB_zone.matrix_map->width   = 21;
-    KB_zone.matrix_map->map     = (unsigned int *)&matrix_map;
+    KB_zone.matrix_map.Set(6, 21, (unsigned int *)&matrix_map);
     zones.push_back(KB_zone);
 
     /*-------------------------------------------------*\

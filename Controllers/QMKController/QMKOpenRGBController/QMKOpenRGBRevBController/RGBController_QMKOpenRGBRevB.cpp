@@ -259,13 +259,7 @@ RGBController_QMKOpenRGBRevB::RGBController_QMKOpenRGBRevB(QMKOpenRGBRevBControl
 
 RGBController_QMKOpenRGBRevB::~RGBController_QMKOpenRGBRevB()
 {
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
+    delete controller;
 }
 
 void RGBController_QMKOpenRGBRevB::SetupZones()
@@ -349,10 +343,7 @@ void RGBController_QMKOpenRGBRevB::SetupZones()
     keys_zone.leds_min                      = number_of_key_leds;
     keys_zone.leds_max                      = keys_zone.leds_min;
     keys_zone.leds_count                    = keys_zone.leds_min;
-    keys_zone.matrix_map                    = new matrix_map_type;
-    keys_zone.matrix_map->width             = (unsigned int)matrix_map[0].size();
-    keys_zone.matrix_map->height            = (unsigned int)matrix_map.size();
-    keys_zone.matrix_map->map               = flat_matrix_map.data();
+    keys_zone.matrix_map.Set((unsigned int)matrix_map[0].size(), (unsigned int)matrix_map.size(), flat_matrix_map.data());
     zones.push_back(keys_zone);
 
     /*---------------------------------------------------------*\
@@ -366,10 +357,7 @@ void RGBController_QMKOpenRGBRevB::SetupZones()
         underglow_zone.leds_min             = number_of_underglow_leds;
         underglow_zone.leds_max             = underglow_zone.leds_min;
         underglow_zone.leds_count           = underglow_zone.leds_min;
-        underglow_zone.matrix_map           = new matrix_map_type;
-        underglow_zone.matrix_map->width    = (unsigned int)underglow_map[0].size();
-        underglow_zone.matrix_map->height   = (unsigned int)underglow_map.size();
-        underglow_zone.matrix_map->map      = flat_underglow_map.data();
+        underglow_zone.matrix_map.Set((unsigned int)underglow_map[0].size(), (unsigned int)underglow_map.size(), flat_underglow_map.data());
         zones.push_back(underglow_zone);
     }
 

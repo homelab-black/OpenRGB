@@ -98,7 +98,6 @@ void RGBController_RoccatBurstProAir::SetupZones()
     new_zone.leds_min      = ROCCAT_BURST_PRO_AIR_PRO_NUMBER_OF_LEDS;
     new_zone.leds_max      = ROCCAT_BURST_PRO_AIR_PRO_NUMBER_OF_LEDS;
     new_zone.leds_count    = ROCCAT_BURST_PRO_AIR_PRO_NUMBER_OF_LEDS;
-    new_zone.matrix_map    = NULL;
     zones.push_back(new_zone);
 
     std::string led_names[ROCCAT_BURST_PRO_AIR_PRO_NUMBER_OF_LEDS] =

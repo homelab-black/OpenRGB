@@ -377,10 +377,7 @@ void RGBController_SinowealthKeyboard16::SetupZones()
     new_zone.leds_count             = controller->GetLEDCount();
     new_zone.leds_min               = new_zone.leds_count;
     new_zone.leds_max               = new_zone.leds_count;
-    new_zone.matrix_map             = new matrix_map_type;
-    new_zone.matrix_map->height     = 6;
-    new_zone.matrix_map->width      = 22;
-    new_zone.matrix_map->map        = (unsigned int *)&matrix_map;
+    new_zone.matrix_map.Set(6, 22, (unsigned int *)&matrix_map);
 
     zones.push_back(new_zone);
 

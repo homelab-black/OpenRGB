@@ -418,8 +418,6 @@ void RGBController_ENESMBus::SetupZones()
         {
             zones[zone_idx].type    = ZONE_TYPE_SINGLE;
         }
-
-        zones[zone_idx].matrix_map  = NULL;
     }
 
     /*---------------------------------------------------------*\

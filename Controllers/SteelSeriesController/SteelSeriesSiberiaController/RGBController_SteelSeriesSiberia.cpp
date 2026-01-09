@@ -56,7 +56,6 @@ void RGBController_SteelSeriesSiberia::SetupZones()
     earpiece_zone.leds_min      = 1;
     earpiece_zone.leds_max      = 1;
     earpiece_zone.leds_count    = 1;
-    earpiece_zone.matrix_map    = NULL;
     zones.push_back(earpiece_zone);
 
     led earpiece_led;

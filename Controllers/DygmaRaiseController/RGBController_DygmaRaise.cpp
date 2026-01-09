@@ -183,17 +183,11 @@ void RGBController_DygmaRaise::SetupZones()
 
         if(i==0)
         {
-            new_zone.matrix_map             = new matrix_map_type;
-            new_zone.matrix_map->height     = 6;
-            new_zone.matrix_map->width      = 14;
-            new_zone.matrix_map->map        = (unsigned int *)&kb_matrix_map_ISO;
+            new_zone.matrix_map.Set(6, 14, (unsigned int *)&kb_matrix_map_ISO);
         }
         else if(i==1)
         {
-            new_zone.matrix_map             = new matrix_map_type;
-            new_zone.matrix_map->height     = 11;
-            new_zone.matrix_map->width      = 14;
-            new_zone.matrix_map->map        = (unsigned int *)&underglow_matrix;
+            new_zone.matrix_map.Set(11, 14, (unsigned int *)&underglow_matrix);
         }
 
         zones.push_back(new_zone);

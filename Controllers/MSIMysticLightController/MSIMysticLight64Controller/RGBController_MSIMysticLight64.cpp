@@ -52,7 +52,6 @@ void RGBController_MSIMysticLight64::SetupZones()
     msi_zone.leds_min   = 1;
     msi_zone.leds_max   = 1;
     msi_zone.leds_count = 1;
-    msi_zone.matrix_map = NULL;
     zones.push_back(msi_zone);
 
     led msi_led;

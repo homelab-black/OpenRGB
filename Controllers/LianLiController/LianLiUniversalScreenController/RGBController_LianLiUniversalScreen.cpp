@@ -53,7 +53,6 @@ void RGBController_LianLiUniversalScreen::SetupZones()
     Screen.leds_min     = 60;
     Screen.leds_max     = 60;
     Screen.leds_count   = 60;
-    Screen.matrix_map   = NULL;
     zones.push_back(Screen);
 
     for(std::size_t led_idx = 0; led_idx < Screen.leds_count; led_idx++)

@@ -229,8 +229,6 @@ void RGBController_PolychromeUSB::SetupZones()
 
             leds.push_back(new_led);
         }
-
-        zones[channel_idx].matrix_map = NULL;
     }
 
     SetupColors();

@@ -78,7 +78,6 @@ void RGBController_Tecknet::SetupZones()
     Tecknet_zone.leds_min      = 1;
     Tecknet_zone.leds_max      = 1;
     Tecknet_zone.leds_count    = 1;
-    Tecknet_zone.matrix_map    = NULL;
     zones.push_back(Tecknet_zone);
 
     led Tecknet_led;

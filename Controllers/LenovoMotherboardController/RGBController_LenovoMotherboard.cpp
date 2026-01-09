@@ -141,7 +141,6 @@ void RGBController_LenovoMotherboard::SetupZones()
     cpu_fan_zone.leds_min   = 1;
     cpu_fan_zone.leds_max   = 1;
     cpu_fan_zone.leds_count = 1;
-    cpu_fan_zone.matrix_map = nullptr;
 
     zones.emplace_back(cpu_fan_zone);
 
@@ -152,7 +151,6 @@ void RGBController_LenovoMotherboard::SetupZones()
     rear_fan_zone.leds_min   = 1;
     rear_fan_zone.leds_max   = 1;
     rear_fan_zone.leds_count = 1;
-    rear_fan_zone.matrix_map = nullptr;
 
     zones.emplace_back(rear_fan_zone);
 

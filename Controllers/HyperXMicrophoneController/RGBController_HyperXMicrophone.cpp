@@ -104,8 +104,6 @@ void RGBController_HyperXMicrophone::SetupZones()
     Mic.leds_min   = 2;
     Mic.leds_max   = 2;
     Mic.leds_count = 2;
-    Mic.matrix_map = nullptr;
-
     zones.push_back(Mic);
 
     SetupColors();

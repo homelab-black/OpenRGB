@@ -71,7 +71,6 @@ void RGBController_HyperXPulsefireHaste::SetupZones()
     logo.leds_min   = 1;
     logo.leds_max   = 1;
     logo.leds_count = 1;
-    logo.matrix_map = NULL;
     zones.push_back(logo);
 
     for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)

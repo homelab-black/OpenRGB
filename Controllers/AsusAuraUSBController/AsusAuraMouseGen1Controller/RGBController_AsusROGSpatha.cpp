@@ -133,7 +133,6 @@ void RGBController_AsusROGSpatha::SetupZones()
         spatha_zone.leds_min     = 1;
         spatha_zone.leds_max     = 1;
         spatha_zone.leds_count   = 1;
-        spatha_zone.matrix_map   = NULL;
 
         zones.push_back(spatha_zone);
 

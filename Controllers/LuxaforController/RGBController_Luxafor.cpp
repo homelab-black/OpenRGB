@@ -137,7 +137,6 @@ void RGBController_Luxafor::SetupZones()
     flag_zone.leds_min      = 3;
     flag_zone.leds_max      = 3;
     flag_zone.leds_count    = 3;
-    flag_zone.matrix_map    = NULL;
     zones.push_back(flag_zone);
 
     for(std::size_t led_idx = 0; led_idx < flag_zone.leds_count; led_idx++)
@@ -156,7 +155,6 @@ void RGBController_Luxafor::SetupZones()
     rear_zone.leds_min      = 3;
     rear_zone.leds_max      = 3;
     rear_zone.leds_count    = 3;
-    rear_zone.matrix_map    = NULL;
     zones.push_back(rear_zone);
 
     for(std::size_t led_idx = 0; led_idx < rear_zone.leds_count; led_idx++)

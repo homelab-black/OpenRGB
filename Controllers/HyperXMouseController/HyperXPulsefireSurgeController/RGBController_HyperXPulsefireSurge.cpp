@@ -71,7 +71,6 @@ void RGBController_HyperXPulsefireSurge::SetupZones()
     led_strip.leds_min   = 32;
     led_strip.leds_max   = 32;
     led_strip.leds_count = 32;
-    led_strip.matrix_map = NULL;
     zones.push_back(led_strip);
 
     zone logo;
@@ -80,7 +79,6 @@ void RGBController_HyperXPulsefireSurge::SetupZones()
     logo.leds_min   = 1;
     logo.leds_max   = 1;
     logo.leds_count = 1;
-    logo.matrix_map = NULL;
     zones.push_back(logo);
 
     for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)

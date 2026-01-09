@@ -180,7 +180,6 @@ void RGBController_RoccatKoneXP::SetupZones()
     left.leds_min      = 9;
     left.leds_max      = 9;
     left.leds_count    = 9;
-    left.matrix_map    = NULL;
     zones.push_back(left);
 
     for (uint8_t i = 1; i <= 9; i++) {
@@ -195,7 +194,6 @@ void RGBController_RoccatKoneXP::SetupZones()
     right.leds_min      = 9;
     right.leds_max      = 9;
     right.leds_count    = 9;
-    right.matrix_map    = NULL;
     zones.push_back(right);
 
     for (uint8_t i = 1; i <= 9; i++) {
@@ -210,7 +208,6 @@ void RGBController_RoccatKoneXP::SetupZones()
     wheel.leds_min      = 1;
     wheel.leds_max      = 1;
     wheel.leds_count    = 1;
-    wheel.matrix_map    = NULL;
     zones.push_back(wheel);
 
     led wheel_led;
@@ -223,7 +220,6 @@ void RGBController_RoccatKoneXP::SetupZones()
     dpi.leds_min      = 1;
     dpi.leds_max      = 1;
     dpi.leds_count    = 1;
-    dpi.matrix_map    = NULL;
     zones.push_back(dpi);
 
     led dpi_led;

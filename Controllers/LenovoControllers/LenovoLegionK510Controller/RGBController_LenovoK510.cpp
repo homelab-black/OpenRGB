@@ -286,7 +286,6 @@ void RGBController_LenovoK510::SetupZones()
     default_zone.leds_min       = 1;
     default_zone.leds_max       = 1;
     default_zone.leds_count     = 1;
-    default_zone.matrix_map     = nullptr;
     zones.emplace_back(default_zone);
 
     leds.resize(1);

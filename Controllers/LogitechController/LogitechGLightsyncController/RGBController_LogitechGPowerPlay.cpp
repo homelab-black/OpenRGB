@@ -90,7 +90,6 @@ void RGBController_LogitechGPowerPlay::SetupZones()
     GPowerPlay_logo_zone.leds_min       = 1;
     GPowerPlay_logo_zone.leds_max       = 1;
     GPowerPlay_logo_zone.leds_count     = 1;
-    GPowerPlay_logo_zone.matrix_map     = NULL;
     zones.push_back(GPowerPlay_logo_zone);
 
     led GPowerPlay_logo_led;

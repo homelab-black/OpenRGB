@@ -199,8 +199,6 @@ void RGBController_MSIMysticLight185::SetupZones()
                 new_zone.type       = ZONE_TYPE_LINEAR;
             }
 
-            new_zone.matrix_map     = NULL;
-
             zones.push_back(new_zone);
         }
     }

@@ -124,7 +124,6 @@ void RGBController_AOCMousemat::SetupZones()
     mousemat_zone.leds_min      = 1;
     mousemat_zone.leds_max      = 1;
     mousemat_zone.leds_count    = 1;
-    mousemat_zone.matrix_map    = NULL;
     zones.push_back(mousemat_zone);
 
     led mousemat_led;

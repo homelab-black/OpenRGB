@@ -163,7 +163,6 @@ void RGBController_CMR6000Controller::SetupZones()
     GP_zone.leds_min    = 1;
     GP_zone.leds_max    = 1;
     GP_zone.leds_count  = 1;
-    GP_zone.matrix_map  = NULL;
     zones.push_back(GP_zone);
 
     led GP_led;

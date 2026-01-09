@@ -27,7 +27,6 @@ void RGBController_MNTKeyboard::CommonInit()
 
 RGBController_MNTKeyboard::~RGBController_MNTKeyboard()
 {
-    delete zones[0].matrix_map;
     delete controller;
 }
 
@@ -36,10 +35,7 @@ void RGBController_MNTKeyboard::SetupZones()
     zone new_zone;
     new_zone.type               = ZONE_TYPE_MATRIX;
     new_zone.leds_count         = KBD_ROWS * controller->kbd_cols;
-    new_zone.matrix_map         = new matrix_map_type;
-    new_zone.matrix_map->height = KBD_ROWS;
-    new_zone.matrix_map->width  = controller->kbd_cols;
-    new_zone.matrix_map->map    = (unsigned int *)matrix_keys;
+    new_zone.matrix_map.Set(KBD_ROWS, controller->kbd_cols, (unsigned int *)matrix_keys);
     zones.push_back(new_zone);
     for(unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
     {

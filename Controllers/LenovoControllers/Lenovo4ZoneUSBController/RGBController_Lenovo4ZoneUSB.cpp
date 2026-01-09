@@ -99,9 +99,6 @@ void RGBController_Lenovo4ZoneUSB::SetupZones()
     new_zone.leds_max   = new_zone.leds_count;
     new_zone.leds_min   = new_zone.leds_count;
 
-    new_zone.matrix_map = NULL;
-
-
     zones.push_back(new_zone);
 
     for(unsigned int led_idx = 0; led_idx < LENOVO_4_ZONE_NUM_LEDS; led_idx++ )

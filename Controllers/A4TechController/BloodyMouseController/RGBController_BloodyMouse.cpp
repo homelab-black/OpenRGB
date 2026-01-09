@@ -134,7 +134,6 @@ void RGBController_BloodyMouse::SetupZones()
         new_zone.leds_max       = new_zone.leds_min;
         new_zone.leds_count     = new_zone.leds_min;
         new_zone.type           = bool_single ? ZONE_TYPE_SINGLE : ZONE_TYPE_LINEAR;
-        new_zone.matrix_map     = NULL;
         zones.push_back(new_zone);
 
         for(unsigned int lp_idx = 0; lp_idx < zones[zone_idx].leds_count; lp_idx++)

@@ -222,17 +222,6 @@ RGBController_DuckyKeyboard::RGBController_DuckyKeyboard(DuckyKeyboardController
 
 RGBController_DuckyKeyboard::~RGBController_DuckyKeyboard()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 
@@ -269,10 +258,7 @@ void RGBController_DuckyKeyboard::SetupZones()
         new_zone.leds_min               = zone_size;
         new_zone.leds_max               = zone_size;
         new_zone.leds_count             = zone_size;
-        new_zone.matrix_map             = new matrix_map_type;
-        new_zone.matrix_map->height     = 6;
-        new_zone.matrix_map->width      = matrix_width;
-        new_zone.matrix_map->map        = matrix_map_ptr;
+        new_zone.matrix_map.Set(6, matrix_width, matrix_map_ptr);
         zones.push_back(new_zone);
 
         total_led_count += zone_size;

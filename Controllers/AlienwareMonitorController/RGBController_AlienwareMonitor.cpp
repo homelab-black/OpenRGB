@@ -57,7 +57,6 @@ void RGBController_AlienwareMonitor::SetupZones()
     Logo.leds_min           = 1;
     Logo.leds_max           = 1;
     Logo.leds_count         = 1;
-    Logo.matrix_map         = NULL;
     zones.push_back(Logo);
 
     led Logo_LED;
@@ -71,7 +70,6 @@ void RGBController_AlienwareMonitor::SetupZones()
     Number.leds_min         = 1;
     Number.leds_max         = 1;
     Number.leds_count       = 1;
-    Number.matrix_map       = NULL;
     zones.push_back(Number);
 
     led Number_LED;
@@ -85,7 +83,6 @@ void RGBController_AlienwareMonitor::SetupZones()
     PowerButton.leds_min    = 1;
     PowerButton.leds_max    = 1;
     PowerButton.leds_count  = 1;
-    PowerButton.matrix_map  = NULL;
     zones.push_back(PowerButton);
 
     led PowerButton_LED;

@@ -186,7 +186,6 @@ void RGBController_AuraCore::SetupZones()
         auraZone.leds_min   = 4;
         auraZone.leds_max   = 4;
         auraZone.leds_count = 4;
-        auraZone.matrix_map = NULL;
     }
     else if(controller->aura_device.aura_type == AURA_CORE_DEVICE_GA15DH)
     {
@@ -195,7 +194,6 @@ void RGBController_AuraCore::SetupZones()
         auraZone.leds_min   = 20;
         auraZone.leds_max   = 20;
         auraZone.leds_count = 20;
-        auraZone.matrix_map = NULL;
     }
     else
     {

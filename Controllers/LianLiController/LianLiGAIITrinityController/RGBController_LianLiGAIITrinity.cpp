@@ -293,7 +293,6 @@ void RGBController_LianLiGAIITrinity::SetupZones()
     gaii_trinity.leds_min      = 2;
     gaii_trinity.leds_max      = 2;
     gaii_trinity.leds_count    = 2;
-    gaii_trinity.matrix_map    = NULL;
     zones.push_back(gaii_trinity);
 
     led inner_led;

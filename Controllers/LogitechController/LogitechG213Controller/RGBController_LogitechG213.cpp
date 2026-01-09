@@ -120,9 +120,6 @@ void RGBController_LogitechG213::SetupZones()
     new_zone.leds_min               = 5;
     new_zone.leds_max               = 5;
     new_zone.leds_count             = 5;
-
-    new_zone.matrix_map             = NULL;
-
     zones.push_back(new_zone);
 
     for(unsigned int led_idx = 0; led_idx < LOGITECH_G213_ZONES; led_idx++)

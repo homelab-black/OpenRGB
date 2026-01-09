@@ -91,7 +91,6 @@ void RGBController_AsusROGStrixEvolve::SetupZones()
     mouse_zone.leds_min     = 1;
     mouse_zone.leds_max     = 1;
     mouse_zone.leds_count   = 1;
-    mouse_zone.matrix_map   = NULL;
 
     zones.push_back(mouse_zone);
 

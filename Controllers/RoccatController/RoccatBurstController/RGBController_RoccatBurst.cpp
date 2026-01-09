@@ -123,7 +123,6 @@ void RGBController_RoccatBurst::SetupZones()
     new_zone.leds_min      = leds_count;
     new_zone.leds_max      = leds_count;
     new_zone.leds_count    = leds_count;
-    new_zone.matrix_map    = NULL;
     zones.push_back(new_zone);
 
     std::string led_names[2] =

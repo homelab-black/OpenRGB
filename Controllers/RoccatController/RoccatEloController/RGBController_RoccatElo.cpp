@@ -58,7 +58,6 @@ void RGBController_RoccatElo::SetupZones()
     new_zone.leds_min   = ROCCAT_ELO_LEDS_COUNT;
     new_zone.leds_max   = ROCCAT_ELO_LEDS_COUNT;
     new_zone.leds_count = ROCCAT_ELO_LEDS_COUNT;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 

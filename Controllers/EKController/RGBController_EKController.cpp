@@ -136,7 +136,6 @@ void RGBController_EKController::SetupZones()
     EK_zone.leds_min    = 1;
     EK_zone.leds_max    = 1;
     EK_zone.leds_count  = 1;
-    EK_zone.matrix_map  = NULL;
     zones.push_back(EK_zone);
 
     led EK_led;

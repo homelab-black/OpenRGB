@@ -63,7 +63,6 @@ void RGBController_SonyDS4::SetupZones()
     new_zone->leds_min      = 1;
     new_zone->leds_max      = 1;
     new_zone->leds_count    = 1;
-    new_zone->matrix_map    = NULL;
 
     new_led->name           = "Controller LED";
 

@@ -119,7 +119,6 @@ void RGBController_PNYLovelaceGPU::SetupZones()
     new_zone->leds_min      = 3;
     new_zone->leds_max      = 3;
     new_zone->leds_count    = 3;
-    new_zone->matrix_map    = NULL;
 
     led*  new_led  = new led();
     new_led->name           = "Fan LED";

@@ -202,7 +202,6 @@ void RGBController_CMARGBGen2A1Controller::SetupZones()
         new_zone.leds_min   = 0;
         new_zone.leds_max   = CM_ARGB_GEN2_A1_CHANNEL_MAX_SIZE;
         new_zone.leds_count = 0;
-        new_zone.matrix_map = nullptr;
 
         zones.push_back(new_zone);
 

@@ -65,7 +65,6 @@ void RGBController_StrixClaw::SetupZones()
     scroll_wheel_zone.leds_min     = 1;
     scroll_wheel_zone.leds_max     = 1;
     scroll_wheel_zone.leds_count   = 1;
-    scroll_wheel_zone.matrix_map   = NULL;
 
     zones.push_back(scroll_wheel_zone);
 
@@ -83,7 +82,6 @@ void RGBController_StrixClaw::SetupZones()
     logo_zone.leds_min     = 1;
     logo_zone.leds_max     = 1;
     logo_zone.leds_count   = 1;
-    logo_zone.matrix_map   = NULL;
 
     zones.push_back(logo_zone);
 

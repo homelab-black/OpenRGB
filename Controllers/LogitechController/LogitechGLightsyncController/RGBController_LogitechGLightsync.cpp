@@ -96,7 +96,6 @@ void RGBController_LogitechGLightsync::SetupZones()
     GLightsync_primary_zone.leds_min        = 1;
     GLightsync_primary_zone.leds_max        = 1;
     GLightsync_primary_zone.leds_count      = 1;
-    GLightsync_primary_zone.matrix_map      = NULL;
     zones.push_back(GLightsync_primary_zone);
 
     led GLightsync_primary_led;
@@ -109,7 +108,6 @@ void RGBController_LogitechGLightsync::SetupZones()
     GLightsync_logo_zone.leds_min           = 1;
     GLightsync_logo_zone.leds_max           = 1;
     GLightsync_logo_zone.leds_count         = 1;
-    GLightsync_logo_zone.matrix_map         = NULL;
     zones.push_back(GLightsync_logo_zone);
 
     led GLightsync_logo_led;

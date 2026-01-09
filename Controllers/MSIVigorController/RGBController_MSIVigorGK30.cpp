@@ -150,7 +150,6 @@ void RGBController_MSIVigorGK30::SetupZones()
     new_zone.leds_min   = MSI_VIGOR_GK30_LEDS_COUNT;
     new_zone.leds_max   = MSI_VIGOR_GK30_LEDS_COUNT;
     new_zone.leds_count = MSI_VIGOR_GK30_LEDS_COUNT;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 

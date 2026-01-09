@@ -95,7 +95,6 @@ void RGBController_Nanoleaf::SetupZones()
     led_zone.leds_count     = (unsigned int)controller.GetPanelIds().size();
     led_zone.leds_min       = led_zone.leds_count;
     led_zone.leds_max       = led_zone.leds_count;
-    led_zone.matrix_map     = NULL;
 
     for(std::vector<int>::const_iterator it = controller.GetPanelIds().begin(); it != controller.GetPanelIds().end(); ++it)
     {

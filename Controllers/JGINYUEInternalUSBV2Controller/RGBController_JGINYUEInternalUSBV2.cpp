@@ -477,7 +477,6 @@ void RGBController_JGINYUEInternalUSBV2::InitZones()
         zone_to_init->leds_max      = cfg->Max_LED_numbers;
         zone_to_init->leds_count    = 0;
         zone_to_init->type          = ZONE_TYPE_LINEAR;
-        zone_to_init->matrix_map    = NULL;
 
         switch(cfg->Area_ID)
         {

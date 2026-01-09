@@ -75,7 +75,6 @@ void RGBController_LogitechG600::SetupZones()
     side_lights_zone.leds_min   = 1;
     side_lights_zone.leds_max   = 1;
     side_lights_zone.leds_count = 1;
-    side_lights_zone.matrix_map = NULL;
     zones.push_back(side_lights_zone);
 
     // Set up LED

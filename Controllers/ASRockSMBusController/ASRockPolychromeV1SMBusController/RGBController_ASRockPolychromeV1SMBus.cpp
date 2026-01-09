@@ -267,7 +267,6 @@ void RGBController_ASRockPolychromeV1SMBus::SetupZones()
             new_zone->leds_min      = 1;
             new_zone->leds_max      = 1;
             new_zone->leds_count    = 1;
-            new_zone->matrix_map    = NULL;
 
             if(zone_idx == POLYCHROME_V1_ZONE_ADDRESSABLE)
             {

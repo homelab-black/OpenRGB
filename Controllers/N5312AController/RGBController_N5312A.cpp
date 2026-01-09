@@ -97,7 +97,6 @@ void RGBController_N5312A::SetupZones()
     new_zone.leds_min   = N5312A_NUMBER_OF_LEDS;
     new_zone.leds_max   = N5312A_NUMBER_OF_LEDS;
     new_zone.leds_count = N5312A_NUMBER_OF_LEDS;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 

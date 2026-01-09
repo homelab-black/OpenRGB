@@ -205,7 +205,6 @@ void RGBController_AorusATC800::SetupZones()
     atc800_cpu_fans_zone.leds_min       = 1;
     atc800_cpu_fans_zone.leds_max       = 1;
     atc800_cpu_fans_zone.leds_count     = 1;
-    atc800_cpu_fans_zone.matrix_map     = NULL;
     zones.push_back(atc800_cpu_fans_zone);
 
     led atc800_fan_led;
@@ -218,7 +217,6 @@ void RGBController_AorusATC800::SetupZones()
     atc800_top_zone.leds_min            = 1;
     atc800_top_zone.leds_max            = 1;
     atc800_top_zone.leds_count          = 1;
-    atc800_top_zone.matrix_map          = NULL;
     zones.push_back(atc800_top_zone);
 
     led atc800_top_led;

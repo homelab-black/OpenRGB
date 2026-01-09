@@ -140,7 +140,6 @@ void RGBController_CMMM711Controller::Init_Controller()
     mouse_zone.leds_min     = 2;
     mouse_zone.leds_max     = 2;
     mouse_zone.leds_count   = 2;
-    mouse_zone.matrix_map   = NULL;
     zones.push_back(mouse_zone);
 
     led wheel_led;

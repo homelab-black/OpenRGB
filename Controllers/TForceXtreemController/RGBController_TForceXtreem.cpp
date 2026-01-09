@@ -425,7 +425,6 @@ void RGBController_TForceXtreem::SetupZones()
     new_zone.leds_min       = XTREEM_LED_COUNT;
     new_zone.leds_max       = XTREEM_LED_COUNT;
     new_zone.leds_count     = XTREEM_LED_COUNT;
-    new_zone.matrix_map     = NULL;
     zones.push_back(new_zone);
 
     /*---------------------------------------------------------*\

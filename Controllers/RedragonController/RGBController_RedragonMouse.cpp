@@ -84,7 +84,6 @@ void RGBController_RedragonMouse::SetupZones()
     mouse_zone.leds_min     = REDRAGON_MOUSE_LED_COUNT;
     mouse_zone.leds_max     = REDRAGON_MOUSE_LED_COUNT;
     mouse_zone.leds_count   = REDRAGON_MOUSE_LED_COUNT;
-    mouse_zone.matrix_map   = NULL;
     zones.push_back(mouse_zone);
 
     led mouse_led;

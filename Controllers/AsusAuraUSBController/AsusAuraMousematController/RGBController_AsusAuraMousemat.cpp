@@ -194,7 +194,6 @@ void RGBController_AuraMousemat::SetupZones()
     mousemat_zone.leds_min     = 15;
     mousemat_zone.leds_max     = 15;
     mousemat_zone.leds_count   = 15;
-    mousemat_zone.matrix_map   = NULL;
 
     zones.push_back(mousemat_zone);
 

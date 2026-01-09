@@ -113,7 +113,6 @@ void RGBController_XG270QG::SetupZones()
     base.leds_min           = 1;
     base.leds_max           = 1;
     base.leds_count         = 1;
-    base.matrix_map         = NULL;
     zones.push_back(base);
 
     zone rear;
@@ -122,7 +121,6 @@ void RGBController_XG270QG::SetupZones()
     rear.leds_min           = 1;
     rear.leds_max           = 1;
     rear.leds_count         = 1;
-    rear.matrix_map         = NULL;
     zones.push_back(rear);
 
     led d;

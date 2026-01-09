@@ -344,7 +344,6 @@ void RGBController_RGBFusion2USB::Init_Controller()
         new_zone.leds_max           = zone_at_idx->leds_max;
         new_zone.leds_count         = new_zone.leds_min;
         new_zone.type               = (new_zone.leds_min == new_zone.leds_max) ? ZONE_TYPE_SINGLE : ZONE_TYPE_LINEAR;
-        new_zone.matrix_map         = NULL;
         zones.emplace_back(new_zone);
     }
 }

@@ -65,7 +65,6 @@ void RGBController_HYTEMousemat::SetupZones()
     mousemat_zone.leds_min      = 50;
     mousemat_zone.leds_max      = 50;
     mousemat_zone.leds_count    = 50;
-    mousemat_zone.matrix_map    = NULL;
 
     zones.push_back(mousemat_zone);
 

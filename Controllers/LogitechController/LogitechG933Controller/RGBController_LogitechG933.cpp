@@ -58,7 +58,6 @@ void RGBController_LogitechG933::SetupZones()
     G933_logo.leds_min      = 1;
     G933_logo.leds_max      = 1;
     G933_logo.leds_count    = 1;
-    G933_logo.matrix_map    = NULL;
     zones.push_back(G933_logo);
 
     led G933_logo_led;
@@ -72,7 +71,6 @@ void RGBController_LogitechG933::SetupZones()
     G933_strip.leds_min     = 1;
     G933_strip.leds_max     = 1;
     G933_strip.leds_count   = 1;
-    G933_strip.matrix_map   = NULL;
     zones.push_back(G933_strip);
 
     led G933_strip_led;

@@ -284,7 +284,7 @@ void DeviceView::InitDeviceView()
         /*-----------------------------------------------------*\
         | For matrix zones, use matrix height from the map      |
         \*-----------------------------------------------------*/
-        if((controller->GetZoneType(zone_idx) == ZONE_TYPE_MATRIX) && (controller->GetZoneMatrixMapAvailable(zone_idx)))
+        if(controller->GetZoneType(zone_idx) == ZONE_TYPE_MATRIX)
         {
             totalHeight                += controller->GetZoneMatrixMapHeight(zone_idx);
             zone_pos[zone_idx].matrix_w = controller->GetZoneMatrixMapWidth(zone_idx);
