@@ -89,18 +89,18 @@ void RGBController_HYTEKeyboard::SetupZones()
 
     zone keyboard_zone;
 
-    keyboard_zone.name                  = "Keyboard";
-    keyboard_zone.type                  = ZONE_TYPE_MATRIX;
+    keyboard_zone.name                      = "Keyboard";
+    keyboard_zone.type                      = ZONE_TYPE_MATRIX;
 
-    matrix_map_type * keyboard_map      = new matrix_map_type;
-    keyboard_zone.matrix_map            = keyboard_map;
-    keyboard_zone.matrix_map->height    = new_kb.GetRowCount();
-    keyboard_zone.matrix_map->width     = new_kb.GetColumnCount();
-
-    keyboard_zone.matrix_map->map       = new unsigned int[keyboard_map->height * keyboard_map->width];
-    keyboard_zone.leds_count            = new_kb.GetKeyCount();
-    keyboard_zone.leds_min              = keyboard_zone.leds_count;
-    keyboard_zone.leds_max              = keyboard_zone.leds_count;
+    matrix_map_type * keyboard_map          = new matrix_map_type;
+    keyboard_zone.matrix_map                = keyboard_map;
+    keyboard_zone.matrix_map->height        = new_kb.GetRowCount();
+    keyboard_zone.matrix_map->width         = new_kb.GetColumnCount();
+    keyboard_zone.matrix_map->delete_map    = true;
+    keyboard_zone.matrix_map->map           = new unsigned int[keyboard_map->height * keyboard_map->width];
+    keyboard_zone.leds_count                = new_kb.GetKeyCount();
+    keyboard_zone.leds_min                  = keyboard_zone.leds_count;
+    keyboard_zone.leds_max                  = keyboard_zone.leds_count;
 
     zones.push_back(keyboard_zone);
 

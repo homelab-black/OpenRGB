@@ -64,15 +64,16 @@ void RGBController_HyperXMicrophoneV2::SetupZones()
 {
     zone Mic;
 
-    Mic.name                = "Microphone";
-    Mic.type                = ZONE_TYPE_MATRIX;
-    Mic.leds_min            = HYPERX_QUADCAST_2S_TOTAL_LEDS;
-    Mic.leds_max            = HYPERX_QUADCAST_2S_TOTAL_LEDS;
-    Mic.leds_count          = HYPERX_QUADCAST_2S_TOTAL_LEDS;
-    Mic.matrix_map          = new matrix_map_type;
-    Mic.matrix_map->width   = HYPERX_QUADCAST_2S_MATRIX_WIDTH;
-    Mic.matrix_map->height  = HYPERX_QUADCAST_2S_MATRIX_HEIGHT;
-    Mic.matrix_map->map     = new unsigned int[HYPERX_QUADCAST_2S_TOTAL_LEDS];
+    Mic.name                    = "Microphone";
+    Mic.type                    = ZONE_TYPE_MATRIX;
+    Mic.leds_min                = HYPERX_QUADCAST_2S_TOTAL_LEDS;
+    Mic.leds_max                = HYPERX_QUADCAST_2S_TOTAL_LEDS;
+    Mic.leds_count              = HYPERX_QUADCAST_2S_TOTAL_LEDS;
+    Mic.matrix_map              = new matrix_map_type;
+    Mic.matrix_map->width       = HYPERX_QUADCAST_2S_MATRIX_WIDTH;
+    Mic.matrix_map->height      = HYPERX_QUADCAST_2S_MATRIX_HEIGHT;
+    Mic.matrix_map->delete_map  = true;
+    Mic.matrix_map->map         = new unsigned int[HYPERX_QUADCAST_2S_TOTAL_LEDS];
 
     unsigned int led_mapping[HYPERX_QUADCAST_2S_TOTAL_LEDS] =
     {

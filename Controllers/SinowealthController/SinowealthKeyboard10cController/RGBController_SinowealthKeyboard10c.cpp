@@ -92,15 +92,15 @@ void RGBController_SinowealthKeyboard10c::SetupZones()
                                  device.keyboard_layout.key_values);
     new_kb.ChangeKeys(device.keyboard_layout.edit_keys);
 
-    matrix_map_type* new_map    = new matrix_map_type;
-    new_zone.matrix_map         = new_map;
-    new_zone.matrix_map->height = new_kb.GetRowCount();
-    new_zone.matrix_map->width  = new_kb.GetColumnCount();
-
-    new_zone.matrix_map->map = new unsigned int[new_map->height * new_map->width];
-    new_zone.leds_count      = new_kb.GetRowCount() * new_kb.GetColumnCount();
-    new_zone.leds_min        = new_zone.leds_count;
-    new_zone.leds_max        = new_zone.leds_count;
+    matrix_map_type* new_map        = new matrix_map_type;
+    new_zone.matrix_map             = new_map;
+    new_zone.matrix_map->height     = new_kb.GetRowCount();
+    new_zone.matrix_map->width      = new_kb.GetColumnCount();
+    new_zone.matrix_map->delete_map = true;
+    new_zone.matrix_map->map        = new unsigned int[new_map->height * new_map->width];
+    new_zone.leds_count             = new_kb.GetRowCount() * new_kb.GetColumnCount();
+    new_zone.leds_min               = new_zone.leds_count;
+    new_zone.leds_max               = new_zone.leds_count;
 
     /*---------------------------------------------------------*\
     | These keyboards use sparse LED indexes — for example, a   |

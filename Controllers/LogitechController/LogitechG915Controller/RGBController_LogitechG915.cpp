@@ -381,17 +381,6 @@ RGBController_LogitechG915::RGBController_LogitechG915(LogitechG915Controller* c
 
 RGBController_LogitechG915::~RGBController_LogitechG915()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 

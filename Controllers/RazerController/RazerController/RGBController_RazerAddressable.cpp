@@ -187,7 +187,7 @@ void RGBController_RazerAddressable::SetupZones()
 
                 new_map->height                 = device_list[device_index]->zones[zone_id]->rows;
                 new_map->width                  = device_list[device_index]->zones[zone_id]->cols;
-
+                new_map->delete_map             = true;
                 new_map->map                    = new unsigned int[new_map->height * new_map->width];
 
                 for(unsigned int y = 0; y < new_map->height; y++)
