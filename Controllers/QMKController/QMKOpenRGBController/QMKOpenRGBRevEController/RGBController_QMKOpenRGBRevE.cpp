@@ -274,13 +274,7 @@ RGBController_QMKOpenRGBRevE::RGBController_QMKOpenRGBRevE(QMKOpenRGBRevDControl
 
 RGBController_QMKOpenRGBRevE::~RGBController_QMKOpenRGBRevE()
 {
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
+    delete controller;
 }
 
 void RGBController_QMKOpenRGBRevE::SetupZones()

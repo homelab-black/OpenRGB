@@ -49,22 +49,6 @@ RGBController_CMKeyboardController::RGBController_CMKeyboardController(CMKeyboar
 
 RGBController_CMKeyboardController::~RGBController_CMKeyboardController()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            if(zones[zone_index].matrix_map->map != NULL)
-            {
-                delete zones[zone_index].matrix_map->map;
-            }
-
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     if(m_pController)
     {
         delete m_pController;
@@ -111,6 +95,7 @@ void RGBController_CMKeyboardController::SetupZones()
 
                     new_map->height             = new_kb.GetRowCount();
                     new_map->width              = new_kb.GetColumnCount();
+                    new_map->delete_map         = true;
                     new_map->map                = new unsigned int[new_map->height * new_map->width];
 
                     /*---------------------------------------------------------*\

@@ -16,6 +16,27 @@
 
 using namespace std::chrono_literals;
 
+matrix_map_type::matrix_map_type()
+{
+    matrix_map_type(0, 0, false, NULL);
+}
+
+matrix_map_type::matrix_map_type(unsigned int height, unsigned int width, bool delete_map, unsigned int * map)
+{
+    this->height        = height;
+    this->width         = width;
+    this->delete_map    = delete_map;
+    this->map           = map;
+}
+
+matrix_map_type::~matrix_map_type()
+{
+    if(delete_map && map != NULL)
+    {
+        delete[] map;
+    }
+}
+
 mode::mode()
 {
     /*-----------------------------------------------------*\
@@ -55,7 +76,11 @@ segment::segment()
 
 segment::~segment()
 {
-
+    if(matrix_map != NULL)
+    {
+        delete matrix_map;
+        matrix_map = NULL;
+    }
 }
 
 zone::zone()
@@ -78,6 +103,12 @@ zone::zone()
 
 zone::~zone()
 {
+    if(matrix_map != NULL)
+    {
+        delete matrix_map;
+        matrix_map = NULL;
+    }
+
     segments.clear();
 }
 
@@ -2784,6 +2815,15 @@ unsigned char* RGBController::SetSegmentDescription(unsigned char* data_ptr, seg
         if(matrix_map_len > 0)
         {
             /*---------------------------------------------*\
+            | Delete any existing matrix map                |
+            \*---------------------------------------------*/
+            if(segment->matrix_map != NULL)
+            {
+                delete segment->matrix_map;
+                segment->matrix_map = NULL;
+            }
+
+            /*---------------------------------------------*\
             | Create a map data structure to fill in        |
             \*---------------------------------------------*/
             segment->matrix_map = new matrix_map_type;
@@ -2818,9 +2858,19 @@ unsigned char* RGBController::SetMatrixMapDescription(unsigned char* data_ptr, m
     data_ptr += sizeof(matrix_map->width);
 
     /*-----------------------------------------------------*\
+    | Delete existing map if it exists and is deletable     |
+    \*-----------------------------------------------------*/
+    if(matrix_map->delete_map && matrix_map->map != NULL)
+    {
+        delete[] matrix_map->map;
+        matrix_map->map = NULL;
+    }
+
+    /*-----------------------------------------------------*\
     | Copy in matrix map                                    |
     \*-----------------------------------------------------*/
-    matrix_map->map = new unsigned int[matrix_map->height * matrix_map->width];
+    matrix_map->map         = new unsigned int[matrix_map->height * matrix_map->width];
+    matrix_map->delete_map  = true;
 
     for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map->height * matrix_map->width); matrix_idx++)
     {
@@ -2879,6 +2929,15 @@ unsigned char* RGBController::SetZoneDescription(unsigned char* data_ptr, zone* 
     \*-----------------------------------------------------*/
     if(matrix_map_len > 0)
     {
+        /*-------------------------------------------------*\
+        | Delete any existing matrix map                    |
+        \*-------------------------------------------------*/
+        if(zone->matrix_map != NULL)
+        {
+            delete zone->matrix_map;
+            zone->matrix_map = NULL;
+        }
+
         /*-------------------------------------------------*\
         | Create a map data structure to fill in            |
         \*-------------------------------------------------*/

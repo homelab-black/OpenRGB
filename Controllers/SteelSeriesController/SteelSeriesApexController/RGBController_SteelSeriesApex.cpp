@@ -65,18 +65,6 @@ RGBController_SteelSeriesApex::RGBController_SteelSeriesApex(SteelSeriesApexBase
 
 RGBController_SteelSeriesApex::~RGBController_SteelSeriesApex()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            free(zones[zone_index].matrix_map->map);
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 
@@ -103,8 +91,11 @@ void RGBController_SteelSeriesApex::SetupZones()
 
         if(zone_types[zone_idx] == ZONE_TYPE_MATRIX)
         {
-            new_zone.matrix_map         = new matrix_map_type;
-            new_zone.matrix_map->map    = (unsigned int *) malloc(matrix_mapsize*sizeof(unsigned int));
+            new_zone.matrix_map             = new matrix_map_type;
+            new_zone.matrix_map->height     = MATRIX_HEIGHT;
+            new_zone.matrix_map->width      = MATRIX_WIDTH;
+            new_zone.matrix_map->delete_map = true;
+            new_zone.matrix_map->map        = new unsigned int[matrix_mapsize * sizeof(unsigned int)];
 
             if((proto_type == APEX) || (proto_type == APEX_M) || (proto_type == APEX_9_TKL) || (proto_type == APEX_9_MINI))
             {

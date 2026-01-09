@@ -154,12 +154,18 @@ enum
 /*---------------------------------------------------------*\
 | Matrix Map Struct                                         |
 \*---------------------------------------------------------*/
-typedef struct
+class matrix_map_type
 {
+public:
     unsigned int            height;
     unsigned int            width;
+    bool                    delete_map;     /* whether to delete[] map when matrix_map_type is deleted  */
     unsigned int *          map;
-} matrix_map_type;
+
+    matrix_map_type();
+    matrix_map_type(unsigned int height, unsigned int width, bool delete_map, unsigned int * map);
+    ~matrix_map_type();
+};
 
 /*---------------------------------------------------------*\
 | Segment Class                                             |

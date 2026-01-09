@@ -33,17 +33,6 @@ static RGBColor DeflectColor(bool deflection, RGBColor color)
 
 RGBController_LightSalt::~RGBController_LightSalt()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != nullptr)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 

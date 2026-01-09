@@ -205,9 +205,10 @@ RGBController_E131::RGBController_E131(std::vector<E131Device> device_list)
             unsigned int led_idx = 0;
             matrix_map_type * new_map = new matrix_map_type;
 
-            new_map->width = devices[device_idx].matrix_width;
-            new_map->height = devices[device_idx].matrix_height;
-            new_map->map = new unsigned int[devices[device_idx].matrix_width * devices[device_idx].matrix_height];
+            new_map->width      = devices[device_idx].matrix_width;
+            new_map->height     = devices[device_idx].matrix_height;
+            new_map->delete_map = true;
+            new_map->map        = new unsigned int[devices[device_idx].matrix_width * devices[device_idx].matrix_height];
 
             switch(devices[device_idx].matrix_order)
             {
@@ -315,22 +316,6 @@ RGBController_E131::~RGBController_E131()
         keepalive_thread_run = 0;
         keepalive_thread->join();
         delete keepalive_thread;
-    }
-
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            if(zones[zone_index].matrix_map->map != NULL)
-            {
-                delete zones[zone_index].matrix_map->map;
-            }
-
-            delete zones[zone_index].matrix_map;
-        }
     }
 }
 
