@@ -194,15 +194,16 @@ void RGBController_QMKVialRGB::SetupZones()
     \*-----------------------------------------------------*/
     zone keyboard;
 
-    keyboard.name               = "Keyboard";
-    keyboard.type               = ZONE_TYPE_MATRIX;
-    keyboard.leds_min           = controller->GetLEDCount();
-    keyboard.leds_max           = controller->GetLEDCount();
-    keyboard.leds_count         = controller->GetLEDCount();
-    keyboard.matrix_map         = new matrix_map_type;
-    keyboard.matrix_map->height = height;
-    keyboard.matrix_map->width  = width;
-    keyboard.matrix_map->map    = matrix_map;
+    keyboard.name                   = "Keyboard";
+    keyboard.type                   = ZONE_TYPE_MATRIX;
+    keyboard.leds_min               = controller->GetLEDCount();
+    keyboard.leds_max               = controller->GetLEDCount();
+    keyboard.leds_count             = controller->GetLEDCount();
+    keyboard.matrix_map             = new matrix_map_type;
+    keyboard.matrix_map->height     = height;
+    keyboard.matrix_map->width      = width;
+    keyboard.matrix_map->delete_map = true;
+    keyboard.matrix_map->map        = matrix_map;
 
     zones.push_back(keyboard);
 

@@ -348,6 +348,7 @@ void RGBController_AsusAuraCoreLaptop::SetupZones()
                         \*---------------------------------------------------------*/
                         new_map->height             = new_kb.GetRowCount();
                         new_map->width              = new_kb.GetColumnCount();
+                        new_map->delete_map         = true;
                         new_map->map                = new unsigned int[new_map->height * new_map->width];
 
                         new_kb.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT);

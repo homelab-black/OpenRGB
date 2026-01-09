@@ -132,17 +132,6 @@ RGBController_HyperXAlloyOriginsCore::~RGBController_HyperXAlloyOriginsCore()
     keepalive_thread->join();
     delete keepalive_thread;
 
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 
@@ -187,6 +176,7 @@ void RGBController_HyperXAlloyOriginsCore::SetupZones()
             new_zone.matrix_map         = keyboard_map;
             keyboard_map->height        = new_kb.GetRowCount();
             keyboard_map->width         = new_kb.GetColumnCount();
+            keyboard_map->delete_map    = true;
             keyboard_map->map           = new unsigned int[keyboard_map->height * keyboard_map->width];
 
             new_kb.GetKeyMap(keyboard_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT);

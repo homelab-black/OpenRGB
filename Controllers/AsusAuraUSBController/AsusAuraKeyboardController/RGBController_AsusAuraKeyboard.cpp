@@ -380,14 +380,6 @@ RGBController_AuraKeyboard::RGBController_AuraKeyboard(AuraKeyboardController* c
 
 RGBController_AuraKeyboard::~RGBController_AuraKeyboard()
 {
-    for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
-    {
-        if(zones[zone_idx].type == ZONE_TYPE_MATRIX)
-        {
-            delete zones[zone_idx].matrix_map;
-        }
-    }
-
     delete controller;
 }
 

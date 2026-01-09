@@ -400,14 +400,14 @@ void RGBController_GigabyteAorusLaptop::SetupZones()
         unsigned int zone_size = 0;
 
         zone keyboard_zone;
-        keyboard_zone.name               = "Keyboard layout";
-        keyboard_zone.type               = ZONE_TYPE_MATRIX;
+        keyboard_zone.name                      = "Keyboard layout";
+        keyboard_zone.type                      = ZONE_TYPE_MATRIX;
 
-        keyboard_zone.matrix_map         = new matrix_map_type;
-        keyboard_zone.matrix_map->height = aorus_laptop_default_keyboard_layout.height;
-        keyboard_zone.matrix_map->width  = aorus_laptop_default_keyboard_layout.width;
-
-        keyboard_zone.matrix_map->map    = new unsigned int[aorus_laptop_default_keyboard_layout.height * aorus_laptop_default_keyboard_layout.width];
+        keyboard_zone.matrix_map                = new matrix_map_type;
+        keyboard_zone.matrix_map->height        = aorus_laptop_default_keyboard_layout.height;
+        keyboard_zone.matrix_map->width         = aorus_laptop_default_keyboard_layout.width;
+        keyboard_zone.matrix_map->delete_map    = true;
+        keyboard_zone.matrix_map->map           = new unsigned int[aorus_laptop_default_keyboard_layout.height * aorus_laptop_default_keyboard_layout.width];
 
         for(unsigned int h = 0; h < aorus_laptop_default_keyboard_layout.height; h++)
         {
