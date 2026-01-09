@@ -248,16 +248,6 @@ RGBController_DasKeyboard::RGBController_DasKeyboard(DasKeyboardController* cont
 
 RGBController_DasKeyboard::~RGBController_DasKeyboard()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    unsigned int zone_size = (unsigned int)zones.size();
-
-    for(unsigned int zone_index = 0; zone_index < zone_size; zone_index++)
-    {
-        delete zones[zone_index].matrix_map;
-    }
-
     delete controller;
 }
 

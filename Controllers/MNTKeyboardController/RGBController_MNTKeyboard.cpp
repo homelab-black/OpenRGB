@@ -27,7 +27,6 @@ void RGBController_MNTKeyboard::CommonInit()
 
 RGBController_MNTKeyboard::~RGBController_MNTKeyboard()
 {
-    delete zones[0].matrix_map;
     delete controller;
 }
 

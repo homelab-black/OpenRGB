@@ -615,14 +615,14 @@ void RGBController_KeychronKeyboard::SetupZones()
     unsigned int zone_size = 0;
 
     zone keyboard_zone;
-    keyboard_zone.name               = ZONE_EN_KEYBOARD;
-    keyboard_zone.type               = ZONE_TYPE_MATRIX;
+    keyboard_zone.name                      = ZONE_EN_KEYBOARD;
+    keyboard_zone.type                      = ZONE_TYPE_MATRIX;
 
-    keyboard_zone.matrix_map         = new matrix_map_type;
-    keyboard_zone.matrix_map->height = keyboard.height;
-    keyboard_zone.matrix_map->width  = keyboard.width;
-
-    keyboard_zone.matrix_map->map    = new unsigned int[keyboard.height * keyboard.width];
+    keyboard_zone.matrix_map                = new matrix_map_type;
+    keyboard_zone.matrix_map->height        = keyboard.height;
+    keyboard_zone.matrix_map->width         = keyboard.width;
+    keyboard_zone.matrix_map->delete_map    = true;
+    keyboard_zone.matrix_map->map           = new unsigned int[keyboard.height * keyboard.width];
 
     for(unsigned int w = 0; w < keyboard.width; w++)
     {

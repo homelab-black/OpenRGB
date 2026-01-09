@@ -190,7 +190,8 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
                     }
                 }
 
-                custom_zone.matrix_map->map = MatrixARR;
+                custom_zone.matrix_map->delete_map  = true;
+                custom_zone.matrix_map->map         = MatrixARR;
             }
 
             /*---------------------------------------------*\

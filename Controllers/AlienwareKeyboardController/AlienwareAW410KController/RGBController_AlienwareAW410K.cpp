@@ -278,17 +278,6 @@ RGBController_AlienwareAW410K::RGBController_AlienwareAW410K(AlienwareAW410KCont
 
 RGBController_AlienwareAW410K::~RGBController_AlienwareAW410K()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].matrix_map != NULL)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 

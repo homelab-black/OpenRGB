@@ -438,8 +438,6 @@ static void SetSkuRegion (matrix_map_type& input, std::string& sku)
 {
     std::map<std::string, sku_patch>::const_iterator it     = patch_lookup.find(sku);
     unsigned int local_matrix [MATRIX_HEIGHT][MATRIX_WIDTH] = MATRIX_MAP_ANSI;
-    input.height                                            = MATRIX_HEIGHT;
-    input.width                                             = MATRIX_WIDTH;
 
     if(it != patch_lookup.end())
     {

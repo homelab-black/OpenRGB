@@ -66,17 +66,6 @@ RGBController_CorsairV2SW::~RGBController_CorsairV2SW()
     keepalive_thread->join();
     delete keepalive_thread;
 
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    for(unsigned int zone_index = 0; zone_index < zones.size(); zone_index++)
-    {
-        if(zones[zone_index].type == ZONE_TYPE_MATRIX)
-        {
-            delete zones[zone_index].matrix_map;
-        }
-    }
-
     delete controller;
 }
 
@@ -127,7 +116,7 @@ void RGBController_CorsairV2SW::SetupZones()
 
                 matrix_map_type * new_map   = new matrix_map_type;
                 new_zone.matrix_map         = new_map;
-
+                new_map->delete_map         = true;
                 new_map->height             = corsair->zones[i]->rows;
                 new_map->width              = corsair->zones[i]->cols;
                 new_map->map                = new unsigned int[new_map->height * new_map->width];

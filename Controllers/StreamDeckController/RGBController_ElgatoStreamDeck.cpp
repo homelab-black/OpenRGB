@@ -57,6 +57,7 @@ void RGBController_ElgatoStreamDeck::SetupZones()
     deck_zone.matrix_map = new matrix_map_type;
     deck_zone.matrix_map->height = 3;
     deck_zone.matrix_map->width = 5;
+    deck_zone.matrix_map->delete_map = true;
     deck_zone.matrix_map->map = new unsigned int[15]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
     zones.push_back(deck_zone);
