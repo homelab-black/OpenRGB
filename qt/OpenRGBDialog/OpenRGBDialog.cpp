@@ -547,6 +547,13 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     {
         onDetectionEnded();
     }
+    /*-----------------------------------------------------*\
+    | Windows: lower process priority to potentially reduce |
+    | interference with other programs                      |
+    \*-----------------------------------------------------*/
+#ifdef _WIN32
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+#endif
 }
 
 OpenRGBDialog::~OpenRGBDialog()
