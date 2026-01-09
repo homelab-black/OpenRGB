@@ -16,6 +16,41 @@
 
 using namespace std::chrono_literals;
 
+matrix_map_type::matrix_map_type()
+{
+    Reset();
+}
+
+matrix_map_type::matrix_map_type(unsigned int height, unsigned int width, unsigned int * map)
+{
+    Set(height, width, map);
+}
+
+matrix_map_type::~matrix_map_type()
+{
+}
+
+void matrix_map_type::Reset()
+{
+    Set(0, 0, NULL);
+}
+
+void matrix_map_type::Set(unsigned int height, unsigned int width, unsigned int * map)
+{
+    this->height        = height;
+    this->width         = width;
+    this->map.resize(height * width);
+
+    if(map != NULL)
+    {
+        memcpy(this->map.data(), map, (height * width * sizeof(unsigned int)));
+    }
+    else
+    {
+        memset(this->map.data(), 0, (height * width * sizeof(unsigned int)));
+    }
+}
+
 mode::mode()
 {
     /*-----------------------------------------------------*\
@@ -50,12 +85,10 @@ segment::segment()
     type        = 0;
     start_idx   = 0;
     leds_count  = 0;
-    matrix_map  = NULL;
 }
 
 segment::~segment()
 {
-
 }
 
 zone::zone()
@@ -71,7 +104,6 @@ zone::zone()
     leds_count  = 0;
     leds_min    = 0;
     leds_max    = 0;
-    matrix_map  = NULL;
     flags       = 0;
     active_mode = -1;
 }
@@ -320,32 +352,14 @@ unsigned int RGBController::GetZoneLEDsMin(unsigned int zone)
     return(leds_min);
 }
 
-bool RGBController::GetZoneMatrixMapAvailable(unsigned int zone)
-{
-    bool available;
-
-    AccessMutex.lock_shared();
-    if(zone < zones.size())
-    {
-        available = (zones[zone].matrix_map != NULL);
-    }
-    else
-    {
-        available = false;
-    }
-    AccessMutex.unlock_shared();
-
-    return(available);
-}
-
 unsigned int RGBController::GetZoneMatrixMapHeight(unsigned int zone)
 {
     unsigned int height;
 
     AccessMutex.lock_shared();
-    if((zone < zones.size()) && (zones[zone].matrix_map != NULL))
+    if(zone < zones.size())
     {
-        height = zones[zone].matrix_map->height;
+        height = zones[zone].matrix_map.height;
     }
     else
     {
@@ -361,13 +375,13 @@ const unsigned int* RGBController::GetZoneMatrixMap(unsigned int zone)
     unsigned int* map;
 
     AccessMutex.lock_shared();
-    if((zone < zones.size()) && (zones[zone].matrix_map != NULL))
+    if(zone < zones.size())
     {
-        map = zones[zone].matrix_map->map;
+        map = zones[zone].matrix_map.map.data();
     }
     else
     {
-        map = 0;
+        map = NULL;
     }
     AccessMutex.unlock_shared();
 
@@ -379,9 +393,9 @@ unsigned int RGBController::GetZoneMatrixMapWidth(unsigned int zone)
     unsigned int width;
 
     AccessMutex.lock_shared();
-    if((zone < zones.size()) && (zones[zone].matrix_map != NULL))
+    if(zone < zones.size())
     {
-        width = zones[zone].matrix_map->width;
+        width = zones[zone].matrix_map.width;
     }
     else
     {
@@ -734,38 +748,15 @@ unsigned int RGBController::GetZoneSegmentLEDsCount(unsigned int zone, unsigned 
     return(leds_count);
 }
 
-bool RGBController::GetZoneSegmentMatrixMapAvailable(unsigned int zone, unsigned int segment)
-{
-    bool available;
-
-    if(zone < zones.size())
-    {
-        if(segment < zones[zone].segments.size())
-        {
-            available = (zones[zone].segments[segment].matrix_map != NULL);
-        }
-        else
-        {
-            available = false;
-        }
-    }
-    else
-    {
-        available = false;
-    }
-
-    return(available);
-}
-
 unsigned int RGBController::GetZoneSegmentMatrixMapHeight(unsigned int zone, unsigned int segment)
 {
     unsigned int height;
 
     if(zone < zones.size())
     {
-        if(segment < zones[zone].segments.size() && (zones[zone].segments[segment].matrix_map != NULL))
+        if(segment < zones[zone].segments.size())
         {
-            height = zones[zone].segments[segment].matrix_map->height;
+            height = zones[zone].segments[segment].matrix_map.height;
         }
         else
         {
@@ -786,9 +777,9 @@ const unsigned int * RGBController::GetZoneSegmentMatrixMap(unsigned int zone, u
 
     if(zone < zones.size())
     {
-        if(segment < zones[zone].segments.size() && (zones[zone].matrix_map != NULL))
+        if(segment < zones[zone].segments.size())
         {
-            map = zones[zone].segments[segment].matrix_map->map;
+            map = zones[zone].segments[segment].matrix_map.map.data();
         }
         else
         {
@@ -809,9 +800,9 @@ unsigned int RGBController::GetZoneSegmentMatrixMapWidth(unsigned int zone, unsi
 
     if(zone < zones.size())
     {
-        if(segment < zones[zone].segments.size() && (zones[zone].matrix_map != NULL))
+        if(segment < zones[zone].segments.size())
         {
-            width = zones[zone].segments[segment].matrix_map->width;
+            width = zones[zone].segments[segment].matrix_map.width;
         }
         else
         {
@@ -1885,36 +1876,33 @@ unsigned int RGBController::GetLEDDescriptionSize(led led, unsigned int /*protoc
     return(data_size);
 }
 
-unsigned char * RGBController::GetMatrixMapDescriptionData(unsigned char* data_ptr, matrix_map_type* matrix_map, unsigned int /*protocol_version*/)
+unsigned char * RGBController::GetMatrixMapDescriptionData(unsigned char* data_ptr, matrix_map_type matrix_map, unsigned int /*protocol_version*/)
 {
-    if(matrix_map != NULL)
+    /*-------------------------------------------------*\
+    | Copy in matrix height                             |
+    \*-------------------------------------------------*/
+    memcpy(data_ptr, &matrix_map.height, sizeof(matrix_map.height));
+    data_ptr += sizeof(matrix_map.height);
+
+    /*-------------------------------------------------*\
+    | Copy in matrix width                              |
+    \*-------------------------------------------------*/
+    memcpy(data_ptr, &matrix_map.width, sizeof(matrix_map.width));
+    data_ptr += sizeof(matrix_map.width);
+
+    /*-------------------------------------------------*\
+    | Copy in matrix map                                |
+    \*-------------------------------------------------*/
+    for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map.height * matrix_map.width); matrix_idx++)
     {
-        /*-------------------------------------------------*\
-        | Copy in matrix height                             |
-        \*-------------------------------------------------*/
-        memcpy(data_ptr, &matrix_map->height, sizeof(matrix_map->height));
-        data_ptr += sizeof(matrix_map->height);
-
-        /*-------------------------------------------------*\
-        | Copy in matrix width                              |
-        \*-------------------------------------------------*/
-        memcpy(data_ptr, &matrix_map->width, sizeof(matrix_map->width));
-        data_ptr += sizeof(matrix_map->width);
-
-        /*-------------------------------------------------*\
-        | Copy in matrix map                                |
-        \*-------------------------------------------------*/
-        for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map->height * matrix_map->width); matrix_idx++)
-        {
-            memcpy(data_ptr, &matrix_map->map[matrix_idx], sizeof(matrix_map->map[matrix_idx]));
-            data_ptr += sizeof(matrix_map->map[matrix_idx]);
-        }
+        memcpy(data_ptr, &matrix_map.map[matrix_idx], sizeof(matrix_map.map[matrix_idx]));
+        data_ptr += sizeof(matrix_map.map[matrix_idx]);
     }
 
     return(data_ptr);
 }
 
-unsigned int RGBController::GetMatrixMapDescriptionSize(matrix_map_type* matrix_map, unsigned int /*protocol_version*/)
+unsigned int RGBController::GetMatrixMapDescriptionSize(matrix_map_type matrix_map, unsigned int /*protocol_version*/)
 {
     /*-----------------------------------------------------*\
     | Initialize variables                                  |
@@ -1925,12 +1913,9 @@ unsigned int RGBController::GetMatrixMapDescriptionSize(matrix_map_type* matrix_
     | Calculate description data size for the given matrix  |
     | map                                                   |
     \*-----------------------------------------------------*/
-    if(matrix_map != NULL)
-    {
-        data_size                          += sizeof(matrix_map->height);
-        data_size                          += sizeof(matrix_map->width);
-        data_size                          += (matrix_map->height * matrix_map->width) * sizeof(unsigned int);
-    }
+    data_size                              += sizeof(matrix_map.height);
+    data_size                              += sizeof(matrix_map.width);
+    data_size                              += (matrix_map.height * matrix_map.width) * sizeof(unsigned int);
 
     return(data_size);
 }
@@ -2783,21 +2768,8 @@ unsigned char* RGBController::SetSegmentDescription(unsigned char* data_ptr, seg
         \*-------------------------------------------------*/
         if(matrix_map_len > 0)
         {
-            /*---------------------------------------------*\
-            | Create a map data structure to fill in        |
-            \*---------------------------------------------*/
-            segment->matrix_map = new matrix_map_type;
-
-            data_ptr = SetMatrixMapDescription(data_ptr, segment->matrix_map, protocol_version);
+            data_ptr = SetMatrixMapDescription(data_ptr, &segment->matrix_map, protocol_version);
         }
-        else
-        {
-            segment->matrix_map = NULL;
-        }
-    }
-    else
-    {
-        segment->matrix_map = NULL;
     }
 
     return(data_ptr);
@@ -2820,7 +2792,7 @@ unsigned char* RGBController::SetMatrixMapDescription(unsigned char* data_ptr, m
     /*-----------------------------------------------------*\
     | Copy in matrix map                                    |
     \*-----------------------------------------------------*/
-    matrix_map->map = new unsigned int[matrix_map->height * matrix_map->width];
+    matrix_map->map.resize(matrix_map->height * matrix_map->width);
 
     for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map->height * matrix_map->width); matrix_idx++)
     {
@@ -2879,16 +2851,7 @@ unsigned char* RGBController::SetZoneDescription(unsigned char* data_ptr, zone* 
     \*-----------------------------------------------------*/
     if(matrix_map_len > 0)
     {
-        /*-------------------------------------------------*\
-        | Create a map data structure to fill in            |
-        \*-------------------------------------------------*/
-        zone->matrix_map = new matrix_map_type;
-
-        data_ptr = SetMatrixMapDescription(data_ptr, zone->matrix_map, protocol_version);
-    }
-    else
-    {
-        zone->matrix_map = NULL;
+        data_ptr = SetMatrixMapDescription(data_ptr, &zone->matrix_map, protocol_version);
     }
 
     /*-----------------------------------------------------*\
@@ -3043,19 +3006,16 @@ nlohmann::json RGBController::GetLEDDescriptionJSON(led led)
     return(led_json);
 }
 
-nlohmann::json RGBController::GetMatrixMapDescriptionJSON(matrix_map_type* matrix_map)
+nlohmann::json RGBController::GetMatrixMapDescriptionJSON(matrix_map_type matrix_map)
 {
     nlohmann::json matrix_map_json;
 
-    if(matrix_map != NULL)
-    {
-        matrix_map_json["height"]                               = matrix_map->height;
-        matrix_map_json["width"]                                = matrix_map->width;
+    matrix_map_json["height"]                                   = matrix_map.height;
+    matrix_map_json["width"]                                    = matrix_map.width;
 
-        for(unsigned int matrix_map_idx = 0; matrix_map_idx < (matrix_map->height * matrix_map->width); matrix_map_idx++)
-        {
-            matrix_map_json["map"][matrix_map_idx]              = matrix_map->map[matrix_map_idx];
-        }
+    for(unsigned int matrix_map_idx = 0; matrix_map_idx < (matrix_map.height * matrix_map.width); matrix_map_idx++)
+    {
+        matrix_map_json["map"][matrix_map_idx]                  = matrix_map.map[matrix_map_idx];
     }
 
     return(matrix_map_json);
@@ -3105,11 +3065,7 @@ nlohmann::json RGBController::GetSegmentDescriptionJSON(segment segment)
     segment_json["type"]                                        = segment.type;
     segment_json["start_idx"]                                   = segment.start_idx;
     segment_json["leds_count"]                                  = segment.leds_count;
-
-    if(segment.matrix_map != NULL)
-    {
-        segment_json["matrix_map"]                              = GetMatrixMapDescriptionJSON(segment.matrix_map);
-    }
+    segment_json["matrix_map"]                                  = GetMatrixMapDescriptionJSON(segment.matrix_map);
 
     return(segment_json);
 }
@@ -3126,11 +3082,7 @@ nlohmann::json RGBController::GetZoneDescriptionJSON(zone zone)
     zone_json["leds_count"]                                     = zone.leds_count;
     zone_json["leds_min"]                                       = zone.leds_min;
     zone_json["leds_max"]                                       = zone.leds_max;
-
-    if(zone.matrix_map != NULL)
-    {
-        zone_json["matrix_map"]                                 = GetMatrixMapDescriptionJSON(zone.matrix_map);
-    }
+    zone_json["matrix_map"]                                     = GetMatrixMapDescriptionJSON(zone.matrix_map);
 
     for(std::size_t segment_idx = 0; segment_idx < zone.segments.size(); segment_idx++)
     {
@@ -3306,24 +3258,22 @@ led RGBController::SetLEDDescriptionJSON(nlohmann::json led_json)
     return(new_led);
 }
 
-matrix_map_type* RGBController::SetMatrixMapDescriptionJSON(nlohmann::json matrix_map_json)
+matrix_map_type RGBController::SetMatrixMapDescriptionJSON(nlohmann::json matrix_map_json)
 {
-    matrix_map_type* matrix_map = NULL;
+    matrix_map_type matrix_map;
 
     if(matrix_map_json["matrix_map"].contains("width") &&
        matrix_map_json["matrix_map"].contains("height") &&
        matrix_map_json["matrix_map"].contains("map"))
     {
-        matrix_map                          = new matrix_map_type;
+        matrix_map.width                    = matrix_map_json["matrix_map"]["width"];
+        matrix_map.height                   = matrix_map_json["matrix_map"]["height"];
 
-        matrix_map->width                   = matrix_map_json["matrix_map"]["width"];
-        matrix_map->height                  = matrix_map_json["matrix_map"]["height"];
+        matrix_map.map.resize(matrix_map.width * matrix_map.height);
 
-        matrix_map->map                     = new unsigned int[matrix_map->width * matrix_map->height];
-
-        for(unsigned int matrix_map_idx = 0; matrix_map_idx < matrix_map->width * matrix_map->height; matrix_map_idx++)
+        for(unsigned int matrix_map_idx = 0; matrix_map_idx < matrix_map.width * matrix_map.height; matrix_map_idx++)
         {
-            matrix_map->map[matrix_map_idx] = matrix_map_json["matrix_map"]["map"][matrix_map_idx];
+            matrix_map.map[matrix_map_idx]  = matrix_map_json["matrix_map"]["map"][matrix_map_idx];
         }
     }
 

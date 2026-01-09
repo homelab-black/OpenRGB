@@ -196,7 +196,6 @@ void RGBController_LogitechLightspeed::SetupZones()
             Lightspeed_logo_zone.leds_min           = 1;
             Lightspeed_logo_zone.leds_max           = 1;
             Lightspeed_logo_zone.leds_count         = 1;
-            Lightspeed_logo_zone.matrix_map         = NULL;
             zones.push_back(Lightspeed_logo_zone);
 
             Lightspeed_logo_led.value               = (unsigned int)i;

@@ -148,15 +148,10 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
                     continue;
                 }
 
-                custom_zone.matrix_map          = new matrix_map_type;
+                int H                           = ZoneJson["matrix_width"];
+                int W                           = ZoneJson["matrix_height"];
 
-                custom_zone.matrix_map->width   = ZoneJson["matrix_width"];
-                custom_zone.matrix_map->height  = ZoneJson["matrix_height"];
-
-                int H                           = custom_zone.matrix_map->height;
-                int W                           = custom_zone.matrix_map->width;
-
-                BadVal                          = (ZoneJson["matrix_map"].size() != custom_zone.matrix_map->height);
+                BadVal                          = (ZoneJson["matrix_map"].size() != H);
 
                 unsigned int* MatrixARR         = new unsigned int[H * W];
 
@@ -169,7 +164,7 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
                     | bad row can corrupt the map so skip   |
                     | the zone entirely                     |
                     \*-------------------------------------*/
-                    if((custom_zone.matrix_map->width != ZoneJson["matrix_map"][MatrixMapRow].size()) || BadVal)
+                    if((W != ZoneJson["matrix_map"][MatrixMapRow].size()) || BadVal)
                     {
                         BadVal = true;
                         break;
@@ -190,7 +185,7 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
                     }
                 }
 
-                custom_zone.matrix_map->map = MatrixARR;
+                custom_zone.matrix_map.Set(H, W, MatrixARR);
             }
 
             /*---------------------------------------------*\
@@ -359,7 +354,6 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
             single_zone.leds_min        = 1;
             single_zone.leds_max        = 1;
             single_zone.leds_count      = 1;
-            single_zone.matrix_map      = NULL;
 
             zones.push_back(single_zone);
 
@@ -384,7 +378,6 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
             linear_zone.leds_min        = 10;
             linear_zone.leds_max        = 10;
             linear_zone.leds_count      = 10;
-            linear_zone.matrix_map      = NULL;
 
             zones.push_back(linear_zone);
 
@@ -491,12 +484,7 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
             keyboard_zone.leds_min              = new_kb.GetKeyCount();
             keyboard_zone.leds_max              = new_kb.GetKeyCount();
             keyboard_zone.leds_count            = new_kb.GetKeyCount();
-            keyboard_zone.matrix_map            = new matrix_map_type;
-            keyboard_zone.matrix_map->height    = new_kb.GetRowCount();
-            keyboard_zone.matrix_map->width     = new_kb.GetColumnCount();
-            keyboard_zone.matrix_map->map       = new unsigned int[keyboard_zone.matrix_map->height * keyboard_zone.matrix_map->width];
-
-            new_kb.GetKeyMap(keyboard_zone.matrix_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT);
+            keyboard_zone.matrix_map = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT);
 
             zones.push_back(keyboard_zone);
 
@@ -523,10 +511,7 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
             underglow_zone.leds_min             = 30;
             underglow_zone.leds_max             = 30;
             underglow_zone.leds_count           = 30;
-            underglow_zone.matrix_map           = new matrix_map_type;
-            underglow_zone.matrix_map->height   = 3;
-            underglow_zone.matrix_map->width    = 10;
-            underglow_zone.matrix_map->map      = (unsigned int*)&debug_keyboard_underglow_map;
+            underglow_zone.matrix_map.Set(3, 10, (unsigned int*)&debug_keyboard_underglow_map);
 
             zones.push_back(underglow_zone);
 
@@ -553,7 +538,6 @@ RGBController_Debug::RGBController_Debug(bool custom_controller, json debug_sett
             resizable_zone.leds_min     = 0;
             resizable_zone.leds_max     = 100;
             resizable_zone.leds_count   = 0;
-            resizable_zone.matrix_map   = NULL;
 
             zones.push_back(resizable_zone);
         }

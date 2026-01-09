@@ -134,7 +134,6 @@ void RGBController_AOCMouse::SetupZones()
     logo_zone.leds_min              = 1;
     logo_zone.leds_max              = 1;
     logo_zone.leds_count            = 1;
-    logo_zone.matrix_map            = NULL;
     zones.push_back(logo_zone);
 
     led logo_led;
@@ -147,7 +146,6 @@ void RGBController_AOCMouse::SetupZones()
     scroll_wheel_zone.leds_min      = 1;
     scroll_wheel_zone.leds_max      = 1;
     scroll_wheel_zone.leds_count    = 1;
-    scroll_wheel_zone.matrix_map    = NULL;
     zones.push_back(scroll_wheel_zone);
 
     led scroll_wheel_led;

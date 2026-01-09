@@ -250,31 +250,19 @@ RGBController_MintakaKeyboard::~RGBController_MintakaKeyboard()
 
 void RGBController_MintakaKeyboard::SetupZones()
 {
-
-    /*---------------------------------------------------------*\
-    | Create the keyboard zone usiung Keyboard Layout Manager   |
-    \*---------------------------------------------------------*/
-    zone new_zone;
-    new_zone.name               = ZONE_EN_KEYBOARD;
-    new_zone.type               = ZONE_TYPE_MATRIX;
-
     KeyboardLayoutManager new_kb(KEYBOARD_LAYOUT_ISO_QWERTY, KEYBOARD_SIZE_SIXTY, mintaka_offset_values);
 
-    matrix_map_type * new_map   = new matrix_map_type;
-    new_zone.matrix_map         = new_map;
-    new_zone.matrix_map->height = new_kb.GetRowCount();
-    new_zone.matrix_map->width  = new_kb.GetColumnCount();
-
-    new_zone.matrix_map->map    = new unsigned int[new_map->height * new_map->width];
-    new_zone.leds_count         = new_kb.GetKeyCount();
-    new_zone.leds_min           = new_zone.leds_count;
-    new_zone.leds_max           = new_zone.leds_count;
-
     /*---------------------------------------------------------*\
-    | Matrix map still uses declared zone rows and columns      |
-    |   as the packet structure depends on the matrix map       |
+    | Create the keyboard zone using Keyboard Layout Manager    |
     \*---------------------------------------------------------*/
-    new_kb.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT, new_map->height, new_map->width);
+    zone new_zone;
+    new_zone.name                   = ZONE_EN_KEYBOARD;
+    new_zone.type                   = ZONE_TYPE_MATRIX;
+    new_zone.leds_count             = new_kb.GetKeyCount();
+    new_zone.leds_min               = new_zone.leds_count;
+    new_zone.leds_max               = new_zone.leds_count;
+    new_zone.matrix_map             = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT);
+
     controller->SetLedSequencePositions(mintaka_offset_values.default_values);
 
     /*---------------------------------------------------------*\

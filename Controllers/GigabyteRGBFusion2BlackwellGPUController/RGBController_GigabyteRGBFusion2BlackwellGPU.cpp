@@ -193,7 +193,6 @@ void RGBController_RGBFusion2BlackwellGPU::SetupZones()
         new_zone.leds_min   = 1;
         new_zone.leds_max   = 1;
         new_zone.leds_count = 1;
-        new_zone.matrix_map = NULL;
 
         new_led.name        = new_zone.name;
 
@@ -233,7 +232,6 @@ void RGBController_RGBFusion2BlackwellGPU::SetupZones()
             new_zone.leds_min   = 1;
             new_zone.leds_max   = 1;
             new_zone.leds_count = 1;
-            new_zone.matrix_map = NULL;
 
             new_led.name        = new_zone.name;
 
@@ -266,7 +264,6 @@ void RGBController_RGBFusion2BlackwellGPU::SetupZones()
             new_zone.leds_min   = 1;
             new_zone.leds_max   = 1;
             new_zone.leds_count = 1;
-            new_zone.matrix_map = NULL;
 
             new_led.name        = new_zone.name;
 
@@ -311,7 +308,6 @@ void RGBController_RGBFusion2BlackwellGPU::SetupZones()
             new_zone.leds_min   = 1;
             new_zone.leds_max   = 1;
             new_zone.leds_count = 1;
-            new_zone.matrix_map = NULL;
 
             new_led.name        = new_zone.name;
 

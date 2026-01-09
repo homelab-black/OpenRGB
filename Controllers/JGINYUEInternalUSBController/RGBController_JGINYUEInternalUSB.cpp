@@ -207,13 +207,11 @@ void RGBController_JGINYUEInternalUSB::SetupZones()
     zones[0].type       = ZONE_TYPE_LINEAR;
     zones[0].leds_min   = 0;
     zones[0].leds_max   = 100;
-    zones[0].matrix_map = NULL;
 
     zones[1].name       = "ARGB Header 2";
     zones[1].type       = ZONE_TYPE_LINEAR;
     zones[1].leds_min   = 0;
     zones[1].leds_max   = 100;
-    zones[1].matrix_map = NULL;
 
     if(first_run)
     {

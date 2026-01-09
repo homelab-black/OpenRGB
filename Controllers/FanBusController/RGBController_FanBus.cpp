@@ -54,7 +54,6 @@ void RGBController_FanBus::SetupZones()
     led_zone.leds_min   = 4;
     led_zone.leds_max   = 4;
     led_zone.leds_count = 4;
-    led_zone.matrix_map = NULL;
     zones.push_back(led_zone);
 
     for(unsigned int led_idx = 0; led_idx < led_zone.leds_count; led_idx++)

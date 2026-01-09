@@ -96,7 +96,6 @@ void RGBController_GainwardGPUv2::SetupZones()
     gainward_gpu_zone.leds_min          = 1;
     gainward_gpu_zone.leds_max          = 1;
     gainward_gpu_zone.leds_count        = 1;
-    gainward_gpu_zone.matrix_map        = NULL;
     zones.push_back(gainward_gpu_zone);
 
     /*---------------------------------------------------------*\

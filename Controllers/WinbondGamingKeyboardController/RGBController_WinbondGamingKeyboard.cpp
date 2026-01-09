@@ -763,21 +763,10 @@ void RGBController_WinbondGamingKeyboard::SetupZones()
 
     KeyboardLayoutManager new_kb(controller->GetLayout(), kb_size, *layouts);
 
-    matrix_map_type * new_map   = new matrix_map_type;
-    new_zone.matrix_map         = new_map;
-    new_zone.matrix_map->height = new_kb.GetRowCount();
-    new_zone.matrix_map->width  = new_kb.GetColumnCount();
-
-    new_zone.matrix_map->map    = new unsigned int[new_map->height * new_map->width];
-    new_zone.leds_count         = new_kb.GetKeyCount();
-    new_zone.leds_min           = new_zone.leds_count;
-    new_zone.leds_max           = new_zone.leds_count;
-
-    /*---------------------------------------------------------*\
-    | Matrix map still uses declared zone rows and columns      |
-    |   as the packet structure depends on the matrix map       |
-    \*---------------------------------------------------------*/
-    new_kb.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT);
+    new_zone.leds_count             = new_kb.GetKeyCount();
+    new_zone.leds_min               = new_zone.leds_count;
+    new_zone.leds_max               = new_zone.leds_count;
+    new_zone.matrix_map             = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT);
 
     /*---------------------------------------------------------*\
     | Create LEDs for the Matrix zone                           |
@@ -808,7 +797,6 @@ void RGBController_WinbondGamingKeyboard::SetupZones()
         logo_zone.leds_min      = 1;
         logo_zone.leds_max      = 1;
         logo_zone.leds_count    = 1;
-        logo_zone.matrix_map    = NULL;
 
         led zone_led;
         zone_led.name  = "Logo LEDs";

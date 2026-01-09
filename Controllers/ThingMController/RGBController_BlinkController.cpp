@@ -80,7 +80,6 @@ void RGBController_BlinkController::SetupZones()
     Blink_zone.leds_min      = 2;
     Blink_zone.leds_max      = 2;
     Blink_zone.leds_count    = 2;
-    Blink_zone.matrix_map    = NULL;
     zones.push_back(Blink_zone);
 
     led Blink_led;

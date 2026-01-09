@@ -89,26 +89,14 @@ void RGBController_HYTEKeyboard::SetupZones()
 
     zone keyboard_zone;
 
-    keyboard_zone.name                  = "Keyboard";
-    keyboard_zone.type                  = ZONE_TYPE_MATRIX;
-
-    matrix_map_type * keyboard_map      = new matrix_map_type;
-    keyboard_zone.matrix_map            = keyboard_map;
-    keyboard_zone.matrix_map->height    = new_kb.GetRowCount();
-    keyboard_zone.matrix_map->width     = new_kb.GetColumnCount();
-
-    keyboard_zone.matrix_map->map       = new unsigned int[keyboard_map->height * keyboard_map->width];
-    keyboard_zone.leds_count            = new_kb.GetKeyCount();
-    keyboard_zone.leds_min              = keyboard_zone.leds_count;
-    keyboard_zone.leds_max              = keyboard_zone.leds_count;
+    keyboard_zone.name                      = "Keyboard";
+    keyboard_zone.type                      = ZONE_TYPE_MATRIX;
+    keyboard_zone.leds_count                = new_kb.GetKeyCount();
+    keyboard_zone.leds_min                  = keyboard_zone.leds_count;
+    keyboard_zone.leds_max                  = keyboard_zone.leds_count;
+    keyboard_zone.matrix_map                = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT);
 
     zones.push_back(keyboard_zone);
-
-    /*---------------------------------------------------------*\
-    | Matrix map still uses declared zone rows and columns      |
-    |   as the packet structure depends on the matrix map       |
-    \*---------------------------------------------------------*/
-    new_kb.GetKeyMap(keyboard_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT, keyboard_map->height, keyboard_map->width);
 
     /*---------------------------------------------------------*\
     | Create LEDs for the Matrix zone                           |
@@ -131,7 +119,6 @@ void RGBController_HYTEKeyboard::SetupZones()
     surround_zone.leds_min      = 63;
     surround_zone.leds_max      = 63;
     surround_zone.leds_count    = 63;
-    surround_zone.matrix_map    = NULL;
 
     zones.push_back(surround_zone);
 

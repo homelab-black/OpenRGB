@@ -125,7 +125,6 @@ void RGBController_RoccatKonePro::SetupZones()
     new_zone.leds_min      = ROCCAT_KONE_PRO_LED_COUNT;
     new_zone.leds_max      = ROCCAT_KONE_PRO_LED_COUNT;
     new_zone.leds_count    = ROCCAT_KONE_PRO_LED_COUNT;
-    new_zone.matrix_map    = NULL;
     zones.push_back(new_zone);
 
     std::string led_names[2] =

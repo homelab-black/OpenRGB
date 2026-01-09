@@ -94,7 +94,6 @@ void RGBController_RoccatKova::SetupZones()
     Mouse.leds_count = ROCCAT_KOVA_LED_COUNT;
     Mouse.leds_min   = ROCCAT_KOVA_LED_COUNT;
     Mouse.leds_max   = ROCCAT_KOVA_LED_COUNT;
-    Mouse.matrix_map = NULL;
     zones.push_back(Mouse);
 
     led WheelLED;

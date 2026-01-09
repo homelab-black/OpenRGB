@@ -144,7 +144,6 @@ void RGBController_RoccatSenseAimo::SetupZones()
     pad.leds_min      = 2;
     pad.leds_max      = 2;
     pad.leds_count    = 2;
-    pad.matrix_map    = NULL;
     zones.push_back(pad);
 
     led left_led;

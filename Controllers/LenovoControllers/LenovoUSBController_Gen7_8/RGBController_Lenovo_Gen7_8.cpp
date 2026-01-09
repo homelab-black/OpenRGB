@@ -339,19 +339,10 @@ void LenovoRGBController_Gen7_8::SetupZones()
 
         if(lenovo_zones[i].type == ZONE_TYPE_MATRIX)
         {
-            new_zone.matrix_map         = new matrix_map_type;
-            new_zone.matrix_map->height = lenovo_zones[i].height;
-            new_zone.matrix_map->width  = lenovo_zones[i].width;
-            new_zone.matrix_map->map    = new unsigned int[new_zone.matrix_map->height * new_zone.matrix_map->width];
-
             if(lenovo_zones[i].matrix_map != NULL)
             {
-                new_zone.matrix_map->map = (unsigned int *) lenovo_zones[i].matrix_map;
+                new_zone.matrix_map.Set(lenovo_zones[i].height, lenovo_zones[i].width, (unsigned int *)lenovo_zones[i].matrix_map);
             }
-        }
-        else
-        {
-            new_zone.matrix_map = NULL;
         }
 
         zones.push_back(new_zone);

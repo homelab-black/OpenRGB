@@ -118,7 +118,6 @@ void RGBController_LogitechG203L::SetupZones()
     g203L_zone.leds_min     = 3;
     g203L_zone.leds_max     = 3;
     g203L_zone.leds_count   = 3;
-    g203L_zone.matrix_map   = NULL;
     zones.push_back(g203L_zone);
 
     led g203L_led_l;

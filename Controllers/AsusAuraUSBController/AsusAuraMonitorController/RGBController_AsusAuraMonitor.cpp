@@ -57,7 +57,6 @@ void RGBController_AuraMonitor::SetupZones()
     underglow_zone.leds_min     = 3;
     underglow_zone.leds_max     = 3;
     underglow_zone.leds_count   = 3;
-    underglow_zone.matrix_map   = NULL;
 
     zones.push_back(underglow_zone);
 

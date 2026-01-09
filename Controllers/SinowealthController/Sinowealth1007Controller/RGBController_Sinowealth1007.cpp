@@ -191,7 +191,6 @@ void RGBController_Sinowealth1007::SetupZones()
     new_zone.leds_min   = controller->GetLEDCount();
     new_zone.leds_max   = controller->GetLEDCount();
     new_zone.leds_count = controller->GetLEDCount();
-    new_zone.matrix_map = NULL;
     zones.push_back(new_zone);
 
     /*---------------------------------------------------------*\

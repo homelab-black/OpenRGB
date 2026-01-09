@@ -151,7 +151,6 @@ void RGBController_CMGD160Controller::SetupZones()
     front.leds_min      = CM_GD160_LEDS_PER_SIDE;
     front.leds_max      = CM_GD160_LEDS_PER_SIDE;
     front.leds_count    = CM_GD160_LEDS_PER_SIDE;
-    front.matrix_map    = NULL;
     zones.push_back(front);
 
     for(unsigned int i = 0; i < CM_GD160_LEDS_PER_SIDE; i++)
@@ -168,7 +167,6 @@ void RGBController_CMGD160Controller::SetupZones()
     back.leds_min      = CM_GD160_LEDS_PER_SIDE;
     back.leds_max      = CM_GD160_LEDS_PER_SIDE;
     back.leds_count    = CM_GD160_LEDS_PER_SIDE;
-    back.matrix_map    = NULL;
     zones.push_back(back);
 
     for(unsigned int i = 0; i < CM_GD160_LEDS_PER_SIDE; i++)

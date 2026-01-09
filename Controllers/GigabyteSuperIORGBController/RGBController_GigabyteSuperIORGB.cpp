@@ -146,7 +146,6 @@ void RGBController_GigabyteSuperIORGB::SetupZones()
     gig_zone.leds_min       = 1;
     gig_zone.leds_max       = 1;
     gig_zone.leds_count     = 1;
-    gig_zone.matrix_map     = NULL;
     zones.push_back(gig_zone);
 
     led gig_led;

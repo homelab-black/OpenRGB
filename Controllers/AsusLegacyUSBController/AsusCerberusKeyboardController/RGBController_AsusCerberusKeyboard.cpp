@@ -296,10 +296,7 @@ void RGBController_AsusCerberusKeyboard::SetupZones()
     keyboard.leds_min           = zone_size;
     keyboard.leds_max           = zone_size;
     keyboard.leds_count         = zone_size;
-    keyboard.matrix_map         = new matrix_map_type;
-    keyboard.matrix_map->height = 6;
-    keyboard.matrix_map->width  = 24;
-    keyboard.matrix_map->map    = *matrix_map;
+    keyboard.matrix_map.Set(6, 24, *matrix_map);
     zones.push_back(keyboard);
 
     for(int led_id = 0; led_id < zone_size; led_id++)

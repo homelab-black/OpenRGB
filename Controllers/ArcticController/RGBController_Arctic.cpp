@@ -70,7 +70,6 @@ void RGBController_Arctic::SetupZones()
         LedZone.leds_count  = 1;
         LedZone.leds_min    = 1;
         LedZone.leds_max    = 1;
-        LedZone.matrix_map  = nullptr;
 
         led Led;
         Led.name    = LedZone.name + " LED";

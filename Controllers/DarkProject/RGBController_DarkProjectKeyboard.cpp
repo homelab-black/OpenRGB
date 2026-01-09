@@ -167,11 +167,7 @@ void RGBController_DarkProjectKeyboard::SetupZones()
     KB_zone.leds_min            = DARKPROKECTKEYBOARD_TKL_KEYCOUNT;
     KB_zone.leds_max            = DARKPROKECTKEYBOARD_TKL_KEYCOUNT;
     KB_zone.leds_count          = DARKPROKECTKEYBOARD_TKL_KEYCOUNT;
-
-    KB_zone.matrix_map          = new matrix_map_type;
-    KB_zone.matrix_map->height  = 6;
-    KB_zone.matrix_map->width   = 18;
-    KB_zone.matrix_map->map     = (unsigned int *)&matrix_map;
+    KB_zone.matrix_map.Set(6, 18, (unsigned int *)&matrix_map);
     zones.push_back(KB_zone);
 
     /*-------------------------------------------------*\

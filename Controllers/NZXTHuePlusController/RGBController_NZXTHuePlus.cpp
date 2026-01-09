@@ -256,7 +256,6 @@ void RGBController_HuePlus::SetupZones()
         zones[zone_idx].type            = ZONE_TYPE_LINEAR;
         zones[zone_idx].leds_min        = 0;
         zones[zone_idx].leds_max        = 40;
-        zones[zone_idx].matrix_map      = NULL;
 
         if(first_run)
         {

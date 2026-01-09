@@ -64,7 +64,6 @@ void RGBController_RoccatKoneAimo::SetupZones()
     WHEEL_zone.leds_min             = 1;
     WHEEL_zone.leds_max             = 1;
     WHEEL_zone.leds_count           = 1;
-    WHEEL_zone.matrix_map           = NULL;
     zones.push_back(WHEEL_zone);
     zones_channel.push_back(SCROLL_WHEEL);
 
@@ -80,7 +79,6 @@ void RGBController_RoccatKoneAimo::SetupZones()
     STRIP_LEFT_zone.leds_min        = 4;
     STRIP_LEFT_zone.leds_max        = 4;
     STRIP_LEFT_zone.leds_count      = 4;
-    STRIP_LEFT_zone.matrix_map      = NULL;
     zones.push_back(STRIP_LEFT_zone);
     zones_channel.push_back(STRIP_LEFT);
 
@@ -99,7 +97,6 @@ void RGBController_RoccatKoneAimo::SetupZones()
     STRIP_RIGHT_zone.leds_min       = 4;
     STRIP_RIGHT_zone.leds_max       = 4;
     STRIP_RIGHT_zone.leds_count     = 4;
-    STRIP_RIGHT_zone.matrix_map     = NULL;
     zones.push_back(STRIP_RIGHT_zone);
     zones_channel.push_back(STRIP_RIGHT);
 
@@ -118,7 +115,6 @@ void RGBController_RoccatKoneAimo::SetupZones()
     LOWER_LEFT_zone.leds_min        = 1;
     LOWER_LEFT_zone.leds_max        = 1;
     LOWER_LEFT_zone.leds_count      = 1;
-    LOWER_LEFT_zone.matrix_map      = NULL;
     zones.push_back(LOWER_LEFT_zone);
     zones_channel.push_back(LOWER_LEFT);
 
@@ -134,7 +130,6 @@ void RGBController_RoccatKoneAimo::SetupZones()
     LOWER_RIGHT_zone.leds_min       = 1;
     LOWER_RIGHT_zone.leds_max       = 1;
     LOWER_RIGHT_zone.leds_count     = 1;
-    LOWER_RIGHT_zone.matrix_map     = NULL;
     zones.push_back(LOWER_RIGHT_zone);
     zones_channel.push_back(LOWER_RIGHT);
 

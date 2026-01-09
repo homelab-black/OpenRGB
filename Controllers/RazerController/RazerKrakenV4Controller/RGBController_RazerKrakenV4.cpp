@@ -71,7 +71,6 @@ void RGBController_RazerKrakenV4::SetupZones()
             new_zone.leds_count = device_list[device_index]->zones[zone_id]->cols;
             new_zone.leds_min   = new_zone.leds_count;
             new_zone.leds_max   = new_zone.leds_count;
-            new_zone.matrix_map = NULL;
 
             zones.push_back(new_zone);
 

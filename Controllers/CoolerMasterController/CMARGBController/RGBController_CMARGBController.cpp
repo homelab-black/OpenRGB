@@ -313,7 +313,6 @@ void RGBController_CMARGBController::Init_Controller()
     ARGB_zone.leds_min      = 4;
     ARGB_zone.leds_max      = 48;
     ARGB_zone.leds_count    = zone_led_count;
-    ARGB_zone.matrix_map    = NULL;
     zones.push_back(ARGB_zone);
 }
 

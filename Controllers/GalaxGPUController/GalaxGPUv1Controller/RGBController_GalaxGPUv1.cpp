@@ -113,7 +113,6 @@ void RGBController_GalaxGPUv1::SetupZones()
     galax_gpu_zone.leds_min     = 1;
     galax_gpu_zone.leds_max     = 1;
     galax_gpu_zone.leds_count   = 1;
-    galax_gpu_zone.matrix_map   = NULL;
     zones.push_back(galax_gpu_zone);
 
     /*---------------------------------------------------------*\

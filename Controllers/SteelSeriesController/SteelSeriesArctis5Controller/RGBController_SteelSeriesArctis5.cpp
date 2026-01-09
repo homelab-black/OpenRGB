@@ -64,7 +64,6 @@ void RGBController_SteelSeriesArctis5::SetupZones()
         zone.leds_min       = 1;
         zone.leds_max       = 1;
         zone.leds_count     = 1;
-        zone.matrix_map     = NULL;
         zones.push_back(zone);
 
         led mouse_led;

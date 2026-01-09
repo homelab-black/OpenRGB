@@ -54,7 +54,6 @@ void RGBController_LEDStrip::SetupZones()
     led_zone.leds_min   = controller->num_leds;
     led_zone.leds_max   = controller->num_leds;
     led_zone.leds_count = controller->num_leds;
-    led_zone.matrix_map = NULL;
     zones.push_back(led_zone);
 
     for(int led_idx = 0; led_idx < controller->num_leds; led_idx++)

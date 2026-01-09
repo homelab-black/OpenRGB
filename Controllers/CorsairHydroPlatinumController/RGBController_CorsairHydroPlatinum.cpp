@@ -68,10 +68,7 @@ void RGBController_CorsairHydroPlatinum::Init_Controller()
     cpu_block_zone.leds_min           = 16;
     cpu_block_zone.leds_max           = 16;
     cpu_block_zone.leds_count         = 16;
-    cpu_block_zone.matrix_map         = new matrix_map_type;
-    cpu_block_zone.matrix_map->height = 5;
-    cpu_block_zone.matrix_map->width  = 5;
-    cpu_block_zone.matrix_map->map    = (unsigned int *)&matrix_map;
+    cpu_block_zone.matrix_map.Set(5, 5, (unsigned int *)&matrix_map);
     zones.push_back(cpu_block_zone);
 
     /*-----------------------------------------------------*\
@@ -85,7 +82,6 @@ void RGBController_CorsairHydroPlatinum::Init_Controller()
         fans_zone.leds_min   = 0;
         fans_zone.leds_max   = 32;
         fans_zone.leds_count = 0;
-        fans_zone.matrix_map = NULL;
         zones.push_back(fans_zone);
     }
 }

@@ -129,7 +129,6 @@ void RGBController_AsusROGAlly::SetupZones()
     left_stick_zone.leds_min     = 2;
     left_stick_zone.leds_max     = 2;
     left_stick_zone.leds_count   = 2;
-    left_stick_zone.matrix_map   = NULL;
 
     zones.push_back(left_stick_zone);
 
@@ -149,7 +148,6 @@ void RGBController_AsusROGAlly::SetupZones()
     right_stick_zone.leds_min     = 2;
     right_stick_zone.leds_max     = 2;
     right_stick_zone.leds_count   = 2;
-    right_stick_zone.matrix_map   = NULL;
 
     zones.push_back(right_stick_zone);
 

@@ -124,7 +124,6 @@ void RGBController_GigabyteAorusPCCase::SetupZones()
     case_zone.leds_min      = 1;
     case_zone.leds_max      = 1;
     case_zone.leds_count    = 1;
-    case_zone.matrix_map    = NULL;
     zones.push_back(case_zone);
 
     led case_led;

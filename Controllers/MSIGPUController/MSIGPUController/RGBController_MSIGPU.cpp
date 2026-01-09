@@ -338,7 +338,6 @@ void RGBController_MSIGPU::SetupZones()
     msi_gpu_zone.leds_min      = 1;
     msi_gpu_zone.leds_max      = 1;
     msi_gpu_zone.leds_count    = 3;
-    msi_gpu_zone.matrix_map    = NULL;
     zones.push_back(msi_gpu_zone);
 
     /*---------------------------------------------------------*\

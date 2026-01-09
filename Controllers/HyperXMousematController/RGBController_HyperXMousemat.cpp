@@ -75,7 +75,6 @@ void RGBController_HyperXMousemat::SetupZones()
         underglow.leds_min   = first_zone_leds_count;
         underglow.leds_max   = first_zone_leds_count;
         underglow.leds_count = first_zone_leds_count;
-        underglow.matrix_map = NULL;
         zones.push_back(underglow);
     }
 
@@ -87,7 +86,6 @@ void RGBController_HyperXMousemat::SetupZones()
         led_strip.leds_min   = second_zone_leds_count;
         led_strip.leds_max   = second_zone_leds_count;
         led_strip.leds_count = second_zone_leds_count;
-        led_strip.matrix_map = NULL;
         zones.push_back(led_strip);
     }
 

@@ -153,7 +153,6 @@ void RGBController_CMMonitorController::SetupZones()
     z.leds_min      = 47;
     z.leds_max      = 47;
     z.leds_count    = 47;
-    z.matrix_map    = NULL;
 
     zones.push_back(z);
 

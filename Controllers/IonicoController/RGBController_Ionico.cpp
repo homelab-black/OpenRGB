@@ -153,7 +153,6 @@ void RGBController_Ionico::SetupZones()
         zone_keyboard.leds_min   = (unsigned int)leds.size();
         zone_keyboard.leds_max   = (unsigned int)leds.size();
         zone_keyboard.leds_count = (unsigned int)leds.size();
-        zone_keyboard.matrix_map = nullptr;
         zones.emplace_back(zone_keyboard);
         for(size_t i = 0; i < leds.size(); ++i)
         {
@@ -169,7 +168,6 @@ void RGBController_Ionico::SetupZones()
         zone_bar.leds_min   = (unsigned int)leds.size();
         zone_bar.leds_max   = (unsigned int)leds.size();
         zone_bar.leds_count = (unsigned int)leds.size();
-        zone_bar.matrix_map = nullptr;
         zones.emplace_back(zone_bar);
         for(size_t i = 0; i < leds.size(); ++i)
         {

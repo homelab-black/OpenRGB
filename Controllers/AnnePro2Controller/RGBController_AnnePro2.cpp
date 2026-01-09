@@ -164,14 +164,7 @@ void RGBController_AnnePro2::SetupZones()
 
         if(zone_types[zone_idx] == ZONE_TYPE_MATRIX)
         {
-            new_zone.matrix_map         = new matrix_map_type;
-            new_zone.matrix_map->height = 5;
-            new_zone.matrix_map->width  = 14;
-            new_zone.matrix_map->map    = (unsigned int *)&matrix_map;
-        }
-        else
-        {
-            new_zone.matrix_map         = NULL;
+            new_zone.matrix_map.Set(5, 14, (unsigned int *)&matrix_map);
         }
 
         zones.push_back(new_zone);

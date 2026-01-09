@@ -248,16 +248,6 @@ RGBController_DasKeyboard::RGBController_DasKeyboard(DasKeyboardController* cont
 
 RGBController_DasKeyboard::~RGBController_DasKeyboard()
 {
-    /*---------------------------------------------------------*\
-    | Delete the matrix map                                     |
-    \*---------------------------------------------------------*/
-    unsigned int zone_size = (unsigned int)zones.size();
-
-    for(unsigned int zone_index = 0; zone_index < zone_size; zone_index++)
-    {
-        delete zones[zone_index].matrix_map;
-    }
-
     delete controller;
 }
 
@@ -276,17 +266,14 @@ void RGBController_DasKeyboard::SetupZones()
         new_zone.leds_min           = zone_sizes[zone_idx];
         new_zone.leds_max           = zone_sizes[zone_idx];
         new_zone.leds_count         = zone_sizes[zone_idx];
-        new_zone.matrix_map         = new matrix_map_type;
-        new_zone.matrix_map->height = 7;
-        new_zone.matrix_map->width  = 21;
 
         if(controller->GetLayoutString() == "US")
         {
-            new_zone.matrix_map->map = (unsigned int *) &matrix_map_us;
+            new_zone.matrix_map.Set(7, 21, (unsigned int *)&matrix_map_us);
         }
         else
         {
-            new_zone.matrix_map->map = (unsigned int *) &matrix_map_eu;
+            new_zone.matrix_map.Set(7, 21, (unsigned int *)&matrix_map_eu);
         }
 
         zones.push_back(new_zone);

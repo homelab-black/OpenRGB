@@ -102,7 +102,6 @@ void RGBController_WushiL50USB::SetupZones()
     new_zone.leds_count = WUSHI_L50_NUM_LEDS;
     new_zone.leds_max   = new_zone.leds_count;
     new_zone.leds_min   = new_zone.leds_count;
-    new_zone.matrix_map = NULL;
 
     zones.push_back(new_zone);
 

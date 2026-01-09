@@ -56,7 +56,6 @@ void RGBController_AMBX::SetupZones()
     side_lights_zone.leds_min   = 2;
     side_lights_zone.leds_max   = 2;
     side_lights_zone.leds_count = 2;
-    side_lights_zone.matrix_map = NULL;
     zones.push_back(side_lights_zone);
 
     zone wallwasher_zone;
@@ -65,7 +64,6 @@ void RGBController_AMBX::SetupZones()
     wallwasher_zone.leds_min   = 3;
     wallwasher_zone.leds_max   = 3;
     wallwasher_zone.leds_count = 3;
-    wallwasher_zone.matrix_map = NULL;
     zones.push_back(wallwasher_zone);
 
     // Set up LEDs

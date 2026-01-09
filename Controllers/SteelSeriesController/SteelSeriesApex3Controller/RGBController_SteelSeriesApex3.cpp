@@ -83,7 +83,6 @@ void RGBController_SteelSeriesApex3::SetupZones()
     curr_zone.leds_min      = led_count;
     curr_zone.leds_max      = led_count;
     curr_zone.leds_count    = led_count;
-    curr_zone.matrix_map    = NULL;
     zones.push_back(curr_zone);
 
     for(size_t i = 0; i < curr_zone.leds_count; i++)

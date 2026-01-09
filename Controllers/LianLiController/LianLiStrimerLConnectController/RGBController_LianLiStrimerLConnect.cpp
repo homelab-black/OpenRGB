@@ -166,7 +166,6 @@ void RGBController_LianLiStrimerLConnect::Init_Controller()
         new_zone.leds_min       = 20;
         new_zone.leds_max       = 20;
         new_zone.leds_count     = new_zone.leds_max;
-        new_zone.matrix_map     = NULL;
         zones.push_back(new_zone);
     }
 
@@ -179,7 +178,6 @@ void RGBController_LianLiStrimerLConnect::Init_Controller()
         new_zone.leds_min       = 27;
         new_zone.leds_max       = 27;
         new_zone.leds_count     = new_zone.leds_max;
-        new_zone.matrix_map     = NULL;
         zones.push_back(new_zone);
     }
 }

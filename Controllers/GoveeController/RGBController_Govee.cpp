@@ -99,7 +99,6 @@ void RGBController_Govee::SetupZones()
         strip.leds_min      = led_count;
         strip.leds_max      = led_count;
     }
-    strip.matrix_map    = NULL;
     zones.push_back(strip);
 
     for(std::size_t led_idx = 0; led_idx < strip.leds_count; led_idx++)

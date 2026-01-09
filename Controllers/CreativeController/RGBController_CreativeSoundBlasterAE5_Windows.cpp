@@ -54,7 +54,6 @@ void RGBController_CreativeSoundBlasterAE5::SetupZones()
     internal_zone.leds_min              = 5;
     internal_zone.leds_max              = 5;
     internal_zone.leds_count            = 5;
-    internal_zone.matrix_map            = NULL;
     zones.push_back(internal_zone);
 
     for(unsigned int led_idx = 0; led_idx < 5; led_idx++)
@@ -70,7 +69,6 @@ void RGBController_CreativeSoundBlasterAE5::SetupZones()
     external_zone.leds_min              = 0;
     external_zone.leds_max              = 100;
     external_zone.leds_count            = controller->GetExternalLEDCount();
-    external_zone.matrix_map            = NULL;
     zones.push_back(external_zone);
 
     for(unsigned int led_idx = 0; led_idx < controller->GetExternalLEDCount(); led_idx++)

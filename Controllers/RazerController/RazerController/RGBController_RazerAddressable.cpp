@@ -182,25 +182,17 @@ void RGBController_RazerAddressable::SetupZones()
 
             if(zones[zone_count].type == ZONE_TYPE_MATRIX)
             {
-                matrix_map_type * new_map       = new matrix_map_type;
-                zones[zone_count].matrix_map    = new_map;
+                zones[zone_count].matrix_map.height = device_list[device_index]->zones[zone_id]->rows;
+                zones[zone_count].matrix_map.width  = device_list[device_index]->zones[zone_id]->cols;
+                zones[zone_count].matrix_map.map.resize(zones[zone_count].matrix_map.height * zones[zone_count].matrix_map.width);
 
-                new_map->height                 = device_list[device_index]->zones[zone_id]->rows;
-                new_map->width                  = device_list[device_index]->zones[zone_id]->cols;
-
-                new_map->map                    = new unsigned int[new_map->height * new_map->width];
-
-                for(unsigned int y = 0; y < new_map->height; y++)
+                for(unsigned int y = 0; y < zones[zone_count].matrix_map.height; y++)
                 {
-                    for(unsigned int x = 0; x < new_map->width; x++)
+                    for(unsigned int x = 0; x < zones[zone_count].matrix_map.width; x++)
                     {
-                        new_map->map[(y * new_map->width) + x] = (y * new_map->width) + x;
+                        zones[zone_count].matrix_map.map[(y * zones[zone_count].matrix_map.width) + x] = (y * zones[zone_count].matrix_map.width) + x;
                     }
                 }
-            }
-            else
-            {
-                zones[zone_count].matrix_map = NULL;
             }
 
             zone_count++;

@@ -281,7 +281,6 @@ void RGBController_NZXTHue2::SetupZones()
         new_zone->leds_min      = 0;
         new_zone->leds_max      = 40;
         new_zone->leds_count    = controller->channel_leds[zone_idx];
-        new_zone->matrix_map    = NULL;
 
         zones.push_back(*new_zone);
     }

@@ -346,7 +346,6 @@ void RGBController_MSIOptix::SetupZones()
     new_zone.leds_min   = MSI_OPTIX_NUMBER_OF_LEDS;
     new_zone.leds_max   = MSI_OPTIX_NUMBER_OF_LEDS;
     new_zone.leds_count = MSI_OPTIX_NUMBER_OF_LEDS;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 

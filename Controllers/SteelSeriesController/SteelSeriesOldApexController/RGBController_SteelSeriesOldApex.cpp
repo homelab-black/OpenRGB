@@ -62,7 +62,6 @@ void RGBController_SteelSeriesOldApex::SetupZones()
     qwerty_zone.leds_min    = 1;
     qwerty_zone.leds_max    = 1;
     qwerty_zone.leds_count  = 1;
-    qwerty_zone.matrix_map  = NULL;
     zones.push_back(qwerty_zone);
 
     led qwerty_led;
@@ -75,7 +74,6 @@ void RGBController_SteelSeriesOldApex::SetupZones()
     tenkey_zone.leds_min    = 1;
     tenkey_zone.leds_max    = 1;
     tenkey_zone.leds_count  = 1;
-    tenkey_zone.matrix_map  = NULL;
     zones.push_back(tenkey_zone);
 
     led tenkey_led;
@@ -88,7 +86,6 @@ void RGBController_SteelSeriesOldApex::SetupZones()
     function_zone.leds_min    = 1;
     function_zone.leds_max    = 1;
     function_zone.leds_count  = 1;
-    function_zone.matrix_map  = NULL;
     zones.push_back(function_zone);
 
     led function_led;
@@ -101,7 +98,6 @@ void RGBController_SteelSeriesOldApex::SetupZones()
     mx_zone.leds_min        = 1;
     mx_zone.leds_max        = 1;
     mx_zone.leds_count      = 1;
-    mx_zone.matrix_map      = NULL;
     zones.push_back(mx_zone);
 
     led mx_led;
@@ -114,7 +110,6 @@ void RGBController_SteelSeriesOldApex::SetupZones()
     logo_zone.leds_min      = 1;
     logo_zone.leds_max      = 1;
     logo_zone.leds_count    = 1;
-    logo_zone.matrix_map    = NULL;
     zones.push_back(logo_zone);
 
     led logo_led;

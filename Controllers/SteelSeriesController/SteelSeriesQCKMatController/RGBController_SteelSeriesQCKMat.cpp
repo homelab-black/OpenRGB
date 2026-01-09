@@ -58,7 +58,6 @@ void RGBController_SteelSeriesQCKMat::SetupZones()
     mousemat_zone.leds_min      = 2;
     mousemat_zone.leds_max      = 2;
     mousemat_zone.leds_count    = 2;
-    mousemat_zone.matrix_map    = NULL;
     zones.push_back(mousemat_zone);
 
     led bot_led;

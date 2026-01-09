@@ -60,8 +60,6 @@ void RGBController_AsusMonitor::SetupZones()
     new_zone.leds_max   = number_of_leds;
     new_zone.leds_count = number_of_leds;
 
-    new_zone.matrix_map = nullptr;
-
     zones.emplace_back(new_zone);
 
     leds.resize(new_zone.leds_count);

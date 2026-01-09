@@ -196,7 +196,6 @@ void RGBController_CMSmallARGBController::Init_Controller()
     ARGB_zone.leds_min      = CM_SMALL_ARGB_MIN_LEDS;
     ARGB_zone.leds_max      = CM_SMALL_ARGB_MAX_LEDS;
     ARGB_zone.leds_count    = zone_led_count;
-    ARGB_zone.matrix_map    = NULL;
     zones.push_back(ARGB_zone);
 }
 

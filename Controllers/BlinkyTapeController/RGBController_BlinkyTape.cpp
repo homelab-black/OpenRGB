@@ -58,7 +58,6 @@ void RGBController_BlinkyTape::SetupZones()
     led_zone.leds_min   = 0;
     led_zone.leds_max   = 512;
     led_zone.leds_count = 0;
-    led_zone.matrix_map = NULL;
     zones.push_back(led_zone);
 
     DeviceResizeZone(0, led_zone.leds_count);

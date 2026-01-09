@@ -107,7 +107,6 @@ void RGBController_LGMonitor::SetupZones()
     new_zone.leds_min   = 48;
     new_zone.leds_max   = 48;
     new_zone.leds_count = 48;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 

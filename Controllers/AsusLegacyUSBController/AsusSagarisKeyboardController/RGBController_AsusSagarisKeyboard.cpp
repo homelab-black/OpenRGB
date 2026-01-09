@@ -176,7 +176,6 @@ void RGBController_AsusSagarisKeyboard::SetupZones()
     keyboard.leds_min           = 1;
     keyboard.leds_max           = 1;
     keyboard.leds_count         = 1;
-    keyboard.matrix_map         = nullptr;
 
     SetupColors();
 }

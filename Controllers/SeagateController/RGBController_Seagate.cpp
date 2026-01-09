@@ -76,7 +76,6 @@ void RGBController_Seagate::SetupZones()
     led_zone.leds_min   = 6;
     led_zone.leds_max   = 6;
     led_zone.leds_count = 6;
-    led_zone.matrix_map = NULL;
     zones.push_back(led_zone);
 
     for(unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)

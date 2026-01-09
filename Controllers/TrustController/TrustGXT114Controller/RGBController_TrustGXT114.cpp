@@ -91,7 +91,6 @@ void RGBController_TrustGXT114::SetupZones()
     new_zone.leds_min   = TRUST_GXT_114_NUMBER_OF_LEDS;
     new_zone.leds_max   = TRUST_GXT_114_NUMBER_OF_LEDS;
     new_zone.leds_count = TRUST_GXT_114_NUMBER_OF_LEDS;
-    new_zone.matrix_map = nullptr;
 
     zones.emplace_back(new_zone);
 
