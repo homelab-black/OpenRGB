@@ -17,10 +17,11 @@
 
 using namespace std::chrono_literals;
 
-Mountain60KeyboardController::Mountain60KeyboardController(hid_device* dev_handle, const char* path)
+Mountain60KeyboardController::Mountain60KeyboardController(hid_device* dev_handle, const char* path, std::string dev_name)
 {
     dev         = dev_handle;
     location    = path;
+    name        = dev_name;
 }
 
 Mountain60KeyboardController::~Mountain60KeyboardController()
@@ -33,9 +34,9 @@ std::string Mountain60KeyboardController::GetDeviceLocation()
     return("HID: " + location);
 }
 
-const char* Mountain60KeyboardController::GetPath()
+std::string Mountain60KeyboardController::GetNameString()
 {
-    return location.c_str();
+    return(name);
 }
 
 std::string Mountain60KeyboardController::GetSerialString()
@@ -49,12 +50,6 @@ std::string Mountain60KeyboardController::GetSerialString()
     }
 
     return(StringUtils::wstring_to_string(serial_string));
-}
-
-void Mountain60KeyboardController::SetDevice(hid_device* new_device)
-{
-    hid_close(dev);
-    dev = new_device;
 }
 
 void Mountain60KeyboardController::UpdateData()
