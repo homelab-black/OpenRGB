@@ -501,22 +501,28 @@ contains(QMAKE_PLATFORM, linux) {
     # Determine which hidapi to use based on availability                                       #
     #   Prefer hidraw backend, then libusb                                                      #
     #-------------------------------------------------------------------------------------------#
-    packagesExist(hidapi-hidraw) {
-        PKGCONFIG += hidapi-hidraw
-
-        #---------------------------------------------------------------------------------------#
-        # hidapi-hidraw >= 0.10.1 supports USAGE/USAGE_PAGE                                     #
-        # Define USE_HID_USAGE if hidapi-hidraw supports it                                     #
-        #---------------------------------------------------------------------------------------#
-        HIDAPI_HIDRAW_VERSION = $$system($$PKG_CONFIG --modversion hidapi-hidraw)
-        if(versionAtLeast(HIDAPI_HIDRAW_VERSION, "0.10.1")) {
-            DEFINES += USE_HID_USAGE
-        }
+    packagesExist(hidapi-hotplug-hidraw) {
+        PKGCONFIG += hidapi-hotplug-hidraw
+        DEFINES   += USE_HID_USAGE=1                                                            \
+                     HID_HOTPLUG_ENABLED=1
     } else {
-        packagesExist(hidapi-libusb) {
-            PKGCONFIG += hidapi-libusb
+        packagesExist(hidapi-hidraw) {
+            PKGCONFIG += hidapi-hidraw
+
+            #-----------------------------------------------------------------------------------#
+            # hidapi-hidraw >= 0.10.1 supports USAGE/USAGE_PAGE                                 #
+            # Define USE_HID_USAGE if hidapi-hidraw supports it                                 #
+            #-----------------------------------------------------------------------------------#
+            HIDAPI_HIDRAW_VERSION = $$system($$PKG_CONFIG --modversion hidapi-hidraw)
+            if(versionAtLeast(HIDAPI_HIDRAW_VERSION, "0.10.1")) {
+                DEFINES += USE_HID_USAGE
+            }
         } else {
-            PKGCONFIG += hidapi
+            packagesExist(hidapi-libusb) {
+                PKGCONFIG += hidapi-libusb
+            } else {
+                PKGCONFIG += hidapi
+            }
         }
     }
 
