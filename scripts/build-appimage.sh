@@ -98,7 +98,12 @@ make install INSTALL_ROOT=AppDir
 #-----------------------------------------------------------------------#
 export QML_SOURCES_PATHS="$REPO_ROOT"/src
 
-linuxdeploy-"$ARCH_LINUXDEPLOY".AppImage --appdir AppDir -e "$TARGET" -i "$REPO_ROOT"/qt/org.openrgb.OpenRGB.png -d "$REPO_ROOT"/qt/org.openrgb.OpenRGB.desktop
+if [ -f "/lib/x86_64-linux-gnu/libhidapi-hotplug-hidraw.so.0" ]; then
+    linuxdeploy-"$ARCH_LINUXDEPLOY".AppImage --appdir AppDir -e "$TARGET" -i "$REPO_ROOT"/qt/org.openrgb.OpenRGB.png -d "$REPO_ROOT"/qt/org.openrgb.OpenRGB.desktop --library /lib/x86_64-linux-gnu/libhidapi-hotplug-libusb.so.0
+else
+    linuxdeploy-"$ARCH_LINUXDEPLOY".AppImage --appdir AppDir -e "$TARGET" -i "$REPO_ROOT"/qt/org.openrgb.OpenRGB.png -d "$REPO_ROOT"/qt/org.openrgb.OpenRGB.desktop --library /lib/x86_64-linux-gnu/libhidapi-libusb.so.0
+fi
+
 linuxdeploy-plugin-qt-"$ARCH_LINUXDEPLOY".AppImage --appdir AppDir
 linuxdeploy-"$ARCH_LINUXDEPLOY".AppImage --appdir AppDir --output appimage
 
