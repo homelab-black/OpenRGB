@@ -328,7 +328,7 @@ TRANSLATIONS +=                                                                 
 win32:QMAKE_CXXFLAGS += /utf-8
 win32:INCLUDEPATH +=                                                                            \
     dependencies/display-library/include                                                        \
-    dependencies/hidapi-win/include                                                             \
+    dependencies/hidapi-hotplug-win/include                                                     \
     dependencies/libusb-1.0.27/include                                                          \
     dependencies/mbedtls-3.2.1/include                                                          \
     dependencies/NVFC                                                                           \
@@ -374,7 +374,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
         -lws2_32                                                                                \
         -liphlpapi                                                                              \
         -L"$$PWD/dependencies/libusb-1.0.27/VS2019/MS64/dll" -llibusb-1.0                       \
-        -L"$$PWD/dependencies/hidapi-win/x64/" -lhidapi                                         \
+        -L"$$PWD/dependencies/hidapi-hotplug-win/x64/" -lhidapi-hotplug                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x64/" -lmbedcrypto -lmbedtls -lmbedx509         \
         -L"$$PWD/dependencies/PawnIO/" -lPawnIOLib                                              \
 }
@@ -387,7 +387,7 @@ win32:contains(QMAKE_TARGET.arch, x86) {
         -lws2_32                                                                                \
         -liphlpapi                                                                              \
         -L"$$PWD/dependencies/libusb-1.0.27/VS2019/MS32/dll" -llibusb-1.0                       \
-        -L"$$PWD/dependencies/hidapi-win/x86/" -lhidapi                                         \
+        -L"$$PWD/dependencies/hidapi-hotplug-win/x86/" -lhidapi-hotplug                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x86/" -lmbedcrypto -lmbedtls -lmbedx509         \
 }
 
@@ -401,6 +401,7 @@ win32:DEFINES +=                                                                
     _CRT_SECURE_NO_WARNINGS                                                                     \
     _WINSOCK_DEPRECATED_NO_WARNINGS                                                             \
     WIN32_LEAN_AND_MEAN                                                                         \
+    HID_HOTPLUG_ENABLED=1                                                                       \
 
 win32:RC_ICONS +=                                                                               \
     qt/OpenRGB.ico
@@ -432,7 +433,7 @@ win32:UI_DIR      = _intermediate_$$DESTDIR/.ui
 
 win32:contains(QMAKE_TARGET.arch, x86_64) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/libusb-1.0.27/VS2019/MS64/dll/libusb-1.0.dll)\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x64/hidapi.dll                   )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x64/hidapi-hotplug.dll           )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/PawnIOLib.dll                        )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusPIIX4.bin               )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusI801.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
@@ -446,7 +447,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
 
 win32:contains(QMAKE_TARGET.arch, x86) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/libusb-1.0.27/VS2019/MS32/dll/libusb-1.0.dll)\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
-    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x86/hidapi.dll                   )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/hidapi-win/x86/hidapi-hotplug.dll           )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
 
     first.depends = $(first) copydata
     export(first.depends)
@@ -501,22 +502,28 @@ contains(QMAKE_PLATFORM, linux) {
     # Determine which hidapi to use based on availability                                       #
     #   Prefer hidraw backend, then libusb                                                      #
     #-------------------------------------------------------------------------------------------#
-    packagesExist(hidapi-hidraw) {
-        PKGCONFIG += hidapi-hidraw
-
-        #---------------------------------------------------------------------------------------#
-        # hidapi-hidraw >= 0.10.1 supports USAGE/USAGE_PAGE                                     #
-        # Define USE_HID_USAGE if hidapi-hidraw supports it                                     #
-        #---------------------------------------------------------------------------------------#
-        HIDAPI_HIDRAW_VERSION = $$system($$PKG_CONFIG --modversion hidapi-hidraw)
-        if(versionAtLeast(HIDAPI_HIDRAW_VERSION, "0.10.1")) {
-            DEFINES += USE_HID_USAGE
-        }
+    packagesExist(hidapi-hotplug-hidraw) {
+        PKGCONFIG += hidapi-hotplug-hidraw
+        DEFINES   += USE_HID_USAGE=1                                                            \
+                     HID_HOTPLUG_ENABLED=1
     } else {
-        packagesExist(hidapi-libusb) {
-            PKGCONFIG += hidapi-libusb
+        packagesExist(hidapi-hidraw) {
+            PKGCONFIG += hidapi-hidraw
+
+            #-----------------------------------------------------------------------------------#
+            # hidapi-hidraw >= 0.10.1 supports USAGE/USAGE_PAGE                                 #
+            # Define USE_HID_USAGE if hidapi-hidraw supports it                                 #
+            #-----------------------------------------------------------------------------------#
+            HIDAPI_HIDRAW_VERSION = $$system($$PKG_CONFIG --modversion hidapi-hidraw)
+            if(versionAtLeast(HIDAPI_HIDRAW_VERSION, "0.10.1")) {
+                DEFINES += USE_HID_USAGE
+            }
         } else {
-            PKGCONFIG += hidapi
+            packagesExist(hidapi-libusb) {
+                PKGCONFIG += hidapi-libusb
+            } else {
+                PKGCONFIG += hidapi
+            }
         }
     }
 
