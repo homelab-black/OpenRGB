@@ -69,7 +69,7 @@ public:
     void                                StartClient();
     void                                StopClient();
 
-    void                                SendRequest_ControllerData(unsigned int dev_idx);
+    void                                SendRequest_ControllerData(unsigned int dev_id);
     void                                SendRequest_RescanDevices();
 
     /*-----------------------------------------------------*\
@@ -205,17 +205,19 @@ private:
     /*-----------------------------------------------------*\
     | Private Client functions                              |
     \*-----------------------------------------------------*/
-    void                                ProcessReply_ControllerData(unsigned int data_size, char * data, unsigned int dev_idx);
+    void                                ProcessReply_ControllerData(unsigned int data_size, char * data, unsigned int dev_id);
     void                                ProcessReply_ControllerIDs(unsigned int data_size, char * data_ptr);
     void                                ProcessReply_ProtocolVersion(unsigned int data_size, char * data);
     void                                ProcessRequest_DetectionProgressChanged(unsigned int data_size, char * data);
     void                                ProcessRequest_DeviceListChanged();
-    void                                ProcessRequest_RGBController_SignalUpdate(unsigned int data_size, char * data, unsigned int dev_idx);
+    void                                ProcessRequest_RGBController_SignalUpdate(unsigned int data_size, char * data, unsigned int dev_id);
     void                                ProcessRequest_ServerString(unsigned int data_size, char * data);
 
     void                                SendData_ClientString();
     void                                SendRequest_ControllerIDs();
     void                                SendRequest_ProtocolVersion();
+
+    void                                UpdateDeviceList(RGBController* new_controller);
 
     /*-----------------------------------------------------*\
     | Private ProfileManager functions                      |
@@ -225,5 +227,6 @@ private:
     /*-----------------------------------------------------*\
     | Private helper functions                              |
     \*-----------------------------------------------------*/
+    RGBController *                     controller_from_id(unsigned int id);
     int                                 recv_select(SOCKET s, char *buf, int len, int flags);
 };
