@@ -1,13 +1,13 @@
 
 /*---------------------------------------------------------*\
- |   Clevo8910Keys.h                                       |
- |                                                         |
- |   Driver for Clevo Color per key keyboard               |
- |                                                         |
- |   EzyUser     9 Jan 2026                                |
- |                                                         |
- |   This file is part of the OpenRGB project              |
- |   SPDX-License-Identifier: GPL-2.0-or-later             |
+|   Clevo8910Keys.h                                         |
+|                                                           |
+|   Driver for Clevo Color per key keyboard                 |
+|                                                           |
+|   EzyUser     9 Jan 2026                                  |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #pragma once
