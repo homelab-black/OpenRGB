@@ -87,7 +87,7 @@ RGBController_Clevo8910::RGBController_Clevo8910(Clevo8910Controller* controller
     modes.push_back(Fade);
 
     mode Breathe;
-    Breathe.name		    = "Breathe";
+    Breathe.name		    = "Breathing";
     Breathe.value                   = CLEVO8910_MODE_BREATHE;
     Breathe.flags                   = MODE_FLAG_MANUAL_SAVE |
 					MODE_FLAG_HAS_SPEED | 
