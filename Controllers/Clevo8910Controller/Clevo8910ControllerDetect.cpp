@@ -28,8 +28,8 @@ void DetectClevo8910Controller(hid_device_info* info, const std::string& name)
 
     if(dev)
     {
-        Clevo8910Controller*     controller	= new Clevo8910Controller(dev, *info, info->product_id, name);
-        RGBController_Clevo8910* rgb_controller	= new RGBController_Clevo8910(controller);
+        Clevo8910Controller*     controller     = new Clevo8910Controller(dev, *info, info->product_id, name);
+        RGBController_Clevo8910* rgb_controller = new RGBController_Clevo8910(controller);
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }

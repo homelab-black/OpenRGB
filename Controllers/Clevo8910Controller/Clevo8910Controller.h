@@ -1,6 +1,6 @@
 
 /*---------------------------------------------------------*\
-|   Clevo8910Controller.h				    |
+|   Clevo8910Controller.h                                   |
 |                                                           |
 |   Driver for Clevo Color per key keyboard                 |
 |                                                           |
@@ -27,7 +27,7 @@
 #define CLEVO8910_DIRECT_SPEED_DEFAULT       1
 #define CLEVO8910_BRT_SPD_CMD                0x09
 #define CLEVO8910_OFF_CMD                    0x0C
-#define CLEVO8910_BIOS_CMD		     0x20
+#define CLEVO8910_BIOS_CMD                   0x20
 
 enum
 {
@@ -58,33 +58,33 @@ class Clevo8910Controller
         Clevo8910Controller(hid_device* dev_handle, const hid_device_info& info, const unsigned short pid, std::string dev_name);
         ~Clevo8910Controller();
 
-        std::string 	GetDeviceLocation();
-        std::string 	GetDeviceName();
-        uint16_t    	GetUSBPID();
-        void        	TurnOff();
-	void	    	SaveBios(bool save);
-	void	    	SetParams(uint8_t brightness, uint8_t speed);
-        void	    	SetSimpleMode(uint8_t effect, uint8_t bright, uint8_t speed);
-	void	    	SetMode(uint8_t effect, uint8_t brightness, uint8_t speed, uint8_t key, RGBColor color );
-	void	    	SetColors(uint8_t mode, std::vector<led> array_leds, bool rnd_flag, std::vector<RGBColor> array_colors);
-	void	    	SetSingleLED(uint8_t mode, uint8_t key, RGBColor color);
+        std::string     GetDeviceLocation();
+        std::string     GetDeviceName();
+        uint16_t        GetUSBPID();
+        void            TurnOff();
+        void            SaveBios(bool save);
+        void            SetParams(uint8_t brightness, uint8_t speed);
+        void            SetSimpleMode(uint8_t effect, uint8_t bright, uint8_t speed);
+        void            SetMode(uint8_t effect, uint8_t brightness, uint8_t speed, uint8_t key, RGBColor color );
+        void            SetColors(uint8_t mode, std::vector<led> array_leds, bool rnd_flag, std::vector<RGBColor> array_colors);
+        void            SetSingleLED(uint8_t mode, uint8_t key, RGBColor color);
 
     private:
-        hid_device*	dev;
-        std::string	location;
-        std::string	name;
-        //std::string	serial_number;
-        uint16_t   	usb_pid;
+        hid_device*     dev;
+        std::string     location;
+        std::string     name;
+        //std::string   serial_number;
+        uint16_t        usb_pid;
 };
 
-typedef	struct
-	{
-	    uint8_t	header;
-	    uint8_t	mode;
-	    uint8_t	param;
-	    uint8_t	red;
-	    uint8_t	greem;
-	    uint8_t	blue;
-	    uint8_t	end;
-	} report_buf_t;
-#define CLEVO8910_REPORT_SIZE	(7)
+typedef struct
+        {
+            uint8_t     header;
+            uint8_t     mode;
+            uint8_t     param;
+            uint8_t     red;
+            uint8_t     greem;
+            uint8_t     blue;
+            uint8_t     end;
+        } report_buf_t;
+#define CLEVO8910_REPORT_SIZE   (7)

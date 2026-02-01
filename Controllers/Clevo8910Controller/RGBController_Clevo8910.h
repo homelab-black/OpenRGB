@@ -1,6 +1,6 @@
 
 /*---------------------------------------------------------*\
-|   RGBController_Clevo8910.h				    |
+|   RGBController_Clevo8910.h                               |
 |                                                           |
 |   Driver for Clevo Color per key keyboard                 |
 |                                                           |
