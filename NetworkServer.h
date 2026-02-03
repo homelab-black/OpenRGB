@@ -32,9 +32,9 @@ typedef void (*NetServerCallback)(void *);
 
 typedef struct
 {
+    NetPacketHeader             header;
     char *                      data;
-    unsigned int                pkt_id;
-    unsigned int                size;
+    SOCKET                      client_sock;
     unsigned int                client_protocol_version;
 } NetworkServerControllerThreadQueueEntry;
 
@@ -128,6 +128,10 @@ public:
     void                                SetProfileManager(ProfileManagerInterface* profile_manager_pointer);
     void                                SetSettingsManager(SettingsManagerInterface* settings_manager_pointer);
 
+    void                                ProfileManager_ProfileAboutToLoad();
+
+    void                                SendRequest_ProfileManager_ActiveProfileChanged(std::string profile_name);
+    void                                SendRequest_ProfileManager_ProfileLoaded(std::string profile_json_string);
     void                                SendRequest_RGBController_SignalUpdate(RGBController * controller_ptr, unsigned int update_reason);
 
 private:
@@ -155,6 +159,8 @@ private:
     std::vector<NetworkServerControllerThread *>    controller_threads;
     std::shared_mutex                               controller_threads_mutex;
     bool                                            controller_updating;
+
+    NetworkServerControllerThread *                 profilemanager_thread;
 
     /*-----------------------------------------------------*\
     | Server clients                                        |
@@ -184,6 +190,8 @@ private:
     ProfileManagerInterface*            profile_manager;
     SettingsManagerInterface*           settings_manager;
 
+    unsigned int                        profile_about_to_load_acks;
+    unsigned int                        profile_about_to_load_count;
 private:
 #ifdef WIN32
     /*-----------------------------------------------------*\
@@ -208,6 +216,7 @@ private:
     void                                ConnectionThreadFunction(int socket_idx);
     void                                ControllerListenThread(NetworkServerControllerThread * this_thread);
     void                                ListenThreadFunction(NetworkClientInfo * client_sock);
+    void                                ProfileManagerListenThread(NetworkServerControllerThread * this_thread);
 
     /*-----------------------------------------------------*\
     | Server Protocol functions                             |
@@ -241,6 +250,8 @@ private:
     void                                SendRequest_DetectionProgress(SOCKET client_sock, unsigned int protocol_version, unsigned int detection_percent, std::string detection_string);
     void                                SendRequest_DetectionStarted(SOCKET client_sock, unsigned int protocol_version);
     void                                SendRequest_DeviceListChanged(SOCKET client_sock);
+
+    void                                SendRequest_ProfileManager_ProfileAboutToLoad();
 
     /*-----------------------------------------------------*\
     | Private helper functions                              |
