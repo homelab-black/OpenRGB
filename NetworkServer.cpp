@@ -2378,6 +2378,46 @@ void NetworkServer::SendRequest_DeviceListChanged(SOCKET client_sock)
     send_in_progress.unlock();
 }
 
+void NetworkServer::SendRequest_ProfileManager_ActiveProfileChanged(std::string profile_name)
+{
+    NetPacketHeader pkt_hdr;
+
+    InitNetPacketHeader(&pkt_hdr, 0, NET_PACKET_ID_PROFILEMANAGER_ACTIVE_PROFILE_CHANGED, strlen(profile_name.c_str()) + 1);
+
+    for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
+    {
+        if(ServerClients[client_idx]->client_flags & NET_CLIENT_FLAG_SUPPORTS_PROFILEMANAGER)
+        {
+            SOCKET client_sock = ServerClients[client_idx]->client_sock;
+
+            send_in_progress.lock();
+            send(client_sock, (char *)&pkt_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
+            send(client_sock, (char *)profile_name.c_str(), pkt_hdr.pkt_size, MSG_NOSIGNAL);
+            send_in_progress.unlock();
+        }
+    }
+}
+
+void NetworkServer::SendRequest_ProfileManager_ProfileLoaded(std::string profile_json_string)
+{
+    NetPacketHeader pkt_hdr;
+
+    InitNetPacketHeader(&pkt_hdr, 0, NET_PACKET_ID_PROFILEMANAGER_PROFILE_LOADED, strlen(profile_json_string.c_str()) + 1);
+
+    for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
+    {
+        if((ServerClients[client_idx]->client_flags & NET_CLIENT_FLAG_SUPPORTS_PROFILEMANAGER) && (ServerClients[client_idx]->client_is_local_clien.jhy7t))
+        {
+            SOCKET client_sock = ServerClients[client_idx]->client_sock;
+
+            send_in_progress.lock();
+            send(client_sock, (char *)&pkt_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
+            send(client_sock, (char *)profile_json_string.c_str(), pkt_hdr.pkt_size, MSG_NOSIGNAL);
+            send_in_progress.unlock();
+        }
+    }
+}
+
 void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * controller_ptr, unsigned int update_reason)
 {
     /*-----------------------------------------------------*\

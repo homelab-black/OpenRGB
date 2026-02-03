@@ -106,7 +106,10 @@ enum
     NET_PACKET_ID_PROFILEMANAGER_UPLOAD_PROFILE     = 154,  /* Upload a profile to the server in JSON format    */
     NET_PACKET_ID_PROFILEMANAGER_DOWNLOAD_PROFILE   = 155,  /* Download a profile from the server in JSON format*/
     NET_PACKET_ID_PROFILEMANAGER_GET_ACTIVE_PROFILE = 156,  /* Get the active profile name                      */
-
+    NET_PACKET_ID_PROFILEMANAGER_ACTIVE_PROFILE_CHANGED
+                                                    = 157,  /* Indicate to clients active profile has changed   */
+    NET_PACKET_ID_PROFILEMANAGER_PROFILE_LOADED     = 158,  /* Notify to active client that profile has loaded  */
+                                                            /* Forwards loaded profile data                     */
     /*----------------------------------------------------------------------------------------------------------*\
     | PluginManager functions                                                                                    |
     \*----------------------------------------------------------------------------------------------------------*/

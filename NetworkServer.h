@@ -128,6 +128,8 @@ public:
     void                                SetProfileManager(ProfileManagerInterface* profile_manager_pointer);
     void                                SetSettingsManager(SettingsManagerInterface* settings_manager_pointer);
 
+    void                                SendRequest_ProfileManager_ActiveProfileChanged(std::string profile_name);
+    void                                SendRequest_ProfileManager_ProfileLoaded(std::string profile_json_string);
     void                                SendRequest_RGBController_SignalUpdate(RGBController * controller_ptr, unsigned int update_reason);
 
 private:
