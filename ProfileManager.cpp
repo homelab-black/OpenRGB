@@ -230,7 +230,25 @@ bool ProfileManager::LoadAutoProfileSuspend()
 
 bool ProfileManager::LoadProfile(std::string profile_name)
 {
-    return(LoadProfileWithOptions(profile_name, false, true));
+    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsProfileManagerAPI()))
+    {
+        ResourceManager::get()->GetLocalClient()->ProfileManager_LoadProfile(profile_name);
+
+        return(true);
+    }
+    else
+    {
+        bool success = false;
+
+        success = LoadProfileWithOptions(profile_name, false, true);
+
+        if(success)
+        {
+            ResourceManager::get()->GetServer()->SendRequest_ProfileManager_ActiveProfileChanged(profile_name);
+        }
+
+        return(success);
+    }
 }
 
 nlohmann::json ProfileManager::ReadProfileJSON(std::string profile_name)
@@ -813,6 +831,11 @@ bool ProfileManager::LoadProfileWithOptions
     {
         plugin_manager->OnProfileLoad(profile_json["plugins"]);
     }
+
+    /*-------------------------------------------------*\
+    | Notify local client                               |
+    \*-------------------------------------------------*/
+    ResourceManager::get()->GetServer()->SendRequest_ProfileManager_ProfileLoaded(profile_json.dump());
 
     return(ret_val);
 }
