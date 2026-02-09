@@ -106,6 +106,11 @@ struct p_state
     bool        state;
 };
 
+struct AsusAuraCoreLaptopSettings
+{
+    std::unordered_map<std::string, bool> power_config;
+};
+
 class AsusAuraCoreLaptopController
 {
 public:

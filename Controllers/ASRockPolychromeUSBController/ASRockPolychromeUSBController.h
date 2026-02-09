@@ -98,6 +98,29 @@ struct PolychromeDeviceInfo
     PolychromeDeviceType    device_type;
 };
 
+struct PolyChromeRGSwapZones
+{
+    bool rgb_led_1_header;
+    bool rgb_led_2_header;
+    bool addressable_header_1;
+    bool addressable_header_2;
+    bool pch;
+    bool io_cover;
+    bool pcb;
+    bool addressable_header_3;
+};
+
+void to_json(json& j, const PolyChromeRGSwapZones& settings);
+void from_json(const json& j, PolyChromeRGSwapZones& settings);
+
+struct PolyChromeUSBSettings
+{
+    PolyChromeRGSwapZones rg_swap;
+};
+
+void to_json(json& j, const PolyChromeUSBSettings& settings);
+void from_json(const json& j, PolyChromeUSBSettings& settings);
+
 class PolychromeUSBController
 {
 public:

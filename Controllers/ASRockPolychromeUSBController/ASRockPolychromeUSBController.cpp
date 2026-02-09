@@ -39,6 +39,44 @@ const char* polychrome_USB_zone_names[] =
     "Addressable Header 3/Audio",
 };
 
+void to_json(json& j, const PolyChromeRGSwapZones& settings)
+{
+    j = json {
+        {"RGB LED 1 Header", settings.rgb_led_1_header},
+        {"RGB LED 2 Header", settings.rgb_led_2_header},
+        {"Addressable Header 1", settings.addressable_header_1},
+        {"Addressable Header 2", settings.addressable_header_2},
+        {"PCH", settings.pch},
+        {"IO Cover", settings.io_cover},
+        {"PCB", settings.pcb},
+        {"Addressable Header 3/Audio", settings.addressable_header_3},
+    };
+}
+
+void from_json(const json& j, PolyChromeRGSwapZones& settings)
+{
+    j.at("RGB LED 1 Header").get_to(settings.rgb_led_1_header);
+    j.at("RGB LED 2 Header").get_to(settings.rgb_led_2_header);
+    j.at("Addressable Header 1").get_to(settings.addressable_header_1);
+    j.at("Addressable Header 2").get_to(settings.addressable_header_2);
+    j.at("PCH").get_to(settings.pch);
+    j.at("IO Cover").get_to(settings.io_cover);
+    j.at("PCB").get_to(settings.pcb);
+    j.at("Addressable Header 3/Audio").get_to(settings.addressable_header_3);
+}
+
+void to_json(json& j, const PolyChromeUSBSettings& settings)
+{
+    j = json {
+        {"RGSwap", settings.rg_swap},
+    };
+}
+
+void from_json(const json& j, PolyChromeUSBSettings& settings)
+{
+    j.at("RGSwap", settings.rg_swap);
+}
+
 PolychromeUSBController::PolychromeUSBController(hid_device* dev_handle, const char* path)
 {
     DMIInfo       dmi;
@@ -95,7 +133,7 @@ void PolychromeUSBController::SetDeviceInfo()
     const std::string detector_name     = "ASRock Polychrome USB";
     const std::string json_rgswap       = "RGSwap";
     SettingsManager* settings_manager   = ResourceManager::get()->GetSettingsManager();
-    json device_settings                = settings_manager->GetSettings(detector_name);
+    std::optional<PolyChromeUSBSettings> device_settings = settings_manager->GetControllerSettings<PolyChromeUSBSettings>(detector_name);
 
     /*---------------------------------------------------------*\
     | Get RGSwap settings from the settings manager             |
@@ -103,29 +141,36 @@ void PolychromeUSBController::SetDeviceInfo()
     | Onboard leds are set to their existing values,            |
     | Addressable RGB and RGB headers are set to false          |
     \*---------------------------------------------------------*/
-    if(!device_settings.contains(json_rgswap))
+    if(!device_settings.has_value())
     {
-        device_settings[json_rgswap][polychrome_USB_zone_names[0]] = false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[1]] = false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[2]] = false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[3]] = false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[4]] = ((configtable[8] >> 4) & 1) ? true : false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[5]] = ((configtable[8] >> 5) & 1) ? true : false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[6]] = ((configtable[8] >> 6) & 1) ? true : false;
-        device_settings[json_rgswap][polychrome_USB_zone_names[7]] = false;
-
-        settings_manager->SetSettings(detector_name, device_settings);
-        settings_manager->SaveSettings();
+        PolyChromeRGSwapZones default_zones
+        {
+            .rgb_led_1_header = false,
+            .rgb_led_2_header = false,
+            .addressable_header_1 = false,
+            .addressable_header_2 = false,
+            .pch = ((configtable[8] >> 4) & 1) ? true : false,
+            .io_cover = ((configtable[8] >> 5) & 1) ? true : false,
+            .pcb = ((configtable[8] >> 6) & 1) ? true : false,
+            .addressable_header_3 = false,
+        };
+        PolyChromeUSBSettings default_settings
+        {
+            .rg_swap = default_zones,
+        };
+        settings_manager->SetControllerSettingsAndSave(detector_name, default_settings);
+        device_settings = default_settings;
     }
     else
     {
-        for(std::size_t idx = 0; idx < 8; idx++)
-        {
-            if(device_settings[json_rgswap].contains(polychrome_USB_zone_names[idx]))
-            {
-                rgswapconfig[idx] = device_settings[json_rgswap][polychrome_USB_zone_names[idx]];
-            }
-        }
+        rgswapconfig[0] = device_settings.value().rg_swap.rgb_led_1_header;
+        rgswapconfig[1] = device_settings.value().rg_swap.rgb_led_2_header;
+        rgswapconfig[2] = device_settings.value().rg_swap.addressable_header_1;
+        rgswapconfig[3] = device_settings.value().rg_swap.addressable_header_2;
+        rgswapconfig[4] = device_settings.value().rg_swap.pch;
+        rgswapconfig[5] = device_settings.value().rg_swap.io_cover;
+        rgswapconfig[6] = device_settings.value().rg_swap.pcb;
+        rgswapconfig[7] = device_settings.value().rg_swap.addressable_header_3;
     }
 
     bool rgswap_final[8] = {0};
