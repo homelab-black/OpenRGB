@@ -261,8 +261,13 @@ struct ServerSettings
     bool all_devices = false;
 };
 
+#define SETTINGS_VERSION "1.0"
+
 struct Settings {
-    std::string version = "1.0";
+    /*----------------------------------------------------------*\
+    | default to "0.0" so we know this field hasn't been set yet |
+    \*----------------------------------------------------------*/
+    std::string version = "0.0";
     AutoStartSettings auto_start;
     DetectorSettings detectors;
     LogManagerSettings log_manager;

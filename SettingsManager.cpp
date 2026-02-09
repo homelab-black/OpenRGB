@@ -171,39 +171,60 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
     | Open input file in binary mode                        |
     \*-----------------------------------------------------*/
     config_found = filesystem::exists(filename);
-    if(config_found)
+    json raw_json = LoadSettingsAsJson(filename);
+    try
     {
-        std::ifstream settings_file(settings_filename, std::ios::in | std::ios::binary);
-
-        /*-------------------------------------------------*\
-        | Read settings into JSON store                     |
-        \*-------------------------------------------------*/
-        if(settings_file)
-        {
-            try
-            {
-                json data;
-                settings_file >> data;
-                settings_data = data.get<Settings>();
-            }
-            catch(const std::exception& e)
-            {
-                /*-----------------------------------------*\
-                | If an exception was caught, that means    |
-                | the JSON parsing failed.  Clear out any   |
-                | data in the store as it is corrupt.  We   |
-                | could attempt a reload for backup         |
-                | location                                  |
-                \*-----------------------------------------*/
-                LOG_ERROR("[SettingsManager] JSON parsing failed: %s", e.what());
-            }
-        }
-
-        settings_file.close();
+        settings_data = raw_json.get<Settings>();
     }
-
+    catch(const std::exception& e)
+    {
+        /*-----------------------------------------*\
+        | If an exception was caught, that means    |
+        | the JSON parsing failed.  Clear out any   |
+        | data in the store as it is corrupt.  We   |
+        | could attempt a reload for backup         |
+        | location                                  |
+        \*-----------------------------------------*/
+        LOG_ERROR("[SettingsManager] JSON parsing failed: %s", e.what());
+    }
     mutex.unlock();
 }
+
+json SettingsManager::LoadSettingsAsJson(const filesystem::path& filename)
+{
+    if (!filesystem::exists(filename))
+    {
+        return json {};
+    }
+    json data;
+    std::ifstream settings_file(settings_filename, std::ios::in | std::ios::binary);
+
+    /*-------------------------------------------------*\
+    | Read settings into JSON store                     |
+    \*-------------------------------------------------*/
+    if(settings_file)
+    {
+        try
+        {
+            settings_file >> data;
+        }
+        catch(const std::exception& e)
+        {
+            /*-----------------------------------------*\
+            | If an exception was caught, that means    |
+            | the JSON parsing failed.  Clear out any   |
+            | data in the store as it is corrupt.  We   |
+            | could attempt a reload for backup         |
+            | location                                  |
+            \*-----------------------------------------*/
+            LOG_ERROR("[SettingsManager] JSON parsing failed: %s", e.what());
+        }
+    }
+
+    settings_file.close();
+    return data;
+}
+
 
 void SettingsManager::SaveSettings()
 {
@@ -237,6 +258,86 @@ void SettingsManager::SaveSettings()
     }
     mutex.unlock();
 }
+
+void SettingsManager::MigrateSettings()
+{
+    if (settings_data.version == SETTINGS_VERSION)
+    {
+        /*--------------------------*\
+        | nothing to do              |
+        \*--------------------------*/
+        return;
+    }
+
+    /*----------------------------*\
+    | pre settings rework settings |
+    \*----------------------------*/
+    json settings_json = LoadSettingsAsJson(settings_filename);
+    if (!settings_json.contains("version")
+        || settings_json["version"] == "0.0")
+    {
+        std::vector<std::string> controller_keys {
+            "ASRock Polychrome USB"
+            "Asus Aura Core Laptop"
+            "CorsairDominatorSettings"
+            "DDPDevices"
+            "DebugDevices"
+            "DMXDevices"
+            "E131Devices"
+            "Gigabyte RGB Fusion 2 SMBus"
+            "Gigabyte RGB Fusion 2 USB"
+            "ElgatoLightStripDevices"
+            "ENESMBusSettings"
+            "EspurnaDevices"
+            "EVision2Settings"
+            "EndorfySettings"
+            "FanBusDevices"
+            "GoveeDevices"
+            "KasaSmartDevices"
+            "LEDStripDevices"
+            "LIFXDevices"
+            "LinuxLEDDevices"
+            "PhilipsHueDevices"
+            "PhilipsWizDevices"
+            "QMKOpenRGBDevices"
+            "NanoleafDevices"
+            "QMKVialRGBDevices"
+            "YeelightDevices"
+        };
+        settings_json["Controllers"] = json::object({ {"data", {}}});
+        for (int i = 0; i < controller_keys.size(); i++)
+        {
+            /*------------------------------------------------------------*\
+            | Move $.<ControllerKey> to $.Controllers.data.<ControllerKey> |
+            \*------------------------------------------------------------*/
+            const std::string& key = controller_keys[i];
+            if (settings_json.contains(key))
+            {
+                settings_json["Controllers"]["data"][key] = settings_json[key];
+                settings_json[key].clear();
+            }
+        }
+
+        /*----------------------------------------------*\
+        | Migrate ui.RunZoneChecks -> ui.run_zone_checks |
+        \*----------------------------------------------*/
+        if (settings_json.contains("UserInterface") && settings_json["UserInterface"].contains("RunZoneChecks"))
+        {
+            settings_json["UserInterface"]["run_zone_checks"] = settings_json["UserInterface"]["RunZoneChecks"];
+            settings_json["UserInterface"]["RunZoneChecks"].clear();
+        }
+
+        /*------------------------------------*\
+        | We should be able to deserialize now |
+        \*------------------------------------*/
+        mutex.lock();
+        settings_data = settings_json.get<Settings>();
+        settings_data.version = SETTINGS_VERSION;
+        mutex.unlock();
+        SaveSettings();
+    }
+}
+
 
 template<typename T>
 std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)

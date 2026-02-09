@@ -93,6 +93,15 @@ public:
     void LoadSettings(const filesystem::path& filename) override;
     void SaveSettings() override;
 
+    /*----------------------------------------------------------*\
+    | Migrates settings from an older version to the current one |
+    | Should be called right after `LoadSettings`                |
+    \*----------------------------------------------------------*/
+    void MigrateSettings();
+
+private:
+    json LoadSettingsAsJson(const filesystem::path& filename);
+
 private:
     Settings             settings_data;
     json             settings_prototype;
@@ -101,5 +110,7 @@ private:
     bool             config_found;
 
 
+    // Todo: make subset of settings that local users actually use
+    // for example, ui settings are unused by local users
     Settings        local_settings;
 };
