@@ -62,7 +62,27 @@ unsigned int LogManager::getLoglevel()
     }
 }
 
-void LogManager::configure(json config, const filesystem::path& defaultDir)
+std::string replace_pound_by_timestamp(const std::string& input)
+{
+    /*---------------------------------------------*\
+    | If the # symbol is found in the log file      |
+    | name, replace it with a timestamp             |
+    \*---------------------------------------------*/
+    time_t t = time(0);
+    struct tm* tmp = localtime(&t);
+    char time_string[64];
+    snprintf(time_string, 64, TimestampPattern, 1900 + tmp->tm_year, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+
+    std::string logname = input;
+    size_t oct = logname.find("#");
+    if(oct != logname.npos)
+    {
+        logname.replace(oct, 1, time_string);
+    }
+    return logname;
+}
+
+void LogManager::configure(const LogManagerSettings& config, const filesystem::path& defaultDir)
 {
     std::lock_guard<std::recursive_mutex> grd(entry_mutex);
 
@@ -80,16 +100,8 @@ void LogManager::configure(json config, const filesystem::path& defaultDir)
         | i.e. with the lexicographically smallest filename |
         | 0 or less equals no limit (default)               |
         \*-------------------------------------------------*/
-        int loglimit = 0;
-        if(config.contains("file_count_limit") && config["file_count_limit"].is_number_integer())
-        {
-            loglimit = config["file_count_limit"];
-        }
-
-        if(config.contains("log_file"))
-        {
-            log_file_enabled = config["log_file"];
-        }
+        int loglimit = config.file_count_limit.value_or(0);
+        log_file_enabled = config.log_file;
 
         /*-------------------------------------------------*\
         | Default template for the logfile name             |
@@ -103,33 +115,8 @@ void LogManager::configure(json config, const filesystem::path& defaultDir)
             | If the logfile is defined in the              |
             | configuration, use the configured name        |
             \*---------------------------------------------*/
-            if(config.contains("logfile"))
-            {
-                const json& logfile_obj = config["logfile"];
-                if(logfile_obj.is_string())
-                {
-                    std::string tmpname = config["logfile"];
-                    if(!tmpname.empty())
-                    {
-                        logtempl = tmpname;
-                    }
-                }
-            }
-            /*---------------------------------------------*\
-            | If the # symbol is found in the log file      |
-            | name, replace it with a timestamp             |
-            \*---------------------------------------------*/
-            time_t t = time(0);
-            struct tm* tmp = localtime(&t);
-            char time_string[64];
-            snprintf(time_string, 64, TimestampPattern, 1900 + tmp->tm_year, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
-
-            std::string logname = logtempl;
-            size_t oct = logname.find("#");
-            if(oct != logname.npos)
-            {
-                logname.replace(oct, 1, time_string);
-            }
+            std::string logtempl = config.logfile.value_or("OpenRGB_#.log");
+            std::string logname = replace_pound_by_timestamp(logtempl);
 
             /*---------------------------------------------*\
             | If the path is relative, use logs dir         |
@@ -166,26 +153,15 @@ void LogManager::configure(json config, const filesystem::path& defaultDir)
     /*-----------------------------------------------------*\
     | Check loglevel configuration                          |
     \*-----------------------------------------------------*/
-    if(config.contains("loglevel"))
+    if (config.loglevel)
     {
-        const json& loglevel_obj = config["loglevel"];
-
-        /*-------------------------------------------------*\
-        | Set the log level if configured                   |
-        \*-------------------------------------------------*/
-        if(loglevel_obj.is_number_integer())
-        {
-            loglevel = loglevel_obj;
-        }
+        loglevel = *(config.loglevel);
     }
 
     /*-----------------------------------------------------*\
     | Check log console configuration                       |
     \*-----------------------------------------------------*/
-    if(config.contains("log_console"))
-    {
-        log_console_enabled = config["log_console"];
-    }
+    log_console_enabled = config.log_console;
 
     /*-----------------------------------------------------*\
     | Flush the log                                         |

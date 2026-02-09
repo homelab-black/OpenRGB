@@ -611,7 +611,7 @@ void DetectionManager::BackgroundDetectDevices()
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
-    detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    DetectorSettings& detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings().access_mut().detectors;
 
     /*-----------------------------------------------------*\
     | Check HID safe mode setting                           |
@@ -1679,26 +1679,25 @@ void DetectionManager::ProcessPreDetectionHooks()
 
 void DetectionManager::UpdateDetectorSettings()
 {
-    json                detector_settings;
     bool                save_settings       = false;
 
     /*-----------------------------------------------------*\
     | Open device disable list and read in disabled device  |
     | strings                                               |
     \*-----------------------------------------------------*/
-    detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    DetectorSettings& detector_settings = settings.access_mut().detectors;
 
     /*-----------------------------------------------------*\
     | Loop through all I2C detectors and see if any need to |
     | be saved to the settings                              |
     \*-----------------------------------------------------*/
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_device_detectors.size(); i2c_detector_idx++)
+    for (const string& i2c_detector_str : i2c_device_detector_strings)
     {
-        detection_string = i2c_device_detector_strings[i2c_detector_idx].c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = i2c_detector_str.c_str();
+        if (!(detector_settings.detectors.count(i2c_detector_str) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[i2c_detector_str] = true;
             save_settings = true;
         }
     }
@@ -1707,13 +1706,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C DRAM detectors and see if any    |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
+    for (const I2CDRAMDeviceDetectorBlock& detector : i2c_dram_device_detectors)
     {
-        detection_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1722,13 +1720,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C PCI detectors and see if any     |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for(std::size_t i2c_pci_detector_idx = 0; i2c_pci_detector_idx < i2c_pci_device_detectors.size(); i2c_pci_detector_idx++)
+    for (const I2CPCIDeviceDetectorBlock& detector : i2c_pci_device_detectors)
     {
-        detection_string = i2c_pci_device_detectors[i2c_pci_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1737,13 +1734,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all generic HID detectors and see if any |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_generic_detectors.size(); hid_detector_idx++)
+    for (const HIDDeviceDetectorBlock& detector : hid_generic_detectors)
     {
-        detection_string = hid_generic_detectors[hid_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1752,13 +1748,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all specific HID detectors and see if    |
     | any need to be saved to the settings                  |
     \*-----------------------------------------------------*/
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_specific_detectors.size(); hid_detector_idx++)
+    for (const HIDDeviceDetectorBlock& detector : hid_specific_detectors)
     {
-        detection_string = hid_specific_detectors[hid_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1767,13 +1762,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all generic HID wrapped detectors and    |
     | see if any need to be saved to the settings           |
     \*-----------------------------------------------------*/
-    for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_generic_detectors.size(); hid_wrapped_detector_idx++)
+    for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_generic_detectors)
     {
-        detection_string = hid_wrapped_generic_detectors[hid_wrapped_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1782,13 +1776,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all specific HID wrapped detectors and   |
     | see if any need to be saved to the settings           |
     \*-----------------------------------------------------*/
-    for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_specific_detectors.size(); hid_wrapped_detector_idx++)
+    for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_specific_detectors)
     {
-        detection_string = hid_wrapped_specific_detectors[hid_wrapped_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.name.c_str();
+        if (!(detector_settings.detectors.count(detector.name) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector.name] = true;
             save_settings = true;
         }
     }
@@ -1797,13 +1790,12 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through remaining detectors and see if any need  |
     | to be saved to the settings                           |
     \*-----------------------------------------------------*/
-    for(std::size_t detector_idx = 0; detector_idx < device_detectors.size(); detector_idx++)
+    for (const string& detector : device_detector_strings)
     {
-        detection_string = device_detector_strings[detector_idx].c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        detection_string = detector.c_str();
+        if (!(detector_settings.detectors.count(detector) > 0))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings.detectors[detector] = true;
             save_settings = true;
         }
     }
@@ -1817,9 +1809,10 @@ void DetectionManager::UpdateDetectorSettings()
     {
         LOG_INFO("[%s] Saving detector settings", DETECTIONMANAGER);
 
-        ResourceManager::get()->GetSettingsManager()->SetSettings("Detectors", detector_settings);
+        // ResourceManager::get()->GetSettingsManager()->SetSettings("Detectors", detector_settings);
 
-        ResourceManager::get()->GetSettingsManager()->SaveSettings();
+        // ResourceManager::get()->GetSettingsManager()->SaveSettings();
+        settings.Save();
     }
 }
 

@@ -144,11 +144,12 @@ ResourceManager::ResourceManager()
     settings_manager        = new SettingsManager();
 
     settings_manager->LoadSettings(GetConfigurationDirectory() / "OpenRGB.json");
+    SettingsAccessGuard settings = settings_manager->GetSettings();
 
     /*-----------------------------------------------------*\
     | Configure the log manager                             |
     \*-----------------------------------------------------*/
-    LogManager::get()->configure(settings_manager->GetSettings("LogManager"), GetConfigurationDirectory());
+    LogManager::get()->configure(settings.access().log_manager, GetConfigurationDirectory());
 
     /*-----------------------------------------------------*\
     | Initialize Server Instance                            |
@@ -156,10 +157,10 @@ ResourceManager::ResourceManager()
     |   including clients.  Otherwise, pass only local      |
     |   hardware controllers                                |
     \*-----------------------------------------------------*/
-    json server_settings    = settings_manager->GetSettings("Server");
-    bool legacy_workaround  = false;
+    const ServerSettings& server_settings = settings.access().servers;
+    bool legacy_workaround  = server_settings.legacy_workaround;
 
-    server                  = new NetworkServer();
+    server = new NetworkServer();
 
     /*-----------------------------------------------------*\
     | Set server name                                       |
@@ -173,11 +174,6 @@ ResourceManager::ResourceManager()
     /*-----------------------------------------------------*\
     | Enable legacy SDK workaround in server if configured  |
     \*-----------------------------------------------------*/
-    if(server_settings.contains("legacy_workaround"))
-    {
-        legacy_workaround   = server_settings["legacy_workaround"];
-    }
-
     if(legacy_workaround)
     {
         server->SetLegacyWorkaroundEnable(true);
@@ -494,15 +490,9 @@ void ResourceManager::UpdateDeviceList()
     /*-----------------------------------------------------*\
     | Update server list                                    |
     \*-----------------------------------------------------*/
-    json server_settings    = settings_manager->GetSettings("Server");
-    bool all_controllers    = false;
-
-    if(server_settings.contains("all_controllers"))
-    {
-        all_controllers     = server_settings["all_controllers"];
-    }
-
-    if(all_controllers)
+    SettingsAccessGuard settings = settings_manager->GetSettings();
+    const ServerSettings& server_settings = settings.access().servers;
+    if(server_settings.all_controllers)
     {
         server->SetControllers(rgb_controllers);
     }
@@ -691,37 +681,35 @@ void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool start
     /*-----------------------------------------------------*\
     | Initialize Saved Client Connections                   |
     \*-----------------------------------------------------*/
-    json client_settings            = settings_manager->GetSettings("Client");
+    SettingsAccessGuard settings = settings_manager->GetSettings();
+    const ClientSettings& client_settings = settings.access().clients;
 
-    if(client_settings.contains("clients"))
+    for(unsigned int client_idx = 0; client_idx < client_settings.clients.size(); client_idx++)
     {
-        for(unsigned int client_idx = 0; client_idx < client_settings["clients"].size(); client_idx++)
+        NetworkClient * client = new NetworkClient();
+
+        std::string titleString = "OpenRGB ";
+        titleString.append(VERSION_STRING);
+
+        const std::string&  client_ip   = client_settings.clients[client_idx].ip;
+        unsigned short      client_port = client_settings.clients[client_idx].port;
+
+        client->SetIP(client_ip.c_str());
+        client->SetName(titleString.c_str());
+        client->SetPort(client_port);
+
+        client->StartClient();
+
+        for(int timeout = 0; timeout < 100; timeout++)
         {
-            NetworkClient * client = new NetworkClient();
-
-            std::string titleString = "OpenRGB ";
-            titleString.append(VERSION_STRING);
-
-            std::string     client_ip   = client_settings["clients"][client_idx]["ip"];
-            unsigned short  client_port = client_settings["clients"][client_idx]["port"];
-
-            client->SetIP(client_ip.c_str());
-            client->SetName(titleString.c_str());
-            client->SetPort(client_port);
-
-            client->StartClient();
-
-            for(int timeout = 0; timeout < 100; timeout++)
+            if(client->GetConnected())
             {
-                if(client->GetConnected())
-                {
-                    break;
-                }
-                std::this_thread::sleep_for(10ms);
+                break;
             }
-
-            RegisterNetworkClient(client);
+            std::this_thread::sleep_for(10ms);
         }
+
+        RegisterNetworkClient(client);
     }
 
     /*-----------------------------------------------------*\

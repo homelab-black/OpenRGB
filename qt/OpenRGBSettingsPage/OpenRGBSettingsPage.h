@@ -41,8 +41,8 @@ private:
     void SaveSettings();
 
     void CreateAutoStartSettings();
-    void ConfigureAutoStart();
-    void RemediateAutoStartProfile(json &autostart_settings);
+    void ConfigureAutoStart(const AutoStartSettings& autostart_settings);
+    void RemediateAutoStartProfile(AutoStartSettings& autostart_settings);
     void SetAutoStartVisibility(bool visible);
     void SaveAutoStartSetting(std::string name, QString value);
     void SaveAutoStartSetting(std::string name, bool value);

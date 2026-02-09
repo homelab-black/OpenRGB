@@ -461,8 +461,9 @@ void NetworkClient::ProfileManager_ClearActiveProfile()
 /*---------------------------------------------------------*\
 | SettingsManager functions                                 |
 \*---------------------------------------------------------*/
-std::string NetworkClient::SettingsManager_GetSettings(std::string settings_key)
+std::string NetworkClient::SettingsManager_GetSettings()
 {
+    // todo: fix
     NetPacketHeader request_hdr;
     std::string     response_string;
 

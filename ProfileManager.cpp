@@ -40,60 +40,6 @@ ProfileManager::ProfileManager(const filesystem::path& config_dir)
     \*-----------------------------------------------------*/
     SetConfigurationDirectory(config_dir);
     UpdateProfileList();
-
-    /*-----------------------------------------------------*\
-    | Read in profile manager settings and initialize any   |
-    | missing settings to defaults                          |
-    \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager            = ResourceManager::get()->GetSettingsManager();
-    json                profilemanager_settings     = settings_manager->GetSettings("ProfileManager");
-    bool                new_settings_keys           = false;
-
-    if(!profilemanager_settings.contains("open_profile"))
-    {
-        json profile;;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["open_profile"]     = profile;
-        new_settings_keys                           = true;
-    }
-
-    if(!profilemanager_settings.contains("exit_profile"))
-    {
-        json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["exit_profile"]     = profile;
-        new_settings_keys                           = true;
-    }
-
-    if(!profilemanager_settings.contains("resume_profile"))
-    {
-        json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["resume_profile"]   = profile;
-        new_settings_keys                           = true;
-    }
-
-    if(!profilemanager_settings.contains("suspend_profile"))
-    {
-        json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["suspend_profile"]  = profile;
-        new_settings_keys                           = true;
-    }
-
-    /*-----------------------------------------------------*\
-    | Save the settings if new default values have been     |
-    | inserted                                              |
-    \*-----------------------------------------------------*/
-    if(new_settings_keys)
-    {
-        settings_manager->SetSettings("ProfileManager", profilemanager_settings);
-        settings_manager->SaveSettings();
-    }
 }
 
 ProfileManager::~ProfileManager()
@@ -226,22 +172,22 @@ unsigned char * ProfileManager::GetProfileListDescription()
 
 bool ProfileManager::LoadAutoProfileExit()
 {
-    return(LoadAutoProfile("exit_profile"));
+    return(LoadAutoProfile(ManagedProfileType::Exit));
 }
 
 bool ProfileManager::LoadAutoProfileOpen()
 {
-    return(LoadAutoProfile("open_profile"));
+    return(LoadAutoProfile(ManagedProfileType::Open));
 }
 
 bool ProfileManager::LoadAutoProfileResume()
 {
-    return(LoadAutoProfile("resume_profile"));
+    return(LoadAutoProfile(ManagedProfileType::Resume));
 }
 
 bool ProfileManager::LoadAutoProfileSuspend()
 {
-    return(LoadAutoProfile("suspend_profile"));
+    return(LoadAutoProfile(ManagedProfileType::Suspend));
 }
 
 bool ProfileManager::LoadProfile(std::string profile_name)
@@ -634,33 +580,24 @@ void ProfileManager::UpdateProfileList()
 /*---------------------------------------------------------*\
 | Private functions                                         |
 \*---------------------------------------------------------*/
-bool ProfileManager::LoadAutoProfile(std::string setting_name)
+bool ProfileManager::LoadAutoProfile(ManagedProfileType profile_type)
 {
     /*-----------------------------------------------------*\
     | Read in profile manager settings and check for the    |
     | given setting name                                    |
     \*-----------------------------------------------------*/
-    json        profilemanager_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("ProfileManager");
-    std::string profile_name;
-
-    if(profilemanager_settings.contains(setting_name))
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const ProfileManagerSettings& profilemanager_settings = settings.access().profile_manager;
+    switch (profile_type)
     {
-        if(profilemanager_settings[setting_name].contains("name") && profilemanager_settings[setting_name].contains("enabled") && profilemanager_settings[setting_name]["enabled"] == true)
-        {
-            profile_name                = profilemanager_settings[setting_name]["name"];
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Load the profile if it is valid                       |
-    \*-----------------------------------------------------*/
-    if(!profile_name.empty())
-    {
-        return(LoadProfile(profile_name));
-    }
-    else
-    {
-        return(false);
+        case ManagedProfileType::Open:
+            return LoadProfile(profilemanager_settings.open_profile.name);
+        case ManagedProfileType::Resume:
+            return LoadProfile(profilemanager_settings.resume_profile.name);
+        case ManagedProfileType::Suspend:
+            return LoadProfile(profilemanager_settings.suspend_profile.name);
+        case ManagedProfileType::Exit:
+            return LoadProfile(profilemanager_settings.exit_profile.name);
     }
 }
 

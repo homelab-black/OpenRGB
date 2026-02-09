@@ -40,21 +40,19 @@ SettingsManager::~SettingsManager()
 
 }
 
-json SettingsManager::GetSettings(std::string settings_key)
+SettingsAccessGuard SettingsManager::GetSettings()
 {
-    json result;
-    bool ui_settings_key = false;
+    // bool ui_settings_key = false;
+    // for(std::size_t settings_key_idx = 0; settings_key_idx < 7; settings_key_idx++)
+    // {
+    //     if(settings_key == ui_settings_keys[settings_key_idx])
+    //     {
+    //         ui_settings_key = true;
+    //         break;
+    //     }
+    // }
 
-    for(std::size_t settings_key_idx = 0; settings_key_idx < 7; settings_key_idx++)
-    {
-        if(settings_key == ui_settings_keys[settings_key_idx])
-        {
-            ui_settings_key = true;
-            break;
-        }
-    }
-
-    if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
     {
         /*-------------------------------------------------*\
         | If this is a local client, request the settings   |
@@ -62,7 +60,10 @@ json SettingsManager::GetSettings(std::string settings_key)
         \*-------------------------------------------------*/
         try
         {
-            result = nlohmann::json::parse(ResourceManager::get()->GetLocalClient()->SettingsManager_GetSettings(settings_key));
+            json result = nlohmann::json::parse(ResourceManager::get()->GetLocalClient()->SettingsManager_GetSettings());
+            // todo: maybe only invalidate this after a save?
+            local_settings = result.get<Settings>();
+            return SettingsAccessGuard(local_settings, mutex);
         }
         catch(...)
         {
@@ -78,49 +79,59 @@ json SettingsManager::GetSettings(std::string settings_key)
         | the value from changing while data is being read  |
         | and copy before unlocking.                        |
         \*-------------------------------------------------*/
-        mutex.lock();
-        if(settings_data.contains(settings_key))
-        {
-            result = settings_data[settings_key];
-        }
-        mutex.unlock();
+        return SettingsAccessGuard(settings_data, mutex);
+        // mutex.lock();
+        // if(settings_data.contains(settings_key))
+        // {
+        //     result = settings_data[settings_key];
+        // }
+        // mutex.unlock();
     }
-
-    return result;
+    // return result;
 }
 
-void SettingsManager::SetSettings(std::string settings_key, json new_settings)
+void SettingsManager::ModifySettings(std::function<void(Settings& settings)> modify_fn)
 {
-    bool ui_settings_key = false;
-
-    for(std::size_t settings_key_idx = 0; settings_key_idx < 7; settings_key_idx++)
-    {
-        if(settings_key == ui_settings_keys[settings_key_idx])
-        {
-            ui_settings_key = true;
-            break;
-        }
-    }
-
-    if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
-    {
-        /*-------------------------------------------------*\
-        | If this is a local client, request the settings   |
-        | from the server                                   |
-        \*-------------------------------------------------*/
-        nlohmann::json settings_json;
-
-        settings_json[settings_key] = new_settings;
-
-        ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(settings_json.dump());
-    }
-    else
-    {
-        mutex.lock();
-        settings_data[settings_key] = new_settings;
-        mutex.unlock();
-    }
+    mutex.lock();
+    modify_fn(settings_data);
+    mutex.unlock();
+    SaveSettings();
 }
+
+// void SettingsManager::SetSettings(std::string settings_key, json new_settings)
+// {
+//     bool ui_settings_key = false;
+
+//     for(std::size_t settings_key_idx = 0; settings_key_idx < 7; settings_key_idx++)
+//     {
+//         if(settings_key == ui_settings_keys[settings_key_idx])
+//         {
+//             ui_settings_key = true;
+//             break;
+//         }
+//     }
+
+//     if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+//     {
+//         /*-------------------------------------------------*\
+//         | If this is a local client, request the settings   |
+//         | from the server                                   |
+//         \*-------------------------------------------------*/
+//         // nlohmann::json settings_json;
+
+//         // settings_json[settings_key] = new_settings;
+//         json settings_json = local_settings;
+
+//         ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(settings_json.dump());
+//     }
+//     else
+//     {
+//         // noop, we edit an existing reference
+//         // mutex.lock();
+//         // settings_data[settings_key] = new_settings;
+//         // mutex.unlock();
+//     }
+// }
 
 void SettingsManager::SetSettingsFromJsonString(std::string settings_json_str)
 {
@@ -128,17 +139,30 @@ void SettingsManager::SetSettingsFromJsonString(std::string settings_json_str)
     | Parse the JSON string                                 |
     \*-----------------------------------------------------*/
     nlohmann::json settings_json = nlohmann::json::parse(settings_json_str);
+    Settings settings = settings_json.get<Settings>();
 
-    /*-----------------------------------------------------*\
-    | Get key/value pairs from JSON, call SetSettings for   |
-    | each key.  This use of `auto` is acceptable due to    |
-    | how the JSON library implements iterators, the type   |
-    | would change based on the library version.            |
-    \*-----------------------------------------------------*/
-    for(auto& element : settings_json.items())
+    bool ui_settings_key = true; // todo: fix
+    mutex.lock();
+    if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
     {
-        SetSettings(element.key(), element.value());
+        local_settings = settings;
     }
+    else
+    {
+        settings_data = settings;
+    }
+    mutex.unlock();
+
+    // /*-----------------------------------------------------*\
+    // | Get key/value pairs from JSON, call SetSettings for   |
+    // | each key.  This use of `auto` is acceptable due to    |
+    // | how the JSON library implements iterators, the type   |
+    // | would change based on the library version.            |
+    // \*-----------------------------------------------------*/
+    // for(auto& element : settings_json.items())
+    // {
+    //     SetSettings(element.key(), element.value());
+    // }
 }
 
 void SettingsManager::LoadSettings(const filesystem::path& filename)
@@ -147,8 +171,6 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
     | Clear any stored settings before loading              |
     \*-----------------------------------------------------*/
     mutex.lock();
-
-    settings_data.clear();
 
     /*-----------------------------------------------------*\
     | Store settings filename, so we can save to it later   |
@@ -170,7 +192,9 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
         {
             try
             {
-                settings_file >> settings_data;
+                json data;
+                settings_file >> data;
+                settings_data = data.get<Settings>();
             }
             catch(const std::exception& e)
             {
@@ -182,8 +206,6 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
                 | location                                  |
                 \*-----------------------------------------*/
                 LOG_ERROR("[SettingsManager] JSON parsing failed: %s", e.what());
-
-                settings_data.clear();
             }
         }
 
@@ -195,23 +217,26 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
 
 void SettingsManager::SaveSettings()
 {
+    mutex.lock();
     if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
     {
         /*-------------------------------------------------*\
         | If this is a local client, save the settings on   |
         | the server                                        |
         \*-------------------------------------------------*/
+        json settings_json = local_settings;
+        ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(settings_json.dump());
         ResourceManager::get()->GetLocalClient()->SettingsManager_SaveSettings();
     }
 
-    mutex.lock();
     std::ofstream settings_file(settings_filename, std::ios::out | std::ios::binary);
 
     if(settings_file)
     {
         try
         {
-            settings_file << settings_data.dump(4);
+            json data = settings_data;
+            settings_file << data;
         }
         catch(const std::exception& e)
         {
@@ -221,4 +246,21 @@ void SettingsManager::SaveSettings()
         settings_file.close();
     }
     mutex.unlock();
+}
+
+Settings& SettingsAccessGuard::access_mut()
+{
+    return settings;
+}
+
+const Settings& SettingsAccessGuard::access()
+{
+    return settings;
+};
+
+void SettingsAccessGuard::Save()
+{
+    lock.unlock();
+    ResourceManager::get()->GetSettingsManager()->SaveSettings();
+    lock.lock();
 }

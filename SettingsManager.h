@@ -16,14 +16,15 @@
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include "filesystem.h"
+#include "SettingsJson.h"
 
 using json = nlohmann::json;
 
 class SettingsManagerInterface
 {
 public:
-    virtual json GetSettings(std::string settings_key)                       = 0;
-    virtual void SetSettings(std::string settings_key, json new_settings)    = 0;
+    virtual SettingsAccessGuard GetSettings()                       = 0;
+    virtual void ModifySettings(std::function<void(Settings& settings)> modify_fn) = 0;
     virtual void SetSettingsFromJsonString(std::string settings_json_str)    = 0;
 
     virtual void LoadSettings(const filesystem::path& filename)              = 0;
@@ -39,17 +40,48 @@ public:
     SettingsManager();
     ~SettingsManager();
 
-    json GetSettings(std::string settings_key) override;
-    void SetSettings(std::string settings_key, json new_settings) override;
+    SettingsAccessGuard GetSettings() override;
+    void ModifySettings(std::function<void(Settings& settings)> modify_fn) override;
     void SetSettingsFromJsonString(std::string settings_json_str) override;
 
     void LoadSettings(const filesystem::path& filename) override;
     void SaveSettings() override;
 
 private:
-    json             settings_data;
+    Settings             settings_data;
     json             settings_prototype;
     filesystem::path settings_filename;
     std::mutex       mutex;
     bool             config_found;
+
+
+    Settings        local_settings;
+};
+
+
+class SettingsAccessGuard
+{
+public:
+    SettingsAccessGuard(Settings& _settings, std::mutex& _mutex)
+    : settings(_settings), lock(_mutex)
+    {}
+
+    /*-------------------------------------------*\
+    | Accesses the settings immutably (read-only) |
+    \*-------------------------------------------*/
+    const Settings& access();
+    /*--------------------------------------------*\
+    | Accesses the settings mutably (write-access) |
+    \*--------------------------------------------*/
+    Settings& access_mut();
+
+    /*----------------------------------------------------*\
+    | Saves the currently accessed settings.               |
+    | This drops the internal lock, use this when possible |
+    \*----------------------------------------------------*/
+    void Save();
+
+private:
+    Settings& settings;
+    std::unique_lock<std::mutex> lock;
 };
