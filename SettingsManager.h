@@ -20,6 +20,44 @@
 
 using json = nlohmann::json;
 
+class SettingsAccessGuard
+{
+public:
+    SettingsAccessGuard(Settings& _settings, std::mutex& _mutex)
+    : settings(_settings), lock(_mutex)
+    {}
+
+    /*-------------------------------------------*\
+    | Accesses the settings immutably (read-only) |
+    \*-------------------------------------------*/
+    const Settings& access();
+    /*--------------------------------------------*\
+    | Accesses the settings mutably (write-access) |
+    \*--------------------------------------------*/
+    Settings& access_mut();
+
+    /*----------------------------------------------------*\
+    | Saves the currently accessed settings.               |
+    | This drops the internal lock, use this when possible |
+    \*----------------------------------------------------*/
+    void Save();
+
+    /*------------------------------------------------*\
+    | Releases the lock in this access guard           |
+    | After calling this this access guard is invalid. |
+    | Any further operation is undefined behaviour     |
+    \*------------------------------------------------*/
+    void Release();
+
+    // template<typename T>
+    // T GetSettingsValue(std::function<T(const Settings& settings)> getter_fn);
+
+private:
+    Settings& settings;
+    std::unique_lock<std::mutex> lock;
+};
+
+
 class SettingsManagerInterface
 {
 public:
@@ -64,42 +102,4 @@ private:
 
 
     Settings        local_settings;
-};
-
-
-class SettingsAccessGuard
-{
-public:
-    SettingsAccessGuard(Settings& _settings, std::mutex& _mutex)
-    : settings(_settings), lock(_mutex)
-    {}
-
-    /*-------------------------------------------*\
-    | Accesses the settings immutably (read-only) |
-    \*-------------------------------------------*/
-    const Settings& access();
-    /*--------------------------------------------*\
-    | Accesses the settings mutably (write-access) |
-    \*--------------------------------------------*/
-    Settings& access_mut();
-
-    /*----------------------------------------------------*\
-    | Saves the currently accessed settings.               |
-    | This drops the internal lock, use this when possible |
-    \*----------------------------------------------------*/
-    void Save();
-
-    /*------------------------------------------------*\
-    | Releases the lock in this access guard           |
-    | After calling this this access guard is invalid. |
-    | Any further operation is undefined behaviour     |
-    \*------------------------------------------------*/
-    void Release();
-
-    // template<typename T>
-    // T GetSettingsValue(std::function<T(const Settings& settings)> getter_fn);
-
-private:
-    Settings& settings;
-    std::unique_lock<std::mutex> lock;
 };

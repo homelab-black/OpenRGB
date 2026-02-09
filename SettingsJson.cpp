@@ -53,10 +53,14 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LogManagerSettings,
     file_count_limit,
     log_file,
     logfile,
-    loglevel
+    loglevel,
+    dialog_no_show_hashes
 );
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileSettings, enabled, name);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileSettings,
+    enabled,
+    name
+);
 
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileManagerSettings,
@@ -71,6 +75,36 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Theme, {
     {Dark, "dark"},
     {Auto, "auto"}
 });
+
+string ThemeToString(Theme theme)
+{
+    switch (theme)
+    {
+        case Theme::Light: return "Light";
+        case Theme::Dark: return "Dark";
+        case Theme::Auto: return "Auto";
+    }
+}
+
+std::optional<Theme> StringToTheme(const std::string& str)
+{
+    if (str == "Light" || str == "light")
+    {
+        return Theme::Light;
+    }
+    else if (str == "Dark" || str == "dark")
+    {
+        return Theme::Dark;
+    }
+    else if (str == "Auto" || str == "auto")
+    {
+        return Theme::Auto;
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ThemeSettings, theme);
 
@@ -118,6 +152,30 @@ NLOHMANN_JSON_SERIALIZE_ENUM(HexFormat, {
     {BGR, "BGR"}
 });
 
+string HexFormatToString(HexFormat hex_format)
+{
+    switch (hex_format)
+    {
+        case HexFormat::RGB: return "RGB";
+        case HexFormat::BGR: return "BGR";
+    }
+}
+std::optional<HexFormat> StringToHexFormat(const std::string& str)
+{
+    if (str == "RGB" || str == "rgb")
+    {
+        return HexFormat::RGB;
+    }
+        if (str == "BGR" || str == "bgr")
+    {
+        return HexFormat::BGR;
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(UserInterfaceSettings,
     run_zone_checks,
     greyscale_tray_icon,
@@ -150,10 +208,21 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ClientSettings,
     clients
 );
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ControllerSettings,
+    data
+);
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DriverSettings,
     amd_smbus_reduce_cpu,
     shared_smbus_access
 );
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ServerSettings,
+    legacy_workaround,
+    all_controllers,
+    all_devices
+);
+
 
 /* *\
 We can't use the macro's here since we need to rename the fields.
@@ -171,6 +240,8 @@ void to_json(nlohmann::json &j, const Settings& st) {
         {"Plugins", st.plugins},
         {"Clients", st.clients},
         {"Drivers", st.drivers},
+        {"Servers", st.servers},
+        {"Controllers", st.controllers},
     };
 }
 
@@ -184,4 +255,6 @@ void from_json(const json& j, Settings& st) {
     j.at("Plugins").get_to(st.plugins);
     j.at("Clients").get_to(st.clients);
     j.at("Drivers").get_to(st.drivers);
+    j.at("Servers").get_to(st.servers);
+    j.at("Controllers").get_to(st.controllers);
 }

@@ -467,11 +467,11 @@ std::string NetworkClient::SettingsManager_GetSettings()
     NetPacketHeader request_hdr;
     std::string     response_string;
 
-    InitNetPacketHeader(&request_hdr, 0, NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS, (unsigned int)strlen(settings_key.c_str()) + 1);
+    InitNetPacketHeader(&request_hdr, 0, NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS, (unsigned int) 1);
 
     send_in_progress.lock();
     send(client_sock, (char *)&request_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
-    send(client_sock, (char *)settings_key.c_str(), request_hdr.pkt_size, MSG_NOSIGNAL);
+    // send(client_sock, (char *)settings_key.c_str(), request_hdr.pkt_size, MSG_NOSIGNAL);
     send_in_progress.unlock();
 
     std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);

@@ -24,6 +24,8 @@
 #include "i2c_smbus.h"
 #include "RGBController.h"
 #include "SPDWrapper.h"
+#include "SettingsJson.h"
+#include "SettingsManager.h"
 
 /*---------------------------------------------------------*\
 | Windows defines "interface" in its headers, stop it       |

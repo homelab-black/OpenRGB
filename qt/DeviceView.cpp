@@ -263,18 +263,9 @@ void DeviceView::InitDeviceView()
     /*-----------------------------------------------------*\
     | Get device view settings                              |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         ui_string           = "UserInterface";
-    json                ui_settings;
 
-    bool                disable_expansion   = false;
-
-    ui_settings = settings_manager->GetSettings(ui_string);
-
-    if(ui_settings.contains("disable_key_expansion"))
-    {
-        disable_expansion       = ui_settings["disable_key_expansion"];
-    }
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const UserInterfaceSettings& ui_settings = settings.access().ui;
 
     /*-----------------------------------------------------*\
     | Determine the total height (in LEDs) of all zones     |
@@ -365,7 +356,7 @@ void DeviceView::InitDeviceView()
                         led_pos[color_idx].matrix_w = (1.0f - (2.0f * PAD_LED));
                         led_pos[color_idx].matrix_h = (1.0f - (2.0f * PAD_LED));
 
-                        if(!disable_expansion)
+                        if(!ui_settings.disable_key_expansion)
                         {
                             /*-----------------------------------------------------*\
                             | Expand large keys to fill empty spaces in matrix, if  |
