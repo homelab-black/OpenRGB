@@ -44,8 +44,6 @@ private:
     void ConfigureAutoStart(const AutoStartSettings& autostart_settings);
     void RemediateAutoStartProfile(AutoStartSettings& autostart_settings);
     void SetAutoStartVisibility(bool visible);
-    void SaveAutoStartSetting(std::string name, QString value);
-    void SaveAutoStartSetting(std::string name, bool value);
 
     bool theme_initialized = false;
     bool autostart_initialized = false;

@@ -37,6 +37,24 @@ struct DetectorSettings {
     bool hid_safe_mode = false;
     // default 0;
     int initial_detection_delay_ms = 0;
+
+    inline bool contains2(const std::string& detector_str) const
+    {
+        return detectors.count(detector_str) > 0;
+    }
+
+    /*---------------------------------------------------*\
+    | Returns true if the detector exists and is enabled. |
+    | Returns false if detector_str does not exist        |
+    \*---------------------------------------------------*/
+    inline bool detection_enabled_for(const std::string& detector_str) const
+    {
+        if (detectors.count(detector_str) > 0)
+        {
+            return detectors.at(detector_str);
+        }
+        return false;
+    }
 };
 
 struct LogManagerSettings {
@@ -50,6 +68,7 @@ struct LogManagerSettings {
     // The first # symbol is replaced by a timestamp
     std::optional<string> logfile;
     std::optional<unsigned int> loglevel;
+    std::vector<size_t> dialog_no_show_hashes;
 };
 
 
@@ -108,12 +127,12 @@ enum Language {
 };
 
 struct WindowGeometrySettings {
-    int x; // maybe use uint_32t for these?
-    int y;
-    int width;
-    int height;
-    bool load_geometry;
-    bool save_on_exit;
+    int x = 0; // maybe use uint_32t for these?
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    bool load_geometry = false;
+    bool save_on_exit = false;
 
 };
 
@@ -175,6 +194,23 @@ struct OneClientSettings {
 struct ClientSettings
 {
     std::vector<OneClientSettings> clients;
+
+    inline bool contains(string ip, unsigned short port) const
+    {
+        return find(ip, port) != std::nullopt;
+    }
+
+    inline std::optional<size_t> find(string ip, unsigned short port) const
+    {
+        for (size_t i = 0; i < clients.size(); i++)
+        {
+            if (clients[i].ip == ip && clients[i].port == port)
+            {
+                return i;
+            }
+        }
+        return std::nullopt;
+    }
 };
 
 struct ControllerSettings {
@@ -182,17 +218,36 @@ struct ControllerSettings {
     // "ASRock Polychrome USB"
     // "Asus Aura Core Laptop"
     // "CorsairDominatorSettings"
+    // "DDPDevices"
+    // "DebugDevices"
+    // "DMXDevices"
+    // "E131Devices"
     // "Gigabyte RGB Fusion 2 SMBus"
     // "Gigabyte RGB Fusion 2 USB"
+    // "ElgatoLightStripDevices"
+    // "ENESMBusSettings"
+    // "EspurnaDevices"
+    // "EVision2Settings"
+    // "EndorfySettings"
+    // "FanBusDevices"
+    // "GoveeDevices"
+    // "KasaSmartDevices"
+    // "LEDStripDevices"
+    // "LIFXDevices"
+    // "LinuxLEDDevices"
     // "PhilipsHueDevices"
+    // "PhilipsWizDevices"
     // "QMKOpenRGBDevices"
     // "NanoleafDevices"
+    // "QMKVialRGBDevices"
+    // "YeelightDevices"
+    json data;
 };
 
 struct DriverSettings
 {
-    bool amd_smbus_reduce_cpu;
-    bool shared_smbus_access;
+    bool amd_smbus_reduce_cpu = false;
+    bool shared_smbus_access = true;
 };
 
 struct ServerSettings
@@ -205,6 +260,7 @@ struct ServerSettings
 };
 
 struct Settings {
+    std::string version = "1.0";
     AutoStartSettings auto_start;
     DetectorSettings detectors;
     LogManagerSettings log_manager;
@@ -215,6 +271,7 @@ struct Settings {
     ClientSettings clients;
     DriverSettings drivers;
     ServerSettings servers;
+    ControllerSettings controllers;
 };
 
 /* *\

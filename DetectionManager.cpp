@@ -590,7 +590,6 @@ void DetectionManager::BackgroundDetectDevices()
     | Initialize local variables                            |
     \*-----------------------------------------------------*/
     hid_device_info*    current_hid_device;
-    json                detector_settings;
     hid_device_info*    hid_devices                 = NULL;
     bool                hid_safe_mode               = false;
     unsigned int        initial_detection_delay_ms  = 0;
@@ -616,18 +615,8 @@ void DetectionManager::BackgroundDetectDevices()
     /*-----------------------------------------------------*\
     | Check HID safe mode setting                           |
     \*-----------------------------------------------------*/
-    if(detector_settings.contains("hid_safe_mode"))
-    {
-        hid_safe_mode = detector_settings["hid_safe_mode"];
-    }
-
-    /*-----------------------------------------------------*\
-    | Check initial detection delay setting                 |
-    \*-----------------------------------------------------*/
-    if(detector_settings.contains("initial_detection_delay_ms"))
-    {
-        initial_detection_delay_ms = detector_settings["initial_detection_delay_ms"];
-    }
+    hid_safe_mode = detector_settings.hid_safe_mode;
+    initial_detection_delay_ms = detector_settings.initial_detection_delay_ms;
 
     /*-----------------------------------------------------*\
     | If configured, delay detection for the configured     |
@@ -867,7 +856,7 @@ void DetectionManager::BackgroundDetectI2CBuses()
     }
 }
 
-void DetectionManager::BackgroundDetectI2CDevices(json detector_settings)
+void DetectionManager::BackgroundDetectI2CDevices(const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Detecting I2C devices                |");
@@ -883,12 +872,7 @@ void DetectionManager::BackgroundDetectI2CDevices(json detector_settings)
         /*-------------------------------------------------*\
         | Check if this detector is enabled                 |
         \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
+        bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -919,7 +903,7 @@ void DetectionManager::BackgroundDetectI2CDevices(json detector_settings)
     }
 }
 
-void DetectionManager::BackgroundDetectI2CDRAMDevices(json detector_settings)
+void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|            Detecting I2C DRAM modules              |");
@@ -958,12 +942,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(json detector_settings)
                     /*-------------------------------------*\
                     | Check if this detector is enabled     |
                     \*-------------------------------------*/
-                    bool this_device_enabled = true;
-
-                    if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-                    {
-                        this_device_enabled = detector_settings["detectors"][detection_string];
-                    }
+                    bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
                     LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -996,7 +975,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(json detector_settings)
     }
 }
 
-void DetectionManager::BackgroundDetectI2CPCIDevices(json detector_settings)
+void DetectionManager::BackgroundDetectI2CPCIDevices(const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Detecting I2C PCI devices            |");
@@ -1009,12 +988,7 @@ void DetectionManager::BackgroundDetectI2CPCIDevices(json detector_settings)
         /*-------------------------------------------------*\
         | Check if this detector is enabled                 |
         \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
+        bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -1052,7 +1026,7 @@ void DetectionManager::BackgroundDetectI2CPCIDevices(json detector_settings)
     }
 }
 
-void DetectionManager::BackgroundDetectHIDDevices(hid_device_info* hid_devices, json detector_settings)
+void DetectionManager::BackgroundDetectHIDDevices(hid_device_info* hid_devices, const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Detecting HID devices                |");
@@ -1094,7 +1068,7 @@ void DetectionManager::BackgroundDetectHIDDevices(hid_device_info* hid_devices, 
     hid_free_enumeration(hid_devices);
 }
 
-void DetectionManager::BackgroundDetectHIDDevicesSafe(json detector_settings)
+void DetectionManager::BackgroundDetectHIDDevicesSafe(const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Detecting HID devices                |");
@@ -1123,12 +1097,7 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(json detector_settings)
                 | Check if this detector is enabled or      |
                 | needs to be added to the settings list    |
                 \*-----------------------------------------*/
-                bool this_device_enabled = true;
-
-                if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-                {
-                    this_device_enabled = detector_settings["detectors"][detection_string];
-                }
+                bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
                 LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -1166,7 +1135,7 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(json detector_settings)
 
 #ifdef __linux__
 #ifdef __GLIBC__
-void DetectionManager::BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, json detector_settings)
+void DetectionManager::BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|            Detecting libusb HID devices            |");
@@ -1213,7 +1182,7 @@ void DetectionManager::BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_de
 #endif
 #endif
 
-void DetectionManager::BackgroundDetectOtherDevices(json detector_settings)
+void DetectionManager::BackgroundDetectOtherDevices(const DetectorSettings& detector_settings)
 {
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|              Detecting other devices               |");
@@ -1226,12 +1195,7 @@ void DetectionManager::BackgroundDetectOtherDevices(json detector_settings)
         /*-------------------------------------------------*\
         | Check if this detector is enabled                 |
         \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
+        bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -1327,7 +1291,7 @@ void DetectionManager::BackgroundHIDInit()
 /*---------------------------------------------------------*\
 | Functions to run detectors                                |
 \*---------------------------------------------------------*/
-void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json detector_settings)
+void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, const DetectorSettings& detector_settings)
 {
     if(LogManager::get()->getLoglevel() >= LL_DEBUG)
     {
@@ -1386,12 +1350,7 @@ void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json 
             | Check if this detector is enabled or needs to |
             | be added to the settings list                 |
             \*---------------------------------------------*/
-            bool this_device_enabled = true;
-
-            if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-            {
-                this_device_enabled = detector_settings["detectors"][detection_string];
-            }
+            bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
             LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -1441,7 +1400,7 @@ void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json 
     }
 }
 
-void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, json detector_settings)
+void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, const DetectorSettings& detector_settings)
 {
     if(LogManager::get()->getLoglevel() >= LL_DEBUG)
     {
@@ -1500,12 +1459,7 @@ void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_
             | Check if this detector is enabled or needs to |
             | be added to the settings list                 |
             \*---------------------------------------------*/
-            bool this_device_enabled = true;
-
-            if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-            {
-                this_device_enabled = detector_settings["detectors"][detection_string];
-            }
+            bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
             LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
@@ -1808,10 +1762,6 @@ void DetectionManager::UpdateDetectorSettings()
     if(save_settings)
     {
         LOG_INFO("[%s] Saving detector settings", DETECTIONMANAGER);
-
-        // ResourceManager::get()->GetSettingsManager()->SetSettings("Detectors", detector_settings);
-
-        // ResourceManager::get()->GetSettingsManager()->SaveSettings();
         settings.Save();
     }
 }
@@ -1857,7 +1807,8 @@ int DetectionManager::HotplugCallbackFunction(hid_hotplug_callback_handle callba
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
-    json                detector_settings   = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DetectorSettings& detector_settings = settings.access().detectors;
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
@@ -1903,7 +1854,8 @@ int DetectionManager::WrappedHotplugCallbackFunction(hid_hotplug_callback_handle
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
-    json                detector_settings   = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DetectorSettings& detector_settings = settings.access().detectors;
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
@@ -1938,16 +1890,12 @@ void DetectionManager::SignalUpdate(unsigned int update_reason)
     LOG_TRACE("[%s] Update signalled: %d.", DETECTIONMANAGER, update_reason);
 }
 
-bool DetectionManager::IsAnyDimmDetectorEnabled(json &detector_settings)
+bool DetectionManager::IsAnyDimmDetectorEnabled(const DetectorSettings& detector_settings)
 {
     for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
     {
         std::string detector_name_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detector_name_string) &&
-           detector_settings["detectors"][detector_name_string] == true)
+        if (detector_settings.detection_enabled_for(detector_name_string))
         {
             return true;
         }

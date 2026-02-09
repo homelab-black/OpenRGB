@@ -720,32 +720,6 @@ void OpenRGBSettingsPage::on_ComboBoxAutoStartProfile_currentTextChanged(const Q
     }
 }
 
-void OpenRGBSettingsPage::SaveAutoStartSetting(std::string name, QString value)
-{
-    // if(autostart_initialized)
-    // {
-    //     json autostart_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("AutoStart");
-    //     autostart_settings[name] = value.toStdString();
-    //     ResourceManager::get()->GetSettingsManager()->SetSettings("AutoStart", autostart_settings);
-    //     SaveSettings();
-
-    //     ConfigureAutoStart();
-    // }
-}
-
-void OpenRGBSettingsPage::SaveAutoStartSetting(std::string name, bool value)
-{
-    // if(autostart_initialized)
-    // {
-    //     json autostart_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("AutoStart");
-    //     autostart_settings[name] = value;
-    //     ResourceManager::get()->GetSettingsManager()->SetSettings("AutoStart", autostart_settings);
-    //     SaveSettings();
-
-    //     ConfigureAutoStart();
-    // }
-}
-
 void OpenRGBSettingsPage::SetAutoStartVisibility(bool visible)
 {
     if (!visible)

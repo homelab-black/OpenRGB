@@ -20,13 +20,10 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <nlohmann/json.hpp>
 #include "hidapi_wrapper.h"
 #include "i2c_smbus.h"
 #include "RGBController.h"
 #include "SPDWrapper.h"
-
-using json = nlohmann::json;
 
 /*---------------------------------------------------------*\
 | Windows defines "interface" in its headers, stop it       |
@@ -300,26 +297,26 @@ private:
     | Functions that must be run in the background thread   |
     \*-----------------------------------------------------*/
     void BackgroundDetectDevices();
-    void BackgroundDetectHIDDevices(hid_device_info* hid_devices, json detector_settings);
-    void BackgroundDetectHIDDevicesSafe(json detector_settings);
+    void BackgroundDetectHIDDevices(hid_device_info* hid_devices, const DetectorSettings& detector_settings);
+    void BackgroundDetectHIDDevicesSafe(const DetectorSettings& detector_settings);
 #ifdef __linux__
 #ifdef __GLIBC__
-    void BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, json detector_settings);
+    void BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, const DetectorSettings& detector_settings);
 #endif
 #endif
     void BackgroundDetectI2CBuses();
-    void BackgroundDetectI2CDevices(json detector_settings);
-    void BackgroundDetectI2CDRAMDevices(json detector_settings);
-    void BackgroundDetectI2CPCIDevices(json detector_settings);
-    void BackgroundDetectOtherDevices(json detector_settings);
+    void BackgroundDetectI2CDevices(const DetectorSettings& detector_settings);
+    void BackgroundDetectI2CDRAMDevices(const DetectorSettings& detector_settings);
+    void BackgroundDetectI2CPCIDevices(const DetectorSettings& detector_settings);
+    void BackgroundDetectOtherDevices(const DetectorSettings& detector_settings);
     void BackgroundHIDExit();
     void BackgroundHIDInit();
 
     /*-----------------------------------------------------*\
     | Functions to run detectors                            |
     \*-----------------------------------------------------*/
-    void RunHIDDetector(hid_device_info* current_hid_device, json detector_settings);
-    void RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, json detector_settings);
+    void RunHIDDetector(hid_device_info* current_hid_device, const DetectorSettings& detector_settings);
+    void RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, const DetectorSettings& detector_settings);
 
     /*-----------------------------------------------------*\
     | Detection processing functions                        |
@@ -356,7 +353,7 @@ private:
     \*-----------------------------------------------------*/
     void SignalUpdate(unsigned int update_reason);
 
-    bool IsAnyDimmDetectorEnabled(json &detector_settings);
+    bool IsAnyDimmDetectorEnabled(const DetectorSettings& detector_settings);
 };
 
 /*---------------------------------------------------------*\

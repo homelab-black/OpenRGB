@@ -79,48 +79,32 @@ void OpenRGBThemeManager::SetDarkTheme()
 
 bool OpenRGBThemeManager::IsDarkTheme()
 {
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    ThemeSettings theme_settings = settings.access().theme;
 
-    /*-------------------------------------------------*\
-    | Dark theme settings                               |
-    \*-------------------------------------------------*/
-    json            theme_settings;
 
-    /*-------------------------------------------------*\
-    | Get prefered theme from settings manager          |
-    \*-------------------------------------------------*/
-    theme_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Theme");
-
-    /*-------------------------------------------------*\
-    | Read the theme key and adjust accordingly         |
-    \*-------------------------------------------------*/
-    std::string current_theme = "Light";
-
-    if(theme_settings.contains("theme"))
+    switch (theme_settings.theme)
     {
-        current_theme = theme_settings["theme"];
-    }
-
-    if(current_theme == "Dark")
-    {
-        return true;
-    }
-#ifdef _WIN32
-    else if(current_theme == "Auto")
-    {
-        QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", QSettings::NativeFormat);
-
-        if(settings.value("AppsUseLightTheme") != 0)
-        {
+        case Theme::Light:
             return false;
-        }
-        else
-        {
+        case Theme::Dark:
             return true;
-        }
+        case Theme::Auto:
+        #ifdef _WIN32
+            QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", QSettings::NativeFormat);
+
+            if(settings.value("AppsUseLightTheme") != 0)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        #endif
+        /*------------------------------------------*\
+        | todo: read system theme on other platforms |
+        \*------------------------------------------*/
+            return false;
     }
-
-    return false;
-#endif
-
-    return false;
 }

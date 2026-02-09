@@ -141,28 +141,18 @@ void SettingsManager::SetSettingsFromJsonString(std::string settings_json_str)
     nlohmann::json settings_json = nlohmann::json::parse(settings_json_str);
     Settings settings = settings_json.get<Settings>();
 
-    bool ui_settings_key = true; // todo: fix
     mutex.lock();
-    if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
     {
         local_settings = settings;
+        json serialized = local_settings;
+        ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(serialized.dump());
     }
     else
     {
         settings_data = settings;
     }
     mutex.unlock();
-
-    // /*-----------------------------------------------------*\
-    // | Get key/value pairs from JSON, call SetSettings for   |
-    // | each key.  This use of `auto` is acceptable due to    |
-    // | how the JSON library implements iterators, the type   |
-    // | would change based on the library version.            |
-    // \*-----------------------------------------------------*/
-    // for(auto& element : settings_json.items())
-    // {
-    //     SetSettings(element.key(), element.value());
-    // }
 }
 
 void SettingsManager::LoadSettings(const filesystem::path& filename)
@@ -248,6 +238,33 @@ void SettingsManager::SaveSettings()
     mutex.unlock();
 }
 
+template<typename T>
+std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
+{
+    mutex.lock();
+    std::optional<T> deserialized;
+    if (settings_data.controllers.data.contains(key))
+    {
+        deserialized = settings_data.controllers.data[key].get<T>();
+    }
+    else
+    {
+        deserialized = std::nullopt;
+    }
+    mutex.unlock();
+    return deserialized;
+}
+
+template<typename T>
+void SettingsManager::SetControllerSettingsAndSave(const std::string& key, T settings)
+{
+    json serialized = settings;
+    mutex.lock();
+    settings_data.controllers.data[key] = serialized;
+    mutex.unlock();
+    SaveSettings();
+}
+
 Settings& SettingsAccessGuard::access_mut()
 {
     return settings;
@@ -263,4 +280,9 @@ void SettingsAccessGuard::Save()
     lock.unlock();
     ResourceManager::get()->GetSettingsManager()->SaveSettings();
     lock.lock();
+}
+
+void SettingsAccessGuard::Release()
+{
+    lock.unlock();
 }

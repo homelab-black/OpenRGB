@@ -44,6 +44,14 @@ public:
     void ModifySettings(std::function<void(Settings& settings)> modify_fn) override;
     void SetSettingsFromJsonString(std::string settings_json_str) override;
 
+    /*----------------------------*\
+    | Controller-specific settings |
+    \*----------------------------*/
+    template<typename T>
+    std::optional<T> GetControllerSettings(const std::string& key);
+    template<typename T>
+    void SetControllerSettingsAndSave(const std::string& key, T settings);
+
     void LoadSettings(const filesystem::path& filename) override;
     void SaveSettings() override;
 
@@ -80,6 +88,16 @@ public:
     | This drops the internal lock, use this when possible |
     \*----------------------------------------------------*/
     void Save();
+
+    /*------------------------------------------------*\
+    | Releases the lock in this access guard           |
+    | After calling this this access guard is invalid. |
+    | Any further operation is undefined behaviour     |
+    \*------------------------------------------------*/
+    void Release();
+
+    // template<typename T>
+    // T GetSettingsValue(std::function<T(const Settings& settings)> getter_fn);
 
 private:
     Settings& settings;

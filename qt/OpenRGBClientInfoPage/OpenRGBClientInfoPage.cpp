@@ -104,39 +104,21 @@ void OpenRGBClientInfoPage::UpdateInfo()
     /*-------------------------------------------------*\
     | Get Client settings                               |
     \*-------------------------------------------------*/
-    json                client_settings;
-
-    client_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Client");
-
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const ClientSettings& client_settings = settings.access().clients;
     /*-----------------------------------------------------*\
     | Loop through all clients in list and display them     |
     \*-----------------------------------------------------*/
     for(std::size_t client_idx = 0; client_idx < ResourceManager::get()->GetClients().size(); client_idx++)
     {
+
         /*-----------------------------------------------------*\
         | Check to see if this client is in the saved clients   |
         | list                                                  |
         \*-----------------------------------------------------*/
-        bool found = false;
-        if(client_settings.contains("clients"))
-        {
-            for(unsigned int saved_client_idx = 0; saved_client_idx < client_settings["clients"].size(); saved_client_idx++)
-            {
-                if(client_settings["clients"][saved_client_idx].contains("ip") && client_settings["clients"][saved_client_idx].contains("port"))
-                {
-                    std::string     saved_ip    = client_settings["clients"][saved_client_idx]["ip"];
-                    unsigned short  saved_port  = client_settings["clients"][saved_client_idx]["port"];
-                    std::string     client_ip   = ResourceManager::get()->GetClients()[client_idx]->GetIP();
-                    unsigned short  client_port = ResourceManager::get()->GetClients()[client_idx]->GetPort();
-
-                    if((client_ip == saved_ip) && (client_port == saved_port))
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-        }
+        const std::string&  client_ip   = ResourceManager::get()->GetClients()[client_idx]->GetIP();
+        unsigned short      client_port = ResourceManager::get()->GetClients()[client_idx]->GetPort();
+        bool found = client_settings.contains(client_ip, client_port);
 
         /*-----------------------------------------------------*\
         | Create the top level tree widget items                |
@@ -324,66 +306,35 @@ void OpenRGBClientInfoPage::onClientSaveCheckBox_clicked(QObject * arg)
     NetworkClient * save_client     = ((NetworkClientPointer *)arg)->net_client;
     QCheckBox *     save_checkbox   = (QCheckBox *)((NetworkClientPointer *)arg)->widget;
 
-    json            client_settings;
-
     /*-------------------------------------------------*\
     | Get Client settings                               |
     \*-------------------------------------------------*/
-    client_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Client");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    ClientSettings& client_settings = settings.access_mut().clients;
+    std::string     save_ip     = save_client->GetIP();
+    unsigned short  save_port   = save_client->GetPort();
 
     if(save_checkbox->isChecked())
     {
-        bool found = false;
-        for(unsigned int client_idx = 0; client_idx < client_settings["clients"].size(); client_idx++)
-        {
-            if(client_settings["clients"][client_idx].contains("ip") && client_settings["clients"][client_idx].contains("port"))
-            {
-                std::string     client_ip   = client_settings["clients"][client_idx]["ip"];
-                unsigned short  client_port = client_settings["clients"][client_idx]["port"];
-                std::string     save_ip     = save_client->GetIP();
-                unsigned short  save_port   = save_client->GetPort();
-
-                if((client_ip == save_ip) && (client_port == save_port))
-                {
-                    found = true;
-                    break;
-                }
-            }
-        }
+        bool found = client_settings.contains(save_ip, save_port);
 
         if(!found)
         {
-            json new_client;
-
-            new_client["ip"]    = save_client->GetIP();
-            new_client["port"]  = save_client->GetPort();
-
-            client_settings["clients"].push_back(new_client);
+            OneClientSettings new_client = OneClientSettings
+            {
+                .ip = save_ip,
+                .port = save_port,
+            };
+            client_settings.clients.emplace_back(new_client);
         }
     }
     else
     {
-        if(client_settings.contains("clients"))
+        std::optional<size_t> found_idx = client_settings.find(save_ip, save_port);
+        if (found_idx)
         {
-            for(unsigned int client_idx = 0; client_idx < client_settings["clients"].size(); client_idx++)
-            {
-                if(client_settings["clients"][client_idx].contains("ip") && client_settings["clients"][client_idx].contains("port"))
-                {
-                    std::string     client_ip   = client_settings["clients"][client_idx]["ip"];
-                    unsigned short  client_port = client_settings["clients"][client_idx]["port"];
-                    std::string     save_ip     = save_client->GetIP();
-                    unsigned short  save_port   = save_client->GetPort();
-
-                    if((client_ip == save_ip) && (client_port == save_port))
-                    {
-                        client_settings["clients"].erase(client_settings["clients"].begin() + client_idx);
-                        break;
-                    }
-                }
-            }
+            client_settings.clients.erase(client_settings.clients.begin() + *found_idx);
         }
     }
-
-    ResourceManager::get()->GetSettingsManager()->SetSettings("Client", client_settings);
-    ResourceManager::get()->GetSettingsManager()->SaveSettings();
+    settings.Save();
 }
