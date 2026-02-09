@@ -31,6 +31,16 @@ static std::string power_states[ASUSAURACORELAPTOP_POWER_STATES] =
     " when off",
 };
 
+void to_json(json& j, const AsusAuraCoreLaptopSettings& settings)
+{
+    j[POWER_SECTION_JSON_KEY] = settings.power_config;
+}
+
+void from_json(const json& j, AsusAuraCoreLaptopSettings& settings)
+{
+    j.at(POWER_SECTION_JSON_KEY).get_to(settings.power_config);
+}
+
 AsusAuraCoreLaptopController::AsusAuraCoreLaptopController(hid_device* dev_handle, const char* path)
 {
     dev                     = dev_handle;
@@ -352,36 +362,35 @@ void AsusAuraCoreLaptopController::SetPowerConfigFromJSON()
     const std::string section_power     = "PowerConfig";
     const std::string detector_name     = "Asus Aura Core Laptop";
     SettingsManager* settings_manager   = ResourceManager::get()->GetSettingsManager();
-    json device_settings                = settings_manager->GetSettings(detector_name);
+    std::optional<AsusAuraCoreLaptopSettings> device_settings = settings_manager->GetControllerSettings<AsusAuraCoreLaptopSettings>(detector_name);
 
     /*---------------------------------------------------------*\
     | Get Power state config from the settings manager          |
     |   If PowerConfig is not found then write it to settings   |
     \*---------------------------------------------------------*/
-    if(!device_settings.contains(section_power))
+    if(!device_settings.has_value())
     {
-        json pcfg;
+        AsusAuraCoreLaptopSettings default_settings;
 
         for(size_t i = 0; i < power_config.size(); i++)
         {
-            pcfg[power_config[i].zone]  = power_config[i].state;
+            default_settings.power_config.insert({power_config[i].zone, power_config[i].state});
         }
 
-        device_settings[section_power]  = pcfg;
-        settings_manager->SetSettings(detector_name, device_settings);
-        settings_manager->SaveSettings();
+        settings_manager->SetControllerSettingsAndSave(detector_name, default_settings);
+        device_settings = default_settings;
         LOG_DEBUG("[%s] default power config saved to openrgb.json",
                   aura_core_laptop_device_list[device_index]->dmi_name.c_str());
     }
     else
     {
+        const std::unordered_map<std::string, bool>& settings_power_config = device_settings.value().power_config;
         for(size_t i = 0; i < power_config.size(); i++)
         {
-            std::string key_name        = power_config[i].zone;
-
-            if(device_settings[section_power].contains(key_name))
+            std::string key_name = power_config[i].zone;
+            if(settings_power_config.count(key_name) > 0)
             {
-                power_config[i].state   = device_settings[section_power][key_name];
+                power_config[i].state = settings_power_config.at(key_name);
                 LOG_DEBUG("[%s] Reading power config for %s: %s",
                           aura_core_laptop_device_list[device_index]->dmi_name.c_str(),
                           key_name.c_str(), ((power_config[i].state) ? "On" : "Off"));
