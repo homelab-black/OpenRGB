@@ -27,8 +27,6 @@
 #define RGBFUSION2_SPEED_MID                4
 #define RGBFUSION2_SPEED_MAX                0
 
-#define GET_JSON_VAL_ELSE_OFF(obj, key) obj.contains(key) ? obj.at(key).get<std::string>() : std::string("OFF")
-
 template<typename K, typename V>
 static std::map<V, K> reverse_map(const std::map<K, V>& map)
 {
@@ -41,6 +39,57 @@ static std::map<V, K> reverse_map(const std::map<K, V>& map)
 
     return reversed_map;
 }
+
+struct CustomLayout
+{
+    std::string name;
+    std::string header;
+    uint16_t leds_min;
+    uint16_t leds_max;
+};
+
+using custom_layout_map = std::unordered_map<std::string, std::vector<CustomLayout>>;
+
+struct CustomLayoutSettings
+{
+    bool enabled;
+    custom_layout_map layouts;
+};
+
+void to_json(json& j, const CustomLayoutSettings& settings);
+void from_json(const json& j, CustomLayoutSettings& settings);
+
+struct CalibrationData
+{
+    std::string hdr_d_led1;
+    std::string hdr_d_led2;
+    std::string hdr_d_led3;
+    std::string hdr_d_led4;
+    std::string mainboard;
+    std::string spare0;
+    std::string spare1;
+    std::string spare2;
+    std::string spare3;
+};
+
+struct CalibrationSettings
+{
+    bool enabled;
+    CalibrationData data;
+};
+
+void to_json(json& j, const CalibrationSettings& settings);
+void from_json(const json& j, CalibrationSettings& settings);
+
+struct RGBFusion2USBSettings
+{
+    CustomLayoutSettings custom_layout;
+    CalibrationSettings calibration_settings;
+};
+
+void to_json(json& j, const RGBFusion2USBSettings& settings);
+void from_json(const json& j, RGBFusion2USBSettings& settings);
+
 
 class RGBController_RGBFusion2USB: public RGBController
 {
@@ -73,16 +122,16 @@ private:
     void                        Init_Controller();
     int                         GetLED_Zone(int led_idx);
 
-    nlohmann::json              WriteCalJsonFrom(
+    CalibrationData             WriteCalJsonFrom(
                                     const EncodedCalibration& src);
     void                        FillMissingWith(
-                                    nlohmann::json& dst,
+                                    CalibrationData& dst,
                                     const EncodedCalibration& fb);
-    nlohmann::json              BuildCustomLayoutJson(
+    custom_layout_map           BuildCustomLayoutJson(
                                     const gb_fusion2_device* layout,
                                     const RvrseLedHeaders& reverseLookup);
     void                        LoadCustomLayoutFromJson(
-                                    const nlohmann::json& json_custom,
+                                    const CustomLayoutSettings& json_custom,
                                     const FwdLedHeaders& forwardLookup,
                                     gb_fusion2_device* layout);
 };
