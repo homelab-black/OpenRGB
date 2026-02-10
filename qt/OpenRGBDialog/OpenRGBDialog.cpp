@@ -201,12 +201,6 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     QIcon logo(":org.openrgb.OpenRGB.png");
     setWindowIcon(logo);
 
-    /*-----------------------------------------------------*\
-    | Set window geometry from config (if available)        |
-    \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    bool                new_settings_keys   = false;
-
     /*-----------------------------*\
     | Extra block so settings mutex |
     | is automatically unlocked     |
@@ -344,6 +338,7 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     |   or else set the icon to the default window logo     |
     \*-----------------------------------------------------*/
     SetTrayIcon(ui_settings.greyscale_tray_icon);
+    settings.Release();
 
     trayIcon->setToolTip("OpenRGB");
     trayIcon->setContextMenu(trayIconMenu);

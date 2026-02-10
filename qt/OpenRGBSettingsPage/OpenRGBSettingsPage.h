@@ -13,9 +13,7 @@
 #include <QDirIterator>
 #include <QTranslator>
 #include <QWidget>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
+#include "SettingsManager.h"
 
 namespace Ui
 {

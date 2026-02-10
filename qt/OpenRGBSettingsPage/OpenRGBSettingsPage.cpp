@@ -14,7 +14,6 @@
 #include "ui_OpenRGBSettingsPage.h"
 #include "LogManager.h"
 #include "ResourceManager.h"
-#include "SettingsManager.h"
 #include "ProfileManager.h"
 
 OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
@@ -108,6 +107,11 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     |   and check the language combobox for a match         |
     \*-----------------------------------------------------*/
     int language_index = ui->ComboBoxLanguage->findText(QString::fromStdString(ui_settings.language));
+    if(language_index > -1)
+    {
+        ui->ComboBoxLanguage->setCurrentIndex(language_index);
+    }
+
 
     ui->CheckboxTrayIconGreyscale->setChecked(ui_settings.greyscale_tray_icon);
     ui->CheckboxMinimizeOnClose->setChecked(ui_settings.minimize_on_close);
@@ -117,7 +121,7 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     ui->CheckboxDisableKeyExpansion->setChecked(ui_settings.disable_key_expansion);
     ui->CheckboxShowLEDView->setChecked(ui_settings.show_led_view);
 
-    switch (ui.hex_format)
+    switch (ui_settings.hex_format)
     {
         case HexFormat::RGB:
             ui->ComboBoxHexFormat->setCurrentIndex(0);
@@ -189,7 +193,7 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     ui->TextServerHost->setText(QString::fromStdString(autostart_settings.host));
     ui->TextServerHost->setEnabled(autostart_settings.setserverhost);
 
-    ui->TextServerPort->setValue(QString::fromStdString(autostart_settings.port).toInt());
+    ui->TextServerPort->setValue(autostart_settings.port);
     ui->TextServerPort->setEnabled(autostart_settings.setserverportbool);
 
     ui->TextClientHost->setText(QString::fromStdString(autostart_settings.client));
@@ -302,12 +306,12 @@ void OpenRGBSettingsPage::UpdateProfiles()
     | Set the profile name from settings and check  |
     | the profile combobox for a match              |
     \*---------------------------------------------*/
-    const std::string& profile_name = profilemanager_settings.exit_profile.name;
-    int profile_index = ui->ComboBoxExitProfile->findText(QString::fromStdString(profile_name));
+    const std::string& exit_profile_name = profilemanager_settings.exit_profile.name;
+    int exit_profile_index = ui->ComboBoxExitProfile->findText(QString::fromStdString(exit_profile_name));
 
-    if(profile_index > -1)
+    if(exit_profile_index > -1)
     {
-        ui->ComboBoxExitProfile->setCurrentIndex(profile_index);
+        ui->ComboBoxExitProfile->setCurrentIndex(exit_profile_index);
     }
 
     /*--------------------------*\
@@ -320,12 +324,12 @@ void OpenRGBSettingsPage::UpdateProfiles()
     | Set the profile name from settings and check  |
     | the profile combobox for a match              |
     \*---------------------------------------------*/
-    const std::string& profile_name = profilemanager_settings.open_profile.name;
-    int profile_index = ui->ComboBoxOpenProfile->findText(QString::fromStdString(profile_name));
+    const std::string& open_profile_name = profilemanager_settings.open_profile.name;
+    int open_profile_index = ui->ComboBoxOpenProfile->findText(QString::fromStdString(open_profile_name));
 
-    if(profile_index > -1)
+    if(open_profile_index > -1)
     {
-        ui->ComboBoxOpenProfile->setCurrentIndex(profile_index);
+        ui->ComboBoxOpenProfile->setCurrentIndex(open_profile_index);
     }
 
     /*--------------------------*\
@@ -338,12 +342,12 @@ void OpenRGBSettingsPage::UpdateProfiles()
     | Set the profile name from settings and check  |
     | the profile combobox for a match              |
     \*---------------------------------------------*/
-    const std::string& profile_name = profilemanager_settings.resume_profile.name;
-    int profile_index = ui->ComboBoxResumeProfile->findText(QString::fromStdString(profile_name));
+    const std::string& resume_profile_name = profilemanager_settings.resume_profile.name;
+    int resume_profile_index = ui->ComboBoxResumeProfile->findText(QString::fromStdString(resume_profile_name));
 
-    if(profile_index > -1)
+    if(resume_profile_index > -1)
     {
-        ui->ComboBoxResumeProfile->setCurrentIndex(profile_index);
+        ui->ComboBoxResumeProfile->setCurrentIndex(resume_profile_index);
     }
 
     /*--------------------------*\
@@ -356,12 +360,12 @@ void OpenRGBSettingsPage::UpdateProfiles()
     | Set the profile name from settings and check  |
     | the profile combobox for a match              |
     \*---------------------------------------------*/
-    const std::string& profile_name = profilemanager_settings.suspend_profile.name;
-    int profile_index = ui->ComboBoxSuspendProfile->findText(QString::fromStdString(profile_name));
+    const std::string& suspend_profile_name = profilemanager_settings.suspend_profile.name;
+    int suspend_profile_index = ui->ComboBoxSuspendProfile->findText(QString::fromStdString(suspend_profile_name));
 
-    if(profile_index > -1)
+    if(suspend_profile_index > -1)
     {
-        ui->ComboBoxSuspendProfile->setCurrentIndex(profile_index);
+        ui->ComboBoxSuspendProfile->setCurrentIndex(suspend_profile_index);
     }
 }
 
@@ -417,16 +421,16 @@ void OpenRGBSettingsPage::on_ComboBoxTheme_currentTextChanged(const QString them
     }
 }
 
-void OpenRGBSettingsPage::on_ComboBoxHexFormat_currentTextChanged(const QString hex_format)
+void OpenRGBSettingsPage::on_ComboBoxHexFormat_currentTextChanged(const QString hex_format_str)
 {
     if(hex_format_initialized)
     {
         SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
         UserInterfaceSettings& ui_settings = settings.access_mut().ui;
-        std::optional<HexFormat> hex_forma = StringToHexFormat(hex_format.toStdString());
-        if (hex_forma)
+        std::optional<HexFormat> hex_format = StringToHexFormat(hex_format_str.toStdString());
+        if (hex_format.has_value())
         {
-            ui_settings.hex_format = hex_forma;
+            ui_settings.hex_format = hex_format.value();
             settings.Save();
         }
     }
@@ -595,7 +599,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartMinimized_clicked()
         bool checked = ui->CheckboxAutoStartMinimized->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
             settings.auto_start.setminimized = checked;
-        }));
+        });
     }
 }
 
@@ -866,8 +870,6 @@ void OpenRGBSettingsPage::CreateAutoStartSettings()
 
 void OpenRGBSettingsPage::RemediateAutoStartProfile(AutoStartSettings& autostart_settings)
 {
-    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    AutoStartSettings& autostart_settings = settings.access_mut().auto_start;
     /*---------------------------------------------------------*\
     | If there are no profiles then we disable the UI for       |
     | profiles and if AutoStart is enabled then we force        |
@@ -897,7 +899,7 @@ void OpenRGBSettingsPage::RemediateAutoStartProfile(AutoStartSettings& autostart
     \*---------------------------------------------------------*/
     else if(autostart_settings.profile == "" ||
            (autostart_settings.profile != "" &&
-            ui->ComboBoxAutoStartProfile->findText(QString::fromStdString(autostart_settings["profile"])) == -1))
+            ui->ComboBoxAutoStartProfile->findText(QString::fromStdString(autostart_settings.profile)) == -1))
     {
         autostart_settings.profile = ui->ComboBoxAutoStartProfile->itemText(0).toStdString();
 

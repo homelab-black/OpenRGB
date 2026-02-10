@@ -75,7 +75,7 @@ void NanoleafSettingsEntry::on_PairButton_clicked()
         NanoleafDeviceSettings new_device
         {
             .ip = address.toStdString(),
-            .port = port,
+            .port = (unsigned int) port,
             .auth_token = auth_token
         };
         settings.devices.insert({location, new_device});
@@ -143,7 +143,7 @@ json NanoleafSettingsEntry::saveSettings()
     NanoleafDeviceSettings device_settings
     {
         .ip = address.toStdString(),
-        .port = port,
+        .port = (unsigned int) port,
         .auth_token = auth_token,
     };
     json j = device_settings;
@@ -174,7 +174,8 @@ static BaseManualDeviceEntry* SpawnNanoleafSettingsEntry(const json& data)
     else
     {
         NanoleafSettingsEntry* entry = new NanoleafSettingsEntry;
-        entry->loadFromSettings(data);
+        NanoleafSettings settings = data.get<NanoleafSettings>();
+        entry->loadFromSettings(settings);
         return entry;
     }
 }

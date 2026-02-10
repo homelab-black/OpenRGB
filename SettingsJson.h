@@ -168,6 +168,7 @@ struct UserInterfaceSettings {
     bool minimize_on_close;
     bool disable_key_expansion = false;
     bool show_led_view = false;
+    bool numerical_labels = false;
     HexFormat hex_format = HexFormat::RGB;
     WindowGeometrySettings geometry;
     // Language language = Language::SystemDefault;

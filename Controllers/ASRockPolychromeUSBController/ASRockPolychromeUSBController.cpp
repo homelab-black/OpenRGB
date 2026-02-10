@@ -74,7 +74,7 @@ void to_json(json& j, const PolyChromeUSBSettings& settings)
 
 void from_json(const json& j, PolyChromeUSBSettings& settings)
 {
-    j.at("RGSwap", settings.rg_swap);
+    j.at("RGSwap").get_to(settings.rg_swap);
 }
 
 PolychromeUSBController::PolychromeUSBController(hid_device* dev_handle, const char* path)

@@ -183,9 +183,6 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
         | Erase the plugin from the remove list                             |
         \*-----------------------------------------------------------------*/
         plugin_settings.plugins_remove.erase(plugin_settings.plugins_remove.begin() + plugin_remove_idx);
-
-        // ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-        // ResourceManager::get()->GetSettingsManager()->SaveSettings();
     }
     settings.Save();
 
@@ -277,8 +274,6 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
                 plugin_settings.plugins[plugin_ct].description    = info.Description;
                 plugin_settings.plugins[plugin_ct].enabled        = enabled;
 
-                // ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-                // ResourceManager::get()->GetSettingsManager()->SaveSettings();
                 settings.Save();
             }
 

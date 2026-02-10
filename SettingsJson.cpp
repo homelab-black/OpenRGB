@@ -223,7 +223,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ServerSettings,
     all_devices
 );
 
-
 /* *\
 We can't use the macro's here since we need to rename the fields.
 I prefer snake_case in for field names.

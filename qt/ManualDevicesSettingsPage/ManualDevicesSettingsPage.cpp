@@ -95,7 +95,7 @@ void ManualDevicesSettingsPage::saveSettings()
     /*-----------------------------------------------------------------------------*\
     | First, cache the data that will be stored as JSON                             |
     | We wrap data into arrays by type (except Nanoleaf)                            |
-    | Nanoleaf stores it's data as an object with "location" as key for some reason |
+    | Nanoleaf stores its data as an object with "location" as key for some reason  |
     \*-----------------------------------------------------------------------------*/
     for(std::size_t idx = 0; idx < entries.size(); idx++)
     {
@@ -123,7 +123,7 @@ void ManualDevicesSettingsPage::saveSettings()
     std::vector<ManualDeviceTypeBlock> blocks = ManualDevicesTypeManager::get()->getRegisteredTypes();
     for(std::size_t i = 0; i < blocks.size(); i++)
     {
-        sm->SetSettings(blocks[i].settingsSection, result[blocks[i].settingsSection]);
+        sm->SetControllerSettingsAndSave(blocks[i].settingsSection, result[blocks[i].settingsSection]);
     }
     sm->SaveSettings();
 
@@ -254,7 +254,7 @@ void ManualDevicesSettingsPage::addEntries(const ManualDeviceTypeBlock& block)
     /*---------------------------------------------------------*\
     | Spawn list entries for all config entries of one type     |
     \*---------------------------------------------------------*/
-    json settings = ResourceManager::get()->GetSettingsManager()->GetSettings(block.settingsSection);
+    json settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<json>(block.settingsSection).value_or(json {});
     const char* array_name = "devices";
     if(block.settingsSection == "PhilipsHueDevices")
     {

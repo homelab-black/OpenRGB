@@ -58,7 +58,7 @@ json PhilipsHueSettingsEntry::saveSettings()
         .entertainment    = ui->EntertainmentCheckBox->isChecked(),
     };
     json j = settings;
-    return j
+    return j;
 }
 
 bool PhilipsHueSettingsEntry::isDataValid()

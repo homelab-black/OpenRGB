@@ -15,6 +15,9 @@
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 /*----------------------------------------------------------------------------------------------*\
 | Definitions for Polychrome USB                                                                 |

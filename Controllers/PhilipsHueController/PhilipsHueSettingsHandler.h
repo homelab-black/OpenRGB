@@ -29,10 +29,16 @@ struct BridgeSettings
     bool entertainment;
 };
 
+void to_json(json& j, const BridgeSettings& settings);
+void from_json(const json& j, BridgeSettings& settings);
+
 struct HueSettings
 {
     std::vector<BridgeSettings> bridges;
 };
+
+void to_json(json& j, const HueSettings& settings);
+void from_json(const json& j, HueSettings& settings);
 
 class PhilipsHueSettingsHandler
 {

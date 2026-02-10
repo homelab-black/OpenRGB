@@ -29,6 +29,10 @@ public:
     void loadFromSettings(const NanoleafSettings& data);
     std::string getLocation();
 
+    /*--------------------------------*\
+    | Returns json for a single device |
+    | See `NanoleafDeviceSettings`     |
+    \*--------------------------------*/
     json saveSettings() override;
     bool isDataValid() override;
 

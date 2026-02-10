@@ -45,31 +45,28 @@ OpenRGBDevicePage::OpenRGBDevicePage(RGBController *dev, QWidget *parent) :
     /*-----------------------------------------------------*\
     | Get the UserInterface settings and check the          |
     | numerical labels and hex format settings              |
+    | This is in a separate block so the access guard is    |
+    | droped at the end.                                    |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         ui_string           = "UserInterface";
-    json                ui_settings;
-
-    ui_settings = settings_manager->GetSettings(ui_string);
-
-    if(ui_settings.contains("numerical_labels"))
     {
-        bool            numerical_labels    = ui_settings["numerical_labels"];
+        SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+        const UserInterfaceSettings& ui_settings = settings.access().ui;
+        ui->DeviceViewBox->setNumericalLabels(ui_settings.numerical_labels);
 
-        ui->DeviceViewBox->setNumericalLabels(numerical_labels);
-    }
-
-    if(ui_settings.contains("hex_format"))
-    {
-        if(ui_settings["hex_format"] == "RGB")
+        /*---------------------------------------------------------------*\
+        | Doing this with a switch statement in case we add more variants |
+        \*---------------------------------------------------------------*/
+        switch (ui_settings.hex_format)
         {
-            HexFormatRGB = true;
-        }
-        else if(ui_settings["hex_format"] == "BGR")
-        {
-            HexFormatRGB = false;
+            case (HexFormat::RGB):
+                HexFormatRGB = true;
+                break;
+            case (HexFormat::BGR):
+                HexFormatRGB = false;
+                break;
         }
     }
+
 
     /*-----------------------------------------------------*\
     | Initialize Device View                                |
