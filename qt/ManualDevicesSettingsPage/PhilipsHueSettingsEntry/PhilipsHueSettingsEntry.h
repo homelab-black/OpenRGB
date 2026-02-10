@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "PhilipsHueSettingsHandler.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class PhilipsHueSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit PhilipsHueSettingsEntry(QWidget *parent = nullptr);
     ~PhilipsHueSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const BridgeSettings& data);
     json saveSettings() override;
     bool isDataValid() override;
 
