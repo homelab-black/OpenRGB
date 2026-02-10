@@ -9,6 +9,7 @@
 
 #include "NanoleafScanDialog.h"
 #include "ui_NanoleafScanDialog.h"
+#include "NanoleafController.h"
 
 #include "NanoleafNewDeviceDialog.h"
 #include "ResourceManager.h"
@@ -65,11 +66,16 @@ void NanoleafScanDialog::on_AddNanoleafDeviceButton_clicked()
             ui->NanoleafDeviceList->setItemWidget(item, entry);
             ui->NanoleafDeviceList->show();
 
-            json nanoleaf_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("NanoleafDevices");
-            nanoleaf_settings["devices"][location]["ip"] = device.ip;
-            nanoleaf_settings["devices"][location]["port"] = device.port;
-            ResourceManager::get()->GetSettingsManager()->SetSettings("NanoleafDevices", nanoleaf_settings);
-            ResourceManager::get()->GetSettingsManager()->SaveSettings();
+            std::optional<NanoleafSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<NanoleafSettings>(NANOLEAF_CFG_KEY);
+            NanoleafSettings settings = cfg_settings.value_or(NanoleafSettings {});
+            NanoleafDeviceSettings new_device {
+                .ip = device.ip,
+                .port = device.port,
+                .auth_token = ""
+            };
+
+            settings.devices.insert({location, new_device});
+            ResourceManager::get()->GetSettingsManager()->SetControllerSettingsAndSave(NANOLEAF_CFG_KEY, settings);
         }
     }
 }
@@ -96,10 +102,10 @@ void NanoleafScanDialog::on_RemoveNanoleafDeviceButton_clicked()
     delete entries[location];
     entries.erase(location);
 
-    json nanoleaf_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("NanoleafDevices");
-    nanoleaf_settings["devices"].erase(location);
-    ResourceManager::get()->GetSettingsManager()->SetSettings("NanoleafDevices", nanoleaf_settings);
-    ResourceManager::get()->GetSettingsManager()->SaveSettings();
+    std::optional<NanoleafSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<NanoleafSettings>(NANOLEAF_CFG_KEY);
+    NanoleafSettings settings = cfg_settings.value_or(NanoleafSettings {});
+    settings.devices.erase(location);
+    ResourceManager::get()->GetSettingsManager()->SetControllerSettingsAndSave(NANOLEAF_CFG_KEY, settings);
 }
 
 void NanoleafScanDialog::on_ScanForNanoleafDevicesButton_clicked()

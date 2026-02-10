@@ -19,6 +19,21 @@
 #define NANOLEAF_CANVAS_MODEL               "NL29"
 #define NANOLEAF_SHAPES_MODEL               "NL42"
 
+#define NANOLEAF_CFG_KEY "NanoleafDevices"
+
+struct NanoleafDeviceSettings
+{
+    std::string ip;
+    unsigned int port;
+    std::string auth_token;
+};
+
+struct NanoleafSettings
+{
+    std::unordered_map<std::string, NanoleafDeviceSettings> devices;
+};
+
+
 class NanoleafController
 {
 public:

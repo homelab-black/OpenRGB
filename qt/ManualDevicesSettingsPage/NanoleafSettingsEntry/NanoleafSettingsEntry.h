@@ -11,6 +11,7 @@
 
 #include "BaseManualDeviceEntry.h"
 #include "NanoleafScanningThread.h"
+#include "NanoleafController.h"
 
 namespace Ui
 {
@@ -25,7 +26,7 @@ public:
     explicit NanoleafSettingsEntry(QWidget *parent = nullptr);
     NanoleafSettingsEntry(QString a_address, int a_port);
     ~NanoleafSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const NanoleafSettings& data);
     std::string getLocation();
 
     json saveSettings() override;
