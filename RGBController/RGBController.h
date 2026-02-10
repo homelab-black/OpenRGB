@@ -151,6 +151,9 @@ enum
     ZONE_TYPE_SEGMENTED
 };
 
+void to_json(nlohmann::json& j, const zone_type& settings);
+void from_json(const nlohmann::json& j, zone_type& settings);
+
 /*---------------------------------------------------------*\
 | Matrix Map Struct                                         |
 \*---------------------------------------------------------*/

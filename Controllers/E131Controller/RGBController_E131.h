@@ -15,48 +15,66 @@
 #include <thread>
 #include <e131.h>
 #include "RGBController.h"
+#include <nlohmann/json.hpp>
 
-typedef unsigned int e131_rgb_order;
+using json = nlohmann::json;
 
-enum
+enum E131RGBOrder
 {
-    E131_RGB_ORDER_RGB,
-    E131_RGB_ORDER_RBG,
-    E131_RGB_ORDER_GRB,
-    E131_RGB_ORDER_GBR,
-    E131_RGB_ORDER_BRG,
-    E131_RGB_ORDER_BGR
+    RGB,
+    RBG,
+    GRB,
+    GBR,
+    BRG,
+    BGR
 };
 
-enum
+void to_json(json& j, const E131RGBOrder& settings);
+void from_json(const json& j, E131RGBOrder& settings);
+
+enum E131MatrixOrder
 {
-    E131_MATRIX_ORDER_HORIZONTAL_TOP_LEFT,
-    E131_MATRIX_ORDER_HORIZONTAL_TOP_RIGHT,
-    E131_MATRIX_ORDER_HORIZONTAL_BOTTOM_LEFT,
-    E131_MATRIX_ORDER_HORIZONTAL_BOTTOM_RIGHT,
-    E131_MATRIX_ORDER_VERTICAL_TOP_LEFT,
-    E131_MATRIX_ORDER_VERTICAL_TOP_RIGHT,
-    E131_MATRIX_ORDER_VERTICAL_BOTTOM_LEFT,
-    E131_MATRIX_ORDER_VERTICAL_BOTTOM_RIGHT
+    HORIZONTAL_TOP_LEFT,
+    HORIZONTAL_TOP_RIGHT,
+    HORIZONTAL_BOTTOM_LEFT,
+    HORIZONTAL_BOTTOM_RIGHT,
+    VERTICAL_TOP_LEFT,
+    VERTICAL_TOP_RIGHT,
+    VERTICAL_BOTTOM_LEFT,
+    VERTICAL_BOTTOM_RIGHT
 };
 
-typedef unsigned int e131_matrix_order;
+void to_json(json& j, const E131MatrixOrder& settings);
+void from_json(const json& j, E131MatrixOrder& settings);
+
+#define E131_SETTINGS_KEY "E131Devices"
 
 struct E131Device
 {
-    std::string name;
-    std::string ip;
-    unsigned int num_leds;
-    unsigned int start_universe;
-    unsigned int start_channel;
+    std::string name = "";
+    std::string ip = "";
+    unsigned int num_leds = 0;
+    unsigned int start_universe = 1;
+    unsigned int start_channel = 1;
     unsigned int keepalive_time;
-    e131_rgb_order rgb_order;
-    zone_type type;
-    unsigned int matrix_width;
-    unsigned int matrix_height;
-    unsigned int universe_size;
-    e131_matrix_order matrix_order;
+    E131RGBOrder rgb_order = E131RGBOrder::RBG;
+    zone_type type = ZONE_TYPE_SINGLE;
+    unsigned int matrix_width = 0;
+    unsigned int matrix_height = 0;
+    unsigned int universe_size = 512;
+    E131MatrixOrder matrix_order = E131MatrixOrder::HORIZONTAL_TOP_LEFT;
 };
+
+void to_json(json& j, const E131Device& settings);
+void from_json(const json& j, E131Device& settings);
+
+struct E131Settings
+{
+    std::vector<E131Device> devices;
+};
+
+void to_json(json& j, const E131Settings& settings);
+void from_json(const json& j, E131Settings& settings);
 
 class RGBController_E131 : public RGBController
 {
