@@ -23,18 +23,13 @@ DetectedControllers DetectDDPControllers()
 {
     DetectedControllers                 detected_controllers;
     std::vector<std::vector<DDPDevice>> device_lists;
-    DDPDevice                           dev;
 
     std::optional<DDPSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<DDPSettings>(DDP_CONFIG_KEY);
     DDPSettings settings = cfg_settings.value_or(DDPSettings {});
 
     for(unsigned int device_idx = 0; device_idx < settings.devices.size(); device_idx++)
     {
-        const DDPDevice& cfg_device = settings.devices[device_idx];
-        dev.name            = cfg_device.name;
-        dev.ip              = cfg_device.ip;
-        dev.port            = cfg_device.port;
-        dev.num_leds        = cfg_device.num_leds;
+        DDPDevice dev = settings.devices[device_idx];
 
         if(dev.name.empty())
             dev.name = "DDP Device " + std::to_string(device_idx + 1);

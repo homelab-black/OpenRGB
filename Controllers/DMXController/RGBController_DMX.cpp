@@ -15,6 +15,18 @@
 
 using namespace std::chrono_literals;
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DMXDevice,
+    name,
+    port,
+    keepalive_time,
+    red_channel,
+    green_channel,
+    blue_channel,
+    brightness_channel
+);
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DMXSettings, devices);
+
 /**------------------------------------------------------------------*\
     @name DMX Devices
     @category LEDStrip

@@ -15,16 +15,33 @@
 #include <thread>
 #include "RGBController.h"
 #include "serial_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define DMX_CFG_KEY "DMXDevices"
+
 struct DMXDevice
 {
     std::string name;
     std::string port;
-    unsigned int keepalive_time;
+    unsigned int keepalive_time = 0;
     unsigned int red_channel;
     unsigned int green_channel;
     unsigned int blue_channel;
     unsigned int brightness_channel;
 };
+
+void to_json(json& j, const DMXDevice& settings);
+void from_json(const json& j, DMXDevice& settings);
+
+struct DMXSettings
+{
+    std::vector<DMXDevice> devices;
+};
+
+void to_json(json& j, const DMXSettings& settings);
+void from_json(const json& j, DMXSettings& settings);
 
 class RGBController_DMX : public RGBController
 {
