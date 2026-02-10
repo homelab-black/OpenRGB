@@ -48,13 +48,27 @@ struct ddp_header
 };
 #pragma pack(pop)
 
+#define DDP_CONFIG_KEY "DDPDevices"
+
 struct DDPDevice
 {
-    std::string         name;
-    std::string         ip;
-    unsigned short      port;
-    unsigned int        num_leds;
+    std::string         name        = "";
+    std::string         ip          = "";
+    unsigned short      port        = DDP_DEFAULT_PORT;
+    unsigned int        num_leds    = 0;
+    unsigned int        keepalive_time = 0;
 };
+
+void to_json(json& j, const DDPDevice& settings);
+void from_json(const json& j, DDPDevice& settings);
+
+struct DDPSettings
+{
+    std::vector<DDPDevice> devices;
+};
+
+void to_json(json& j, const DDPSettings& settings);
+void from_json(const json& j, DDPSettings& settings);
 
 struct DDPEndpoint
 {
