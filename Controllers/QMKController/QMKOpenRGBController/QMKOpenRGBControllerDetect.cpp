@@ -149,29 +149,27 @@ void RegisterQMKDetectors()
     /*-----------------------------------------------------*\
     | Get QMKOpenRGB settings                               |
     \*-----------------------------------------------------*/
-    json qmk_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("QMKOpenRGBDevices");
+    std::optional<QMKOpenSettings> qmk_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<QMKOpenSettings>(QMK_OPEN_SETTINGS_KEY);
 
-    if(qmk_settings.contains("devices"))
+    if(!qmk_settings.has_value())
     {
-        for(unsigned int device_idx = 0; device_idx < qmk_settings["devices"].size(); device_idx++)
-        {
-            if( qmk_settings["devices"][device_idx].contains("usb_pid")
-             && qmk_settings["devices"][device_idx].contains("usb_vid")
-             && qmk_settings["devices"][device_idx].contains("name"))
-            {
-                std::string usb_pid_str = qmk_settings["devices"][device_idx]["usb_pid"];
-                std::string usb_vid_str = qmk_settings["devices"][device_idx]["usb_vid"];
-                std::string name        = qmk_settings["devices"][device_idx]["name"];
+        return;
+    }
 
-                /*-----------------------------------------*\
-                | Parse hex string to integer               |
-                \*-----------------------------------------*/
-                unsigned short usb_pid  = std::stoi(usb_pid_str, 0, 16);
-                unsigned short usb_vid  = std::stoi(usb_vid_str, 0, 16);
+    const std::vector<QMKOpenDeviceSettings>& devices = qmk_settings.value().devices;
+    for(unsigned int device_idx = 0; device_idx < devices.size(); device_idx++)
+    {
+        std::string usb_pid_str = devices[device_idx].usb_pid;
+        std::string usb_vid_str = devices[device_idx].usb_vid;
+        std::string name        = devices[device_idx].name;
 
-                REGISTER_DYNAMIC_HID_DETECTOR_IPU(name, DetectQMKOpenRGBControllers, usb_vid, usb_pid, 1, QMK_USAGE_PAGE, QMK_USAGE);
-            }
-        }
+        /*-----------------------------------------*\
+        | Parse hex string to integer               |
+        \*-----------------------------------------*/
+        unsigned short usb_pid  = std::stoi(usb_pid_str, 0, 16);
+        unsigned short usb_vid  = std::stoi(usb_vid_str, 0, 16);
+
+        REGISTER_DYNAMIC_HID_DETECTOR_IPU(name, DetectQMKOpenRGBControllers, usb_vid, usb_pid, 1, QMK_USAGE_PAGE, QMK_USAGE);
     }
 }
 
