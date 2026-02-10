@@ -54,9 +54,10 @@ DetectedControllers DetectPhilipsHueControllers()
     if(hue_settings.GetBridgeCount() > 0)
     {
         hueplusplus::BridgeFinder::BridgeIdentification ident;
+        const BridgeSettings& bridge_settings = hue_settings.GetBridge(0);
 
-        ident.ip  = hue_settings.GetBridgeIP(0);
-        ident.mac = hue_settings.GetBridgeMAC(0);
+        ident.ip  = bridge_settings.ip;
+        ident.mac = bridge_settings.mac;
 
         bridges.push_back(ident);
     }
@@ -72,20 +73,11 @@ DetectedControllers DetectPhilipsHueControllers()
         if(hue_settings.GetBridgeCount() > 0)
         {
             /*---------------------------------------------*\
-            | Add the username if it exists                 |
+            | Add the username & ClientKey if it exists     |
             \*---------------------------------------------*/
-            if(hue_settings.BridgeHasUsername(0))
-            {
-                finder.addUsername(bridges[0].mac, hue_settings.GetBridgeUsername(0));
-            }
-
-            /*---------------------------------------------*\
-            | Add the client key if it exists               |
-            \*---------------------------------------------*/
-            if(hue_settings.BridgeHasClientKey(0))
-            {
-                finder.addClientKey(bridges[0].mac, hue_settings.GetBridgeClientKey(0));
-            }
+            const BridgeSettings& bridge_settings = hue_settings.GetBridge(0);
+            finder.addUsername(bridges[0].mac, bridge_settings.username);
+            finder.addClientKey(bridges[0].mac, bridge_settings.clientkey);
         }
 
         /*-------------------------------------------------*\
@@ -111,28 +103,14 @@ DetectedControllers DetectPhilipsHueControllers()
 
             if(hue_settings.GetBridgeCount() > 0)
             {
-                if(hue_settings.BridgeHasUsername(0))
-                {
-                    if(hue_settings.GetBridgeUsername(0) != bridge.getUsername())
-                    {
-                        save_settings = true;
-                    }
-                }
-                else
+                const BridgeSettings& bridge_settings = hue_settings.GetBridge(0);
+                if(bridge_settings.username != bridge.getUsername())
                 {
                     save_settings = true;
                 }
-
-                if(hue_settings.BridgeHasClientKey(0))
+                if(bridge_settings.clientkey != bridge.getClientKey())
                 {
-                    if(hue_settings.GetBridgeClientKey(0) != bridge.getClientKey())
-                    {
-                        use_entertainment = true;
-                        save_settings = true;
-                    }
-                }
-                else
-                {
+                    use_entertainment = true;
                     save_settings = true;
                 }
             }
@@ -142,23 +120,28 @@ DetectedControllers DetectPhilipsHueControllers()
             \*---------------------------------------------*/
             if(save_settings)
             {
-                hue_settings.SetBridgeUsername(0, bridge.getUsername());
-                hue_settings.SetBridgeClientKey(0, bridge.getClientKey());
-                hue_settings.SetBridgeUseEntertainment(0, use_entertainment);
-                hue_settings.SetBridgeAutoconnect(0, auto_connect);
+                BridgeSettings bridge_settings
+                {
+                    .ip = bridge.getBridgeIP(),
+                    .mac = bridges[0].mac,
+                    .username = bridge.getUsername(),
+                    .clientkey = bridge.getClientKey(),
+                    .autoconnect = auto_connect,
+                    .entertainment = use_entertainment,
+                };
+                hue_settings.SetBridge(0, bridge_settings);
                 hue_settings.SaveSettings();
             }
 
-            /*---------------------------------------------*\
-            | Get entertainment mode settings               |
-            \*---------------------------------------------*/
-            use_entertainment = hue_settings.GetBridgeUseEntertainment(0);
-            auto_connect      = hue_settings.GetBridgeAutoconnect(0);
+            /*---------------------------------*\
+            | Get bridge settings               |
+            \*---------------------------------*/
+            const BridgeSettings& bridge_settings = hue_settings.GetBridge(0);
 
             /*---------------------------------------------*\
             | Get all groups from the bridge                |
             \*---------------------------------------------*/
-            if(use_entertainment)
+            if(bridge_settings.entertainment)
             {
                 std::vector<hueplusplus::Group> groups = bridge.groups().getAll();
 
@@ -187,7 +170,7 @@ DetectedControllers DetectPhilipsHueControllers()
                     | can be open at a time.                |
                     | TODO: investigate this and rework     |
                     \*-------------------------------------*/
-                    //f(auto_connect)
+                    //if(bridge_settings.autoconnect)
                     //
                     //   for(unsigned int controller_idx = 0; controller_idx < ResourceManager::get()->GetRGBControllers().size(); controller_idx++)
                     //   {

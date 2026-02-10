@@ -17,6 +17,23 @@
 #include <cstddef>
 #include <string>
 
+#define PHILIPSHUE_SETTINGS_KEY "PhilipsHueDevices"
+
+struct BridgeSettings
+{
+    std::string ip;
+    std::string mac;
+    std::string username;
+    std::string clientkey;
+    bool autoconnect;
+    bool entertainment;
+};
+
+struct HueSettings
+{
+    std::vector<BridgeSettings> bridges;
+};
+
 class PhilipsHueSettingsHandler
 {
 public:
@@ -24,24 +41,11 @@ public:
     ~PhilipsHueSettingsHandler();
 
     std::size_t     GetBridgeCount();
+    const BridgeSettings&  GetBridge(unsigned int bridge_idx);
 
-    std::string     GetBridgeIP(unsigned int bridge_idx);
-    std::string     GetBridgeMAC(unsigned int bridge_idx);
-    std::string     GetBridgeUsername(unsigned int bridge_idx);
-    std::string     GetBridgeClientKey(unsigned int bridge_idx);
-    bool            GetBridgeAutoconnect(unsigned int bridge_idx);
-    bool            GetBridgeUseEntertainment(unsigned int bridge_idx);
-
-    bool            BridgeHasUsername(unsigned int bridge_idx);
-    bool            BridgeHasClientKey(unsigned int bridge_idx);
-
-    void            SetBridgeUsername(unsigned int bridge_idx, std::string username);
-    void            SetBridgeClientKey(unsigned int bridge_idx, std::string clientkey);
-    void            SetBridgeAutoconnect(unsigned int bridge_ip, bool auto_connect);
-    void            SetBridgeUseEntertainment(unsigned int bridge_idx, bool use_entertainment);
-
+    void            SetBridge(unsigned int bridge_idx, BridgeSettings settings);
     void            SaveSettings();
 
 private:
-    void *          hue_settings;
+    HueSettings     settings;
 };
