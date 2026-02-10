@@ -37,13 +37,13 @@ int OpenRGBHardwareIDsDialog::show()
     /*---------------------------------------------------------*\
     | Add i2c busses infos                                      |
     \*---------------------------------------------------------*/
-    std::vector<i2c_smbus_interface*> i2CBuses = ResourceManager::get()->GetI2CBuses();
+    std::vector<i2c_smbus_interface*> i2c_buses = ResourceManager::get()->GetI2CBuses();
 
     // The widget takes control over items after creation
     QTreeWidgetItem* i2c_top = new QTreeWidgetItem(ui->HardwareIdsList, {"i2c busses"});
     strings.push_back("[ i2c busses ]");
 
-    for(i2c_smbus_interface* bus : i2CBuses)
+    for(i2c_smbus_interface* bus : i2c_buses)
     {
         char line[550];
         snprintf(line, 550, "%04X:%04X %04X:%04X", bus->pci_vendor, bus->pci_device, bus->pci_subsystem_vendor, bus->pci_subsystem_device);
