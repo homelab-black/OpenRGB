@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "ElgatoSettings.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class ElgatoLightStripSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit ElgatoLightStripSettingsEntry(QWidget *parent = nullptr);
     ~ElgatoLightStripSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const ElgatoDeviceSettings& data);
     json saveSettings() override;
     bool isDataValid() override;
 

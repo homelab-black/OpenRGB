@@ -11,9 +11,7 @@
 
 #include <iostream>
 #include "ElgatoKeyLightController.h"
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
+#include "ElgatoSettings.h"
 
 ElgatoKeyLightController::ElgatoKeyLightController(std::string ip)
 {

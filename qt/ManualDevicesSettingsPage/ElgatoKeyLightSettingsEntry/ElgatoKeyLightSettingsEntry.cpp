@@ -31,19 +31,17 @@ void ElgatoKeyLightSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void ElgatoKeyLightSettingsEntry::loadFromSettings(const json& data)
+void ElgatoKeyLightSettingsEntry::loadFromSettings(const ElgatoDeviceSettings& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
 }
 
 json ElgatoKeyLightSettingsEntry::saveSettings()
 {
-    json result;
-    result["ip"] = ui->IPEdit->text().toStdString();
-    return result;
+    return ElgatoDeviceSettings
+    {
+        .ip = ui->IPEdit->text().toStdString(),
+    };
 }
 
 bool ElgatoKeyLightSettingsEntry::isDataValid()
