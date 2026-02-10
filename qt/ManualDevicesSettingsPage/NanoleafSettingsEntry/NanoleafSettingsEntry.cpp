@@ -111,16 +111,10 @@ void NanoleafSettingsEntry::on_UnpairButton_clicked()
     ui->UnpairButton->hide();
 }
 
-void NanoleafSettingsEntry::loadFromSettings(const NanoleafSettings& data)
+void NanoleafSettingsEntry::loadFromSettings(const NanoleafDeviceSettings& data)
 {
-    std::string location = getLocation();
-    if(!data.devices.count(location))
-    {
-        return;
-    }
-    const NanoleafDeviceSettings& device = data.devices.at(location);
-    address = QString::fromStdString(device.ip);
-    port = device.port;
+    address = QString::fromStdString(data.ip);
+    port = data.port;
 
     ui->IPValue->setText(address);
     ui->PortValue->setText(QString::fromStdString(std::to_string(port)));
@@ -140,14 +134,12 @@ void NanoleafSettingsEntry::loadFromSettings(const NanoleafSettings& data)
 
 json NanoleafSettingsEntry::saveSettings()
 {
-    NanoleafDeviceSettings device_settings
+    return NanoleafDeviceSettings
     {
         .ip = address.toStdString(),
         .port = (unsigned int) port,
         .auth_token = auth_token,
     };
-    json j = device_settings;
-    return j;
 }
 
 std::string NanoleafSettingsEntry::getLocation()
@@ -174,8 +166,7 @@ static BaseManualDeviceEntry* SpawnNanoleafSettingsEntry(const json& data)
     else
     {
         NanoleafSettingsEntry* entry = new NanoleafSettingsEntry;
-        NanoleafSettings settings = data.get<NanoleafSettings>();
-        entry->loadFromSettings(settings);
+        entry->loadFromSettings(data);
         return entry;
     }
 }

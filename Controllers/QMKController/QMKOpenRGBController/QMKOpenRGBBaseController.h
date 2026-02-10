@@ -26,12 +26,18 @@ struct QMKOpenDeviceSettings
     std::string name;
 };
 
+void to_json(json& j, const QMKOpenDeviceSettings& settings);
+void from_json(const json& j, QMKOpenDeviceSettings& settings);
+
 struct QMKOpenSettings
 {
     unsigned char leds_per_update;
     unsigned int delay;
     std::vector<QMKOpenDeviceSettings> devices;
 };
+
+void to_json(json& j, const QMKOpenSettings& settings);
+void from_json(const json& j, QMKOpenSettings& settings);
 
 class QMKOpenRGBBaseController
 {

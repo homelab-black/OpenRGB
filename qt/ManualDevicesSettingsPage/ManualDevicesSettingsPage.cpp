@@ -125,7 +125,6 @@ void ManualDevicesSettingsPage::saveSettings()
     {
         sm->SetControllerSettingsAndSave(blocks[i].settingsSection, result[blocks[i].settingsSection]);
     }
-    sm->SaveSettings();
 
     setUnsavedChanges(false);
 }

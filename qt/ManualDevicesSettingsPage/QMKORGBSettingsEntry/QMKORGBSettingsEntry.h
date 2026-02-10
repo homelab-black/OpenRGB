@@ -11,6 +11,11 @@
 
 #include "BaseManualDeviceEntry.h"
 
+/*--------------------------*\
+| Settings struct is here    |
+\*--------------------------*/
+#include "QMKOpenRGBBaseController.h"
+
 namespace Ui
 {
     class QMKORGBSettingsEntry;
@@ -26,7 +31,7 @@ private slots:
 public:
     explicit QMKORGBSettingsEntry(QWidget *parent = nullptr);
     ~QMKORGBSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const QMKOpenDeviceSettings& data);
     json saveSettings() override;
     bool isDataValid() override;
 

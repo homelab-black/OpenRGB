@@ -48,7 +48,7 @@ void PhilipsHueSettingsEntry::loadFromSettings(const BridgeSettings& data)
 
 json PhilipsHueSettingsEntry::saveSettings()
 {
-    BridgeSettings settings
+    return BridgeSettings
     {
         .ip               = ui->IPEdit->text().toStdString(),
         .mac              = ui->MACEdit->text().toStdString(),
@@ -57,8 +57,6 @@ json PhilipsHueSettingsEntry::saveSettings()
         .autoconnect      = ui->AutoConnectCheckBox->isChecked(),
         .entertainment    = ui->EntertainmentCheckBox->isChecked(),
     };
-    json j = settings;
-    return j;
 }
 
 bool PhilipsHueSettingsEntry::isDataValid()
