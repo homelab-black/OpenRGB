@@ -17,13 +17,13 @@
 
 using namespace std::chrono_literals;
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(QMKOpenDeviceSettings,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenDeviceSettings,
     usb_pid,
     usb_vid,
     name
 );
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(QMKOpenSettings,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenSettings,
     leds_per_update,
     delay
 );

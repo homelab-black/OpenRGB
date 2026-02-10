@@ -2,7 +2,7 @@
 #include "ResourceManager.h"
 #include "SettingsManager.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BridgeSettings,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BridgeSettings,
     ip,
     mac,
     username,
@@ -11,7 +11,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BridgeSettings,
     entertainment
 );
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(HueSettings,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(HueSettings,
     bridges
 );
 
