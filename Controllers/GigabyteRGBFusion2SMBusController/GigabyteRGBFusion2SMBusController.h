@@ -15,6 +15,7 @@
 
 #include <string>
 #include "i2c_smbus.h"
+#include "SettingsJson.h"
 
 typedef unsigned char	rgb_fusion_dev_id;
 
@@ -85,6 +86,14 @@ enum
     RGB_FUSION_2_BRIGHTNESS_MAX     = 0x64,
     RGB_FUSION_2_BRIGHTNESS_MIN     = 0x0f,
 };
+
+struct RGBFusion2SMBusSettings
+{
+    std::vector<std::string> supported_devices;
+};
+
+void to_json(json& j, const RGBFusion2SMBusSettings& settings);
+void from_json(const json& j, RGBFusion2SMBusSettings& settings);
 
 class RGBFusion2SMBusController
 {
