@@ -14,12 +14,12 @@
 
 #define NA  0xFFFFFFFF
 
-enum AKKO_5075 {
+enum AKKO_5075B {
     HEIGHT  = 6,
     WIDTH   = 15,
 };
 
-static unsigned int led_matrix_5075_ISO[AKKO_5075::HEIGHT][AKKO_5075::WIDTH] = {
+static unsigned int led_matrix_5075_ISO[AKKO_5075B::HEIGHT][AKKO_5075B::WIDTH] = {
     {   0,   6,  12,  18,  24,  30,  36,  42,  48,  54,  60,  66,  72,  78,  NA},
     {   1,   7,  13,  19,  25,  31,  37,  43,  49,  55,  61,  67,  73,  79,  85},
     {   2,   8,  14,  20,  26,  32,  38,  44,  50,  56,  62,  68,  74,  80,  86},
@@ -488,8 +488,8 @@ void RGBController_AkkoController::SetupZones()
         if(key == AKKO_ZONE::Z_KEYBOARD)
         {
             unsigned int * led_matrix = (unsigned int *)&led_matrix_5075_ISO;
-            int m_height = AKKO_5075::HEIGHT;
-            int m_width = AKKO_5075::WIDTH;
+            int m_height = AKKO_5075B::HEIGHT;
+            int m_width = AKKO_5075B::WIDTH;
             int n_leds = m_height * m_width;
             zone_info.leds_count = n_leds;
 
@@ -624,7 +624,7 @@ void RGBController_AkkoController::DeviceUpdateMode()
             {
                 if(mode == AKKO_MODE::USER_PICTURE)
                 {
-                    ResizeZone(key, AKKO_5075::HEIGHT * AKKO_5075::WIDTH);
+                    ResizeZone(key, AKKO_5075B::HEIGHT * AKKO_5075B::WIDTH);
                 }
                 else
                 {
