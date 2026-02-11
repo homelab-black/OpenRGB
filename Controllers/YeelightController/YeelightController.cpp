@@ -10,9 +10,12 @@
 \*---------------------------------------------------------*/
 
 #include "YeelightController.h"
-#include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(YeelightDevice,
+    host_ip,
+    ip,
+    music_mode
+);
 
 YeelightController::YeelightController(std::string ip, std::string host_ip, bool music_mode_val)
 {

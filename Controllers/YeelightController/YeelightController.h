@@ -16,6 +16,21 @@
 #include <vector>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define YEELIGHT_CFG_KEY "YeelightDevices"
+
+struct YeelightDevice
+{
+    std::string ip;
+    std::string host_ip;
+    bool music_mode;
+};
+
+void to_json(json& j, const YeelightDevice& settings);
+void from_json(const json& j, YeelightDevice& settings);
 
 class YeelightController
 {
