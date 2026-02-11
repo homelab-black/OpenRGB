@@ -11,6 +11,17 @@
 
 #include "LinuxLEDController_Linux.h"
 
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LinuxLEDDevice,
+    name,
+    red_path,
+    green_path,
+    blue_path,
+    rgb_path
+);
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LinuxLEDSettings, devices);
+
 LinuxLEDController::LinuxLEDController(std::string dev_name)
 {
     name = dev_name;

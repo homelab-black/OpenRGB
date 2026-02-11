@@ -12,6 +12,31 @@
 #pragma once
 
 #include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define LINUX_LED_DEVICE_CFG_KEY "LinuxLEDDevices"
+
+struct LinuxLEDDevice
+{
+    std::string name;
+    std::string red_path;
+    std::string green_path;
+    std::string blue_path;
+    std::string rgb_path;
+};
+
+void to_json(json& j, const LinuxLEDDevice& settings);
+void from_json(const json& j, LinuxLEDDevice& settings);
+
+struct LinuxLEDSettings
+{
+    std::vector<LinuxLEDDevice> devices;
+};
+
+void to_json(json& j, const LinuxLEDSettings& settings);
+void from_json(const json& j, LinuxLEDSettings& settings);
 
 class LinuxLEDController
 {
