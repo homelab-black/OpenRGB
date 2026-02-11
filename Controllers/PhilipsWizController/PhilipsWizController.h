@@ -70,8 +70,12 @@ struct PhilipsWizDevice
     std::string selected_white_strategy = "Average";
 };
 
-void to_json(json& j, const PhilipsWizDevice& settings);
-void from_json(const json& j, PhilipsWizDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PhilipsWizDevice,
+    ip,
+    use_cool_white,
+    use_warm_white,
+    selected_white_strategy
+);
 
 class PhilipsWizController
 {

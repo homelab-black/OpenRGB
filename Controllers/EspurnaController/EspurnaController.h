@@ -16,8 +16,6 @@
 #include "net_port.h"
 #include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
-
 /*--------------------------*\
 | what's wrong with `true`? |
 \*--------------------------*/
@@ -44,16 +42,18 @@ struct EspurnaDevice
     std::string apikey;
 };
 
-void to_json(json& j, const EspurnaDevice& settings);
-void from_json(const json& j, EspurnaDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(EspurnaDevice,
+    ip,
+    port,
+    apikey
+);
 
 struct EspurnaSettings
 {
     std::vector<EspurnaDevice> devices;
 };
 
-void to_json(json& j, const EspurnaSettings& settings);
-void from_json(const json& j, EspurnaSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(EspurnaSettings, devices);
 
 class EspurnaController
 {

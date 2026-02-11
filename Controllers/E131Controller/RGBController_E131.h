@@ -29,8 +29,14 @@ enum class E131RGBOrder
     BGR
 };
 
-void to_json(json& j, const E131RGBOrder& settings);
-void from_json(const json& j, E131RGBOrder& settings);
+NLOHMANN_JSON_SERIALIZE_ENUM(E131RGBOrder, {
+    {E131RGBOrder::RGB, "RGB"},
+    {E131RGBOrder::RBG, "RBG"},
+    {E131RGBOrder::GRB, "GRB"},
+    {E131RGBOrder::GBR, "GBR"},
+    {E131RGBOrder::BRG, "BRG"},
+    {E131RGBOrder::BGR, "BGR"},
+});
 
 enum class E131MatrixOrder
 {
@@ -44,8 +50,16 @@ enum class E131MatrixOrder
     VERTICAL_BOTTOM_RIGHT
 };
 
-void to_json(json& j, const E131MatrixOrder& settings);
-void from_json(const json& j, E131MatrixOrder& settings);
+NLOHMANN_JSON_SERIALIZE_ENUM(E131MatrixOrder, {
+    {E131MatrixOrder::HORIZONTAL_TOP_LEFT, "HORIZONTAL_TOP_LEFT" },
+    {E131MatrixOrder::HORIZONTAL_TOP_RIGHT, "HORIZONTAL_TOP_RIGHT" },
+    {E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT, "HORIZONTAL_BOTTOM_LEFT" },
+    {E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT, "HORIZONTAL_BOTTOM_RIGHT" },
+    {E131MatrixOrder::VERTICAL_TOP_LEFT, "VERTICAL_TOP_LEFT" },
+    {E131MatrixOrder::VERTICAL_TOP_RIGHT, "VERTICAL_TOP_RIGHT" },
+    {E131MatrixOrder::VERTICAL_BOTTOM_LEFT, "VERTICAL_BOTTOM_LEFT" },
+    {E131MatrixOrder::VERTICAL_BOTTOM_RIGHT, "VERTICAL_BOTTOM_RIGHT" },
+});
 
 #define E131_SETTINGS_KEY "E131Devices"
 
@@ -65,16 +79,27 @@ struct E131Device
     E131MatrixOrder matrix_order = E131MatrixOrder::HORIZONTAL_TOP_LEFT;
 };
 
-void to_json(json& j, const E131Device& settings);
-void from_json(const json& j, E131Device& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Device,
+    name,
+    ip,
+    num_leds,
+    start_universe,
+    start_channel,
+    keepalive_time,
+    rgb_order,
+    type,
+    matrix_width,
+    matrix_height,
+    universe_size,
+    matrix_order
+);
 
 struct E131Settings
 {
     std::vector<E131Device> devices;
 };
 
-void to_json(json& j, const E131Settings& settings);
-void from_json(const json& j, E131Settings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Settings, devices);
 
 class RGBController_E131 : public RGBController
 {

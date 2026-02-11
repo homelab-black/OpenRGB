@@ -26,16 +26,14 @@ struct GoveeDevice
     std::string ip;
 };
 
-void to_json(json& j, const GoveeDevice& settings);
-void from_json(const json& j, GoveeDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(GoveeDevice, ip);
 
 struct GoveeSettings
 {
     std::vector<GoveeDevice> devices;
 };
 
-void to_json(json& j, const GoveeSettings& settings);
-void from_json(const json& j, GoveeSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(GoveeSettings, devices);
 
 class GoveeController
 {

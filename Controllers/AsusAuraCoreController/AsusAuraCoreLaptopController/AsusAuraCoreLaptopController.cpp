@@ -31,16 +31,6 @@ static std::string power_states[ASUSAURACORELAPTOP_POWER_STATES] =
     " when off",
 };
 
-void to_json(json& j, const AsusAuraCoreLaptopSettings& settings)
-{
-    j[POWER_SECTION_JSON_KEY] = settings.power_config;
-}
-
-void from_json(const json& j, AsusAuraCoreLaptopSettings& settings)
-{
-    j.at(POWER_SECTION_JSON_KEY).get_to(settings.power_config);
-}
-
 AsusAuraCoreLaptopController::AsusAuraCoreLaptopController(hid_device* dev_handle, const char* path)
 {
     dev                     = dev_handle;

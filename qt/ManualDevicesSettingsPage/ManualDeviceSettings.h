@@ -23,8 +23,19 @@ struct ManualDeviceSettings
     std::vector<D> devices;
 };
 
+/*-----------------------------------------*\
+| Not using the NLOHMANN_DEFINE macro here  |
+| to make error messages better (hopefully) |
+\*-----------------------------------------*/
 template<typename D>
-void to_json(json& j, const ManualDeviceSettings<D>& settings);
+inline void to_json(json& j, const ManualDeviceSettings<D>& settings)
+{
+    j = json { "devices", settings.devices };
+}
 
 template<typename D>
-void from_json(const json& j, ManualDeviceSettings<D>& settings);
+inline void from_json(const json& j, ManualDeviceSettings<D>& settings)
+{
+    j.at("devices").get_to(settings);
+}
+

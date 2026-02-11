@@ -338,51 +338,53 @@ void SettingsManager::MigrateSettings()
 }
 
 
-template<typename T>
-std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
-{
-    json data = GetControllerSettingsRaw(key);
-    if (!data.is_null())
-    {
-        return data.get<T>();
-    }
-    else
-    {
-        return std::nullopt;
-    }
-}
+// template<typename T>
+// std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
+// {
+//     json data = GetControllerSettingsRaw(key);
+//     if (!data.is_null())
+//     {
+//         return data.get<T>();
+//     }
+//     else
+//     {
+//         return std::nullopt;
+//     }
+// }
 
-template<typename T>
-T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
+// template<typename T>
+// T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
+// {
+//     /*------------------------------------*\
+//     | use default constructor for `T` here |
+//     \*------------------------------------*/
+//     T settings;
+//     json data = GetControllerSettingsRaw(key);
+//     if (!data.is_null())
+//     {
+//         settings = data.get<T>();
+//     }
+//     return settings;
+// }
+
+void SettingsManager::SetControllerSettingsAndSave(const std::string& key, json settings)
 {
-    /*------------------------------------*\
-    | use default constructor for `T` here |
-    \*------------------------------------*/
-    T settings;
-    json data = GetControllerSettingsRaw(key);
-    if (!data.is_null())
-    {
-        settings = data.get<T>();
-    }
-    return settings;
+    mutex.lock();
+    settings_data.controllers.data[key] = settings;
+    mutex.unlock();
+    SaveSettings();
 }
 
 json SettingsManager::GetControllerSettingsRaw(const std::string& key)
 {
+    json j = json { nullptr };
     mutex.lock();
-    json j = settings_data.controllers.data[key];
+    if(settings_data.controllers.data.contains(key))
+    {
+        j = settings_data.controllers.data[key];
+    }
     mutex.unlock();
     return j;
-}
-
-template<typename T>
-void SettingsManager::SetControllerSettingsAndSave(const std::string& key, T settings)
-{
-    json serialized = settings;
-    mutex.lock();
-    settings_data.controllers.data[key] = serialized;
-    mutex.unlock();
-    SaveSettings();
 }
 
 void SettingsManager::SetControllerSettingsAndSaveRaw(const std::string& key, json settings)

@@ -164,8 +164,17 @@ struct EVisionSettings
     bool additional_zones;
 };
 
-void to_json(json& j, const EVisionSettings& settings);
-void from_json(const json& j, EVisionSettings& settings);
+inline void to_json(json& j, const EVisionSettings& settings)
+{
+    j = json {
+        {"AdditionalZones", settings.additional_zones}
+    };
+}
+
+inline void from_json(const json& j, EVisionSettings& settings)
+{
+    j.at("AdditionalZones").get_to(settings.additional_zones);
+}
 
 class EVisionV2KeyboardController
 {

@@ -2,18 +2,7 @@
 #include "ResourceManager.h"
 #include "SettingsManager.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BridgeSettings,
-    ip,
-    mac,
-    username,
-    clientkey,
-    autoconnect,
-    entertainment
-);
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(HueSettings,
-    bridges
-);
 
 PhilipsHueSettingsHandler::PhilipsHueSettingsHandler()
 {
@@ -35,18 +24,20 @@ std::size_t PhilipsHueSettingsHandler::GetBridgeCount()
 
 const BridgeSettings& PhilipsHueSettingsHandler::GetBridge(unsigned int bridge_idx)
 {
-    if(settings.bridges.size() < bridge_idx)
+    /*---------------------------------------------------------*\
+    | Maybe return a std::optional instead of default settings? |
+    \*---------------------------------------------------------*/
+    return settings.bridges[bridge_idx];
+}
+
+void PhilipsHueSettingsHandler::SetBridge(unsigned int bridge_idx, BridgeSettings new_settings)
+{
+    if (settings.bridges.size() < bridge_idx)
     {
-        return settings.bridges[bridge_idx];
-    }
-    else
-    {
-        /*---------------------------------------------------------*\
-        | Maybe return a std::optional instead of default settings? |
-        \*---------------------------------------------------------*/
-        return BridgeSettings {};
+        settings.bridges[bridge_idx] = new_settings;
     }
 }
+
 
 void PhilipsHueSettingsHandler::SaveSettings()
 {

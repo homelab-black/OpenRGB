@@ -27,16 +27,20 @@ struct LinuxLEDDevice
     std::string rgb_path;
 };
 
-void to_json(json& j, const LinuxLEDDevice& settings);
-void from_json(const json& j, LinuxLEDDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LinuxLEDDevice,
+    name,
+    red_path,
+    green_path,
+    blue_path,
+    rgb_path
+);
 
 struct LinuxLEDSettings
 {
     std::vector<LinuxLEDDevice> devices;
 };
 
-void to_json(json& j, const LinuxLEDSettings& settings);
-void from_json(const json& j, LinuxLEDSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LinuxLEDSettings, devices);
 
 class LinuxLEDController
 {

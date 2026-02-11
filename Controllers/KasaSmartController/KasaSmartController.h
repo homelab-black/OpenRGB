@@ -59,8 +59,7 @@ struct KasaSmartDevice
     std::string name;
 };
 
-void to_json(json& j, const KasaSmartDevice& settings);
-void from_json(const json& j, KasaSmartDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(KasaSmartDevice, ip, name);
 
 class KasaSmartController
 {

@@ -32,16 +32,23 @@ struct BridgeSettings
     bool entertainment;
 };
 
-void to_json(json& j, const BridgeSettings& settings);
-void from_json(const json& j, BridgeSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BridgeSettings,
+    ip,
+    mac,
+    username,
+    clientkey,
+    autoconnect,
+    entertainment
+);
 
 struct HueSettings
 {
     std::vector<BridgeSettings> bridges;
 };
 
-void to_json(json& j, const HueSettings& settings);
-void from_json(const json& j, HueSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(HueSettings,
+    bridges
+);
 
 class PhilipsHueSettingsHandler
 {
@@ -50,9 +57,14 @@ public:
     ~PhilipsHueSettingsHandler();
 
     std::size_t     GetBridgeCount();
+    /*----------------------------------------------*\
+    | Gets a reference to the bridge at `bridge_idx` |
+    | crashes if `bridge_idx` is out of bounds       |
+    | Use `GetBridgeCount()` to check bounds         |
+    \*----------------------------------------------*/
     const BridgeSettings&  GetBridge(unsigned int bridge_idx);
 
-    void            SetBridge(unsigned int bridge_idx, BridgeSettings settings);
+    void            SetBridge(unsigned int bridge_idx, BridgeSettings new_settings);
     void            SaveSettings();
 
 private:

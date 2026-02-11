@@ -15,43 +15,6 @@
 
 using namespace std::chrono_literals;
 
-NLOHMANN_JSON_SERIALIZE_ENUM(E131RGBOrder, {
-    {E131RGBOrder::RGB, "RGB"},
-    {E131RGBOrder::RBG, "RBG"},
-    {E131RGBOrder::GRB, "GRB"},
-    {E131RGBOrder::GBR, "GBR"},
-    {E131RGBOrder::BRG, "BRG"},
-    {E131RGBOrder::BGR, "BGR"},
-});
-
-NLOHMANN_JSON_SERIALIZE_ENUM(E131MatrixOrder, {
-    {E131MatrixOrder::HORIZONTAL_TOP_LEFT, "HORIZONTAL_TOP_LEFT" },
-    {E131MatrixOrder::HORIZONTAL_TOP_RIGHT, "HORIZONTAL_TOP_RIGHT" },
-    {E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT, "HORIZONTAL_BOTTOM_LEFT" },
-    {E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT, "HORIZONTAL_BOTTOM_RIGHT" },
-    {E131MatrixOrder::VERTICAL_TOP_LEFT, "VERTICAL_TOP_LEFT" },
-    {E131MatrixOrder::VERTICAL_TOP_RIGHT, "VERTICAL_TOP_RIGHT" },
-    {E131MatrixOrder::VERTICAL_BOTTOM_LEFT, "VERTICAL_BOTTOM_LEFT" },
-    {E131MatrixOrder::VERTICAL_BOTTOM_RIGHT, "VERTICAL_BOTTOM_RIGHT" },
-});
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Device,
-    name,
-    ip,
-    num_leds,
-    start_universe,
-    start_channel,
-    keepalive_time,
-    rgb_order,
-    type,
-    matrix_width,
-    matrix_height,
-    universe_size,
-    matrix_order
-);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Settings, devices);
-
 /**------------------------------------------------------------------*\
     @name E1.31 Devices
     @category LEDStrip

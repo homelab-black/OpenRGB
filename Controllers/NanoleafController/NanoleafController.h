@@ -31,8 +31,11 @@ struct NanoleafDeviceSettings
     std::string auth_token;
 };
 
-void to_json(json& j, const NanoleafDeviceSettings& settings);
-void from_json(const json& j, NanoleafDeviceSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafDeviceSettings,
+    ip,
+    port,
+    auth_token
+);
 
 struct NanoleafSettings
 {
@@ -44,9 +47,9 @@ struct NanoleafSettings
     std::unordered_map<std::string, NanoleafDeviceSettings> devices;
 };
 
-void to_json(json& j, const NanoleafSettings& settings);
-void from_json(const json& j, NanoleafSettings& settings);
-
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafSettings,
+    devices
+);
 
 class NanoleafController
 {

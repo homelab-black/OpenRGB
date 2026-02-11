@@ -39,18 +39,6 @@
 #define BYGG_CSB_ICL01_PID          0x5041
 #define GAMEPOWER_OGRE_RGB_PID      0x7672
 
-void to_json(json& j, const EVisionSettings& settings)
-{
-    j = json {
-        {"AdditionalZones", settings.additional_zones}
-    };
-}
-
-void from_json(const json& j, EVisionSettings& settings)
-{
-    j.at("AdditionalZones").get_to(settings.additional_zones);
-}
-
 DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;

@@ -62,16 +62,20 @@ struct DDPDevice
     unsigned int        keepalive_time = 0;
 };
 
-void to_json(json& j, const DDPDevice& settings);
-void from_json(const json& j, DDPDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPDevice,
+    name,
+    ip,
+    port,
+    num_leds,
+    keepalive_time
+);
 
 struct DDPSettings
 {
     std::vector<DDPDevice> devices;
 };
 
-void to_json(json& j, const DDPSettings& settings);
-void from_json(const json& j, DDPSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPSettings, devices);
 
 struct DDPEndpoint
 {

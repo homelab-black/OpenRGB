@@ -30,6 +30,9 @@ using json = nlohmann::json;
 #define strtok_s        strtok_r
 #endif
 
+
+#define LEDSTRIP_CFG_KEY "LEDStripDevices"
+
 enum class LedProtocol
 {
     KEYBOARD_VISUALIZER,
@@ -38,7 +41,12 @@ enum class LedProtocol
     BASIC_I2C
 };
 
-#define LEDSTRIP_CFG_KEY "LEDStripDevices"
+NLOHMANN_JSON_SERIALIZE_ENUM(LedProtocol, {
+    {LedProtocol::KEYBOARD_VISUALIZER, "keyboard_visualizer"},
+    {LedProtocol::ADALIGHT, "adalight"},
+    {LedProtocol::TPM2, "tpm2"},
+    {LedProtocol::BASIC_I2C, "basic_i2c"}
+});
 
 struct LEDStripDevice
 {
@@ -49,8 +57,13 @@ struct LEDStripDevice
     LedProtocol    protocol = LedProtocol::KEYBOARD_VISUALIZER;
 };
 
-void to_json(json& j, const LEDStripDevice& settings);
-void from_json(const json& j, LEDStripDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LEDStripDevice,
+    name,
+    port,
+    baud,
+    num_leds,
+    protocol
+);
 
 class LEDStripController
 {

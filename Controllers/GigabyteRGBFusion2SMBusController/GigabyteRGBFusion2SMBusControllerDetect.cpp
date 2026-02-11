@@ -60,18 +60,6 @@ std::vector<std::string> rgb_fusion_2_smbus_motherboards =
     "Z370 AORUS Ultra Gaming-CF"
 };
 
-void to_json(json& j, const RGBFusion2SMBusSettings& settings)
-{
-    j = json {
-        {"SupportedDevices", settings.supported_devices}
-    };
-}
-
-void from_json(const json& j, RGBFusion2SMBusSettings& settings)
-{
-    j.at("SupportedDevices").get_to(settings.supported_devices);
-}
-
 bool TestForGigabyteRGBFusion2SMBusController(i2c_smbus_interface* bus, unsigned char address)
 {
     bool pass = false;

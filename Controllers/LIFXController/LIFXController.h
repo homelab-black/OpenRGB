@@ -177,8 +177,12 @@ struct LIFXDevice
     bool extended_multizone;
 };
 
-void to_json(json& j, const LIFXDevice& settings);
-void from_json(const json& j, LIFXDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LIFXDevice,
+    ip,
+    name,
+    multizone,
+    extended_multizone
+);
 
 class LIFXController
 {

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <mutex>
 #include "filesystem.h"
 #include "SettingsJson.h"
@@ -85,14 +86,42 @@ public:
     /*----------------------------*\
     | Controller-specific settings |
     \*----------------------------*/
-    template<typename T>
-    std::optional<T> GetControllerSettings(const std::string& key);
+    // template<typename T>
+    // std::optional<T> GetControllerSettings(const std::string& key);
+
+    // template<typename T>
+    // T GetControllerSettingsOrDefault(const std::string& key);
+
+    void SetControllerSettingsAndSave(const std::string& key, json settings);
 
     template<typename T>
-    T GetControllerSettingsOrDefault(const std::string& key);
+    std::optional<T> GetControllerSettings(const std::string& key)
+    {
+        json data = GetControllerSettingsRaw(key);
+        if (!data.is_null())
+        {
+            return data.get<T>();
+        }
+        else
+        {
+            return std::nullopt;
+        }
+    }
 
     template<typename T>
-    void SetControllerSettingsAndSave(const std::string& key, T settings);
+    T GetControllerSettingsOrDefault(const std::string& key)
+    {
+        /*------------------------------------*\
+        | use default constructor for `T` here |
+        \*------------------------------------*/
+        T settings;
+        json data = GetControllerSettingsRaw(key);
+        if (!data.is_null())
+        {
+            settings = data.get<T>();
+        }
+        return settings;
+    }
 
     /*-------------------------------------------*\
     | Gets settings at controller key as raw JSON |

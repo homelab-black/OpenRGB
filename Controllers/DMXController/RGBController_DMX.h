@@ -32,16 +32,22 @@ struct DMXDevice
     unsigned int brightness_channel;
 };
 
-void to_json(json& j, const DMXDevice& settings);
-void from_json(const json& j, DMXDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DMXDevice,
+    name,
+    port,
+    keepalive_time,
+    red_channel,
+    green_channel,
+    blue_channel,
+    brightness_channel
+);
 
 struct DMXSettings
 {
     std::vector<DMXDevice> devices;
 };
 
-void to_json(json& j, const DMXSettings& settings);
-void from_json(const json& j, DMXSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DMXSettings, devices);
 
 class RGBController_DMX : public RGBController
 {

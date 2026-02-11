@@ -13,12 +13,6 @@
 
 using namespace std::chrono_literals;
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PhilipsWizDevice,
-    ip,
-    use_cool_white,
-    use_warm_white,
-    selected_white_strategy
-);
 
 PhilipsWizController::PhilipsWizController(std::string ip, bool use_cool, bool use_warm, std::string selected_white_strategy)
 {

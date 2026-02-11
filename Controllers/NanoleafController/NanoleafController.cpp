@@ -13,16 +13,6 @@
 #include "LogManager.h"
 #include "httplib.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafDeviceSettings,
-    ip,
-    port,
-    auth_token
-);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafSettings,
-    devices
-);
-
 long APIRequest(std::string method, std::string location, std::string URI, json* request_data = nullptr, json* response_data = nullptr)
 {
     /*-------------------------------------------------------------*\

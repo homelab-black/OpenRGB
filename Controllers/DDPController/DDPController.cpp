@@ -12,16 +12,6 @@
 #include <cstring>
 #include <algorithm>
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPDevice,
-    name,
-    ip,
-    port,
-    num_leds,
-    keepalive_time
-);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPSettings, devices);
-
 DDPController::DDPController(const std::vector<DDPDevice>& device_list)
 {
     devices         = device_list;

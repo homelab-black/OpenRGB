@@ -7,6 +7,31 @@
 using json = nlohmann::json;
 using string = std::string;
 
+/*-----------------------------------------------------------------------*\
+| Specialisation, required to parse std::optional<T>                      |
+| https://github.com/nlohmann/json/issues/1910#issuecomment-615843605     |
+\*-----------------------------------------------------------------------*/
+namespace nlohmann {
+    template <typename T>
+    struct adl_serializer<std::optional<T>> {
+        static void to_json(json& j, const std::optional<T>& opt) {
+            if (opt == std::nullopt) {
+                j = nullptr;
+            } else {
+              j = *opt;
+            }
+        }
+
+        static void from_json(const json& j, std::optional<T>& opt) {
+            if (j.is_null()) {
+                opt = std::nullopt;
+            } else {
+                opt = j.get<T>();
+            }
+        }
+    };
+}
+
 struct AutoStartSettings {
 public:
     bool enabled;
@@ -32,8 +57,25 @@ public:
     string custom;
 };
 
-void to_json(json& j, const AutoStartSettings& settings);
-void from_json(const json& j, AutoStartSettings& settings);
+// NO TRAILING COMMAS!
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AutoStartSettings,
+    enabled,
+    setminimized,
+    setprofile,
+    profile,
+    client,
+    setclient,
+    setserver,
+    setserverhost,
+    host,
+    setserverportbool,
+    port,
+    setcustom,
+    custom
+);
+
+// void to_json(json& j, const AutoStartSettings& settings);
+// void from_json(const json& j, AutoStartSettings& settings);
 
 struct DetectorSettings {
     std::unordered_map<string, bool> detectors;
@@ -61,8 +103,11 @@ struct DetectorSettings {
     }
 };
 
-void to_json(json& j, const DetectorSettings& settings);
-void from_json(const json& j, DetectorSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DetectorSettings,
+    detectors,
+    hid_safe_mode,
+    initial_detection_delay_ms
+);
 
 struct LogManagerSettings {
     // whether to enable log console in openrgb
@@ -78,16 +123,24 @@ struct LogManagerSettings {
     std::vector<size_t> dialog_no_show_hashes;
 };
 
-void to_json(json& j, const LogManagerSettings& settings);
-void from_json(const json& j, LogManagerSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LogManagerSettings,
+    log_console,
+    file_count_limit,
+    log_file,
+    logfile,
+    loglevel,
+    dialog_no_show_hashes
+);
 
 struct ProfileSettings {
     bool enabled;
     string name;
 };
 
-void to_json(json& j, const ProfileSettings& settings);
-void from_json(const json& j, ProfileSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileSettings,
+    enabled,
+    name
+);
 
 /*--------------------------------------------*\
 | profile to use on <variant> event            |
@@ -111,8 +164,12 @@ struct ProfileManagerSettings {
     ProfileSettings exit_profile;
 };
 
-void to_json(json& j, const ProfileManagerSettings& settings);
-void from_json(const json& j, ProfileManagerSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileManagerSettings,
+    open_profile,
+    resume_profile,
+    suspend_profile,
+    exit_profile
+);
 
 enum class Theme {
     Light,
@@ -120,8 +177,11 @@ enum class Theme {
     Auto,
 };
 
-void to_json(json& j, const Theme& settings);
-void from_json(const json& j, Theme& settings);
+NLOHMANN_JSON_SERIALIZE_ENUM(Theme, {
+    {Theme::Light, "light"},
+    {Theme::Dark, "dark"},
+    {Theme::Auto, "auto"}
+});
 
 string ThemeToString(Theme theme);
 std::optional<Theme> StringToTheme(const std::string& str);
@@ -130,8 +190,7 @@ struct ThemeSettings {
     Theme theme = Theme::Light;
 };
 
-void to_json(json& j, const ThemeSettings& settings);
-void from_json(const json& j, ThemeSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ThemeSettings, theme);
 
 struct WindowGeometrySettings {
     int x = 0; // maybe use uint_32t for these?
@@ -142,8 +201,14 @@ struct WindowGeometrySettings {
     bool save_on_exit = false;
 };
 
-void to_json(json& j, const WindowGeometrySettings& settings);
-void from_json(const json& j, WindowGeometrySettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(WindowGeometrySettings,
+    x,
+    y,
+    width,
+    height,
+    load_geometry,
+    save_on_exit
+);
 
 struct AutoLoadProfileSettings {
     std::optional<ProfileSettings> open_profile;
@@ -152,16 +217,22 @@ struct AutoLoadProfileSettings {
     std::optional<ProfileSettings> exit_profile;
 };
 
-void to_json(json& j, const AutoLoadProfileSettings& settings);
-void from_json(const json& j, AutoLoadProfileSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AutoLoadProfileSettings,
+    open_profile,
+    resume_profile,
+    suspend_profile,
+    exit_profile
+);
 
 struct ExitProfileSettings {
     bool set_on_exit;
     string profile_name;
 };
 
-void to_json(json& j, const ExitProfileSettings& settings);
-void from_json(const json& j, ExitProfileSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ExitProfileSettings,
+    set_on_exit,
+    profile_name
+);
 
 enum class HexFormat
 {
@@ -169,8 +240,10 @@ enum class HexFormat
     BGR,
 };
 
-void to_json(json& j, const HexFormat& settings);
-void from_json(const json& j, HexFormat& settings);
+NLOHMANN_JSON_SERIALIZE_ENUM(HexFormat, {
+    {HexFormat::RGB, "RGB"},
+    {HexFormat::BGR, "BGR"}
+});
 
 string HexFormatToString(HexFormat hex_format);
 std::optional<HexFormat> StringToHexFormat(const std::string& str);
@@ -191,8 +264,16 @@ struct UserInterfaceSettings {
     ExitProfileSettings exit_profile;
 };
 
-void to_json(json& j, const UserInterfaceSettings& settings);
-void from_json(const json& j, UserInterfaceSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(UserInterfaceSettings,
+    run_zone_checks,
+    greyscale_tray_icon,
+    minimize_on_close,
+    disable_key_expansion,
+    geometry,
+    language,
+    autoload_profiles,
+    exit_profile
+);
 
 // todo: fix naming
 struct OnePluginSettings {
@@ -201,24 +282,32 @@ struct OnePluginSettings {
     bool enabled;
 };
 
-void to_json(json& j, const OnePluginSettings& settings);
-void from_json(const json& j, OnePluginSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OnePluginSettings,
+    name,
+    description,
+    enabled
+);
+
 
 struct PluginSettings {
     std::vector<std::filesystem::path> plugins_remove;
     std::vector<OnePluginSettings> plugins;
 };
 
-void to_json(json& j, const PluginSettings& settings);
-void from_json(const json& j, PluginSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PluginSettings,
+    plugins_remove,
+    plugins
+);
 
 struct OneClientSettings {
     string ip;
     unsigned short port;
 };
 
-void to_json(json& j, const OneClientSettings& settings);
-void from_json(const json& j, OneClientSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OneClientSettings,
+    ip,
+    port
+);
 
 struct ClientSettings
 {
@@ -242,15 +331,17 @@ struct ClientSettings
     }
 };
 
-void to_json(json& j, const ClientSettings& settings);
-void from_json(const json& j, ClientSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ClientSettings,
+    clients
+);
 
 struct ControllerSettings {
     json data;
 };
 
-void to_json(json& j, const ControllerSettings& settings);
-void from_json(const json& j, ControllerSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ControllerSettings,
+    data
+);
 
 struct DriverSettings
 {
@@ -258,8 +349,10 @@ struct DriverSettings
     bool shared_smbus_access = true;
 };
 
-void to_json(json& j, const DriverSettings& settings);
-void from_json(const json& j, DriverSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DriverSettings,
+    amd_smbus_reduce_cpu,
+    shared_smbus_access
+);
 
 struct ServerSettings
 {
@@ -270,8 +363,11 @@ struct ServerSettings
     bool all_devices = false;
 };
 
-void to_json(json& j, const ServerSettings& settings);
-void from_json(const json& j, ServerSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ServerSettings,
+    legacy_workaround,
+    all_controllers,
+    all_devices
+);
 
 #define SETTINGS_VERSION "1.0"
 
@@ -293,9 +389,39 @@ struct Settings {
     ControllerSettings controllers;
 };
 
-/* *\
-We can't use the macro's here since we need to rename the fields.
-I prefer snake_case in for field names.
-\* */
-void to_json(nlohmann::json &j, const Settings& st);
-void from_json(const json& j, Settings& st);
+/*-----------------------------------------------------------------*\
+| We can't use the macro's here since we need to rename the fields. |
+| I prefer snake_case in for field names.                           |
+|                                                                   |
+| Inlined these for consistency with macros                         |
+\*-----------------------------------------------------------------*/
+inline void to_json(nlohmann::json &j, const Settings& st) {
+    j = json {
+        {"AutoStart", st.auto_start},
+        {"Detectors", st.detectors},
+        {"LogManager", st.log_manager},
+        {"ProfileManager", st.profile_manager},
+        {"Theme", st.theme},
+        {"UserInterface", st.ui},
+        {"Plugins", st.plugins},
+        {"Clients", st.clients},
+        {"Drivers", st.drivers},
+        {"Servers", st.servers},
+        {"Controllers", st.controllers},
+    };
+}
+
+inline void from_json(const json& j, Settings& st) {
+    j.at("AutoStart").get_to(st.auto_start);
+    j.at("Detectors").get_to(st.detectors);
+    j.at("LogManager").get_to(st.log_manager);
+    j.at("ProfileManager").get_to(st.profile_manager);
+    j.at("Theme").get_to(st.theme);
+    j.at("UserInterface").get_to(st.ui);
+    j.at("Plugins").get_to(st.plugins);
+    j.at("Clients").get_to(st.clients);
+    j.at("Drivers").get_to(st.drivers);
+    j.at("Servers").get_to(st.servers);
+    j.at("Controllers").get_to(st.controllers);
+}
+

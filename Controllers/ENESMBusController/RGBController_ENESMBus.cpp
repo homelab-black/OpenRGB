@@ -25,10 +25,6 @@
     @comment
 \*-------------------------------------------------------------------*/
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ENESMBusSettings,
-    enable_save
-);
-
 RGBController_ENESMBus::RGBController_ENESMBus(ENESMBusController * controller_ptr)
 {
     controller                  = controller_ptr;

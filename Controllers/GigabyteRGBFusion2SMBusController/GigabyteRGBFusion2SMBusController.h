@@ -92,8 +92,17 @@ struct RGBFusion2SMBusSettings
     std::vector<std::string> supported_devices;
 };
 
-void to_json(json& j, const RGBFusion2SMBusSettings& settings);
-void from_json(const json& j, RGBFusion2SMBusSettings& settings);
+inline void to_json(json& j, const RGBFusion2SMBusSettings& settings)
+{
+    j = json {
+        {"SupportedDevices", settings.supported_devices}
+    };
+}
+
+inline void from_json(const json& j, RGBFusion2SMBusSettings& settings)
+{
+    j.at("SupportedDevices").get_to(settings.supported_devices);
+}
 
 class RGBFusion2SMBusController
 {

@@ -26,8 +26,11 @@ struct QMKOpenDeviceSettings
     std::string name;
 };
 
-void to_json(json& j, const QMKOpenDeviceSettings& settings);
-void from_json(const json& j, QMKOpenDeviceSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenDeviceSettings,
+    usb_pid,
+    usb_vid,
+    name
+);
 
 struct QMKOpenSettings
 {
@@ -36,8 +39,10 @@ struct QMKOpenSettings
     std::vector<QMKOpenDeviceSettings> devices;
 };
 
-void to_json(json& j, const QMKOpenSettings& settings);
-void from_json(const json& j, QMKOpenSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenSettings,
+    leds_per_update,
+    delay
+);
 
 class QMKOpenRGBBaseController
 {

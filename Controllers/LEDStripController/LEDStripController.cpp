@@ -15,21 +15,6 @@
 #include "LEDStripController.h"
 #include "ResourceManager.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LEDStripDevice,
-    name,
-    port,
-    baud,
-    num_leds,
-    protocol
-);
-
-NLOHMANN_JSON_SERIALIZE_ENUM(LedProtocol, {
-    {LedProtocol::KEYBOARD_VISUALIZER, "keyboard_visualizer"},
-    {LedProtocol::ADALIGHT, "adalight"},
-    {LedProtocol::TPM2, "tpm2"},
-    {LedProtocol::BASIC_I2C, "basic_i2c"}
-});
-
 LEDStripController::LEDStripController(std::string dev_name)
 {
     name = dev_name;

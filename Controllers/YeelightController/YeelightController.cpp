@@ -11,12 +11,6 @@
 
 #include "YeelightController.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(YeelightDevice,
-    host_ip,
-    ip,
-    music_mode
-);
-
 YeelightController::YeelightController(std::string ip, std::string host_ip, bool music_mode_val)
 {
     /*-----------------------------------------------------------------*\

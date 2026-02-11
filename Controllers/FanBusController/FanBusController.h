@@ -25,16 +25,14 @@ struct FanBusDevice
     std::string port;
 };
 
-void to_json(json& j, const FanBusDevice& settings);
-void from_json(const json& j, FanBusDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FanBusDevice, port);
 
 struct FanBusSettings
 {
     std::vector<FanBusDevice> devices;
 };
 
-void to_json(json& j, const FanBusSettings& settings);
-void from_json(const json& j, FanBusSettings& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(FanBusSettings, devices);
 
 class FanBusController
 {

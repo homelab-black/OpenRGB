@@ -29,8 +29,11 @@ struct YeelightDevice
     bool music_mode;
 };
 
-void to_json(json& j, const YeelightDevice& settings);
-void from_json(const json& j, YeelightDevice& settings);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(YeelightDevice,
+    host_ip,
+    ip,
+    music_mode
+);
 
 class YeelightController
 {

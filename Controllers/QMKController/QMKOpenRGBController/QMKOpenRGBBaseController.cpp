@@ -17,17 +17,6 @@
 
 using namespace std::chrono_literals;
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenDeviceSettings,
-    usb_pid,
-    usb_vid,
-    name
-);
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenSettings,
-    leds_per_update,
-    delay
-);
-
 QMKOpenRGBBaseController::QMKOpenRGBBaseController(hid_device *dev_handle, const char *path, unsigned char max_led_count)
 {
     /*-------------------------------------------------*\
@@ -50,6 +39,7 @@ QMKOpenRGBBaseController::QMKOpenRGBBaseController(hid_device *dev_handle, const
         {
             .leds_per_update = max_led_count,
             .delay = 0,
+            .devices = std::vector<QMKOpenDeviceSettings>(),
         };
         sm->SetControllerSettingsAndSave(QMK_OPEN_SETTINGS_KEY, default_settings);
         settings = default_settings;

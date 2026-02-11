@@ -39,44 +39,6 @@ const char* polychrome_USB_zone_names[] =
     "Addressable Header 3/Audio",
 };
 
-void to_json(json& j, const PolyChromeRGSwapZones& settings)
-{
-    j = json {
-        {"RGB LED 1 Header", settings.rgb_led_1_header},
-        {"RGB LED 2 Header", settings.rgb_led_2_header},
-        {"Addressable Header 1", settings.addressable_header_1},
-        {"Addressable Header 2", settings.addressable_header_2},
-        {"PCH", settings.pch},
-        {"IO Cover", settings.io_cover},
-        {"PCB", settings.pcb},
-        {"Addressable Header 3/Audio", settings.addressable_header_3},
-    };
-}
-
-void from_json(const json& j, PolyChromeRGSwapZones& settings)
-{
-    j.at("RGB LED 1 Header").get_to(settings.rgb_led_1_header);
-    j.at("RGB LED 2 Header").get_to(settings.rgb_led_2_header);
-    j.at("Addressable Header 1").get_to(settings.addressable_header_1);
-    j.at("Addressable Header 2").get_to(settings.addressable_header_2);
-    j.at("PCH").get_to(settings.pch);
-    j.at("IO Cover").get_to(settings.io_cover);
-    j.at("PCB").get_to(settings.pcb);
-    j.at("Addressable Header 3/Audio").get_to(settings.addressable_header_3);
-}
-
-void to_json(json& j, const PolyChromeUSBSettings& settings)
-{
-    j = json {
-        {"RGSwap", settings.rg_swap},
-    };
-}
-
-void from_json(const json& j, PolyChromeUSBSettings& settings)
-{
-    j.at("RGSwap").get_to(settings.rg_swap);
-}
-
 PolychromeUSBController::PolychromeUSBController(hid_device* dev_handle, const char* path)
 {
     DMIInfo       dmi;

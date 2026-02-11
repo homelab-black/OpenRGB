@@ -13,7 +13,6 @@
 #include "KasaSmartController.h"
 #include "hsv.h"
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(KasaSmartDevice, ip, name);
 
 KasaSmartController::KasaSmartController(std::string ipAddress, std::string name)
 {
