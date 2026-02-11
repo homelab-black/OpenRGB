@@ -16,6 +16,9 @@
 #include <vector>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define PHILIPSWIZ_BRIGHTNESS_MAX   100
 #define PHILIPSWIZ_BRIGHTNESS_MIN   10
@@ -56,6 +59,19 @@ enum
     PHILLIPSWIZ_MODE_PULSE         = 31,
     PHILLIPSWIZ_MODE_STEAMPUNK     = 32
 };
+
+#define PHILIPZWIZ_CFG_KEY "PhilipsWizDevices"
+
+struct PhilipsWizDevice
+{
+    std::string ip;
+    bool use_cool_white = false;
+    bool use_warm_white = false;
+    std::string selected_white_strategy = "Average";
+};
+
+void to_json(json& j, const PhilipsWizDevice& settings);
+void from_json(const json& j, PhilipsWizDevice& settings);
 
 class PhilipsWizController
 {

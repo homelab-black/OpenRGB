@@ -33,41 +33,23 @@ void PhilipsWizSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void PhilipsWizSettingsEntry::loadFromSettings(const json& data)
+void PhilipsWizSettingsEntry::loadFromSettings(const PhilipsWizDevice& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-
-    if(data.contains("use_cool_white"))
-    {
-        ui->UseCoolWhiteCheckBox->setChecked(data["use_cool_white"]);
-    }
-
-    if(data.contains("use_warm_white"))
-    {
-        ui->UseWarmWhiteCheckBox->setChecked(data["use_warm_white"]);
-    }
-
-    if(data.contains("selected_white_strategy"))
-    {
-        ui->WhiteStrategyComboBox->setCurrentText(QString::fromStdString(data["selected_white_strategy"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->UseCoolWhiteCheckBox->setChecked(data.use_cool_white);
+    ui->UseWarmWhiteCheckBox->setChecked(data.use_warm_white);
+    ui->WhiteStrategyComboBox->setCurrentText(QString::fromStdString(data.selected_white_strategy));
 }
 
 json PhilipsWizSettingsEntry::saveSettings()
 {
-    json result;
-    /*-------------------------------------------------*\
-    | Required parameters                               |
-    \*-------------------------------------------------*/
-    result["ip"]               = ui->IPEdit->text().toStdString();
-    result["use_cool_white"]   = ui->UseCoolWhiteCheckBox->isChecked();
-    result["use_warm_white"]   = ui->UseWarmWhiteCheckBox->isChecked();
-    result["selected_white_strategy"]   = ui->WhiteStrategyComboBox->currentText().toStdString();
-
-    return result;
+    return PhilipsWizDevice
+    {
+        .ip               = ui->IPEdit->text().toStdString(),
+        .use_cool_white   = ui->UseCoolWhiteCheckBox->isChecked(),
+        .use_warm_white   = ui->UseWarmWhiteCheckBox->isChecked(),
+        .selected_white_strategy   = ui->WhiteStrategyComboBox->currentText().toStdString(),
+    };
 }
 
 bool PhilipsWizSettingsEntry::isDataValid()
@@ -83,4 +65,4 @@ static BaseManualDeviceEntry* SpawnPhilipsWizSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Philips Wiz", "PhilipsWizDevices", SpawnPhilipsWizSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Philips Wiz", PHILIPZWIZ_CFG_KEY, SpawnPhilipsWizSettingsEntry);
