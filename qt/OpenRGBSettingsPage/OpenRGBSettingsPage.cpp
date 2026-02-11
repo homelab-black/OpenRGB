@@ -172,20 +172,32 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     ui->CheckboxAllDevices->setChecked(server_settings.all_devices);
     ui->CheckboxLegacyWorkaround->setChecked(server_settings.legacy_workaround);
 
-    UpdateProfiles(settings);
+
+    /*----------------------------------------------------*\
+    | UpdateProfile can't have its signature changed       |
+    | So we have to release settings and then reacquire    |
+    | the lock right after we're done updating the profile |
+    \*----------------------------------------------------*/
+    settings.Release();
+    UpdateProfiles();
+
+    /*------------------------------------------------------------*\
+    | Need to get a new guard since the old one has become invalid |
+    \*------------------------------------------------------------*/
+    SettingsAccessGuard guard2 = ResourceManager::get()->GetSettingsManager()->GetSettings();
 
     /*---------------------------------------------------------*\
     | Make sure autostart settings exist                        |
     \*---------------------------------------------------------*/
-    CreateAutoStartSettings(settings);
+    CreateAutoStartSettings(guard2);
 
     /*--------------------------------------------------------------------*\
     | Initialise UI to current settings or defaults                        |
       Remediate can modify the auto start settings, so we save just in case|
     \*--------------------------------------------------------------------*/
-    AutoStartSettings& autostart_settings = settings.access_mut().auto_start;
+    AutoStartSettings& autostart_settings = guard2.access_mut().auto_start;
     RemediateAutoStartProfile(autostart_settings);
-    settings.Save();
+    guard2.Save();
 
     /*---------------------------------------------------------*\
     | Text boxes                                                |
@@ -232,7 +244,7 @@ void OpenRGBSettingsPage::changeEvent(QEvent *event)
     }
 }
 
-void OpenRGBSettingsPage::UpdateProfiles(SettingsAccessGuard& guard)
+void OpenRGBSettingsPage::UpdateProfiles()
 {
     /*-----------------------------------------------------*\
     | Load AutoStart settings                               |
@@ -277,6 +289,7 @@ void OpenRGBSettingsPage::UpdateProfiles(SettingsAccessGuard& guard)
     /*-----------------------------------------------------*\
     | Load user interface settings                          |
     \*-----------------------------------------------------*/
+    SettingsAccessGuard guard = ResourceManager::get()->GetSettingsManager()->GetSettings();
     const AutoStartSettings& autostart_settings = guard.access().auto_start;
 
     /*-------------------------------------------------*\

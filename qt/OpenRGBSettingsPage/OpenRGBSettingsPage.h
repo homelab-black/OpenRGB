@@ -32,7 +32,7 @@ signals:
     void TrayIconChanged(bool tray_icon);
 
 public slots:
-    void UpdateProfiles(SettingsAccessGuard& guard);
+    void UpdateProfiles();
 
 private:
     Ui::OpenRGBSettingsPage *ui;
