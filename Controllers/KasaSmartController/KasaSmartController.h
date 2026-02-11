@@ -16,6 +16,9 @@
 #include <vector>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 enum
 {
@@ -47,6 +50,17 @@ const char KASA_SMART_LEDSTRIP_SET_LIGHT_STATE_COMMAND_FORMAT[] = "{\"smartlife.
                                                          ":1, \"mode\":\"normal\", \"hue\": %u, \"saturation\": %u, \"brightness\": %u, \"color_temp\": 0}}}";
 #define KASA_SMART_EFFECT_RAINBOW_COMMAND "{\"smartlife.iot.lighting_effect\":{\"set_lighting_effect\":{\"custom\":0,\"direction\":1,\"duration\":0,\"enable\":1,\"expansion_strategy\":1,\"name\":\"Rainbow\",\"repeat_times\":0,\"segments\":[0],\"sequence\":[[0,100,100],[100,100,100],[200,100,100],[300,100,100]],\"spread\":12,\"transition\":1500,\"type\":\"sequence\"}}}}"
 
+
+#define KASA_SMART_CFG_KEY "KasaSmartDevices"
+
+struct KasaSmartDevice
+{
+    std::string ip;
+    std::string name;
+};
+
+void to_json(json& j, const KasaSmartDevice& settings);
+void from_json(const json& j, KasaSmartDevice& settings);
 
 class KasaSmartController
 {

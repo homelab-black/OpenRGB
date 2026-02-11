@@ -11,10 +11,9 @@
 
 #include <cstdint>
 #include "KasaSmartController.h"
-#include <nlohmann/json.hpp>
 #include "hsv.h"
 
-using json = nlohmann::json;
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(KasaSmartDevice, ip, name);
 
 KasaSmartController::KasaSmartController(std::string ipAddress, std::string name)
 {

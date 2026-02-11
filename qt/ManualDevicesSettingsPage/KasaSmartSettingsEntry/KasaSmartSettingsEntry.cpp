@@ -30,24 +30,19 @@ void KasaSmartSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void KasaSmartSettingsEntry::loadFromSettings(const json& data)
+void KasaSmartSettingsEntry::loadFromSettings(const KasaSmartDevice& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-    if(data.contains("name"))
-    {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->NameEdit->setText(QString::fromStdString(data.name));
 }
 
 json KasaSmartSettingsEntry::saveSettings()
 {
-    json result;
-    result["ip"] = ui->IPEdit->text().toStdString();
-    result["name"] = ui->NameEdit->text().toStdString();
-    return result;
+    return KasaSmartDevice
+    {
+        .ip = ui->IPEdit->text().toStdString(),
+        .name = ui->NameEdit->text().toStdString(),
+    };
 }
 
 void KasaSmartSettingsEntry::setName(QString name)
@@ -68,4 +63,4 @@ static BaseManualDeviceEntry* SpawnKasaSmartSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Kasa Smart", "KasaSmartDevices", SpawnKasaSmartSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Kasa Smart", KASA_SMART_CFG_KEY, SpawnKasaSmartSettingsEntry);
