@@ -3,7 +3,7 @@
 |                                                           |
 |   Driver for Akko keyboard                                |
 |                                                           |
-|   Bizzotto Nicola (nicola02nb)                 05 Feb 2026|
+|   Bizzotto Nicola (nicola02nb)                05 Feb 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
