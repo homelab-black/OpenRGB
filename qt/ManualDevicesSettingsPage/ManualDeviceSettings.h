@@ -1,6 +1,12 @@
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
+
+/*------------------------------------------------------------*\
+| We could use this struct in the ManualDeviceSettingsPage     |
+| Instead of dealing with json, but I'm leaving that for later |
+\*------------------------------------------------------------*/
+
 /*-----------------------------------------------------------------------*\
 | Settings struct for controllers                                         |
 | included on the manual device settings page                             |

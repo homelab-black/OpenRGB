@@ -10,6 +10,8 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "QMKOpenRGBBaseController.h"
+#include "QMKVialRGBController.h"
 
 namespace Ui
 {
@@ -26,7 +28,7 @@ private slots:
 public:
     explicit QMKVialRGBSettingsEntry(QWidget *parent = nullptr);
     ~QMKVialRGBSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const QMKOpenDeviceSettings& data);
     json saveSettings() override;
     bool isDataValid() override;
 
