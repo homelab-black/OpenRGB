@@ -359,15 +359,14 @@ std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
 template<typename T>
 T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
 {
+    /*------------------------------------*\
+    | use default constructor for `T` here |
+    \*------------------------------------*/
+    T settings;
     mutex.lock();
     if (settings_data.controllers.data.contains(key))
     {
-        return settings_data.controllers.data[key].get<T>();
-    }
-    else
-    {
-        T _default;
-        return _default;
+        settings = settings_data.controllers.data[key].get<T>();
     }
     mutex.unlock();
     return deserialized;
