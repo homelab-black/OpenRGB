@@ -10,11 +10,16 @@
 \*---------------------------------------------------------*/
 
 #include "LIFXController.h"
-#include <nlohmann/json.hpp>
 #include "hsv.h"
 
-using json = nlohmann::json;
 using namespace std::chrono_literals;
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LIFXDevice,
+    ip,
+    name,
+    multizone,
+    extended_multizone
+);
 
 LIFXController::LIFXController(std::string ip, std::string name, bool multizone, bool extended_multizone)
 {

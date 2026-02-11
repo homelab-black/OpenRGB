@@ -8,6 +8,7 @@
 \*---------------------------------------------------------*/
 
 #include "BaseManualDeviceEntry.h"
+#include "LIFXController.h"
 
 namespace Ui
 {
@@ -21,7 +22,7 @@ class LIFXSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit LIFXSettingsEntry(QWidget *parent = nullptr);
     ~LIFXSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const LIFXDevice& data);
     void setName(QString name);
 
     json saveSettings() override;

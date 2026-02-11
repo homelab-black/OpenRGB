@@ -32,34 +32,23 @@ void LIFXSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void LIFXSettingsEntry::loadFromSettings(const json& data)
+void LIFXSettingsEntry::loadFromSettings(const LIFXDevice& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-    if(data.contains("name"))
-    {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
-    }
-    if(data.contains("multizone") && data["multizone"].is_boolean())
-    {
-        ui->MultizoneCheckBox->setCheckState(data["multizone"] == true ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
-    }
-    if(data.contains("extended_multizone") && data["extended_multizone"].is_boolean())
-    {
-        ui->ExtendedMultizoneCheckBox->setCheckState(data["extended_multizone"] == true ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->NameEdit->setText(QString::fromStdString(data.name));
+    ui->MultizoneCheckBox->setCheckState(data.multizone ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+    ui->ExtendedMultizoneCheckBox->setCheckState(data.extended_multizone ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
 }
 
 json LIFXSettingsEntry::saveSettings()
 {
-    json result;
-    result["ip"]                 = ui->IPEdit->text().toStdString();
-    result["name"]               = ui->NameEdit->text().toStdString();
-    result["multizone"]          = ui->MultizoneCheckBox->checkState() == Qt::Checked;
-    result["extended_multizone"] = ui->ExtendedMultizoneCheckBox->checkState() == Qt::Checked;
-    return result;
+    return LIFXDevice
+    {
+        .ip                 = ui->IPEdit->text().toStdString(),
+        .name               = ui->NameEdit->text().toStdString(),
+        .multizone          = ui->MultizoneCheckBox->checkState() == Qt::Checked,
+        .extended_multizone = ui->ExtendedMultizoneCheckBox->checkState() == Qt::Checked,
+    };
 }
 
 void LIFXSettingsEntry::setName(QString name)
@@ -93,4 +82,4 @@ static BaseManualDeviceEntry* SpawnLIFXSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("LIFX", "LIFXDevices", SpawnLIFXSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("LIFX", LIFX_CFG_KEY, SpawnLIFXSettingsEntry);
