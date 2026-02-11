@@ -144,7 +144,8 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     location    = controller->GetLocation();
 
     zones_info.insert({AKKO_ZONE::Z_KEYBOARD, controller->GetZoneInfo(AKKO_ZONE::Z_KEYBOARD)});
-    if (controller->HasLightStrips()) {
+    if(controller->HasLightStrips())
+    {
         zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
     }
 
@@ -459,8 +460,10 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Custom);
 
     AkkoZoneInfo akko_mode = zones_info[AKKO_ZONE::Z_KEYBOARD];
-    for (int i = 0; i < modes.size(); i++) {
-        if (modes[i].value == akko_mode.mode) {
+    for(int i = 0; i < modes.size(); i++)
+    {
+        if(modes[i].value == akko_mode.mode)
+        {
             active_mode = i;
             modes[active_mode].speed = AKKO_SPEED::S_MAX - akko_mode.speed;
             modes[active_mode].brightness = akko_mode.brightness;
@@ -480,8 +483,10 @@ RGBController_AkkoController::~RGBController_AkkoController()
 
 void RGBController_AkkoController::SetupZones()
 {
-    for (auto& [key, zone_info]: zones_info) {
-        if(key == AKKO_ZONE::Z_KEYBOARD){
+    for(auto& [key, zone_info]: zones_info)
+    {
+        if(key == AKKO_ZONE::Z_KEYBOARD)
+        {
             unsigned int * led_matrix = (unsigned int *)&led_matrix_5075_ISO;
             int m_height = AKKO_5075::HEIGHT;
             int m_width = AKKO_5075::WIDTH;
@@ -500,13 +505,16 @@ void RGBController_AkkoController::SetupZones()
             keyboard.matrix_map->map    = led_matrix;
             zones.push_back(keyboard);
 
-            for (int i = 0; i < n_leds; i++) {
+            for(int i = 0; i < n_leds; i++)
+            {
                 led keyboard_led;
                 keyboard_led.name = led_names_5075_ISO[i];
                 keyboard_led.value = i;
                 leds.push_back(keyboard_led);
             }
-        } else if (key == AKKO_ZONE::Z_LIGHT_STRIPS && controller->HasLightStrips()){
+        }
+        else if(key == AKKO_ZONE::Z_LIGHT_STRIPS && controller->HasLightStrips())
+        {
             zone_info.leds_count = 1;
 
             zone light_strips;
@@ -528,15 +536,23 @@ void RGBController_AkkoController::SetupZones()
     SetupColors();
 
     size_t led_index = 0;
-    for (auto& [key, zone_info]: zones_info) {
-        for (int i = 0; i < zone_info.leds_count; i++) {
-            if (zone_info.mode == AKKO_MODE::USER_PICTURE) {
-                if (i + led_index < colors.size()) {
+    for(auto& [key, zone_info]: zones_info)
+    {
+        for(int i = 0; i < zone_info.leds_count; i++)
+        {
+            if(zone_info.mode == AKKO_MODE::USER_PICTURE)
+            {
+                if(i + led_index < colors.size())
+                {
                     colors[i + led_index] = zone_info.colors[i];
-                } else {
+                }
+                else
+                {
                     break;
                 }
-            } else {
+            }
+            else
+            {
                 colors[i + led_index] = zone_info.color;
             }
         }
@@ -555,7 +571,8 @@ void RGBController_AkkoController::ResizeZone(int /*zone*/, int /*new_size*/)
 void RGBController_AkkoController::DeviceUpdateLEDs()
 {
     size_t led_index = 0;
-    for (auto& [key, zone_info]: zones_info) {
+    for(auto& [key, zone_info]: zones_info)
+    {
         RGBColor color = colors[led_index];
 
         if(zone_info.mode == AKKO_MODE::USER_PICTURE)
@@ -595,15 +612,17 @@ void RGBController_AkkoController::DeviceUpdateMode()
     AKKO_FLAGS flags = GetFlagsForMode(mode, modes[active_mode].direction, modes[active_mode].color_mode);
 
     size_t led_index = 0;
-    for (auto& [key, zone_info]: zones_info) {
+    for(auto& [key, zone_info]: zones_info)
+    {
         RGBColor color = colors[led_index];
-        if(IsAkkoZoneCompatibleWith(key, mode)){
+        if(IsZoneCompatibleWith(key, mode))
+        {
             bool should_resize = key == AKKO_ZONE::Z_KEYBOARD && mode != zone_info.mode
                 && (mode == AKKO_MODE::USER_PICTURE || zone_info.mode == AKKO_MODE::USER_PICTURE);
             zone_info.mode = mode;
             if(should_resize)
             {
-                if (mode == AKKO_MODE::USER_PICTURE)
+                if(mode == AKKO_MODE::USER_PICTURE)
                 {
                     ResizeZone(key, AKKO_5075::HEIGHT * AKKO_5075::WIDTH);
                 }
@@ -626,12 +645,13 @@ void RGBController_AkkoController::DeviceUpdateMode()
 AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigned int direction, unsigned int random_colors)
 {
     AKKO_FLAGS dazzle =  AKKO_FLAGS::DEFAULT;
-    if (mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2) {
-        if (random_colors == MODE_COLORS_RANDOM)
+    if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2)
+    {
+        if(random_colors == MODE_COLORS_RANDOM)
         {
             dazzle = AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON;
         }
-        else if (random_colors == MODE_COLORS_PER_LED)
+        else if(random_colors == MODE_COLORS_PER_LED)
         {
             dazzle = AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF;
         }
@@ -642,11 +662,11 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     }
     else
     {
-        if (random_colors == MODE_COLORS_RANDOM)
+        if(random_colors == MODE_COLORS_RANDOM)
         {
             dazzle = AKKO_FLAGS::DAZZLE_ON;
         }
-        else if (random_colors == MODE_COLORS_PER_LED)
+        else if(random_colors == MODE_COLORS_PER_LED)
         {
             dazzle = AKKO_FLAGS::DAZZLE_OFF;
         }
@@ -741,7 +761,7 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
         {
             option = AKKO_FLAGS::MUSIC_SEPARATE;
         }
-        else if (direction == MODE_DIRECTION_UP || direction == MODE_DIRECTION_DOWN)
+        else if(direction == MODE_DIRECTION_UP || direction == MODE_DIRECTION_DOWN)
         {
             option = AKKO_FLAGS::MUSIC_INTERSECT;
         }
@@ -757,14 +777,20 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
 unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mode, AKKO_FLAGS flags)
 {
     unsigned int dazzle_flags = flags & 0x0F;
-    if (dazzle_flags == AKKO_FLAGS::DAZZLE_ON || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON) {
-        if (mode == AKKO_MODE::USER_PICTURE) {
+    if(dazzle_flags == AKKO_FLAGS::DAZZLE_ON || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON)
+    {
+        if(mode == AKKO_MODE::USER_PICTURE)
+        {
             return MODE_COLORS_PER_LED;
         }
         return MODE_COLORS_RANDOM;
-    } else if (dazzle_flags == AKKO_FLAGS::DAZZLE_OFF || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF) {
+    }
+    else if(dazzle_flags == AKKO_FLAGS::DAZZLE_OFF || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF)
+    {
         return MODE_COLORS_PER_LED;
-    } else {
+    }
+    else
+    {
         return MODE_COLORS_NONE;
     }
 }
@@ -772,15 +798,24 @@ unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mod
 unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flags)
 {
     unsigned int direction_flags = flags & 0xF0;
-    if (direction_flags == AKKO_FLAGS::DRIFT_LEFT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_LEFT || direction_flags == AKKO_FLAGS::PEAK_TURN_ANTI_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_ZIG_ZAG) {
+    if(direction_flags == AKKO_FLAGS::DRIFT_LEFT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_LEFT || direction_flags == AKKO_FLAGS::PEAK_TURN_ANTI_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_ZIG_ZAG)
+    {
         return MODE_DIRECTION_LEFT;
-    } else if (direction_flags == AKKO_FLAGS::DRIFT_RIGHT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_RIGHT || direction_flags == AKKO_FLAGS::PEAK_TURN_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_RETURN) {
+    }
+    else if(direction_flags == AKKO_FLAGS::DRIFT_RIGHT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_RIGHT || direction_flags == AKKO_FLAGS::PEAK_TURN_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_RETURN)
+    {
         return MODE_DIRECTION_RIGHT;
-    } else if (direction_flags == AKKO_FLAGS::DRIFT_UP) {
+    }
+    else if(direction_flags == AKKO_FLAGS::DRIFT_UP)
+    {
         return MODE_DIRECTION_UP;
-    } else if (direction_flags == AKKO_FLAGS::DRIFT_DOWN) {
+    }
+    else if(direction_flags == AKKO_FLAGS::DRIFT_DOWN)
+    {
         return MODE_DIRECTION_DOWN;
-    } else {
+    }
+    else
+    {
         return MODE_DIRECTION_LEFT;
     }
 }
