@@ -143,8 +143,9 @@ ResourceManager::ResourceManager()
     \*-----------------------------------------------------*/
     settings_manager        = new SettingsManager();
 
-    settings_manager->LoadSettings(GetConfigurationDirectory() / "OpenRGB.json");
-    settings_manager->MigrateSettings();
+    filesystem::path config_path = GetConfigurationDirectory() / "OpenRGB.json";
+    settings_manager->MigrateSettings(config_path);
+    settings_manager->LoadSettings(config_path);
     SettingsAccessGuard settings = settings_manager->GetSettings();
 
     /*-----------------------------------------------------*\
@@ -493,7 +494,9 @@ void ResourceManager::UpdateDeviceList()
     \*-----------------------------------------------------*/
     SettingsAccessGuard settings = settings_manager->GetSettings();
     const ServerSettings& server_settings = settings.access().servers;
-    if(server_settings.all_controllers)
+    bool all_controllers = server_settings.all_controllers;
+    settings.Release();
+    if(all_controllers)
     {
         server->SetControllers(rgb_controllers);
     }
@@ -712,6 +715,7 @@ void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool start
 
         RegisterNetworkClient(client);
     }
+    settings.Release();
 
     /*-----------------------------------------------------*\
     | Start server if requested                             |

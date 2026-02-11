@@ -588,17 +588,20 @@ bool ProfileManager::LoadAutoProfile(ManagedProfileType profile_type)
     \*-----------------------------------------------------*/
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
     const ProfileManagerSettings& profilemanager_settings = settings.access().profile_manager;
+    std::string profile_name;
     switch (profile_type)
     {
         case ManagedProfileType::Open:
-            return LoadProfile(profilemanager_settings.open_profile.name);
+            profile_name = profilemanager_settings.open_profile.name;
         case ManagedProfileType::Resume:
-            return LoadProfile(profilemanager_settings.resume_profile.name);
+            profile_name = profilemanager_settings.resume_profile.name;
         case ManagedProfileType::Suspend:
-            return LoadProfile(profilemanager_settings.suspend_profile.name);
+            profile_name = profilemanager_settings.suspend_profile.name;
         case ManagedProfileType::Exit:
-            return LoadProfile(profilemanager_settings.exit_profile.name);
+            profile_name = profilemanager_settings.exit_profile.name;
     }
+    settings.Release();
+    return LoadProfile(profile_name);
 }
 
 bool ProfileManager::LoadControllerFromListWithOptions

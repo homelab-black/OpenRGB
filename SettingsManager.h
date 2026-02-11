@@ -18,15 +18,23 @@
 #include <mutex>
 #include "filesystem.h"
 #include "SettingsJson.h"
+#include "LogManager.h"
 
 using json = nlohmann::json;
 
 class SettingsAccessGuard
 {
 public:
-    SettingsAccessGuard(Settings& _settings, std::mutex& _mutex)
-    : settings(_settings), lock(_mutex)
-    {}
+    SettingsAccessGuard(Settings& _settings, std::mutex& _mutex);
+    // : settings(_settings), lock(_mutex)
+    // {
+    //     LOG_DEBUG("[SettingsAccessGuard] Acquiring exclusive access to settings");
+    // }
+
+    ~SettingsAccessGuard();
+    // {
+    //     LOG_DEBUG("[SettingsAccessGuard] Automatically releasing exclusive access to settings");
+    // }
 
     /*-------------------------------------------*\
     | Accesses the settings immutably (read-only) |
@@ -47,6 +55,7 @@ public:
     | Releases the lock in this access guard           |
     | After calling this this access guard is invalid. |
     | Any further operation is undefined behaviour     |
+    | until lock is reacquired.                        |
     \*------------------------------------------------*/
     void Release();
 
@@ -94,16 +103,30 @@ public:
 
     void SetControllerSettingsAndSave(const std::string& key, json settings);
 
+    /*---------------------------------------------------------------------*\
+    | Template methods must be in header file or else we get a linker error |
+    | I think?                                                              |
+    \*---------------------------------------------------------------------*/
     template<typename T>
     std::optional<T> GetControllerSettings(const std::string& key)
     {
         json data = GetControllerSettingsRaw(key);
-        if (!data.is_null())
+        /*----------------------------*\
+        | skip parsing if data is null |
+        \*----------------------------*/
+        if (data.is_null())
+        {
+            return std::nullopt;
+        }
+
+        try
         {
             return data.get<T>();
         }
-        else
+        catch (std::exception& e)
         {
+            LOG_ERROR("[SettingsManager] Failed to parse controller key '%s' to type %s: %s", key.c_str(), typeid(T).name(), e.what());
+            LOG_DEBUG("[SettingsManager] raw json: %s", to_string(data).c_str());
             return std::nullopt;
         }
     }
@@ -146,10 +169,11 @@ public:
     | Migrates settings from an older version to the current one |
     | Should be called right after `LoadSettings`                |
     \*----------------------------------------------------------*/
-    void MigrateSettings();
+    void MigrateSettings(const filesystem::path& filename);
 
 private:
     json LoadSettingsAsJson(const filesystem::path& filename);
+    void SaveSettingsJson(const filesystem::path& filename, const json& settings);
 
 private:
     Settings             settings_data;

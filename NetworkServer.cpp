@@ -1224,6 +1224,7 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
 
                     SettingsAccessGuard settings = settings_manager->GetSettings();
                     json settings_json = settings.access();
+                    settings.Release();
                     std::string settings_json_str = settings_json.dump();
 
                     NetPacketHeader reply_hdr;

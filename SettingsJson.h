@@ -5,7 +5,6 @@
 #include <optional>
 
 using json = nlohmann::json;
-using string = std::string;
 
 /*-----------------------------------------------------------------------*\
 | Specialisation, required to parse std::optional<T>                      |
@@ -34,27 +33,27 @@ namespace nlohmann {
 
 struct AutoStartSettings {
 public:
-    bool enabled;
-    bool setminimized;
+    bool enabled = false;
+    bool setminimized = false;
 
     // profile
-    bool setprofile;
-    string profile;
+    bool setprofile = false;
+    std::string profile = "";
 
     // client stuff
-    bool setclient;
-    string client;
+    bool setclient = false;
+    std::string client = "";
 
     // server stuff
-    bool setserver;
-    bool setserverhost;
-    string host;
-    bool setserverportbool;
-    int port;
+    bool setserver = false;
+    bool setserverhost = false;
+    std::string host = "";
+    bool setserverportbool = false;
+    int port = 0;
 
     // custom
-    bool setcustom;
-    string custom;
+    bool setcustom = false;
+    std::string custom = "";
 };
 
 // NO TRAILING COMMAS!
@@ -78,7 +77,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AutoStartSettings,
 // void from_json(const json& j, AutoStartSettings& settings);
 
 struct DetectorSettings {
-    std::unordered_map<string, bool> detectors;
+    std::unordered_map<std::string, bool> detectors;
     // default false
     bool hid_safe_mode = false;
     // default 0;
@@ -118,7 +117,7 @@ struct LogManagerSettings {
     bool log_file = true;
     // filename to use for logfile
     // The first # symbol is replaced by a timestamp
-    std::optional<string> logfile;
+    std::optional<std::string> logfile;
     std::optional<unsigned int> loglevel;
     std::vector<size_t> dialog_no_show_hashes;
 };
@@ -133,8 +132,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LogManagerSettings,
 );
 
 struct ProfileSettings {
-    bool enabled;
-    string name;
+    bool enabled = false;
+    std::string name = "";
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileSettings,
@@ -153,6 +152,13 @@ enum class ManagedProfileType
     Suspend,
     Exit,
 };
+
+NLOHMANN_JSON_SERIALIZE_ENUM(ManagedProfileType, {
+    {ManagedProfileType::Open, "open"},
+    {ManagedProfileType::Resume, "resume"},
+    {ManagedProfileType::Suspend, "suspend"},
+    {ManagedProfileType::Exit, "exit"},
+});
 
 void to_json(json& j, const ManagedProfileType& settings);
 void from_json(const json& j, ManagedProfileType& settings);
@@ -183,7 +189,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(Theme, {
     {Theme::Auto, "auto"}
 });
 
-string ThemeToString(Theme theme);
+std::string ThemeToString(Theme theme);
 std::optional<Theme> StringToTheme(const std::string& str);
 
 struct ThemeSettings {
@@ -225,8 +231,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AutoLoadProfileSettings,
 );
 
 struct ExitProfileSettings {
-    bool set_on_exit;
-    string profile_name;
+    bool set_on_exit = false;
+    std::string profile_name = "";
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ExitProfileSettings,
@@ -245,21 +251,20 @@ NLOHMANN_JSON_SERIALIZE_ENUM(HexFormat, {
     {HexFormat::BGR, "BGR"}
 });
 
-string HexFormatToString(HexFormat hex_format);
+std::string HexFormatToString(HexFormat hex_format);
 std::optional<HexFormat> StringToHexFormat(const std::string& str);
 
 struct UserInterfaceSettings {
     // todo: migrate RunZoneChecks to run_zone_checks
     bool run_zone_checks = true;
-    bool greyscale_tray_icon;
-    bool minimize_on_close;
+    bool greyscale_tray_icon = false;
+    bool minimize_on_close = false;
     bool disable_key_expansion = false;
     bool show_led_view = false;
     bool numerical_labels = false;
     HexFormat hex_format = HexFormat::RGB;
     WindowGeometrySettings geometry;
-    // Language language = Language::SystemDefault;
-    string language = "default";
+    std::string language = "default";
     AutoLoadProfileSettings autoload_profiles;
     ExitProfileSettings exit_profile;
 };
@@ -277,9 +282,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(UserInterfaceSettings,
 
 // todo: fix naming
 struct OnePluginSettings {
-    std::string name;
-    std::string description;
-    bool enabled;
+    std::string name = "";
+    std::string description = "";
+    bool enabled = false;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OnePluginSettings,
@@ -300,8 +305,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PluginSettings,
 );
 
 struct OneClientSettings {
-    string ip;
-    unsigned short port;
+    std::string ip = "";
+    unsigned short port = 0;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OneClientSettings,
@@ -313,12 +318,12 @@ struct ClientSettings
 {
     std::vector<OneClientSettings> clients;
 
-    inline bool contains(string ip, unsigned short port) const
+    inline bool contains(std::string ip, unsigned short port) const
     {
         return find(ip, port) != std::nullopt;
     }
 
-    inline std::optional<size_t> find(string ip, unsigned short port) const
+    inline std::optional<size_t> find(std::string ip, unsigned short port) const
     {
         for (size_t i = 0; i < clients.size(); i++)
         {
@@ -370,6 +375,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ServerSettings,
 );
 
 #define SETTINGS_VERSION "1.0"
+#define VERSION_CFG_KEY "Version"
 
 struct Settings {
     /*----------------------------------------------------------*\
@@ -397,6 +403,7 @@ struct Settings {
 \*-----------------------------------------------------------------*/
 inline void to_json(nlohmann::json &j, const Settings& st) {
     j = json {
+        {VERSION_CFG_KEY, st.version},
         {"AutoStart", st.auto_start},
         {"Detectors", st.detectors},
         {"LogManager", st.log_manager},
@@ -412,16 +419,20 @@ inline void to_json(nlohmann::json &j, const Settings& st) {
 }
 
 inline void from_json(const json& j, Settings& st) {
-    j.at("AutoStart").get_to(st.auto_start);
-    j.at("Detectors").get_to(st.detectors);
-    j.at("LogManager").get_to(st.log_manager);
-    j.at("ProfileManager").get_to(st.profile_manager);
-    j.at("Theme").get_to(st.theme);
-    j.at("UserInterface").get_to(st.ui);
-    j.at("Plugins").get_to(st.plugins);
-    j.at("Clients").get_to(st.clients);
-    j.at("Drivers").get_to(st.drivers);
-    j.at("Servers").get_to(st.servers);
-    j.at("Controllers").get_to(st.controllers);
+    /*-----------------------------------------*\
+    | Assign default value if key doesn't exist |
+    \*-----------------------------------------*/
+    st.version         = j.value(VERSION_CFG_KEY, SETTINGS_VERSION);
+    st.auto_start      = j.value("AutoStart", AutoStartSettings {});
+    st.detectors       = j.value("Detectors", DetectorSettings {});
+    st.log_manager     = j.value("LogManager", LogManagerSettings {});
+    st.profile_manager = j.value("ProfileManager", ProfileManagerSettings {});
+    st.theme           = j.value("Theme", ThemeSettings {});
+    st.ui              = j.value("UserInterface", UserInterfaceSettings {});
+    st.plugins         = j.value("Plugins", PluginSettings {});
+    st.clients         = j.value("Clients", ClientSettings {});
+    st.drivers         = j.value("Drivers", DriverSettings {});
+    st.servers         = j.value("Servers", ServerSettings {});
+    st.controllers     = j.value("Controllers", ControllerSettings {});
 }
 

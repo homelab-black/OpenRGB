@@ -31,12 +31,6 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
     this->name      = name;
 
     /*-----------------------------------------------------*\
-    | Get driver settings                                   |
-    \*-----------------------------------------------------*/
-    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    const DriverSettings& drivers_settings = settings.access().drivers;
-
-    /*-----------------------------------------------------*\
     | Get bus information                                   |
     \*-----------------------------------------------------*/
     const SIZE_T    in_size         = 1;
@@ -68,6 +62,12 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
 
         strncpy( this->device_name, name_str, 512 );
     }
+
+    /*-----------------------------------------------------*\
+    | Get driver settings                                   |
+    \*-----------------------------------------------------*/
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DriverSettings& drivers_settings = settings.access().drivers;
 
     /*-----------------------------------------------------*\
     | Create global SMBus mutex if enabled                  |

@@ -41,7 +41,8 @@ struct QMKOpenSettings
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenSettings,
     leds_per_update,
-    delay
+    delay,
+    devices
 );
 
 class QMKOpenRGBBaseController

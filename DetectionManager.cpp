@@ -610,13 +610,15 @@ void DetectionManager::BackgroundDetectDevices()
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
-    DetectorSettings& detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings().access_mut().detectors;
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DetectorSettings& detector_settings = settings.access().detectors;
 
     /*-----------------------------------------------------*\
     | Check HID safe mode setting                           |
     \*-----------------------------------------------------*/
     hid_safe_mode = detector_settings.hid_safe_mode;
     initial_detection_delay_ms = detector_settings.initial_detection_delay_ms;
+    settings.Release();
 
     /*-----------------------------------------------------*\
     | If configured, delay detection for the configured     |
@@ -702,27 +704,32 @@ void DetectionManager::BackgroundDetectDevices()
     \*-----------------------------------------------------*/
     BackgroundDetectI2CBuses();
 
+    /*--------------------------*\
+    | Get settings lock again    |
+    \*--------------------------*/
+    SettingsAccessGuard settings2 = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DetectorSettings& detector_settings2 = settings2.access().detectors;
     /*-----------------------------------------------------*\
     | Detect I2C devices                                    |
     \*-----------------------------------------------------*/
-    BackgroundDetectI2CDevices(detector_settings);
+    BackgroundDetectI2CDevices(detector_settings2);
 
     /*-----------------------------------------------------*\
     | Detect I2C DRAM devices                               |
     \*-----------------------------------------------------*/
-    BackgroundDetectI2CDRAMDevices(detector_settings);
+    BackgroundDetectI2CDRAMDevices(detector_settings2);
 
     /*-----------------------------------------------------*\
     | Detect I2C PCI devices                                |
     \*-----------------------------------------------------*/
-    BackgroundDetectI2CPCIDevices(detector_settings);
+    BackgroundDetectI2CPCIDevices(detector_settings2);
 
     /*-----------------------------------------------------*\
     | Detect HID devices                                    |
     \*-----------------------------------------------------*/
     if(hid_safe_mode)
     {
-        BackgroundDetectHIDDevicesSafe(detector_settings);
+        BackgroundDetectHIDDevicesSafe(detector_settings2);
     }
     else
     {
@@ -730,7 +737,7 @@ void DetectionManager::BackgroundDetectDevices()
         StopHIDHotplug();
         StartHIDHotplug();
 #else
-        BackgroundDetectHIDDevices(hid_devices, detector_settings);
+        BackgroundDetectHIDDevices(hid_devices, detector_settings2);
 #endif
     }
 
@@ -739,14 +746,19 @@ void DetectionManager::BackgroundDetectDevices()
     \*-----------------------------------------------------*/
 #ifdef __linux__
 #ifdef __GLIBC__
-    BackgroundDetectHIDDevicesWrapped(hid_devices, detector_settings);
+    BackgroundDetectHIDDevicesWrapped(hid_devices, detector_settings2);
 #endif
 #endif
 
     /*-----------------------------------------------------*\
     | Detect other devices                                  |
     \*-----------------------------------------------------*/
-    BackgroundDetectOtherDevices(detector_settings);
+    BackgroundDetectOtherDevices(detector_settings2);
+
+    /*--------------------------*\
+    | Release lock on settings   |
+    \*--------------------------*/
+    settings.Release();
 
     /*-----------------------------------------------------*\
     | Signal that detection progress reached 100%           |
@@ -874,7 +886,7 @@ void DetectionManager::BackgroundDetectI2CDevices(const DetectorSettings& detect
         \*-------------------------------------------------*/
         bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+        // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
         /*-------------------------------------------------*\
         | If enabled, signal progress changed and call the  |
@@ -892,7 +904,7 @@ void DetectionManager::BackgroundDetectI2CDevices(const DetectorSettings& detect
             }
         }
 
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -944,7 +956,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& de
                     \*-------------------------------------*/
                     bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-                    LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+                    // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
                     if(this_device_enabled)
                     {
@@ -960,7 +972,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& de
                         }
                     }
 
-                    LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+                    // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
                 }
 
                 /*-----------------------------------------*\
@@ -990,7 +1002,7 @@ void DetectionManager::BackgroundDetectI2CPCIDevices(const DetectorSettings& det
         \*-------------------------------------------------*/
         bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+        // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
         if(this_device_enabled)
         {
@@ -1013,7 +1025,7 @@ void DetectionManager::BackgroundDetectI2CPCIDevices(const DetectorSettings& det
             }
         }
 
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -1099,7 +1111,7 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(const DetectorSettings& de
                 \*-----------------------------------------*/
                 bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-                LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+                // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
                 if(this_device_enabled)
                 {
@@ -1113,7 +1125,7 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(const DetectorSettings& de
                     }
                 }
 
-                LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+                // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
             }
 
             current_hid_device = current_hid_device->next;
@@ -1197,7 +1209,7 @@ void DetectionManager::BackgroundDetectOtherDevices(const DetectorSettings& dete
         \*-------------------------------------------------*/
         bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+        // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
         if(this_device_enabled)
         {
@@ -1211,7 +1223,7 @@ void DetectionManager::BackgroundDetectOtherDevices(const DetectorSettings& dete
             }
         }
 
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -1352,7 +1364,7 @@ void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, const
             \*---------------------------------------------*/
             bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-            LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+            // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
             if(this_device_enabled)
             {
@@ -1461,7 +1473,7 @@ void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_
             \*---------------------------------------------*/
             bool this_device_enabled = detector_settings.detection_enabled_for(detection_string);
 
-            LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+            // LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
             if(this_device_enabled)
             {
@@ -1646,7 +1658,7 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C detectors and see if any need to |
     | be saved to the settings                              |
     \*-----------------------------------------------------*/
-    for (const string& i2c_detector_str : i2c_device_detector_strings)
+    for (const std::string& i2c_detector_str : i2c_device_detector_strings)
     {
         detection_string = i2c_detector_str.c_str();
         if (!(detector_settings.detectors.count(i2c_detector_str) > 0))
@@ -1744,7 +1756,7 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through remaining detectors and see if any need  |
     | to be saved to the settings                           |
     \*-----------------------------------------------------*/
-    for (const string& detector : device_detector_strings)
+    for (const std::string& detector : device_detector_strings)
     {
         detection_string = detector.c_str();
         if (!(detector_settings.detectors.count(detector) > 0))

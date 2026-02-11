@@ -31,6 +31,7 @@ DetectorTableModel::DetectorTableModel(QObject* parent) : QAbstractTableModel(pa
         };
         detectors.push_back(new_entry);
     }
+    settings.Release();
 
     /*-----------------------------------------------------*\
     | If settings contains the detectors list, fill in rows |
@@ -137,7 +138,6 @@ void DetectorTableModel::applySettings()
     \*-----------------------------------------------------*/
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
     DetectorSettings& detector_settings = settings.access_mut().detectors;
-
 
     /*-----------------------------------------------------*\
     | Loop through all detectors in the list and update the |
