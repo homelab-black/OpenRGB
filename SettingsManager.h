@@ -91,16 +91,24 @@ public:
     template<typename T>
     T GetControllerSettingsOrDefault(const std::string& key);
 
+    template<typename T>
+    void SetControllerSettingsAndSave(const std::string& key, T settings);
+
     /*-------------------------------------------*\
-    | Gets controller key as raw JSON             |
+    | Gets settings at controller key as raw JSON |
     |                                             |
     | Prefer defining a deserialisable cpp struct |
     | and calling `GetControllerSettings`         |
     \*-------------------------------------------*/
     json GetControllerSettingsRaw(const std::string& key);
+    /*------------------------------------------------*\
+    | Saves raw JSON to the controller key as raw JSON |
+    |                                                  |
+    | Prefer defining a deserialisable cpp struct      |
+    | and calling `GetControllerSettings`              |
+    \*------------------------------------------------*/
+    void SetControllerSettingsAndSaveRaw(const std::string& key, json settings);
 
-    template<typename T>
-    void SetControllerSettingsAndSave(const std::string& key, T settings);
 
     void LoadSettings(const filesystem::path& filename) override;
     void SaveSettings() override;

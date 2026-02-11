@@ -123,7 +123,7 @@ void ManualDevicesSettingsPage::saveSettings()
     std::vector<ManualDeviceTypeBlock> blocks = ManualDevicesTypeManager::get()->getRegisteredTypes();
     for(std::size_t i = 0; i < blocks.size(); i++)
     {
-        sm->SetControllerSettingsAndSave(blocks[i].settingsSection, result[blocks[i].settingsSection]);
+        sm->SetControllerSettingsAndSaveRaw(blocks[i].settingsSection, result[blocks[i].settingsSection]);
     }
 
     setUnsavedChanges(false);

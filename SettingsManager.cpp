@@ -341,18 +341,15 @@ void SettingsManager::MigrateSettings()
 template<typename T>
 std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
 {
-    mutex.lock();
-    std::optional<T> deserialized;
-    if (settings_data.controllers.data.contains(key))
+    json data = GetControllerSettingsRaw(key);
+    if (!data.is_null())
     {
-        deserialized = settings_data.controllers.data[key].get<T>();
+        return data.get<T>();
     }
     else
     {
-        deserialized = std::nullopt;
+        return std::nullopt;
     }
-    mutex.unlock();
-    return deserialized;
 }
 
 template<typename T>
@@ -362,12 +359,11 @@ T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
     | use default constructor for `T` here |
     \*------------------------------------*/
     T settings;
-    mutex.lock();
-    if (settings_data.controllers.data.contains(key))
+    json data = GetControllerSettingsRaw(key);
+    if (!data.is_null())
     {
-        settings = settings_data.controllers.data[key].get<T>();
+        settings = data.get<T>();
     }
-    mutex.unlock();
     return settings;
 }
 
@@ -385,6 +381,14 @@ void SettingsManager::SetControllerSettingsAndSave(const std::string& key, T set
     json serialized = settings;
     mutex.lock();
     settings_data.controllers.data[key] = serialized;
+    mutex.unlock();
+    SaveSettings();
+}
+
+void SettingsManager::SetControllerSettingsAndSaveRaw(const std::string& key, json settings)
+{
+    mutex.lock();
+    settings_data.controllers.data[key] = settings;
     mutex.unlock();
     SaveSettings();
 }
