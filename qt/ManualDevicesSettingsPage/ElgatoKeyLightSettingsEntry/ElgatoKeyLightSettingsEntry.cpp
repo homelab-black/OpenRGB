@@ -57,4 +57,4 @@ static BaseManualDeviceEntry* SpawnElgatoKeyLightEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Elgato Key Light", "ElgatoKeyLightDevices", SpawnElgatoKeyLightEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Elgato Key Light", ELGATO_KEY_LIGHT_CFG_KEY, SpawnElgatoKeyLightEntry);

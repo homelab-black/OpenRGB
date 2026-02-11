@@ -224,4 +224,4 @@ static BaseManualDeviceEntry* SpawnE131Entry(const json& data)
 
 static const char* E131DeviceName = QT_TRANSLATE_NOOP("ManualDevice", "E1.31 (including WLED)");
 
-REGISTER_MANUAL_DEVICE_TYPE(E131DeviceName, "E131Devices", SpawnE131Entry);
+REGISTER_MANUAL_DEVICE_TYPE(E131DeviceName, E131_SETTINGS_KEY, SpawnE131Entry);

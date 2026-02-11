@@ -24,8 +24,7 @@ DetectedControllers DetectE131Controllers()
     /*-----------------------------------------------------*\
     | Get E1.31 settings from settings manager              |
     \*-----------------------------------------------------*/
-    std::optional<E131Settings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<E131Settings>(E131_SETTINGS_KEY);
-    E131Settings e131_settings = cfg_settings.value_or(E131Settings {});
+    E131Settings e131_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<E131Settings>(E131_SETTINGS_KEY);
 
     /*-----------------------------------------------------*\
     | If the E1.31 settings contains devices, process       |

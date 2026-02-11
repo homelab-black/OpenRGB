@@ -62,4 +62,4 @@ static BaseManualDeviceEntry* SpawnQMKORGBSettingsEntry(const json& data)
 
 static const char* QMKDeviceName = QT_TRANSLATE_NOOP("ManualDevice", "QMK (OpenRGB Protocol)");
 
-REGISTER_MANUAL_DEVICE_TYPE(QMKDeviceName, "QMKOpenRGBDevices", SpawnQMKORGBSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE(QMKDeviceName, QMK_OPEN_SETTINGS_KEY, SpawnQMKORGBSettingsEntry);

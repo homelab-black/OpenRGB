@@ -72,4 +72,4 @@ static BaseManualDeviceEntry* SpawnPhilipsHueSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Philips Hue", "PhilipsHueDevices", SpawnPhilipsHueSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Philips Hue", PHILIPSHUE_SETTINGS_KEY, SpawnPhilipsHueSettingsEntry);

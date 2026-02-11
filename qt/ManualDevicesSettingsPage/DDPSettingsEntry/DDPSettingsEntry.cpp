@@ -69,4 +69,4 @@ static BaseManualDeviceEntry* SpawnDDPEntry(const json& data)
 
 static const char* DDPDeviceName = QT_TRANSLATE_NOOP("ManualDevice", "DDP (Distributed Display Protocol)");
 
-REGISTER_MANUAL_DEVICE_TYPE(DDPDeviceName, "DDPDevices", SpawnDDPEntry);
+REGISTER_MANUAL_DEVICE_TYPE(DDPDeviceName, DDP_CONFIG_KEY, SpawnDDPEntry);

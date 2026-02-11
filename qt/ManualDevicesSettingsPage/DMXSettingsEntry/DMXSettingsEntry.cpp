@@ -108,4 +108,4 @@ static BaseManualDeviceEntry* SpawnDMXEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("DMX", "DMXDevices", SpawnDMXEntry);
+REGISTER_MANUAL_DEVICE_TYPE("DMX", DMX_CFG_KEY, SpawnDMXEntry);

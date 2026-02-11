@@ -16,6 +16,8 @@
 #include "net_port.h"
 #include "hsv.h"
 
+#define ELGATO_LIGHT_CFG_KEY "ElgatoLightStripDevices"
+
 class ElgatoLightStripController
 {
     public:

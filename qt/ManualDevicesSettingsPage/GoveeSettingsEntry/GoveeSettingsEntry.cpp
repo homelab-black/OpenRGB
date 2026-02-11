@@ -58,4 +58,4 @@ static BaseManualDeviceEntry* SpawnGoveeSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Govee", "GoveeDevices", SpawnGoveeSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Govee", GOVEE_CFG_KEY, SpawnGoveeSettingsEntry);
