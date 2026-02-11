@@ -73,9 +73,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AutoStartSettings,
     custom
 );
 
-// void to_json(json& j, const AutoStartSettings& settings);
-// void from_json(const json& j, AutoStartSettings& settings);
-
 struct DetectorSettings {
     std::unordered_map<std::string, bool> detectors;
     // default false
@@ -83,7 +80,7 @@ struct DetectorSettings {
     // default 0;
     int initial_detection_delay_ms = 0;
 
-    inline bool contains2(const std::string& detector_str) const
+    inline bool contains(const std::string& detector_str) const
     {
         return detectors.count(detector_str) > 0;
     }
@@ -159,9 +156,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ManagedProfileType, {
     {ManagedProfileType::Suspend, "suspend"},
     {ManagedProfileType::Exit, "exit"},
 });
-
-void to_json(json& j, const ManagedProfileType& settings);
-void from_json(const json& j, ManagedProfileType& settings);
 
 struct ProfileManagerSettings {
     ProfileSettings open_profile;

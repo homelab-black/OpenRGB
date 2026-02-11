@@ -151,8 +151,15 @@ enum
     ZONE_TYPE_SEGMENTED
 };
 
-void to_json(nlohmann::json& j, const zone_type& settings);
-void from_json(const nlohmann::json& j, zone_type& settings);
+NLOHMANN_JSON_SERIALIZE_ENUM(zone_type, {
+    {ZONE_TYPE_SINGLE, "SINGLE"},
+    {ZONE_TYPE_LINEAR, "LINEAR"},
+    {ZONE_TYPE_MATRIX, "MATRIX"},
+    {ZONE_TYPE_LINEAR_LOOP, "LINEAR_LOOP"},
+    {ZONE_TYPE_MATRIX_LOOP_X, "MATRIX_LOOP_X"},
+    {ZONE_TYPE_MATRIX_LOOP_Y, "MATRIX_LOOP_Y"},
+    {ZONE_TYPE_SEGMENTED, "SEGMENTED"},
+});
 
 /*---------------------------------------------------------*\
 | Matrix Map Struct                                         |
