@@ -36,6 +36,6 @@ inline void to_json(json& j, const ManualDeviceSettings<D>& settings)
 template<typename D>
 inline void from_json(const json& j, ManualDeviceSettings<D>& settings)
 {
-    j.at("devices").get_to(settings);
+    settings.devices = j.value("devices", std::vector<D> {});
 }
 

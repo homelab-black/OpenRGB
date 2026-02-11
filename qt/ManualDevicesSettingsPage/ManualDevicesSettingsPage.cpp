@@ -297,7 +297,13 @@ void ManualDevicesSettingsPage::onAddDeviceItemSelected(QAction* action)
     | Spawn new entry based on name                             |
     \*---------------------------------------------------------*/
     std::string             entryName   = action->data().toString().toStdString();
-    BaseManualDeviceEntry*  entry       = ManualDevicesTypeManager::get()->spawnByTypeName(entryName, json());
+    /*-------------------------------------------------------------------------------*\
+    | This function must take a `json::object`, not `json()` (which is same as null)  |
+    | The deserializer crashes when getting a null value.                             |
+    | When getting an empty object, the default value is used instead                 |
+    | which is what we want                                                           |
+    \*-------------------------------------------------------------------------------*/
+    BaseManualDeviceEntry*  entry       = ManualDevicesTypeManager::get()->spawnByTypeName(entryName, json::object());
 
     /*---------------------------------------------------------*\
     | Note: spawn functions are allowed to return nullptr       |
