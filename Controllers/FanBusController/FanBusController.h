@@ -14,6 +14,27 @@
 #include <vector>
 #include "FanBusInterface.h"
 #include "RGBController.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define FANBUS_CFG_KEY "FanBusDevices"
+
+struct FanBusDevice
+{
+    std::string port;
+};
+
+void to_json(json& j, const FanBusDevice& settings);
+void from_json(const json& j, FanBusDevice& settings);
+
+struct FanBusSettings
+{
+    std::vector<FanBusDevice> devices;
+};
+
+void to_json(json& j, const FanBusSettings& settings);
+void from_json(const json& j, FanBusSettings& settings);
 
 class FanBusController
 {

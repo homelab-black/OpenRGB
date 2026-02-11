@@ -11,6 +11,10 @@
 
 #include "FanBusController.h"
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FanBusDevice, port);
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(FanBusSettings, devices);
+
 FanBusController::FanBusController(FanBusInterface* bus_ptr, unsigned char dev_addr)
 {
     bus = bus_ptr;
