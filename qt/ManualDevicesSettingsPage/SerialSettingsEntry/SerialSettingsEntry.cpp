@@ -71,79 +71,56 @@ void SerialSettingsEntry::on_ProtocolComboBox_currentIndexChanged(int index)
     }
 }
 
-void SerialSettingsEntry::loadFromSettings(const json& data)
+void SerialSettingsEntry::loadFromSettings(const LEDStripDevice& data)
 {
-    if(data.contains("name"))
+    ui->NameEdit->setText(QString::fromStdString(data.name));
+    ui->PortComboBox->setCurrentText(QString::fromStdString(data.port));
+    ui->BaudEdit->setText(QString::number((int)data.baud));
+    ui->NumLEDsEdit->setText(QString::number((int)data.num_leds));
+    switch (data.protocol)
     {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
-    }
-
-    if(data.contains("port"))
-    {
-        ui->PortComboBox->setCurrentText(QString::fromStdString(data["port"]));
-    }
-
-    if(data.contains("baud"))
-    {
-        ui->BaudEdit->setText(QString::number((int)data["baud"]));
-    }
-
-    if(data.contains("num_leds"))
-    {
-        ui->NumLEDsEdit->setText(QString::number((int)data["num_leds"]));
-    }
-
-    if(data.contains("protocol"))
-    {
-        std::string protocol_string = data["protocol"];
-
-        if(protocol_string == "keyboard_visualizer")
-        {
+        case LedProtocol::KEYBOARD_VISUALIZER:
             ui->ProtocolComboBox->setCurrentIndex(0);
-        }
-        else if(protocol_string == "adalight")
-        {
+            break;
+        case LedProtocol::ADALIGHT:
             ui->ProtocolComboBox->setCurrentIndex(1);
-        }
-        else if(protocol_string == "tpm2")
-        {
+            break;
+        case LedProtocol::TPM2:
             ui->ProtocolComboBox->setCurrentIndex(2);
-        }
-        else if(protocol_string == "basic_i2c")
-        {
+            break;
+        case LedProtocol::BASIC_I2C:
             ui->ProtocolComboBox->setCurrentIndex(3);
-        }
+            break;
     }
 }
 
 json SerialSettingsEntry::saveSettings()
 {
-    json result;
+    LEDStripDevice device;
     /*-------------------------------------------------*\
     | Required parameters                               |
     \*-------------------------------------------------*/
-    result["name"]            = ui->NameEdit->text().toStdString();
-    result["port"]            = ui->PortComboBox->currentText().toStdString();
-    result["num_leds"]        = ui->NumLEDsEdit->text().toUInt();
-    result["baud"]            = ui->BaudEdit->text().toUInt();
+    device.name            = ui->NameEdit->text().toStdString();
+    device.port            = ui->PortComboBox->currentText().toStdString();
+    device.num_leds        = ui->NumLEDsEdit->text().toUInt();
+    device.baud            = ui->BaudEdit->text().toUInt();
 
     switch(ui->ProtocolComboBox->currentIndex())
     {
-    case 0:
-        result["protocol"] = "keyboard_visualizer";
-        break;
-    case 1:
-        result["protocol"] = "adalight";
-        break;
-    case 2:
-        result["protocol"] = "tpm2";
-        break;
-    case 3:
-        result["protocol"] = "basic_i2c";
-        break;
+        case 0:
+            device.protocol = LedProtocol::KEYBOARD_VISUALIZER;
+            break;
+        case 1:
+            device.protocol = LedProtocol::ADALIGHT;
+            break;
+        case 2:
+            device.protocol = LedProtocol::TPM2;
+            break;
+        case 3:
+            device.protocol = LedProtocol::BASIC_I2C;
+            break;
     }
-
-    return result;
+    return device;
 }
 
 bool SerialSettingsEntry::isDataValid()
@@ -161,4 +138,4 @@ static BaseManualDeviceEntry* SpawnSerialSettingsEntry(const json& data)
 
 static const char* SerialDeviceName = QT_TRANSLATE_NOOP("ManualDevice", "Serial Device");
 
-REGISTER_MANUAL_DEVICE_TYPE(SerialDeviceName, "LEDStripDevices", SpawnSerialSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE(SerialDeviceName, LEDSTRIP_CFG_KEY, SpawnSerialSettingsEntry);
