@@ -12,6 +12,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "GoveeController.h"
 
 namespace Ui
 {
@@ -25,7 +26,7 @@ class GoveeSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit GoveeSettingsEntry(QWidget *parent = nullptr);
     ~GoveeSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const GoveeDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

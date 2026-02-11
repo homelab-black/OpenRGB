@@ -16,6 +16,26 @@
 #include <vector>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
+#define GOVEE_CFG_KEY "GoveeDevices"
+
+struct GoveeDevice
+{
+    std::string ip;
+};
+
+void to_json(json& j, const GoveeDevice& settings);
+void from_json(const json& j, GoveeDevice& settings);
+
+struct GoveeSettings
+{
+    std::vector<GoveeDevice> devices;
+};
+
+void to_json(json& j, const GoveeSettings& settings);
+void from_json(const json& j, GoveeSettings& settings);
 
 class GoveeController
 {

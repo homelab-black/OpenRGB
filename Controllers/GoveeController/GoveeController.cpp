@@ -10,12 +10,13 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
-#include <nlohmann/json.hpp>
 #include "base64.hpp"
 #include "GoveeController.h"
 
-using json = nlohmann::json;
 using namespace std::chrono_literals;
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(GoveeDevice, ip);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(GoveeSettings, devices);
 
 base64::byte CalculateXorChecksum(std::vector<base64::byte> packet)
 {

@@ -357,6 +357,23 @@ std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
 }
 
 template<typename T>
+T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
+{
+    mutex.lock();
+    if (settings_data.controllers.data.contains(key))
+    {
+        return settings_data.controllers.data[key].get<T>();
+    }
+    else
+    {
+        T _default;
+        return _default;
+    }
+    mutex.unlock();
+    return deserialized;
+}
+
+template<typename T>
 void SettingsManager::SetControllerSettingsAndSave(const std::string& key, T settings)
 {
     json serialized = settings;

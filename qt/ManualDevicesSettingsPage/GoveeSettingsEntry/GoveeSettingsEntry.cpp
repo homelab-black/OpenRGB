@@ -32,19 +32,17 @@ void GoveeSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void GoveeSettingsEntry::loadFromSettings(const json& data)
+void GoveeSettingsEntry::loadFromSettings(const GoveeDevice& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
 }
 
 json GoveeSettingsEntry::saveSettings()
 {
-    json result;
-    result["ip"] = ui->IPEdit->text().toStdString();
-    return result;
+    return GoveeDevice
+    {
+        .ip = ui->IPEdit->text().toStdString(),
+    };
 }
 
 bool GoveeSettingsEntry::isDataValid()

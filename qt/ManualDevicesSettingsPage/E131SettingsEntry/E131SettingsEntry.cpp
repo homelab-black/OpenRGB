@@ -136,7 +136,6 @@ void E131SettingsEntry::loadFromSettings(const E131Device& data)
     ui->MatrixWidthEdit->setText(QString::number((int)data.matrix_width));
     ui->MatrixHeightEdit->setText(QString::number((int)data.matrix_height));
 
-    int matrix_order_idx = -1;
     switch(data.matrix_order)
     {
         case E131MatrixOrder::HORIZONTAL_TOP_LEFT:
