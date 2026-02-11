@@ -290,7 +290,6 @@ void LogManager::_append(const char* filename, int line, unsigned int level, con
     /*-----------------------------------------------------*\
     | If the message is within the current verbosity, print |
     | it on the screen                                      |
-    | TODO: Put the timestamp here                          |
     \*-----------------------------------------------------*/
     if(level <= verbosity || level == LL_DIALOG)
     {
