@@ -24,10 +24,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LEDStripDevice,
 );
 
 NLOHMANN_JSON_SERIALIZE_ENUM(LedProtocol, {
-    {KEYBOARD_VISUALIZER, "keyboard_visualizer"},
-    {ADALIGHT, "adalight"},
-    {TPM2, "tpm2"},
-    {BASIC_I2C, "basic_i2c"}
+    {LedProtocol::KEYBOARD_VISUALIZER, "keyboard_visualizer"},
+    {LedProtocol::ADALIGHT, "adalight"},
+    {LedProtocol::TPM2, "tpm2"},
+    {LedProtocol::BASIC_I2C, "basic_i2c"}
 });
 
 LEDStripController::LEDStripController(std::string dev_name)

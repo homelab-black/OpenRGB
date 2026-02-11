@@ -119,9 +119,9 @@ void NanoleafSettingsEntry::loadFromSettings(const NanoleafDeviceSettings& data)
     ui->IPValue->setText(address);
     ui->PortValue->setText(QString::fromStdString(std::to_string(port)));
 
-    if(device.auth_token.size())
+    if(data.auth_token.size())
     {
-        auth_token = device.auth_token;
+        auth_token = data.auth_token;
         ui->AuthKeyValue->setText(QString::fromStdString(auth_token));
         ui->PairButton->hide();
     }

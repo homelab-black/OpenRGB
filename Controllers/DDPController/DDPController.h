@@ -17,6 +17,9 @@
 #include <atomic>
 #include <mutex>
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define DDP_DEFAULT_PORT        4048
 #define DDP_HEADER_SIZE         10

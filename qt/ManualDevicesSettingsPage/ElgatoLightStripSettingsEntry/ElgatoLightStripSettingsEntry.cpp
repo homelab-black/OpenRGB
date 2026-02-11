@@ -57,5 +57,5 @@ static BaseManualDeviceEntry* SpawnElgatoLightStripEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Elgato Light Strip", ELGATO_LIGHT_CFG_KEY, SpawnElgatoLightStripEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Elgato Light Strip", ELGATO_LIGHTSTRIP_CFG_KEY, SpawnElgatoLightStripEntry);
 

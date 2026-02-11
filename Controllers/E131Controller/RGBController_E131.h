@@ -19,7 +19,7 @@
 
 using json = nlohmann::json;
 
-enum E131RGBOrder
+enum class E131RGBOrder
 {
     RGB,
     RBG,
@@ -32,7 +32,7 @@ enum E131RGBOrder
 void to_json(json& j, const E131RGBOrder& settings);
 void from_json(const json& j, E131RGBOrder& settings);
 
-enum E131MatrixOrder
+enum class E131MatrixOrder
 {
     HORIZONTAL_TOP_LEFT,
     HORIZONTAL_TOP_RIGHT,

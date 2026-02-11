@@ -3,6 +3,7 @@
 using json = nlohmann::json;
 
 #define ELGATO_KEY_LIGHT_CFG_KEY "ElgatoKeyLightDevices"
+#define ELGATO_LIGHTSTRIP_CFG_KEY "ElgatoLightStripDevices"
 
 struct ElgatoDeviceSettings
 {

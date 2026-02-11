@@ -30,7 +30,7 @@ using json = nlohmann::json;
 #define strtok_s        strtok_r
 #endif
 
-enum LedProtocol
+enum class LedProtocol
 {
     KEYBOARD_VISUALIZER,
     ADALIGHT,

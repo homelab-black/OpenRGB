@@ -49,9 +49,9 @@ json DDPSettingsEntry::saveSettings()
     {
         .name = ui->NameEdit->text().toStdString(),
         .ip = ui->IPEdit->text().toStdString(),
-        .port = ui->PortSpinBox->value(),
-        .num_leds = ui->NumLedsSpinBox->value(),
-        .keepalive_time = ui->KeepaliveTimeSpinBox->value(),
+        .port = (unsigned short) ui->PortSpinBox->value(),
+        .num_leds = (unsigned int) ui->NumLedsSpinBox->value(),
+        .keepalive_time = (unsigned int) ui->KeepaliveTimeSpinBox->value(),
     };
 }
 

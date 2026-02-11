@@ -14,7 +14,6 @@
 #include "SettingsManager.h"
 #include "ElgatoSettings.h"
 
-
 DetectedControllers DetectElgatoLightStripControllers()
 {
     DetectedControllers detected_controllers;
@@ -23,7 +22,7 @@ DetectedControllers DetectElgatoLightStripControllers()
     | Get LightStrip settings from settings manager         |
     \*-----------------------------------------------------*/
     SettingsManager* sm = ResourceManager::get()->GetSettingsManager();
-    std::optional<ElgatoSettings> cfg_settings = sm->GetControllerSettings<ElgatoSettings>(ELGATO_LIGHT_CFG_KEY);
+    std::optional<ElgatoSettings> cfg_settings = sm->GetControllerSettings<ElgatoSettings>(ELGATO_LIGHTSTRIP_CFG_KEY);
     ElgatoSettings settings = cfg_settings.value_or(ElgatoSettings {});
 
     /*-----------------------------------------------------*\

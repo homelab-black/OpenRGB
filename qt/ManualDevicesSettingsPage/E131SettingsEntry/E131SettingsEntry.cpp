@@ -178,8 +178,41 @@ json E131SettingsEntry::saveSettings()
     device.start_universe      = ui->StartUniverseEdit->text().toUInt();
     device.start_channel       = ui->StartChannelEdit->text().toUInt();
     device.num_leds            = ui->NumLEDsEdit->text().toUInt();
-    device.type                = ui->TypeComboBox->currentIndex();
-    device.rgb_order           = ui->RGBOrderComboBox->currentIndex();
+
+    switch(ui->RGBOrderComboBox->currentIndex())
+    {
+        case 0:
+            device.type = ZONE_TYPE_SINGLE;
+            break;
+        case 1:
+            device.type = ZONE_TYPE_LINEAR;
+            break;
+        case 2:
+            device.type = ZONE_TYPE_MATRIX;
+            break;
+    };
+
+    switch(ui->RGBOrderComboBox->currentIndex())
+    {
+        case 0:
+            device.rgb_order = E131RGBOrder::RGB;
+            break;
+        case 1:
+            device.rgb_order = E131RGBOrder::RBG;
+            break;
+        case 2:
+            device.rgb_order = E131RGBOrder::GRB;
+            break;
+        case 3:
+            device.rgb_order = E131RGBOrder::GBR;
+            break;
+        case 4:
+            device.rgb_order = E131RGBOrder::BRG;
+            break;
+        case 5:
+            device.rgb_order = E131RGBOrder::BGR;
+            break;
+    };
 
     /*-------------------------------------------------*\
     | Optional parameters                               |
@@ -189,11 +222,39 @@ json E131SettingsEntry::saveSettings()
         device.ip              = ui->IPEdit->text().toStdString();
     }
 
-    if(device.type == ZONE_TYPE_MATRIX)
+    /*---------------------------------------*\
+    | Only used when type is ZONE_TYPE_MATRIX |
+    | but keep it in for completeness         |
+    \*---------------------------------------*/
+    device.matrix_width    = ui->MatrixWidthEdit->text().toUInt();
+    device.matrix_height   = ui->MatrixHeightEdit->text().toUInt();
+
+    switch(ui->MatrixOrderComboBox->currentIndex())
     {
-        device.matrix_width    = ui->MatrixWidthEdit->text().toUInt();
-        device.matrix_height   = ui->MatrixHeightEdit->text().toUInt();
-        device.matrix_order    = ui->MatrixOrderComboBox->currentIndex();
+        case 0:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_TOP_LEFT;
+            break;
+        case 1:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_TOP_RIGHT;
+            break;
+        case 2:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT;
+            break;
+        case 3:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT;
+            break;
+        case 4:
+            device.matrix_order = E131MatrixOrder::VERTICAL_TOP_LEFT;
+            break;
+        case 5:
+            device.matrix_order = E131MatrixOrder::VERTICAL_TOP_RIGHT;
+            break;
+        case 6:
+            device.matrix_order = E131MatrixOrder::VERTICAL_BOTTOM_LEFT;
+            break;
+        case 7:
+            device.matrix_order = E131MatrixOrder::VERTICAL_BOTTOM_RIGHT;
+            break;
     }
 
     if(ui->UniverseSizeEdit->text() != "")

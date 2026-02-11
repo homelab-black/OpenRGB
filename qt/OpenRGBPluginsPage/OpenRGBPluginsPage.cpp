@@ -224,11 +224,8 @@ void OpenRGBPluginsPage::on_EnableButton_clicked(OpenRGBPluginsEntry* entry)
     /*-----------------------------------------------------*\
     | Search the settings to find the correct index         |
     \*-----------------------------------------------------*/
-    std::string     name        = "";
-    std::string     description = "";
     bool            enabled     = entry->isPluginEnabled();
     bool            found       = false;
-    unsigned int    plugin_ct   = 0;
     unsigned int    plugin_idx  = 0;
 
     std::string     entry_name  = entry->getName();

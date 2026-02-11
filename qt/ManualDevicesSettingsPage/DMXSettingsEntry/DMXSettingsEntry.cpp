@@ -70,14 +70,12 @@ json DMXSettingsEntry::saveSettings()
     /*-------------------------------------------------*\
     | Required parameters                               |
     \*-------------------------------------------------*/
-    DMXDevice device
-    {
-        .name           = ui->NameEdit->text().toStdString(),
-        .port           = ui->PortComboBox->currentText().toStdString(),
-        .red_channel    = ui->RedEdit->text().toUInt(),
-        .green_channel  = ui->GreenEdit->text().toUInt(),
-        .blue_channel   = ui->BlueEdit->text().toUInt(),
-    };
+    DMXDevice device;
+    device.name           = ui->NameEdit->text().toStdString();
+    device.port           = ui->PortComboBox->currentText().toStdString();
+    device.red_channel    = ui->RedEdit->text().toUInt();
+    device.green_channel  = ui->GreenEdit->text().toUInt();
+    device.blue_channel   = ui->BlueEdit->text().toUInt();
 
     /*-------------------------------------------------*\
     | Optional parameters                               |

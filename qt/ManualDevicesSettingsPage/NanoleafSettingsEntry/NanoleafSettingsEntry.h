@@ -26,7 +26,7 @@ public:
     explicit NanoleafSettingsEntry(QWidget *parent = nullptr);
     NanoleafSettingsEntry(QString a_address, int a_port);
     ~NanoleafSettingsEntry();
-    void loadFromSettings(const NanoleafSettings& data);
+    void loadFromSettings(const NanoleafDeviceSettings& data);
     std::string getLocation();
 
     /*--------------------------------*\
