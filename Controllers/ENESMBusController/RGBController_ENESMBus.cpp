@@ -25,6 +25,10 @@
     @comment
 \*-------------------------------------------------------------------*/
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ENESMBusSettings,
+    enable_save
+);
+
 RGBController_ENESMBus::RGBController_ENESMBus(ENESMBusController * controller_ptr)
 {
     controller                  = controller_ptr;
@@ -32,19 +36,16 @@ RGBController_ENESMBus::RGBController_ENESMBus(ENESMBusController * controller_p
     /*---------------------------------------------------------*\
     | Get ENEController settings                                |
     \*---------------------------------------------------------*/
-    json ene_settings           = ResourceManager::get()->GetSettingsManager()->GetSettings("ENESMBusSettings");
+    std::optional<ENESMBusSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<ENESMBusSettings>(ENESMBUS_CFG_KEY);
 
     /*---------------------------------------------------------*\
     | Check if save to device is enabled                        |
     \*---------------------------------------------------------*/
     unsigned int save_flag      = 0;
 
-    if(ene_settings.contains("enable_save"))
+    if(cfg_settings.has_value() && cfg_settings.value().enable_save)
     {
-        if(ene_settings["enable_save"] == true)
-        {
-            save_flag = MODE_FLAG_MANUAL_SAVE;
-        }
+        save_flag = MODE_FLAG_MANUAL_SAVE;
     }
 
     /*---------------------------------------------------------*\

@@ -13,6 +13,19 @@
 
 #include "RGBController.h"
 #include "ENESMBusController.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define ENESMBUS_CFG_KEY "ENESMBusSettings"
+
+struct ENESMBusSettings
+{
+    bool enable_save;
+};
+
+void to_json(json& j, const ENESMBusSettings& settings);
+void from_json(const json& j, ENESMBusSettings& settings);
 
 class RGBController_ENESMBus : public RGBController
 {
