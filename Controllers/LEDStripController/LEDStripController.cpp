@@ -79,7 +79,7 @@ void LEDStripController::Initialize(char* ledstring, LedProtocol proto)
 
     if (serial)
     {
-        if (protocol == BASIC_I2C)
+        if (protocol == LedProtocol::BASIC_I2C)
         {
             //I2C uses the baud field for address
             i2c_addr = atoi(udpport_baud);

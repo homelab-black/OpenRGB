@@ -220,7 +220,7 @@ void RGBController_RGBFusion2USB::Init_Controller()
     const std::string SectionCalibration = "Calibration";
     RvrseLedHeaders ReverseLedLookup     = reverse_map(LedLookup);
     SettingsManager* settings_manager    = ResourceManager::get()->GetSettingsManager();
-    nlohmann::json device_settings       = settings_manager->GetSettings(detector_name);
+    nlohmann::json device_settings       = settings_manager->GetControllerSettingsRaw(detector_name);
 
     /*---------------------------------------------------------*\
     | Create the custom layout from the generic_device          |
@@ -231,8 +231,7 @@ void RGBController_RGBFusion2USB::Init_Controller()
     {
         device_settings[SectionCustom]["Enabled"]   = false;
         device_settings[SectionCustom]["Data"]      = BuildCustomLayoutJson(layout, ReverseLedLookup);
-        settings_manager->SetSettings(detector_name, device_settings);
-        settings_manager->SaveSettings();
+        settings_manager->SetControllerSettingsAndSave(detector_name, device_settings);
     }
 
     bool custom_layout = device_settings[SectionCustom]["Enabled"];
@@ -248,8 +247,7 @@ void RGBController_RGBFusion2USB::Init_Controller()
     {
         device_settings[SectionCalibration]["Enabled"] = false;
         device_settings[SectionCalibration]["Data"]    = WriteCalJsonFrom(hw_cal);
-        settings_manager->SetSettings(detector_name, device_settings);
-        settings_manager->SaveSettings();
+        settings_manager->SetControllerSettingsAndSave(detector_name, device_settings);
     }
     else
     {
@@ -259,8 +257,7 @@ void RGBController_RGBFusion2USB::Init_Controller()
         if(!cal_sec.contains("Data") || !cal_sec["Data"].is_object())
         {
             cal_sec["Data"] = WriteCalJsonFrom(hw_cal);
-            settings_manager->SetSettings(detector_name, device_settings);
-            settings_manager->SaveSettings();
+            settings_manager->SetControllerSettingsAndSave(detector_name, device_settings);
         }
         else
         {
@@ -270,8 +267,7 @@ void RGBController_RGBFusion2USB::Init_Controller()
             if(!cal_enable)
             {
                 cal_sec["Data"] = WriteCalJsonFrom(hw_cal);
-                settings_manager->SetSettings(detector_name, device_settings);
-                settings_manager->SaveSettings();
+                settings_manager->SetControllerSettingsAndSave(detector_name, device_settings);
             }
         }
 

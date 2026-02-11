@@ -87,8 +87,18 @@ public:
     \*----------------------------*/
     template<typename T>
     std::optional<T> GetControllerSettings(const std::string& key);
+
     template<typename T>
     T GetControllerSettingsOrDefault(const std::string& key);
+
+    /*-------------------------------------------*\
+    | Gets controller key as raw JSON             |
+    |                                             |
+    | Prefer defining a deserialisable cpp struct |
+    | and calling `GetControllerSettings`         |
+    \*-------------------------------------------*/
+    json GetControllerSettingsRaw(const std::string& key);
+
     template<typename T>
     void SetControllerSettingsAndSave(const std::string& key, T settings);
 

@@ -23,7 +23,7 @@ DetectedControllers DetectLIFXControllers()
     /*-----------------------------------------------------*\
     | Get LIFX settings from settings manager               |
     \*-----------------------------------------------------*/
-    ManualDeviceSettings<LIFXDevice> lifx_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<ManualDeviceSettings<LIFXDevice>>(LIFXDevices);
+    ManualDeviceSettings<LIFXDevice> lifx_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<ManualDeviceSettings<LIFXDevice>>(LIFX_CFG_KEY);
 
     /*-----------------------------------------------------*\
     | If the Wiz settings contains devices, process         |

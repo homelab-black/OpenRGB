@@ -32,8 +32,7 @@ NanoleafSettingsEntry::NanoleafSettingsEntry(QString a_address, int a_port) :
     ui->IPValue->setText(address);
     ui->PortValue->setText(QString::fromStdString(std::to_string(a_port)));
 
-    std::optional<NanoleafSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<NanoleafSettings>(NANOLEAF_CFG_KEY);
-    NanoleafSettings settings = cfg_settings.value_or(NanoleafSettings {});
+    NanoleafSettings settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<NanoleafSettings>(NANOLEAF_CFG_KEY);
 
     if(settings.devices.count(location) &&
         settings.devices.at(location).auth_token.size())
@@ -70,8 +69,7 @@ void NanoleafSettingsEntry::on_PairButton_clicked()
 
         // Save auth token.
         std::string location = getLocation();
-        std::optional<NanoleafSettings> cfg_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<NanoleafSettings>(NANOLEAF_CFG_KEY);
-        NanoleafSettings settings = cfg_settings.value_or(NanoleafSettings {});
+        NanoleafSettings settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<NanoleafSettings>(NANOLEAF_CFG_KEY);
         NanoleafDeviceSettings new_device
         {
             .ip = address.toStdString(),
@@ -100,8 +98,7 @@ void NanoleafSettingsEntry::on_UnpairButton_clicked()
 
     std::string location = getLocation();
     SettingsManager* sm = ResourceManager::get()->GetSettingsManager();
-    std::optional<NanoleafSettings> cfg_settings = sm->GetControllerSettings<NanoleafSettings>(NANOLEAF_CFG_KEY);
-    NanoleafSettings settings = cfg_settings.value_or(NanoleafSettings {});
+    NanoleafSettings settings = sm->GetControllerSettingsOrDefault<NanoleafSettings>(NANOLEAF_CFG_KEY);
     settings.devices.erase(location);
     sm->SetControllerSettingsAndSave(NANOLEAF_CFG_KEY, settings);
 

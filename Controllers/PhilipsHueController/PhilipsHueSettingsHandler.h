@@ -16,6 +16,9 @@
 
 #include <cstddef>
 #include <string>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define PHILIPSHUE_SETTINGS_KEY "PhilipsHueDevices"
 

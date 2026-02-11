@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "OpenRGBPluginAPI.h"
+#include "SettingsJson.h"
 
 OpenRGBPluginAPI::OpenRGBPluginAPI()
 {
@@ -178,7 +179,7 @@ nlohmann::json OpenRGBPluginAPI::GetSettings(std::string settings_key)
     json result = json {};
     if(settings_key == "AutoStart")
     {
-        to_json(result, settings.auto_start);
+        return settings.auto_start;
     }
     else if(settings_key == "Detectors")
     {

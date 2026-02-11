@@ -30,8 +30,10 @@ public:
     // custom
     bool setcustom;
     string custom;
-
 };
+
+void to_json(json& j, const AutoStartSettings& settings);
+void from_json(const json& j, AutoStartSettings& settings);
 
 struct DetectorSettings {
     std::unordered_map<string, bool> detectors;
@@ -59,6 +61,9 @@ struct DetectorSettings {
     }
 };
 
+void to_json(json& j, const DetectorSettings& settings);
+void from_json(const json& j, DetectorSettings& settings);
+
 struct LogManagerSettings {
     // whether to enable log console in openrgb
     bool log_console = false;
@@ -73,23 +78,31 @@ struct LogManagerSettings {
     std::vector<size_t> dialog_no_show_hashes;
 };
 
+void to_json(json& j, const LogManagerSettings& settings);
+void from_json(const json& j, LogManagerSettings& settings);
 
 struct ProfileSettings {
     bool enabled;
     string name;
 };
 
+void to_json(json& j, const ProfileSettings& settings);
+void from_json(const json& j, ProfileSettings& settings);
+
 /*--------------------------------------------*\
 | profile to use on <variant> event            |
 | Ie, ManagedProfileType::Open is used on open |
 \*--------------------------------------------*/
-enum ManagedProfileType
+enum class ManagedProfileType
 {
     Open,
     Resume,
     Suspend,
     Exit,
 };
+
+void to_json(json& j, const ManagedProfileType& settings);
+void from_json(const json& j, ManagedProfileType& settings);
 
 struct ProfileManagerSettings {
     ProfileSettings open_profile;
@@ -98,11 +111,17 @@ struct ProfileManagerSettings {
     ProfileSettings exit_profile;
 };
 
-enum Theme {
+void to_json(json& j, const ProfileManagerSettings& settings);
+void from_json(const json& j, ProfileManagerSettings& settings);
+
+enum class Theme {
     Light,
     Dark,
     Auto,
 };
+
+void to_json(json& j, const Theme& settings);
+void from_json(const json& j, Theme& settings);
 
 string ThemeToString(Theme theme);
 std::optional<Theme> StringToTheme(const std::string& str);
@@ -111,22 +130,8 @@ struct ThemeSettings {
     Theme theme = Theme::Light;
 };
 
-enum Language {
-    SystemDefault,
-    German,
-    EnglishAU,
-    EnglishUk,
-    EnglishUs,
-    Spanish,
-    French,
-    Croatian,
-    Malaysian,
-    Polish,
-    Portuguese,
-    Russian,
-    ChineseSimplified,
-    ChineseTraditional,
-};
+void to_json(json& j, const ThemeSettings& settings);
+void from_json(const json& j, ThemeSettings& settings);
 
 struct WindowGeometrySettings {
     int x = 0; // maybe use uint_32t for these?
@@ -135,8 +140,10 @@ struct WindowGeometrySettings {
     int height = 0;
     bool load_geometry = false;
     bool save_on_exit = false;
-
 };
+
+void to_json(json& j, const WindowGeometrySettings& settings);
+void from_json(const json& j, WindowGeometrySettings& settings);
 
 struct AutoLoadProfileSettings {
     std::optional<ProfileSettings> open_profile;
@@ -145,18 +152,25 @@ struct AutoLoadProfileSettings {
     std::optional<ProfileSettings> exit_profile;
 };
 
+void to_json(json& j, const AutoLoadProfileSettings& settings);
+void from_json(const json& j, AutoLoadProfileSettings& settings);
 
 struct ExitProfileSettings {
     bool set_on_exit;
     string profile_name;
-
 };
 
-enum HexFormat
+void to_json(json& j, const ExitProfileSettings& settings);
+void from_json(const json& j, ExitProfileSettings& settings);
+
+enum class HexFormat
 {
     RGB,
     BGR,
 };
+
+void to_json(json& j, const HexFormat& settings);
+void from_json(const json& j, HexFormat& settings);
 
 string HexFormatToString(HexFormat hex_format);
 std::optional<HexFormat> StringToHexFormat(const std::string& str);
@@ -177,6 +191,9 @@ struct UserInterfaceSettings {
     ExitProfileSettings exit_profile;
 };
 
+void to_json(json& j, const UserInterfaceSettings& settings);
+void from_json(const json& j, UserInterfaceSettings& settings);
+
 // todo: fix naming
 struct OnePluginSettings {
     std::string name;
@@ -184,15 +201,24 @@ struct OnePluginSettings {
     bool enabled;
 };
 
+void to_json(json& j, const OnePluginSettings& settings);
+void from_json(const json& j, OnePluginSettings& settings);
+
 struct PluginSettings {
     std::vector<std::filesystem::path> plugins_remove;
     std::vector<OnePluginSettings> plugins;
 };
 
+void to_json(json& j, const PluginSettings& settings);
+void from_json(const json& j, PluginSettings& settings);
+
 struct OneClientSettings {
     string ip;
     unsigned short port;
 };
+
+void to_json(json& j, const OneClientSettings& settings);
+void from_json(const json& j, OneClientSettings& settings);
 
 struct ClientSettings
 {
@@ -216,42 +242,24 @@ struct ClientSettings
     }
 };
 
+void to_json(json& j, const ClientSettings& settings);
+void from_json(const json& j, ClientSettings& settings);
+
 struct ControllerSettings {
-    // keys that need to be migrated:
-    // "ASRock Polychrome USB"
-    // "Asus Aura Core Laptop"
-    // "CorsairDominatorSettings"
-    // "DDPDevices"
-    // "DebugDevices"
-    // "DMXDevices"
-    // "E131Devices"
-    // "Gigabyte RGB Fusion 2 SMBus"
-    // "Gigabyte RGB Fusion 2 USB"
-    // "ElgatoLightStripDevices"
-    // "ENESMBusSettings"
-    // "EspurnaDevices"
-    // "EVision2Settings"
-    // "EndorfySettings"
-    // "FanBusDevices"
-    // "GoveeDevices"
-    // "KasaSmartDevices"
-    // "LEDStripDevices"
-    // "LIFXDevices"
-    // "LinuxLEDDevices"
-    // "PhilipsHueDevices"
-    // "PhilipsWizDevices"
-    // "QMKOpenRGBDevices"
-    // "NanoleafDevices"
-    // "QMKVialRGBDevices"
-    // "YeelightDevices"
     json data;
 };
+
+void to_json(json& j, const ControllerSettings& settings);
+void from_json(const json& j, ControllerSettings& settings);
 
 struct DriverSettings
 {
     bool amd_smbus_reduce_cpu = false;
     bool shared_smbus_access = true;
 };
+
+void to_json(json& j, const DriverSettings& settings);
+void from_json(const json& j, DriverSettings& settings);
 
 struct ServerSettings
 {
@@ -261,6 +269,9 @@ struct ServerSettings
     // found in OpenRgbSettingsPage()
     bool all_devices = false;
 };
+
+void to_json(json& j, const ServerSettings& settings);
+void from_json(const json& j, ServerSettings& settings);
 
 #define SETTINGS_VERSION "1.0"
 

@@ -253,7 +253,7 @@ void ManualDevicesSettingsPage::addEntries(const ManualDeviceTypeBlock& block)
     /*---------------------------------------------------------*\
     | Spawn list entries for all config entries of one type     |
     \*---------------------------------------------------------*/
-    json settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<json>(block.settingsSection).value_or(json {});
+    json settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsRaw(block.settingsSection);
     const char* array_name = "devices";
     if(block.settingsSection == "PhilipsHueDevices")
     {

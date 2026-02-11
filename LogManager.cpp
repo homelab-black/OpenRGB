@@ -62,26 +62,6 @@ unsigned int LogManager::getLoglevel()
     }
 }
 
-std::string replace_pound_by_timestamp(const std::string& input)
-{
-    /*---------------------------------------------*\
-    | If the # symbol is found in the log file      |
-    | name, replace it with a timestamp             |
-    \*---------------------------------------------*/
-    time_t t = time(0);
-    struct tm* tmp = localtime(&t);
-    char time_string[64];
-    snprintf(time_string, 64, TimestampPattern, 1900 + tmp->tm_year, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
-
-    std::string logname = input;
-    size_t oct = logname.find("#");
-    if(oct != logname.npos)
-    {
-        logname.replace(oct, 1, time_string);
-    }
-    return logname;
-}
-
 void LogManager::configure(const LogManagerSettings& config, const filesystem::path& defaultDir)
 {
     std::lock_guard<std::recursive_mutex> grd(entry_mutex);
@@ -116,7 +96,21 @@ void LogManager::configure(const LogManagerSettings& config, const filesystem::p
             | configuration, use the configured name        |
             \*---------------------------------------------*/
             std::string logtempl = config.logfile.value_or("OpenRGB_#.log");
-            std::string logname = replace_pound_by_timestamp(logtempl);
+            /*---------------------------------------------*\
+            | If the # symbol is found in the log file      |
+            | name, replace it with a timestamp             |
+            \*---------------------------------------------*/
+            time_t t = time(0);
+            struct tm* tmp = localtime(&t);
+            char time_string[64];
+            snprintf(time_string, 64, TimestampPattern, 1900 + tmp->tm_year, tmp->tm_mon + 1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+
+            std::string logname = logtempl;
+            size_t oct = logname.find("#");
+            if(oct != logname.npos)
+            {
+                logname.replace(oct, 1, time_string);
+            }
 
             /*---------------------------------------------*\
             | If the path is relative, use logs dir         |

@@ -23,7 +23,7 @@ DetectedControllers DetectDebugControllers()
     /*-----------------------------------------------------*\
     | Get Debug Device settings from settings manager       |
     \*-----------------------------------------------------*/
-    debug_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<json>("DebugDevices").value_or(json {});
+    debug_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsRaw("DebugDevices");
 
     /*-----------------------------------------------------*\
     | If the Debug settings contains devices, process       |

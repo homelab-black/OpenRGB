@@ -13,6 +13,9 @@
 
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define NANOLEAF_DIRECT_MODE_EFFECT_NAME    "*Dynamic*"
 #define NANOLEAF_LIGHT_PANELS_MODEL         "NL22"
@@ -33,6 +36,11 @@ void from_json(const json& j, NanoleafDeviceSettings& settings);
 
 struct NanoleafSettings
 {
+    /*---------------------------------------------------------------*\
+    | Map of devices, key is the location of the device               |
+    | The location is defined as "<ip>:<port>",                       |
+    | where <ip> and <port> are the device's ip and port respectively |
+    \*---------------------------------------------------------------*/
     std::unordered_map<std::string, NanoleafDeviceSettings> devices;
 };
 

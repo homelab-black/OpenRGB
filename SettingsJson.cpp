@@ -71,9 +71,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProfileManagerSettings,
 );
 
 NLOHMANN_JSON_SERIALIZE_ENUM(Theme, {
-    {Light, "light"},
-    {Dark, "dark"},
-    {Auto, "auto"}
+    {Theme::Light, "light"},
+    {Theme::Dark, "dark"},
+    {Theme::Auto, "auto"}
 });
 
 string ThemeToString(Theme theme)
@@ -108,23 +108,6 @@ std::optional<Theme> StringToTheme(const std::string& str)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ThemeSettings, theme);
 
-NLOHMANN_JSON_SERIALIZE_ENUM(Language, {
-    {SystemDefault, "default"},
-    {German, "Deutsch"},
-    {EnglishAU, "English - AU"},
-    {EnglishUk, "English - Uk"},
-    {EnglishUs, "English - Us"},
-    {Spanish, "Español"},
-    {French, "Français"},
-    {Croatian, "Hrvatski"},
-    {Malaysian, "Melayu"},
-    {Polish, "Polski"},
-    {Portuguese, "Português"},
-    {Russian, "Русский"},
-    {ChineseSimplified, "简体中文"},
-    {ChineseTraditional, "繁體中文"}
-});
-
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(WindowGeometrySettings,
     x,
     y,
@@ -148,8 +131,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ExitProfileSettings,
 );
 
 NLOHMANN_JSON_SERIALIZE_ENUM(HexFormat, {
-    {RGB, "RGB"},
-    {BGR, "BGR"}
+    {HexFormat::RGB, "RGB"},
+    {HexFormat::BGR, "BGR"}
 });
 
 string HexFormatToString(HexFormat hex_format)

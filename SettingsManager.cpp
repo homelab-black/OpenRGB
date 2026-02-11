@@ -70,24 +70,23 @@ SettingsAccessGuard SettingsManager::GetSettings()
 
         }
     }
-    else
-    {
-        /*-------------------------------------------------*\
-        | Check to see if the key exists in the settings    |
-        | store and return the settings associated with the |
-        | key if it exists.  We lock the mutex to protect   |
-        | the value from changing while data is being read  |
-        | and copy before unlocking.                        |
-        \*-------------------------------------------------*/
-        return SettingsAccessGuard(settings_data, mutex);
-        // mutex.lock();
-        // if(settings_data.contains(settings_key))
-        // {
-        //     result = settings_data[settings_key];
-        // }
-        // mutex.unlock();
-    }
-    // return result;
+    // else
+    // {
+    //     /*-------------------------------------------------*\
+    //     | Check to see if the key exists in the settings    |
+    //     | store and return the settings associated with the |
+    //     | key if it exists.  We lock the mutex to protect   |
+    //     | the value from changing while data is being read  |
+    //     | and copy before unlocking.                        |
+    //     \*-------------------------------------------------*/
+    //     // mutex.lock();
+    //     // if(settings_data.contains(settings_key))
+    //     // {
+    //     //     result = settings_data[settings_key];
+    //     // }
+    //     // mutex.unlock();
+    // }
+    return SettingsAccessGuard(settings_data, mutex);
 }
 
 void SettingsManager::ModifySettings(std::function<void(Settings& settings)> modify_fn)
@@ -369,7 +368,15 @@ T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
         settings = settings_data.controllers.data[key].get<T>();
     }
     mutex.unlock();
-    return deserialized;
+    return settings;
+}
+
+json SettingsManager::GetControllerSettingsRaw(const std::string& key)
+{
+    mutex.lock();
+    json j = settings_data.controllers.data[key];
+    mutex.unlock();
+    return j;
 }
 
 template<typename T>
