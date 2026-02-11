@@ -442,15 +442,21 @@ void SettingsManager::SetControllerSettingsAndSaveRaw(const std::string& key, js
 
 SettingsAccessGuard::SettingsAccessGuard(Settings& _settings, std::mutex& _mutex) : settings(_settings), lock(_mutex)
 {
-    LOG_DEBUG("[SettingsAccessGuard] ++++++ Acquiring exclusive access to settings ++++++");
+    /*-------------------------------------*\
+    | Debug message to invesitage deadlocks |
+    \*-------------------------------------*/
+    // LOG_DEBUG("[SettingsAccessGuard] ++++++ Acquiring exclusive access to settings ++++++");
 }
 
 SettingsAccessGuard::~SettingsAccessGuard()
 {
-    if (lock.owns_lock())
-    {
-        LOG_DEBUG("[SettingsAccessGuard] ------ Automatically releasing exclusive access to settings ------");
-    }
+    /*-------------------------------------*\
+    | Debug message to invesitage deadlocks |
+    \*-------------------------------------*/
+    // if (lock.owns_lock())
+    // {
+    //     LOG_DEBUG("[SettingsAccessGuard] ------ Automatically releasing exclusive access to settings ------");
+    // }
 }
 
 Settings& SettingsAccessGuard::access_mut()

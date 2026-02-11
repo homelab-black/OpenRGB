@@ -32,13 +32,12 @@ signals:
     void TrayIconChanged(bool tray_icon);
 
 public slots:
-    void UpdateProfiles();
+    void UpdateProfiles(SettingsAccessGuard& guard);
 
 private:
     Ui::OpenRGBSettingsPage *ui;
-    void SaveSettings();
 
-    void CreateAutoStartSettings();
+    void CreateAutoStartSettings(SettingsAccessGuard& guard);
     void ConfigureAutoStart(const AutoStartSettings& autostart_settings);
     void RemediateAutoStartProfile(AutoStartSettings& autostart_settings);
     void SetAutoStartVisibility(bool visible);

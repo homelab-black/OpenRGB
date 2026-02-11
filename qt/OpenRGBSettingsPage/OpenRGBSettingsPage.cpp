@@ -172,12 +172,12 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     ui->CheckboxAllDevices->setChecked(server_settings.all_devices);
     ui->CheckboxLegacyWorkaround->setChecked(server_settings.legacy_workaround);
 
-    UpdateProfiles();
+    UpdateProfiles(settings);
 
     /*---------------------------------------------------------*\
     | Make sure autostart settings exist                        |
     \*---------------------------------------------------------*/
-    CreateAutoStartSettings();
+    CreateAutoStartSettings(settings);
 
     /*--------------------------------------------------------------------*\
     | Initialise UI to current settings or defaults                        |
@@ -232,7 +232,7 @@ void OpenRGBSettingsPage::changeEvent(QEvent *event)
     }
 }
 
-void OpenRGBSettingsPage::UpdateProfiles()
+void OpenRGBSettingsPage::UpdateProfiles(SettingsAccessGuard& guard)
 {
     /*-----------------------------------------------------*\
     | Load AutoStart settings                               |
@@ -277,8 +277,7 @@ void OpenRGBSettingsPage::UpdateProfiles()
     /*-----------------------------------------------------*\
     | Load user interface settings                          |
     \*-----------------------------------------------------*/
-    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    const AutoStartSettings autostart_settings = settings.access().auto_start;
+    const AutoStartSettings& autostart_settings = guard.access().auto_start;
 
     /*-------------------------------------------------*\
     | Set the profile name from settings and check the  |
@@ -294,7 +293,7 @@ void OpenRGBSettingsPage::UpdateProfiles()
     /*-----------------------------------------------------*\
     | Load profile manager settings                         |
     \*-----------------------------------------------------*/
-    const ProfileManagerSettings& profilemanager_settings = settings.access().profile_manager;
+    const ProfileManagerSettings& profilemanager_settings = guard.access().profile_manager;
 
     /*--------------------------*\
     | Exit profile               |
@@ -843,7 +842,7 @@ void OpenRGBSettingsPage::ConfigureAutoStart(const AutoStartSettings& autostart_
     }
 }
 
-void OpenRGBSettingsPage::CreateAutoStartSettings()
+void OpenRGBSettingsPage::CreateAutoStartSettings(SettingsAccessGuard& guard)
 {
     AutoStartSettings default_setting = AutoStartSettings
     {
@@ -862,10 +861,9 @@ void OpenRGBSettingsPage::CreateAutoStartSettings()
         .custom = "",
     };
 
-    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    AutoStartSettings& autostart_settings = settings.access_mut().auto_start;
+    AutoStartSettings& autostart_settings = guard.access_mut().auto_start;
     autostart_settings = default_setting;
-    settings.Save();
+    guard.Save();
 }
 
 void OpenRGBSettingsPage::RemediateAutoStartProfile(AutoStartSettings& autostart_settings)
@@ -914,11 +912,6 @@ void OpenRGBSettingsPage::RemediateAutoStartProfile(AutoStartSettings& autostart
     ui->ComboBoxAutoStartProfile->setCurrentText(QString::fromStdString(autostart_settings.profile));
     ui->ComboBoxAutoStartProfile->setEnabled(autostart_settings.setprofile);
     ui->CheckboxAutoStartProfile->setChecked(autostart_settings.setprofile);
-}
-
-void OpenRGBSettingsPage::SaveSettings()
-{
-    ResourceManager::get()->GetSettingsManager()->SaveSettings();
 }
 
 void OpenRGBSettingsPage::on_OpenSettingsFolderButton_clicked()

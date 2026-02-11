@@ -26,15 +26,8 @@ class SettingsAccessGuard
 {
 public:
     SettingsAccessGuard(Settings& _settings, std::mutex& _mutex);
-    // : settings(_settings), lock(_mutex)
-    // {
-    //     LOG_DEBUG("[SettingsAccessGuard] Acquiring exclusive access to settings");
-    // }
 
     ~SettingsAccessGuard();
-    // {
-    //     LOG_DEBUG("[SettingsAccessGuard] Automatically releasing exclusive access to settings");
-    // }
 
     /*-------------------------------------------*\
     | Accesses the settings immutably (read-only) |
@@ -58,9 +51,6 @@ public:
     | until lock is reacquired.                        |
     \*------------------------------------------------*/
     void Release();
-
-    // template<typename T>
-    // T GetSettingsValue(std::function<T(const Settings& settings)> getter_fn);
 
 private:
     Settings& settings;
