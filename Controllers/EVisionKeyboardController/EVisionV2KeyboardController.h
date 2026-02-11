@@ -154,6 +154,19 @@ struct EvisionV2ModeConfig
     uint8_t ledmode;
 };
 
+#define EVISION2_CFG_KEY "Evision2Settings"
+#define ENDORFY_CFG_KEY "EndorfySettings"
+/*-----------------------------*\
+| Settings from the json config |
+\*-----------------------------*/
+struct EVisionSettings
+{
+    bool additional_zones;
+};
+
+void to_json(json& j, const EVisionSettings& settings);
+void from_json(const json& j, EVisionSettings& settings);
+
 class EVisionV2KeyboardController
 {
 public:

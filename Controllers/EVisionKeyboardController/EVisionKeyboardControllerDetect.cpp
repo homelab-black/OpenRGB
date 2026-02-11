@@ -39,6 +39,18 @@
 #define BYGG_CSB_ICL01_PID          0x5041
 #define GAMEPOWER_OGRE_RGB_PID      0x7672
 
+void to_json(json& j, const EVisionSettings& settings)
+{
+    j = json {
+        {"AdditionalZones", settings.additional_zones}
+    };
+}
+
+void from_json(const json& j, EVisionSettings& settings)
+{
+    j.at("AdditionalZones").get_to(settings.additional_zones);
+}
+
 DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -60,7 +72,7 @@ DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::str
 DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
-    json                settings    = ResourceManager::get()->GetSettingsManager()->GetSettings("EVision2Settings");
+    std::optional<EVisionSettings> settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<EVisionSettings>(EVISION2_CFG_KEY);
     hid_device*         dev         = hid_open_path(info->path);
 
     if(dev)
@@ -70,7 +82,7 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
 
         detected_controllers.push_back(rgb_controller);
 
-        if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
+        if (!settings.has_value() || settings.value().additional_zones)
         {
             rgb_controller                             = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_LOGO);
 
@@ -88,7 +100,7 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
 DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
-    json                settings    = ResourceManager::get()->GetSettingsManager()->GetSettings("EndorfySettings");
+    std::optional<EVisionSettings> settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettings<EVisionSettings>(ENDORFY_CFG_KEY);
     hid_device*         dev         = hid_open_path(info->path);
 
     if(dev)
@@ -98,7 +110,7 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 
         detected_controllers.push_back(rgb_controller);
 
-        if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
+        if (!settings.has_value() || settings.value().additional_zones)
         {
             rgb_controller                              = new RGBController_EVisionV2Keyboard(controller, ENDORFY_KEYBOARD_PART_EDGE);
 
