@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_Akko5075BController.cpp                          |
+| RGBController_Akko5075BController.cpp                     |
 |                                                           |
 |   RGBController for Akko 5075B keyboard                   |
 |                                                           |
