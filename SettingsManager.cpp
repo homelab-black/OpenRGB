@@ -19,17 +19,6 @@
 #include "SettingsManager.h"
 #include "StringUtils.h"
 
-static const std::string ui_settings_keys[7] =
-{
-    "UserInterface",
-    "AutoStart",
-    "Theme",
-    "Plugins",
-    "Client",
-    "LogManager",
-    "Server"
-};
-
 SettingsManager::SettingsManager()
 {
     config_found = false;
@@ -37,7 +26,6 @@ SettingsManager::SettingsManager()
 
 SettingsManager::~SettingsManager()
 {
-
 }
 
 SettingsAccessGuard SettingsManager::GetSettings()
@@ -60,22 +48,6 @@ SettingsAccessGuard SettingsManager::GetSettings()
 
         }
     }
-    // else
-    // {
-    //     /*-------------------------------------------------*\
-    //     | Check to see if the key exists in the settings    |
-    //     | store and return the settings associated with the |
-    //     | key if it exists.  We lock the mutex to protect   |
-    //     | the value from changing while data is being read  |
-    //     | and copy before unlocking.                        |
-    //     \*-------------------------------------------------*/
-    //     // mutex.lock();
-    //     // if(settings_data.contains(settings_key))
-    //     // {
-    //     //     result = settings_data[settings_key];
-    //     // }
-    //     // mutex.unlock();
-    // }
     return SettingsAccessGuard(settings_data, mutex);
 }
 
@@ -86,41 +58,6 @@ void SettingsManager::ModifySettings(std::function<void(Settings& settings)> mod
     mutex.unlock();
     SaveSettings();
 }
-
-// void SettingsManager::SetSettings(std::string settings_key, json new_settings)
-// {
-//     bool ui_settings_key = false;
-
-//     for(std::size_t settings_key_idx = 0; settings_key_idx < 7; settings_key_idx++)
-//     {
-//         if(settings_key == ui_settings_keys[settings_key_idx])
-//         {
-//             ui_settings_key = true;
-//             break;
-//         }
-//     }
-
-//     if(!ui_settings_key && ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
-//     {
-//         /*-------------------------------------------------*\
-//         | If this is a local client, request the settings   |
-//         | from the server                                   |
-//         \*-------------------------------------------------*/
-//         // nlohmann::json settings_json;
-
-//         // settings_json[settings_key] = new_settings;
-//         json settings_json = local_settings;
-
-//         ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(settings_json.dump());
-//     }
-//     else
-//     {
-//         // noop, we edit an existing reference
-//         // mutex.lock();
-//         // settings_data[settings_key] = new_settings;
-//         // mutex.unlock();
-//     }
-// }
 
 void SettingsManager::SetSettingsFromJsonString(std::string settings_json_str)
 {
@@ -382,36 +319,6 @@ void SettingsManager::MigrateSettings(const filesystem::path& filename)
     }
 }
 
-
-// template<typename T>
-// std::optional<T> SettingsManager::GetControllerSettings(const std::string& key)
-// {
-//     json data = GetControllerSettingsRaw(key);
-//     if (!data.is_null())
-//     {
-//         return data.get<T>();
-//     }
-//     else
-//     {
-//         return std::nullopt;
-//     }
-// }
-
-// template<typename T>
-// T SettingsManager::GetControllerSettingsOrDefault(const std::string& key)
-// {
-//     /*------------------------------------*\
-//     | use default constructor for `T` here |
-//     \*------------------------------------*/
-//     T settings;
-//     json data = GetControllerSettingsRaw(key);
-//     if (!data.is_null())
-//     {
-//         settings = data.get<T>();
-//     }
-//     return settings;
-// }
-
 void SettingsManager::SetControllerSettingsAndSave(const std::string& key, json settings)
 {
     mutex.lock();
@@ -422,7 +329,7 @@ void SettingsManager::SetControllerSettingsAndSave(const std::string& key, json 
 
 json SettingsManager::GetControllerSettingsRaw(const std::string& key)
 {
-    json j;
+    json j = json::object();
     mutex.lock();
     if(settings_data.controllers.data.contains(key))
     {
