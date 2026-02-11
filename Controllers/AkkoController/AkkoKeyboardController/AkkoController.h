@@ -128,7 +128,8 @@ enum AKKO_FLAGS
     MUSIC_INTERSECT             = 0x20,
 };
 
-struct AkkoZoneInfo {
+struct AkkoZoneInfo
+{
     std::string             name;
     AKKO_ZONE               zone;
     AKKO_MODE               mode;
@@ -173,4 +174,4 @@ private:
     static std::string getZoneName(AKKO_ZONE zone);
 };
 
-bool IsAkkoZoneCompatibleWith(AKKO_ZONE zone, AKKO_MODE mode);
+bool IsZoneCompatibleWith(AKKO_ZONE zone, AKKO_MODE mode);

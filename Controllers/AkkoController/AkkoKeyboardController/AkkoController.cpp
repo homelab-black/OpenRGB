@@ -76,7 +76,7 @@ int calculateFiller(unsigned char *buffer, int start, int end)
 
 void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
 {
-    if (!IsAkkoZoneCompatibleWith(zone_info.zone, zone_info.mode))
+    if(!IsZoneCompatibleWith(zone_info.zone, zone_info.mode))
     {
         return; // Only keyboard supports all modes, light strips only support OFF to RIPPLE
     }
@@ -88,14 +88,18 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     AKKO_FLAGS flags = zone_info.flags;
     RGBColor color = zone_info.color;
 
-    if (mode == AKKO_MODE::USER_PICTURE || mode == AKKO_MODE::MUSIC_FOLLOW
-        || mode == AKKO_MODE::MUSIC_FOLLOW_2 || mode == AKKO_MODE::LIGHT_SHADOW) {
+    if(mode == AKKO_MODE::USER_PICTURE || mode == AKKO_MODE::MUSIC_FOLLOW
+        || mode == AKKO_MODE::MUSIC_FOLLOW_2 || mode == AKKO_MODE::LIGHT_SHADOW)
+    {
         speed = AKKO_SPEED::S_MAX;
         brightness = AKKO_BRIGHTNESS::B_MAX;
-        if(mode == AKKO_MODE::USER_PICTURE) {
+        if(mode == AKKO_MODE::USER_PICTURE)
+        {
             flags = AKKO_FLAGS::DEFAULT;
         }
-    } else {
+    }
+    else
+    {
         speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); //Invert speed (0 is max speed, 4 is min speed)
     }
 
@@ -117,12 +121,17 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     }
 
     // TEST STUFF
-    if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2 || mode == AKKO_MODE::LIGHT_SHADOW) {
-        for(int i=0; i<20; i++){
+    if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2 || mode == AKKO_MODE::LIGHT_SHADOW)
+    {
+        for(int i=0; i<20; i++)
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            if (mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2) {
+            if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2)
+            {
                 SetDirectMusic(zone_info);
-            } else {
+            }
+            else
+            {
                 SetDirectColor(zone_info);
             }
         }
@@ -167,15 +176,17 @@ AkkoZoneInfo AkkoController::GetZoneInfo(AKKO_ZONE zone)
     effect.flags = (AKKO_FLAGS)buffer[AKKO_BYTE_INDEX::FLAGS];
     effect.color = ToRGBColor(buffer[AKKO_BYTE_INDEX::RED], buffer[AKKO_BYTE_INDEX::GREEN], buffer[AKKO_BYTE_INDEX::BLUE]);
 
-    if (zone == AKKO_ZONE::Z_KEYBOARD) {
+    if(zone == AKKO_ZONE::Z_KEYBOARD)
+    {
         effect.colors = getLedsData(zone);
     }
 
     return effect;
 }
 
-void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info) {
-    if (zone_info.zone != AKKO_ZONE::Z_KEYBOARD)
+void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info)
+{
+    if(zone_info.zone != AKKO_ZONE::Z_KEYBOARD)
     {
         return; // Only keyboard supports custom per-LED colors
     }
@@ -186,7 +197,8 @@ void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info) {
     int led_index = 0;
     int color_byte_k = 0;
 
-    for (int i = 0; i < pages; ++i) {
+    for(int i = 0; i < pages; ++i)
+    {
         memset(buffer, 0, sizeof(buffer));
         buffer[AKKO_BYTE_INDEX::COMMAND]       = AKKO_BYTE_COMMAND::SET | AKKO_BYTE_COMMAND::CUSTOM_KEYBOARD;
         buffer[AKKO_BYTE_INDEX::MODE]          = 0x00;
@@ -199,19 +211,22 @@ void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info) {
 
         int buffer_idx = AKKO_BYTE_INDEX::CUSTOM_FILLER + 1;
 
-        while (buffer_idx < (AKKO_PACKET_LENGTH + 1) && led_index < zone_info.colors.size()) {
+        while (buffer_idx < (AKKO_PACKET_LENGTH + 1) && led_index < zone_info.colors.size())
+        {
             RGBColor current_color = zone_info.colors[led_index];
             buffer[buffer_idx] = (current_color >> (color_byte_k * 8)) & 0xFF;
             buffer_idx++;
             color_byte_k++;
-            if (color_byte_k >= 3) {
+            if(color_byte_k >= 3)
+            {
                 color_byte_k = 0;
                 led_index++;
             }
         }
 
         int send_buffer_result = hid_send_feature_report(dev, buffer, sizeof(buffer));
-        if (send_buffer_result < 0) {
+        if(send_buffer_result < 0)
+        {
             LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
         }
     }
@@ -234,7 +249,8 @@ void AkkoController::SetDirectMusic(const AkkoZoneInfo& zone_info)
     buffer[AKKO_BYTE_INDEX::GREEN]        = 0x0;
     buffer[AKKO_BYTE_INDEX::BLUE]         = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-    for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH + 1; i++){
+    for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH + 1; i++)
+    {
         buffer[i] = i % 6;
     }
 
@@ -274,9 +290,10 @@ bool AkkoController::HasLightStrips()
     return has_light_strips;
 }
 
-std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone) {
+std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone)
+{
     std::vector<RGBColor> colors;
-    if (zone != AKKO_ZONE::Z_KEYBOARD)
+    if(zone != AKKO_ZONE::Z_KEYBOARD)
     {
         return colors; // Only keyboard supports custom per-LED colors
     }
@@ -289,7 +306,8 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone) {
     unsigned int current_reconstructed_val = 0;
 
     int pages = AKKO_ZONE_SIZE::Z_KEYBOARD_SIZE / ((AKKO_PACKET_LENGTH - AKKO_BYTE_INDEX::CUSTOM_FILLER) / 3);
-    for (int i = 0; i < pages ; ++i) {
+    for(int i = 0; i < pages ; ++i)
+    {
         memset(buffer, 0, sizeof(buffer));
 
         buffer[AKKO_BYTE_INDEX::COMMAND]       = AKKO_BYTE_COMMAND::GET | AKKO_BYTE_COMMAND::CUSTOM_KEYBOARD;
@@ -302,21 +320,24 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone) {
         buffer[AKKO_BYTE_INDEX::CUSTOM_FILLER] = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
         int send_buffer_result = hid_send_feature_report(dev, buffer, sizeof(buffer));
-        if (send_buffer_result < 0) {
+        if(send_buffer_result < 0)
+        {
             LOG_ERROR("[AKKO]: Send Buffer Error (Get Data). HIDAPI Error: %ls", hid_error(dev));
             continue;
         }
 
         memset(buffer, 0, sizeof(buffer));
         int get_buffer_result = hid_get_feature_report(dev, buffer, sizeof(buffer));
-        if (get_buffer_result < 0) {
+        if(get_buffer_result < 0)
+        {
             LOG_ERROR("[AKKO]: Get Buffer Error. HIDAPI Error: %ls", hid_error(dev));
             continue;
         }
 
         int buffer_idx = 1;
 
-        while (buffer_idx < (AKKO_PACKET_LENGTH + 1)) {
+        while (buffer_idx < (AKKO_PACKET_LENGTH + 1))
+        {
             unsigned char raw_byte = buffer[buffer_idx];
 
             current_reconstructed_val |= (static_cast<unsigned int>(raw_byte) << (color_byte_k * 8));
@@ -324,9 +345,9 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone) {
             buffer_idx++;
             color_byte_k++;
 
-            if (color_byte_k >= 3) {
+            if(color_byte_k >= 3)
+            {
                 colors.push_back(current_reconstructed_val);
-
                 current_reconstructed_val = 0;
                 color_byte_k = 0;
             }
@@ -335,11 +356,14 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone) {
     return colors;
 }
 
-std::string AkkoController::getZoneName(AKKO_ZONE zone) {
-    if (zone == AKKO_ZONE::Z_KEYBOARD) {
+std::string AkkoController::getZoneName(AKKO_ZONE zone)
+{
+    if(zone == AKKO_ZONE::Z_KEYBOARD)
+    {
         return "Keyboard";
     }
-    else if (zone == AKKO_ZONE::Z_LIGHT_STRIPS) {
+    else if(zone == AKKO_ZONE::Z_LIGHT_STRIPS)
+    {
         return "Light Strips";
     }
     return "Unknown Zone";
@@ -347,17 +371,19 @@ std::string AkkoController::getZoneName(AKKO_ZONE zone) {
 
 AKKO_BYTE_COMMAND AkkoController::getByteFromZone(AKKO_ZONE zone)
 {
-    if(zone == AKKO_ZONE::Z_KEYBOARD){
+    if(zone == AKKO_ZONE::Z_KEYBOARD)
+    {
         return AKKO_BYTE_COMMAND::KEYBOARD;
     }
-    else if(zone == AKKO_ZONE::Z_LIGHT_STRIPS){
+    else if(zone == AKKO_ZONE::Z_LIGHT_STRIPS)
+    {
         return AKKO_BYTE_COMMAND::LIGHT_STRIPS;
     }
     return AKKO_BYTE_COMMAND::KEYBOARD;
 }
 
 
-bool IsAkkoZoneCompatibleWith(AKKO_ZONE zone, AKKO_MODE mode)
+bool IsZoneCompatibleWith(AKKO_ZONE zone, AKKO_MODE mode)
 {
     return zone == AKKO_ZONE::Z_KEYBOARD || (AKKO_MODE::OFF <= mode && mode <= AKKO_MODE::RIPPLE);
 }
