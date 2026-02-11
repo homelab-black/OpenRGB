@@ -15,6 +15,15 @@
 #include <string.h>
 #include "EspurnaController.h"
 
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(EspurnaDevice,
+    ip,
+    port,
+    apikey
+);
+
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(EspurnaSettings, devices);
+
 EspurnaController::EspurnaController()
 {
 
