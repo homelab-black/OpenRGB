@@ -98,7 +98,7 @@ DetectedControllers DetectGigabyteRGBFusion2SMBusControllers(std::vector<i2c_smb
 
     std::vector<std::string>& supported_devices = device_settings.value().supported_devices;
     bool boolVendor = ( dmi.getManufacturer() == VENDOR_NAME );
-    auto result = std::find(
+    std::vector<std::string>::iterator result = std::find(
         supported_devices.begin(),
         supported_devices.end(),
         dmi.getMainboard()
