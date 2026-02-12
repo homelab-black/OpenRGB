@@ -241,40 +241,27 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
             /*-----------------------------------------------------*\
             | Search the settings to see if it is enabled           |
             \*-----------------------------------------------------*/
-            std::string     name        = "";
-            std::string     description = "";
-            bool            enabled     = true;
-            bool            found       = false;
-            unsigned int    plugin_ct   = 0;
-
-            plugin_ct = (unsigned int)plugin_settings.plugins.size();
-
-            for(unsigned int idx = 0; idx < plugin_settings.plugins.size(); idx++)
-            {
-                OnePluginSettings& plugin = plugin_settings.plugins[idx];
-                if((info.Name == plugin.name)
-                    &&(info.Description == plugin.description))
-                {
-                    /*--------------------------*\
-                    | Keep enabled state         |
-                    \*--------------------------*/
-                    enabled = plugin.enabled;
-                    found = true;
-                    break;
-                }
-            }
-
+            std::optional<OnePluginSettings> found = plugin_settings.find(info.Name, info.Description);
+            bool enabled;
             /*-----------------------------------------------------*\
             | If the plugin was not in the list, add it to the list |
             | and default it to enabled, then save the settings     |
             \*-----------------------------------------------------*/
-            if(!found)
+            if(!found.has_value())
             {
-                plugin_settings.plugins[plugin_ct].name           = info.Name;
-                plugin_settings.plugins[plugin_ct].description    = info.Description;
-                plugin_settings.plugins[plugin_ct].enabled        = enabled;
-
+                enabled = true;
+                OnePluginSettings new_plugin
+                {
+                    .name = info.Name,
+                    .description = info.Description,
+                    .enabled = enabled
+                };
+                plugin_settings.plugins.push_back(new_plugin);
                 settings.Save();
+            }
+            else
+            {
+                enabled = found.value().enabled;
             }
 
             LOG_VERBOSE("[PluginManager] Loaded plugin %s", info.Name.c_str());

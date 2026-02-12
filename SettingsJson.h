@@ -291,6 +291,23 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OnePluginSettings,
 struct PluginSettings {
     std::vector<std::filesystem::path> plugins_remove;
     std::vector<OnePluginSettings> plugins;
+
+    inline bool contains(const std::string& name, const std::string& description)
+    {
+        return find(name, description).has_value();
+    }
+
+    inline std::optional<OnePluginSettings> find(const std::string& name, const std::string& description)
+    {
+        for (const OnePluginSettings& plugin : plugins)
+        {
+            if (plugin.name == name && plugin.description == description)
+            {
+                return plugin;
+            }
+        }
+        return std::nullopt;
+    }
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(PluginSettings,
@@ -312,12 +329,12 @@ struct ClientSettings
 {
     std::vector<OneClientSettings> clients;
 
-    inline bool contains(std::string ip, unsigned short port) const
+    inline bool contains(const std::string& ip, unsigned short port) const
     {
         return find(ip, port) != std::nullopt;
     }
 
-    inline std::optional<size_t> find(std::string ip, unsigned short port) const
+    inline std::optional<size_t> find(const std::string& ip, unsigned short port) const
     {
         for (size_t i = 0; i < clients.size(); i++)
         {
