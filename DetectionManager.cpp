@@ -920,7 +920,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& de
 
     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-    if (!IsAnyDimmDetectorEnabled(detector_settings))
+    if(!IsAnyDimmDetectorEnabled(detector_settings))
     {
         return;
     }
@@ -1658,10 +1658,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C detectors and see if any need to |
     | be saved to the settings                              |
     \*-----------------------------------------------------*/
-    for (const std::string& i2c_detector_str : i2c_device_detector_strings)
+    for(const std::string& i2c_detector_str : i2c_device_detector_strings)
     {
         detection_string = i2c_detector_str.c_str();
-        if (!detector_settings.contains(i2c_detector_str))
+        if(!detector_settings.contains(i2c_detector_str))
         {
             detector_settings.detectors[i2c_detector_str] = true;
             save_settings = true;
@@ -1672,10 +1672,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C DRAM detectors and see if any    |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for (const I2CDRAMDeviceDetectorBlock& detector : i2c_dram_device_detectors)
+    for(const I2CDRAMDeviceDetectorBlock& detector : i2c_dram_device_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1686,10 +1686,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all I2C PCI detectors and see if any     |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for (const I2CPCIDeviceDetectorBlock& detector : i2c_pci_device_detectors)
+    for(const I2CPCIDeviceDetectorBlock& detector : i2c_pci_device_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1700,10 +1700,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all generic HID detectors and see if any |
     | need to be saved to the settings                      |
     \*-----------------------------------------------------*/
-    for (const HIDDeviceDetectorBlock& detector : hid_generic_detectors)
+    for(const HIDDeviceDetectorBlock& detector : hid_generic_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1714,10 +1714,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all specific HID detectors and see if    |
     | any need to be saved to the settings                  |
     \*-----------------------------------------------------*/
-    for (const HIDDeviceDetectorBlock& detector : hid_specific_detectors)
+    for(const HIDDeviceDetectorBlock& detector : hid_specific_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1728,10 +1728,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all generic HID wrapped detectors and    |
     | see if any need to be saved to the settings           |
     \*-----------------------------------------------------*/
-    for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_generic_detectors)
+    for(const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_generic_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1742,10 +1742,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through all specific HID wrapped detectors and   |
     | see if any need to be saved to the settings           |
     \*-----------------------------------------------------*/
-    for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_specific_detectors)
+    for(const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_specific_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!detector_settings.contains(detector.name))
+        if(!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1756,10 +1756,10 @@ void DetectionManager::UpdateDetectorSettings()
     | Loop through remaining detectors and see if any need  |
     | to be saved to the settings                           |
     \*-----------------------------------------------------*/
-    for (const std::string& detector : device_detector_strings)
+    for(const std::string& detector : device_detector_strings)
     {
         detection_string = detector.c_str();
-        if (!detector_settings.contains(detector))
+        if(!detector_settings.contains(detector))
         {
             detector_settings.detectors[detector] = true;
             save_settings = true;
@@ -1917,7 +1917,7 @@ bool DetectionManager::IsAnyDimmDetectorEnabled(const DetectorSettings& detector
     for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
     {
         std::string detector_name_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-        if (detector_settings.detection_enabled_for(detector_name_string))
+        if(detector_settings.detection_enabled_for(detector_name_string))
         {
             return true;
         }

@@ -14,7 +14,7 @@ namespace nlohmann {
     template <typename T>
     struct adl_serializer<std::optional<T>> {
         static void to_json(json& j, const std::optional<T>& opt) {
-            if (opt == std::nullopt) {
+            if(opt == std::nullopt) {
                 j = nullptr;
             } else {
               j = *opt;
@@ -22,7 +22,7 @@ namespace nlohmann {
         }
 
         static void from_json(const json& j, std::optional<T>& opt) {
-            if (j.is_null()) {
+            if(j.is_null()) {
                 opt = std::nullopt;
             } else {
                 opt = j.get<T>();
@@ -91,7 +91,7 @@ struct DetectorSettings {
     \*---------------------------------------------------*/
     inline bool detection_enabled_for(const std::string& detector_str) const
     {
-        if (detectors.count(detector_str) > 0)
+        if(detectors.count(detector_str) > 0)
         {
             return detectors.at(detector_str);
         }
@@ -299,9 +299,9 @@ struct PluginSettings {
 
     inline std::optional<OnePluginSettings> find(const std::string& name, const std::string& description)
     {
-        for (const OnePluginSettings& plugin : plugins)
+        for(const OnePluginSettings& plugin : plugins)
         {
-            if (plugin.name == name && plugin.description == description)
+            if(plugin.name == name && plugin.description == description)
             {
                 return plugin;
             }
@@ -336,9 +336,9 @@ struct ClientSettings
 
     inline std::optional<size_t> find(const std::string& ip, unsigned short port) const
     {
-        for (size_t i = 0; i < clients.size(); i++)
+        for(size_t i = 0; i < clients.size(); i++)
         {
-            if (clients[i].ip == ip && clients[i].port == port)
+            if(clients[i].ip == ip && clients[i].port == port)
             {
                 return i;
             }

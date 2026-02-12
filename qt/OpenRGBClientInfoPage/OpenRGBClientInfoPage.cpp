@@ -331,7 +331,7 @@ void OpenRGBClientInfoPage::onClientSaveCheckBox_clicked(QObject * arg)
     else
     {
         std::optional<size_t> found_idx = client_settings.find(save_ip, save_port);
-        if (found_idx)
+        if(found_idx)
         {
             client_settings.clients.erase(client_settings.clients.begin() + *found_idx);
         }

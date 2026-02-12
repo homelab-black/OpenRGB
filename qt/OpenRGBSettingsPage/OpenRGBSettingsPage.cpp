@@ -82,7 +82,7 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
 
     const ThemeSettings& theme_settings = settings.access().theme;
     std::string theme;
-    switch (theme_settings.theme)
+    switch(theme_settings.theme)
     {
         case Theme::Light:
             theme = "Light";
@@ -121,7 +121,7 @@ OpenRGBSettingsPage::OpenRGBSettingsPage(QWidget *parent) :
     ui->CheckboxDisableKeyExpansion->setChecked(ui_settings.disable_key_expansion);
     ui->CheckboxShowLEDView->setChecked(ui_settings.show_led_view);
 
-    switch (ui_settings.hex_format)
+    switch(ui_settings.hex_format)
     {
         case HexFormat::RGB:
             ui->ComboBoxHexFormat->setCurrentIndex(0);
@@ -425,7 +425,7 @@ void OpenRGBSettingsPage::on_ComboBoxTheme_currentTextChanged(const QString them
         ThemeSettings& theme_settings = settings.access_mut().theme;
         std::optional<Theme> parsed_theme = StringToTheme(theme.toStdString());
 
-        if (parsed_theme)
+        if(parsed_theme)
         {
             theme_settings.theme = *parsed_theme;
             settings.Save();
@@ -440,7 +440,7 @@ void OpenRGBSettingsPage::on_ComboBoxHexFormat_currentTextChanged(const QString 
         SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
         UserInterfaceSettings& ui_settings = settings.access_mut().ui;
         std::optional<HexFormat> hex_format = StringToHexFormat(hex_format_str.toStdString());
-        if (hex_format.has_value())
+        if(hex_format.has_value())
         {
             ui_settings.hex_format = hex_format.value();
             settings.Save();
@@ -606,7 +606,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStart_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartMinimized_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartMinimized->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -617,7 +617,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartMinimized_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartServer_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartServer->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -628,7 +628,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartServer_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartSetServerHost_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartSetServerHost->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -640,7 +640,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartSetServerHost_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartSetServerPort_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartSetServerPort->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -652,7 +652,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartSetServerPort_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartClient_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartClient->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -664,7 +664,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartClient_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartProfile_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartProfile->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -676,7 +676,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartProfile_clicked()
 
 void OpenRGBSettingsPage::on_CheckboxAutoStartCustom_clicked()
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         bool checked = ui->CheckboxAutoStartCustom->isChecked();
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
@@ -688,7 +688,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartCustom_clicked()
 
 void OpenRGBSettingsPage::on_TextServerHost_textChanged(QString host)
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         ResourceManager::get()->GetSettingsManager()->ModifySettings([host](Settings& settings) {
             settings.auto_start.host = host.toStdString();
@@ -698,7 +698,7 @@ void OpenRGBSettingsPage::on_TextServerHost_textChanged(QString host)
 
 void OpenRGBSettingsPage::on_TextServerPort_valueChanged(int port)
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         ResourceManager::get()->GetSettingsManager()->ModifySettings([port](Settings& settings) {
             settings.auto_start.port = port;
@@ -708,7 +708,7 @@ void OpenRGBSettingsPage::on_TextServerPort_valueChanged(int port)
 
 void OpenRGBSettingsPage::on_TextClientHost_textChanged(QString client)
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         ResourceManager::get()->GetSettingsManager()->ModifySettings([client](Settings& settings) {
             settings.auto_start.client = client.toStdString();
@@ -718,7 +718,7 @@ void OpenRGBSettingsPage::on_TextClientHost_textChanged(QString client)
 
 void OpenRGBSettingsPage::on_TextCustomArgs_textChanged(QString custom)
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         ResourceManager::get()->GetSettingsManager()->ModifySettings([custom](Settings& settings) {
             settings.auto_start.custom = custom.toStdString();
@@ -728,7 +728,7 @@ void OpenRGBSettingsPage::on_TextCustomArgs_textChanged(QString custom)
 
 void OpenRGBSettingsPage::on_ComboBoxAutoStartProfile_currentTextChanged(const QString profile)
 {
-    if (autostart_initialized)
+    if(autostart_initialized)
     {
         ResourceManager::get()->GetSettingsManager()->ModifySettings([profile](Settings& settings) {
             settings.auto_start.profile = profile.toStdString();
@@ -738,7 +738,7 @@ void OpenRGBSettingsPage::on_ComboBoxAutoStartProfile_currentTextChanged(const Q
 
 void OpenRGBSettingsPage::SetAutoStartVisibility(bool visible)
 {
-    if (!visible)
+    if(!visible)
     {
         ui->ComboBoxAutoStartProfile->hide();
         ui->CheckboxAutoStartClient->hide();
@@ -776,9 +776,9 @@ void OpenRGBSettingsPage::ConfigureAutoStart(const AutoStartSettings& autostart_
 {
     AutoStart auto_start("OpenRGB");
 
-    if (!autostart_settings.enabled)
+    if(!autostart_settings.enabled)
     {
-        if (!auto_start.DisableAutoStart())
+        if(!auto_start.DisableAutoStart())
         {
             ui->AutoStartStatusLabel->setText("A problem occurred disabling Start At Login.");
             ui->AutoStartStatusLabel->show();
@@ -798,38 +798,38 @@ void OpenRGBSettingsPage::ConfigureAutoStart(const AutoStartSettings& autostart_
 
         std::stringstream arguments;
 
-        if (autostart_settings.setminimized)
+        if(autostart_settings.setminimized)
         {
             arguments << "--startminimized ";
         }
 
-        if (autostart_settings.setserver)
+        if(autostart_settings.setserver)
         {
             arguments << "--server ";
         }
 
-        if (autostart_settings.setserverhost)
+        if(autostart_settings.setserverhost)
         {
             arguments << "--server-host " << autostart_settings.host << " ";
         }
 
-        if (autostart_settings.setserverportbool)
+        if(autostart_settings.setserverportbool)
         {
             arguments << "--server-port " << autostart_settings.port << " ";
         }
 
-        if (autostart_settings.setclient)
+        if(autostart_settings.setclient)
         {
             arguments << "--client " << autostart_settings.client << " ";
 
         }
 
-        if (autostart_settings.setprofile)
+        if(autostart_settings.setprofile)
         {
             arguments << "--profile " << autostart_settings.profile << " ";
         }
 
-        if (autostart_settings.setcustom)
+        if(autostart_settings.setcustom)
         {
             arguments << autostart_settings.custom << " ";
         }
@@ -842,7 +842,7 @@ void OpenRGBSettingsPage::ConfigureAutoStart(const AutoStartSettings& autostart_
         auto_start_info.icon        = "OpenRGB";
         auto_start_info.path        = auto_start.GetExePath();
 
-        if (!auto_start.EnableAutoStart(auto_start_info))
+        if(!auto_start.EnableAutoStart(auto_start_info))
         {
             ui->AutoStartStatusLabel->setText(tr("A problem occurred enabling Start at Login."));
             ui->AutoStartStatusLabel->show();

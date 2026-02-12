@@ -589,7 +589,7 @@ bool ProfileManager::LoadAutoProfile(ManagedProfileType profile_type)
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
     const ProfileManagerSettings& profilemanager_settings = settings.access().profile_manager;
     std::string profile_name;
-    switch (profile_type)
+    switch(profile_type)
     {
         case ManagedProfileType::Open:
             profile_name = profilemanager_settings.open_profile.name;

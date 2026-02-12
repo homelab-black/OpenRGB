@@ -98,7 +98,7 @@ public:
         /*----------------------------*\
         | skip parsing if data is null |
         \*----------------------------*/
-        if (data.is_null())
+        if(data.is_null())
         {
             return std::nullopt;
         }
@@ -123,7 +123,7 @@ public:
         \*------------------------------------*/
         T settings;
         json data = GetControllerSettingsRaw(key);
-        if (!data.is_null())
+        if(!data.is_null())
         {
             settings = data.get<T>();
         }
@@ -169,9 +169,4 @@ private:
     filesystem::path settings_filename;
     std::mutex       mutex;
     bool             config_found;
-
-
-    // // Todo: make subset of settings that local users actually use
-    // // for example, ui settings are unused by local users
-    // Settings        local_settings;
 };

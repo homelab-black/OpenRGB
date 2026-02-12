@@ -462,7 +462,7 @@ void OpenRGBDialog::handleAboutToQuit()
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
     UserInterfaceSettings& ui_settings = settings.access_mut().ui;
 
-    if (ui_settings.geometry.load_geometry && ui_settings.geometry.save_on_exit)
+    if(ui_settings.geometry.load_geometry && ui_settings.geometry.save_on_exit)
     {
         ui_settings.geometry.x      = geometry().x();
         ui_settings.geometry.y      = geometry().y();

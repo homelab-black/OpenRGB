@@ -23,7 +23,7 @@ DetectorTableModel::DetectorTableModel(QObject* parent) : QAbstractTableModel(pa
     /*---------------------------------------------------------*\
     | Using foreach loop since we're iterating over a map here  |
     \*---------------------------------------------------------*/
-    for (const auto& [detector_str, enabled] : detector_settings.detectors)
+    for(const auto& [detector_str, enabled] : detector_settings.detectors)
     {
         DetectorTableValue new_entry {
             .key = detector_str,

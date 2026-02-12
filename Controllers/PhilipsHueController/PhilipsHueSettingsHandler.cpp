@@ -32,7 +32,7 @@ const BridgeSettings& PhilipsHueSettingsHandler::GetBridge(unsigned int bridge_i
 
 void PhilipsHueSettingsHandler::SetBridge(unsigned int bridge_idx, BridgeSettings new_settings)
 {
-    if (settings.bridges.size() < bridge_idx)
+    if(settings.bridges.size() < bridge_idx)
     {
         settings.bridges[bridge_idx] = new_settings;
     }

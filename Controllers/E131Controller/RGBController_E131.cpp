@@ -143,7 +143,7 @@ RGBController_E131::RGBController_E131(std::vector<E131Device> device_list)
 
     SetupZones();
 
-    for (std::size_t device_idx = 0; device_idx < devices.size(); device_idx++)
+    for(std::size_t device_idx = 0; device_idx < devices.size(); device_idx++)
     {
         /*-----------------------------------------*\
         | Update keepalive delay                    |
@@ -162,12 +162,12 @@ RGBController_E131::RGBController_E131(std::vector<E131Device> device_list)
         float universe_size = (float)devices[device_idx].universe_size;
         unsigned int total_universes = (unsigned int)ceil( ( ( devices[device_idx].num_leds * 3 ) + devices[device_idx].start_channel ) / universe_size );
 
-        for (unsigned int univ_idx = 0; univ_idx < total_universes; univ_idx++)
+        for(unsigned int univ_idx = 0; univ_idx < total_universes; univ_idx++)
         {
             unsigned int universe = devices[device_idx].start_universe + univ_idx;
             bool universe_exists = false;
 
-            for (std::size_t pkt_idx = 0; pkt_idx < packets.size(); pkt_idx++)
+            for(std::size_t pkt_idx = 0; pkt_idx < packets.size(); pkt_idx++)
             {
                 if(universes[pkt_idx] == universe)
                 {

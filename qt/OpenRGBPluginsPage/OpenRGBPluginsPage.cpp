@@ -197,7 +197,7 @@ void OpenRGBPluginsPage::on_RemovePluginButton_clicked()
     for(unsigned int plugin_idx = 0; plugin_idx < plugin_settings.plugins.size(); plugin_idx++)
     {
         const OnePluginSettings& plugin = plugin_settings.plugins[plugin_idx];
-        if (plugin.name == row_name && plugin.description == row_desc)
+        if(plugin.name == row_name && plugin.description == row_desc)
         {
             plugin_settings.plugins.erase(plugin_settings.plugins.begin() + plugin_idx);
             break;
@@ -235,7 +235,7 @@ void OpenRGBPluginsPage::on_EnableButton_clicked(OpenRGBPluginsEntry* entry)
     for(plugin_idx = 0; plugin_idx < (unsigned int)plugin_settings.plugins.size(); plugin_idx++)
     {
         const OnePluginSettings& plugin = plugin_settings.plugins[plugin_idx];
-        if (plugin.name == entry_name && plugin.description == entry_desc)
+        if(plugin.name == entry_name && plugin.description == entry_desc)
         {
             found = true;
             break;

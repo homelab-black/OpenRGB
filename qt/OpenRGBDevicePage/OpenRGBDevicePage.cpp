@@ -56,7 +56,7 @@ OpenRGBDevicePage::OpenRGBDevicePage(RGBController *dev, QWidget *parent) :
         /*---------------------------------------------------------------*\
         | Doing this with a switch statement in case we add more variants |
         \*---------------------------------------------------------------*/
-        switch (ui_settings.hex_format)
+        switch(ui_settings.hex_format)
         {
             case (HexFormat::RGB):
                 HexFormatRGB = true;

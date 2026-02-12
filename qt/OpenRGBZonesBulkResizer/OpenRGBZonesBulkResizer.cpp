@@ -27,7 +27,7 @@ void OpenRGBZonesBulkResizer::RunChecks(QWidget *parent)
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
     const UserInterfaceSettings& ui_settings = settings.access().ui;
 
-    if (!ui_settings.run_zone_checks)
+    if(!ui_settings.run_zone_checks)
     {
         LOG_DEBUG("[ZonesBulkResizer] Skipping zones sizes checks.");
         return;

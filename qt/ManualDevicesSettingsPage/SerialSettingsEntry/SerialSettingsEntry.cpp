@@ -77,7 +77,7 @@ void SerialSettingsEntry::loadFromSettings(const LEDStripDevice& data)
     ui->PortComboBox->setCurrentText(QString::fromStdString(data.port));
     ui->BaudEdit->setText(QString::number((int)data.baud));
     ui->NumLEDsEdit->setText(QString::number((int)data.num_leds));
-    switch (data.protocol)
+    switch(data.protocol)
     {
         case LedProtocol::KEYBOARD_VISUALIZER:
             ui->ProtocolComboBox->setCurrentIndex(0);

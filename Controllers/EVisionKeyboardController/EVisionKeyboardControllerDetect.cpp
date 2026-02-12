@@ -70,7 +70,7 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
 
         detected_controllers.push_back(rgb_controller);
 
-        if (!settings.has_value() || settings.value().additional_zones)
+        if(!settings.has_value() || settings.value().additional_zones)
         {
             rgb_controller                             = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_LOGO);
 
@@ -98,7 +98,7 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 
         detected_controllers.push_back(rgb_controller);
 
-        if (!settings.has_value() || settings.value().additional_zones)
+        if(!settings.has_value() || settings.value().additional_zones)
         {
             rgb_controller                              = new RGBController_EVisionV2Keyboard(controller, ENDORFY_KEYBOARD_PART_EDGE);
 

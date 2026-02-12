@@ -143,7 +143,7 @@ void SettingsManager::SaveSettingsJson(const filesystem::path& filename, const j
 
 json SettingsManager::LoadSettingsAsJson(const filesystem::path& filename)
 {
-    if (!filesystem::exists(filename))
+    if(!filesystem::exists(filename))
     {
         return json {};
     }
@@ -222,7 +222,7 @@ void SettingsManager::MigrateSettings(json& settings_json, const filesystem::pat
 
     LOG_DEBUG("[SettingsManager] Read config version %s", version.c_str());
 
-    if (version == "0.0")
+    if(version == "0.0")
     {
         LOG_DEBUG("[SettingsManager] Migrating from 0.0 -> 1.0");
         /*-----------------------------------------*\
@@ -235,7 +235,7 @@ void SettingsManager::MigrateSettings(json& settings_json, const filesystem::pat
             if(port_json.is_string())
             {
                 std::string port_str = port_json.get<std::string>();
-                if (port_str.empty())
+                if(port_str.empty())
                 {
                     port_json = 0;
                 }
@@ -289,7 +289,7 @@ void SettingsManager::MigrateSettings(json& settings_json, const filesystem::pat
             | Move $.<ControllerKey> to $.Controllers.data.<ControllerKey> |
             \*------------------------------------------------------------*/
             LOG_TRACE("[SettingsManager] Migrating controller %s", key.c_str());
-            if (settings_json.contains(key))
+            if(settings_json.contains(key))
             {
                 settings_json["Controllers"]["data"][key] = settings_json[key];
                 settings_json.erase(key);
@@ -300,7 +300,7 @@ void SettingsManager::MigrateSettings(json& settings_json, const filesystem::pat
         | Migrate ui.RunZoneChecks -> ui.run_zone_checks |
         \*----------------------------------------------*/
         LOG_TRACE("[SettingsManager] Migrating UserInterface.RunZoneChecks -> UserInterface.run_zone_checks");
-        if (settings_json.contains("UserInterface") && settings_json["UserInterface"].contains("RunZoneChecks"))
+        if(settings_json.contains("UserInterface") && settings_json["UserInterface"].contains("RunZoneChecks"))
         {
             settings_json["UserInterface"]["run_zone_checks"] = settings_json["UserInterface"]["RunZoneChecks"];
             settings_json["UserInterface"]["RunZoneChecks"].clear();
@@ -365,7 +365,7 @@ SettingsAccessGuard::~SettingsAccessGuard()
     /*-------------------------------------*\
     | Debug message to invesitage deadlocks |
     \*-------------------------------------*/
-    // if (lock.owns_lock())
+    // if(lock.owns_lock())
     // {
     //     LOG_DEBUG("[SettingsAccessGuard] ------ Automatically releasing exclusive access to settings ------");
     // }

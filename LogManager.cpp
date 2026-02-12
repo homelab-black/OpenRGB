@@ -147,7 +147,7 @@ void LogManager::configure(const LogManagerSettings& config, const filesystem::p
     /*-----------------------------------------------------*\
     | Check loglevel configuration                          |
     \*-----------------------------------------------------*/
-    if (config.loglevel)
+    if(config.loglevel)
     {
         loglevel = *(config.loglevel);
     }
