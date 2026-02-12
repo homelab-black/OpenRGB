@@ -61,7 +61,7 @@ enum AKKO_BYTE_COMMAND
 enum AKKO_MODE
 {
     OFF                 = 0x00,
-    ALWAYS_ON           = 0x01,
+    ALWAYS_ON           = 0x01,//Used as Static
     BREATH              = 0x02,
     METEOR              = 0x12,
     RIPPLE              = 0x05,
@@ -81,13 +81,10 @@ enum AKKO_MODE
     INCLINED_RAIN       = 0x10,
     LIGHT_TRACE         = 0x13,
     ENDLESS             = 0x18,
-    USER_PICTURE        = 0x0d,
+    USER_PICTURE        = 0x0d,//Used as Custom
     MUSIC_FOLLOW        = 0x14,
     MUSIC_FOLLOW_2		= 0x16,
-    LIGHT_SHADOW        = 0x15,
-
-    CUSTOM              = 0x0d,
-    DIRECT              = 0x15,// Single color
+    LIGHT_SHADOW        = 0x15,//Used as Direct
 };
 
 enum AKKO_SPEED

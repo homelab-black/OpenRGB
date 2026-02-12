@@ -144,321 +144,190 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     location    = controller->GetLocation();
 
     mode Off;
-    Off.name                = "Off (Also Sidebars)";
-    Off.value               = AKKO_MODE::OFF;
-    Off.flags               = 0;
-    Off.color_mode          = MODE_COLORS_NONE;
+    Off.name        = "Off";
+    Off.value       = AKKO_MODE::OFF;
+    Off.flags       = 0;
+    Off.color_mode  = MODE_COLORS_NONE;
     modes.push_back(Off);
 
     mode Always_on;
-    Always_on.name              = "Static (Also Sidebars)";
-    Always_on.value             = AKKO_MODE::ALWAYS_ON;
-    Always_on.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Always_on.color_mode        = MODE_COLORS_RANDOM;
-    Always_on.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Always_on.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Always_on.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
+    Always_on.name  = "Static";
+    Always_on.value = AKKO_MODE::ALWAYS_ON;
+    Always_on.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Always_on);
 
     mode Breath;
-    Breath.name                 = "Breath (Also Sidebars)";
-    Breath.value                = AKKO_MODE::BREATH;
-    Breath.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Breath.color_mode           = MODE_COLORS_RANDOM;
-    Breath.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Breath.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Breath.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    Breath.speed_min            = AKKO_SPEED::S_MIN;
-    Breath.speed_max            = AKKO_SPEED::S_MAX;
-    Breath.speed                = AKKO_SPEED::S_DEFAULT;
+    Breath.name     = "Breathing";
+    Breath.value    = AKKO_MODE::BREATH;
+    Breath.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Breath);
 
     mode Meteor;
-    Meteor.name                 = "Meteor";
-    Meteor.value                = AKKO_MODE::METEOR;
-    Meteor.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Meteor.color_mode           = MODE_COLORS_RANDOM;
-    Meteor.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Meteor.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Meteor.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    Meteor.speed_min            = AKKO_SPEED::S_MIN;
-    Meteor.speed_max            = AKKO_SPEED::S_MAX;
-    Meteor.speed                = AKKO_SPEED::S_DEFAULT;
+    Meteor.name     = "Meteor";
+    Meteor.value    = AKKO_MODE::METEOR;
+    Meteor.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Meteor);
 
     mode Ripple;
-    Ripple.name                 = "Ripple (Also Sidebars)";
-    Ripple.value                = AKKO_MODE::RIPPLE;
-    Ripple.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Ripple.color_mode           = MODE_COLORS_RANDOM;
-    Ripple.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Ripple.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Ripple.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    Meteor.speed_min            = AKKO_SPEED::S_MIN;
-    Meteor.speed_max            = AKKO_SPEED::S_MAX;
-    Meteor.speed                = AKKO_SPEED::S_DEFAULT;
+    Ripple.name     = "Ripple";
+    Ripple.value    = AKKO_MODE::RIPPLE;
+    Ripple.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Ripple);
 
     mode Aurora;
-    Aurora.name                 = "Aurora";
-    Aurora.value                = AKKO_MODE::AURORA;
-    Aurora.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Aurora.color_mode           = MODE_COLORS_RANDOM;
-    Aurora.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Aurora.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Aurora.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    Aurora.speed_min            = AKKO_SPEED::S_MIN;
-    Aurora.speed_max            = AKKO_SPEED::S_MAX;
-    Aurora.speed                = AKKO_SPEED::S_DEFAULT;
+    Aurora.name     = "Aurora";
+    Aurora.value    = AKKO_MODE::AURORA;
+    Aurora.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Aurora);
 
     mode Raindrop;
-    Raindrop.name               = "Raindrop";
-    Raindrop.value              = AKKO_MODE::RAINDROP;
-    Raindrop.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Raindrop.color_mode         = MODE_COLORS_RANDOM;
-    Raindrop.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Raindrop.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Raindrop.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
-    Raindrop.speed_min          = AKKO_SPEED::S_MIN;
-    Raindrop.speed_max          = AKKO_SPEED::S_MAX;
-    Raindrop.speed              = AKKO_SPEED::S_DEFAULT;
+    Raindrop.name   = "Raindrop";
+    Raindrop.value  = AKKO_MODE::RAINDROP;
+    Raindrop.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Raindrop);
 
     mode Coverage;
-    Coverage.name               = "Coverage";
-    Coverage.value              = AKKO_MODE::COVERAGE;
-    Coverage.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Coverage.color_mode         = MODE_COLORS_RANDOM;
-    Coverage.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Coverage.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Coverage.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
-    Coverage.speed_min          = AKKO_SPEED::S_MIN;
-    Coverage.speed_max          = AKKO_SPEED::S_MAX;
-    Coverage.speed              = AKKO_SPEED::S_DEFAULT;
+    Coverage.name   = "Coverage";
+    Coverage.value  = AKKO_MODE::COVERAGE;
+    Coverage.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Coverage);
 
     mode Steady_stream;
-    Steady_stream.name              = "Steady Stream";
-    Steady_stream.value             = AKKO_MODE::STEADY_STREAM;
-    Steady_stream.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
-    Steady_stream.color_mode        = MODE_COLORS_RANDOM;
-    Steady_stream.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Steady_stream.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Steady_stream.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Steady_stream.speed_min         = AKKO_SPEED::S_MIN;
-    Steady_stream.speed_max         = AKKO_SPEED::S_MAX;
-    Steady_stream.speed             = AKKO_SPEED::S_DEFAULT;
+    Steady_stream.name  = "Steady Stream";
+    Steady_stream.value = AKKO_MODE::STEADY_STREAM;
+    Steady_stream.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
     modes.push_back(Steady_stream);
 
     mode Neon;
-    Neon.name               = "Neon (Also Sidebars)";
-    Neon.value              = AKKO_MODE::NEON;
-    Neon.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Neon.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Neon.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Neon.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
-    Neon.speed_min          = AKKO_SPEED::S_MIN;
-    Neon.speed_max          = AKKO_SPEED::S_MAX;
-    Neon.speed              = AKKO_SPEED::S_DEFAULT;
+    Neon.name   = "Neon";
+    Neon.value  = AKKO_MODE::NEON;
+    Neon.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_RANDOM_COLOR ;
     modes.push_back(Neon);
 
     mode Wave;
-    Wave.name              = "Wave (Also Sidebars)";
-    Wave.value             = AKKO_MODE::WAVE;
-    Wave.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
-    Wave.color_mode        = MODE_COLORS_RANDOM;
-    Wave.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Wave.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Wave.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Wave.speed_min         = AKKO_SPEED::S_MIN;
-    Wave.speed_max         = AKKO_SPEED::S_MAX;
-    Wave.speed             = AKKO_SPEED::S_DEFAULT;
+    Wave.name  = "Wave";//Rainbow Wave with customizable color
+    Wave.value = AKKO_MODE::WAVE;
+    Wave.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
     modes.push_back(Wave);
 
     mode Stars_twinkle;
-    Stars_twinkle.name              = "Stars twinkle";
-    Stars_twinkle.value             = AKKO_MODE::STARS_TWINKLE;
-    Stars_twinkle.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Stars_twinkle.color_mode        = MODE_COLORS_RANDOM;
-    Stars_twinkle.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Stars_twinkle.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Stars_twinkle.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Stars_twinkle.speed_min         = AKKO_SPEED::S_MIN;
-    Stars_twinkle.speed_max         = AKKO_SPEED::S_MAX;
-    Stars_twinkle.speed             = AKKO_SPEED::S_DEFAULT;
+    Stars_twinkle.name  = "Stars twinkle";
+    Stars_twinkle.value = AKKO_MODE::STARS_TWINKLE;
+    Stars_twinkle.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Stars_twinkle);
 
     mode Like_shadows;
-    Like_shadows.name               = "Like Shadows";
-    Like_shadows.value              = AKKO_MODE::LIKE_SHADOWS;
-    Like_shadows.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Like_shadows.color_mode         = MODE_COLORS_RANDOM;
-    Like_shadows.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Like_shadows.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Like_shadows.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
-    Like_shadows.speed_min          = AKKO_SPEED::S_MIN;
-    Like_shadows.speed_max          = AKKO_SPEED::S_MAX;
-    Like_shadows.speed              = AKKO_SPEED::S_DEFAULT;
+    Like_shadows.name   = "Like Shadows";
+    Like_shadows.value  = AKKO_MODE::LIKE_SHADOWS;
+    Like_shadows.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Like_shadows);
 
     mode Sine_wave;
-    Sine_wave.name              = "Sine wave";
-    Sine_wave.value             = AKKO_MODE::SINE_WAVE;
-    Sine_wave.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Sine_wave.color_mode        = MODE_COLORS_RANDOM;
-    Sine_wave.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Sine_wave.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Sine_wave.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Sine_wave.speed_min         = AKKO_SPEED::S_MIN;
-    Sine_wave.speed_max         = AKKO_SPEED::S_MAX;
-    Sine_wave.speed             = AKKO_SPEED::S_DEFAULT;
+    Sine_wave.name  = "Sine wave";
+    Sine_wave.value = AKKO_MODE::SINE_WAVE;
+    Sine_wave.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Sine_wave);
 
     mode Flowing_spring;
-    Flowing_spring.name                 = "Flowing Spring";
-    Flowing_spring.value                = AKKO_MODE::FLOWING_SPRING;
-    Flowing_spring.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
-    Flowing_spring.color_mode           = MODE_COLORS_RANDOM;
-    Flowing_spring.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Flowing_spring.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Flowing_spring.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    Flowing_spring.speed_min            = AKKO_SPEED::S_MIN;
-    Flowing_spring.speed_max            = AKKO_SPEED::S_MAX;
-    Flowing_spring.speed                = AKKO_SPEED::S_DEFAULT;
+    Flowing_spring.name     = "Flowing Spring";
+    Flowing_spring.value    = AKKO_MODE::FLOWING_SPRING;
+    Flowing_spring.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
     modes.push_back(Flowing_spring);
 
     mode Flowers_blooming;
-    Flowers_blooming.name               = "Flowers blooming";
-    Flowers_blooming.value              = AKKO_MODE::FLOWERS_BLOOMING;
-    Flowers_blooming.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Flowers_blooming.color_mode         = MODE_COLORS_RANDOM;
-    Flowers_blooming.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Flowers_blooming.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Flowers_blooming.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
-    Flowers_blooming.speed_min          = AKKO_SPEED::S_MIN;
-    Flowers_blooming.speed_max          = AKKO_SPEED::S_MAX;
-    Flowers_blooming.speed              = AKKO_SPEED::S_DEFAULT;
+    Flowers_blooming.name   = "Flowers blooming";
+    Flowers_blooming.value  = AKKO_MODE::FLOWERS_BLOOMING;
+    Flowers_blooming.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Flowers_blooming);
 
     mode Laser;
-    Laser.name              = "Laser";
-    Laser.value             = AKKO_MODE::LASER;
-    Laser.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Laser.color_mode        = MODE_COLORS_RANDOM;
-    Laser.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Laser.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Laser.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Laser.speed_min         = AKKO_SPEED::S_MIN;
-    Laser.speed_max         = AKKO_SPEED::S_MAX;
-    Laser.speed             = AKKO_SPEED::S_DEFAULT;
+    Laser.name  = "Laser";
+    Laser.value = AKKO_MODE::LASER;
+    Laser.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Laser);
 
     mode Peak_turn;
-    Peak_turn.name              = "Peak turn";
-    Peak_turn.value             = AKKO_MODE::PEAK_TURN;
-    Peak_turn.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
-    Peak_turn.color_mode        = MODE_COLORS_RANDOM;
-    Peak_turn.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Peak_turn.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Peak_turn.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Peak_turn.speed_min         = AKKO_SPEED::S_MIN;
-    Peak_turn.speed_max         = AKKO_SPEED::S_MAX;
-    Peak_turn.speed             = AKKO_SPEED::S_DEFAULT;
+    Peak_turn.name  = "Peak turn";
+    Peak_turn.value = AKKO_MODE::PEAK_TURN;
+    Peak_turn.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
     modes.push_back(Peak_turn);
 
     mode Inclined_rain;
-    Inclined_rain.name              = "Inclined Rain";
-    Inclined_rain.value             = AKKO_MODE::INCLINED_RAIN;
-    Inclined_rain.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Inclined_rain.color_mode        = MODE_COLORS_RANDOM;
-    Inclined_rain.brightness_min    = AKKO_BRIGHTNESS::B_MIN;
-    Inclined_rain.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-    Inclined_rain.brightness        = AKKO_BRIGHTNESS::B_DEFAULT;
-    Inclined_rain.speed_min         = AKKO_SPEED::S_MIN;
-    Inclined_rain.speed_max         = AKKO_SPEED::S_MAX;
-    Inclined_rain.speed             = AKKO_SPEED::S_DEFAULT;
+    Inclined_rain.name  = "Inclined Rain";
+    Inclined_rain.value = AKKO_MODE::INCLINED_RAIN;
+    Inclined_rain.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Inclined_rain);
 
     mode Light_trace;
-    Light_trace.name                = "Light Trace";
-    Light_trace.value               = AKKO_MODE::LIGHT_TRACE;
-    Light_trace.flags               = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
-    Light_trace.color_mode          = MODE_COLORS_RANDOM;
-    Light_trace.brightness_min      = AKKO_BRIGHTNESS::B_MIN;
-    Light_trace.brightness_max      = AKKO_BRIGHTNESS::B_MAX;
-    Light_trace.brightness          = AKKO_BRIGHTNESS::B_DEFAULT;
-    Light_trace.speed_min           = AKKO_SPEED::S_MIN;
-    Light_trace.speed_max           = AKKO_SPEED::S_MAX;
-    Light_trace.speed               = AKKO_SPEED::S_DEFAULT;
+    Light_trace.name    = "Light Trace";
+    Light_trace.value   = AKKO_MODE::LIGHT_TRACE;
+    Light_trace.flags   = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Light_trace);
 
     mode Endless;
-    Endless.name                = "Endless";
-    Endless.value               = AKKO_MODE::ENDLESS;
-    Endless.flags               = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
-    Endless.color_mode          = MODE_COLORS_RANDOM;
-    Endless.brightness_min      = AKKO_BRIGHTNESS::B_MIN;
-    Endless.brightness_max      = AKKO_BRIGHTNESS::B_MAX;
-    Endless.brightness          = AKKO_BRIGHTNESS::B_DEFAULT;
-    Endless.speed_min           = AKKO_SPEED::S_MIN;
-    Endless.speed_max           = AKKO_SPEED::S_MAX;
-    Endless.speed               = AKKO_SPEED::S_DEFAULT;
+    Endless.name    = "Endless";
+    Endless.value   = AKKO_MODE::ENDLESS;
+    Endless.flags   = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR;
     modes.push_back(Endless);
 
-    mode User_picture;
-    User_picture.name                 = "User Picture";
-    User_picture.value                = AKKO_MODE::USER_PICTURE;
-    User_picture.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
-    User_picture.color_mode           = MODE_COLORS_PER_LED;
-    User_picture.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    User_picture.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    User_picture.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
-    modes.push_back(User_picture);
+    // mode User_picture;
+    // User_picture.name       = "User Picture";
+    // User_picture.value      = AKKO_MODE::USER_PICTURE;
+    // User_picture.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+    // User_picture.color_mode = MODE_COLORS_PER_LED;
+    // modes.push_back(User_picture);
 
     mode Music_follow;
-    Music_follow.name               = "Music Follow (Not Fully implemented)";
-    Music_follow.value              = AKKO_MODE::MUSIC_FOLLOW;
-    Music_follow.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
-    Music_follow.color_mode         = MODE_COLORS_RANDOM;
-    Music_follow.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
-    Music_follow.brightness_max     = AKKO_BRIGHTNESS::B_MAX;
-    Music_follow.brightness         = AKKO_BRIGHTNESS::B_DEFAULT;
+    Music_follow.name   = "Music Follow (Not Fully implemented)";
+    Music_follow.value  = AKKO_MODE::MUSIC_FOLLOW;
+    Music_follow.flags  = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
     modes.push_back(Music_follow);
 
     mode Music_follow_2;
-    Music_follow_2.name                 = "Music Follow 2 (Not Fully implemented)";
-    Music_follow_2.value                = AKKO_MODE::MUSIC_FOLLOW_2;
-    Music_follow_2.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
-    Music_follow_2.color_mode           = MODE_COLORS_RANDOM;
-    Music_follow_2.brightness_min       = AKKO_BRIGHTNESS::B_MIN;
-    Music_follow_2.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Music_follow_2.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
+    Music_follow_2.name     = "Music Follow 2 (Not Fully implemented)";
+    Music_follow_2.value    = AKKO_MODE::MUSIC_FOLLOW_2;
+    Music_follow_2.flags    = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
     modes.push_back(Music_follow_2);
 
-    mode Light_shadow;
-    Light_shadow.name               = "Light Shadow (Not Fully implemented)";
-    Light_shadow.value              = AKKO_MODE::LIGHT_SHADOW;
-    Light_shadow.flags              = MODE_FLAG_HAS_PER_LED_COLOR;
-    Light_shadow.color_mode         = MODE_COLORS_PER_LED;
-    modes.push_back(Light_shadow);
+    // mode Light_shadow;
+    // Light_shadow.name   = "Light Shadow (Not Fully implemented)";
+    // Light_shadow.value  = AKKO_MODE::LIGHT_SHADOW;
+    // Light_shadow.flags  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+    // modes.push_back(Light_shadow);
 
     mode Custom; //Same as User Picture, but with max brightness;
-    Custom.name                 = "Custom";
-    Custom.value                = AKKO_MODE::CUSTOM;
-    Custom.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
-    Custom.color_mode           = MODE_COLORS_PER_LED;
-    Custom.brightness_min       = AKKO_BRIGHTNESS::B_MAX;
-    Custom.brightness_max       = AKKO_BRIGHTNESS::B_MAX;
-    Custom.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
+    Custom.name         = "Custom";
+    Custom.value        = AKKO_MODE::USER_PICTURE;
+    Custom.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
+    Custom.color_mode   = MODE_COLORS_PER_LED;
     modes.push_back(Custom);
 
     mode Direct; //Same as Light Shadow;
-    Direct.name                 = "Direct";
-    Direct.value                = AKKO_MODE::DIRECT;
-    Direct.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
-    Direct.color_mode           = MODE_COLORS_PER_LED;
+    Direct.name         = "Direct";
+    Direct.value        = AKKO_MODE::LIGHT_SHADOW;
+    Direct.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
     modes.push_back(Direct);
+
+    for(mode &m : modes)
+    {
+        if(m.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)
+        {
+            m.colors_min = 1;
+            m.colors_max = 1;
+            m.colors.resize(1);
+        }
+        if(m.flags & MODE_FLAG_HAS_SPEED)
+        {
+            m.speed_max = AKKO_SPEED::S_MAX;
+            m.speed     = AKKO_SPEED::S_DEFAULT;
+        }
+
+        if(m.flags & MODE_FLAG_HAS_BRIGHTNESS)
+        {
+            m.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
+            m.brightness        = AKKO_BRIGHTNESS::B_MAX;
+        }
+    }
 
     SetupZones();
 }
@@ -477,14 +346,14 @@ void RGBController_AkkoController::SetupZones()
         zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
     }
 
-    for(int i = modes.size() - 1; i >= 0; i--) // Backwards to prioritize Direct and Custom modes, which have the same flags as User Picture and Light Shadow
+    for(int i = 0; i < modes.size(); i++)
     {
         if(modes[i].value == keyboard_zone_info.mode)
         {
             active_mode = i;
             modes[active_mode].speed = AKKO_SPEED::S_MAX - keyboard_zone_info.speed;
             modes[active_mode].brightness = keyboard_zone_info.brightness;
-            modes[active_mode].color_mode = GetRandomColorFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
+            modes[active_mode].color_mode = GetColorModeFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
             modes[active_mode].direction = GetDirectionFromFlags(keyboard_zone_info.flags);
             break;
         }
@@ -584,11 +453,22 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
 
         if(zone_info.mode == AKKO_MODE::USER_PICTURE)
         {
+            bool changed = false;
             for(int i = 0; i < colors.size() && i < zone_info.colors.size(); i++)
             {
-                zone_info.colors[i] = colors[led_index + i];
+                if(!changed && zone_info.colors[i] != colors[led_index + i])
+                {
+                    changed = true;
+                }
+                if (changed)
+                {
+                    zone_info.colors[i] = colors[led_index + i];
+                }
             }
-            controller->SetCustomLeds(zone_info);
+            if(changed)
+            {
+                controller->SetCustomLeds(zone_info);
+            }
         }
         else if(zone_info.mode == AKKO_MODE::MUSIC_FOLLOW || zone_info.mode == AKKO_MODE::MUSIC_FOLLOW_2)
         {
@@ -632,22 +512,27 @@ void RGBController_AkkoController::DeviceUpdateMode()
     AKKO_SPEED speed = (AKKO_SPEED)modes[active_mode].speed;
     AKKO_BRIGHTNESS brightness = (AKKO_BRIGHTNESS)modes[active_mode].brightness;
     AKKO_FLAGS flags = GetFlagsForMode(mode, modes[active_mode].direction, modes[active_mode].color_mode);
+    RGBColor color = modes[active_mode].colors.size() > 0 ? modes[active_mode].colors[0] : ToRGBColor(0, 0, 0);
 
-    size_t led_index = 0;
     for(auto& [key, zone_info]: zones_info)
     {
-        RGBColor color = colors[led_index];
         if(IsZoneCompatibleWith(key, mode))
         {
-            zone_info.mode = mode;
-            zone_info.speed = speed;
-            zone_info.brightness = brightness;
-            zone_info.flags = flags;
-            zone_info.color = color;
-            controller->SetZoneEffect(zone_info);
+            if (mode == AKKO_MODE::LIGHT_SHADOW && zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
+            {
+                zone_info.color = color;
+                controller->SetDirectColor(zone_info);
+            }
+            else
+            {
+                zone_info.mode = mode;
+                zone_info.speed = speed;
+                zone_info.brightness = brightness;
+                zone_info.flags = flags;
+                zone_info.color = color;
+                controller->SetZoneEffect(zone_info);
+            }
         }
-
-        led_index += zone_info.leds_count;
     }
 }
 
@@ -656,11 +541,12 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     bool is_music_follow = mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2;
 
     AKKO_FLAGS dazzle =  AKKO_FLAGS::DEFAULT;
-    switch (random_colors) {
+    switch (random_colors)
+    {
         case MODE_COLORS_RANDOM:
             dazzle = is_music_follow ? AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON : AKKO_FLAGS::DAZZLE_ON;
             break;
-        case MODE_COLORS_PER_LED:
+        case MODE_COLORS_MODE_SPECIFIC:
             dazzle = is_music_follow ? AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF : AKKO_FLAGS::DAZZLE_OFF;
             break;
         default:
@@ -668,7 +554,8 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     }
 
     AKKO_FLAGS option = AKKO_FLAGS::DEFAULT;
-    switch (direction) {
+    switch (direction)
+    {
     case MODE_DIRECTION_LEFT:
         option = AKKO_FLAGS::DRIFT_LEFT;
         break;
@@ -689,19 +576,29 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     return *reinterpret_cast<AKKO_FLAGS*>(&combined); //Casting to suppres warnings
 }
 
-unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mode, AKKO_FLAGS flags)
+unsigned int RGBController_AkkoController::GetColorModeFromFlags(AKKO_MODE mode, AKKO_FLAGS flags)
 {
-    bool is_user_picture = mode == AKKO_MODE::USER_PICTURE || mode == AKKO_MODE::LIGHT_SHADOW;
-
     unsigned int dazzle_flags = flags & 0x0F;
-    switch (dazzle_flags) {
+    switch (mode)
+    {
+        case AKKO_MODE::USER_PICTURE:
+            return MODE_COLORS_PER_LED;
+            break;
+        case AKKO_MODE::LIGHT_SHADOW:
+            return MODE_COLORS_MODE_SPECIFIC;
+            break;
+        default:
+            break;
+    }
+    switch (dazzle_flags)
+    {
     case AKKO_FLAGS::DAZZLE_ON:
     case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON:
-        return is_user_picture ? MODE_COLORS_PER_LED : MODE_COLORS_RANDOM;
+        return MODE_COLORS_RANDOM;
         break;
     case AKKO_FLAGS::DAZZLE_OFF:
     case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF:
-        return MODE_COLORS_PER_LED;
+        return MODE_COLORS_MODE_SPECIFIC;
         break;
     default:
         return MODE_COLORS_NONE;
@@ -712,7 +609,8 @@ unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mod
 unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flags)
 {
     unsigned int direction_flags = flags & 0xF0;
-    switch (direction_flags) {
+    switch (direction_flags)
+    {
     case AKKO_FLAGS::DRIFT_LEFT:
         return MODE_DIRECTION_LEFT;
         break;

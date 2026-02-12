@@ -37,6 +37,6 @@ private:
     std::map<AKKO_ZONE, AkkoZoneInfo> zones_info;
 
     AKKO_FLAGS GetFlagsForMode(AKKO_MODE mode, unsigned int direction, unsigned int random_colors);
-    unsigned int GetRandomColorFromFlags(AKKO_MODE mode, AKKO_FLAGS flags);
+    unsigned int GetColorModeFromFlags(AKKO_MODE mode, AKKO_FLAGS flags);
     unsigned int GetDirectionFromFlags(AKKO_FLAGS flags);
 };
