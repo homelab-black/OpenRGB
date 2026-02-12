@@ -390,6 +390,9 @@ void SettingsAccessGuard::Save()
 
 void SettingsAccessGuard::Release()
 {
-    LOG_DEBUG("[SettingsAccessGuard] ------ Manually releasing exclusive access to settings ------");
+    /*-------------------------------------*\
+    | Debug message to invesitage deadlocks |
+    \*-------------------------------------*/
+    // LOG_DEBUG("[SettingsAccessGuard] ------ Manually releasing exclusive access to settings ------");
     lock.unlock();
 }
