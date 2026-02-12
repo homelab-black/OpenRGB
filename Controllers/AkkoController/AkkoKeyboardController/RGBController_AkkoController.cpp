@@ -150,14 +150,14 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     }
 
     mode Off;
-    Off.name                = "Off";
+    Off.name                = "Off (Also Sidebars)";
     Off.value               = AKKO_MODE::OFF;
     Off.flags               = 0;
     Off.color_mode          = MODE_COLORS_NONE;
     modes.push_back(Off);
 
     mode Always_on;
-    Always_on.name              = "Static";
+    Always_on.name              = "Static (Also Sidebars)";
     Always_on.value             = AKKO_MODE::ALWAYS_ON;
     Always_on.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     Always_on.color_mode        = MODE_COLORS_RANDOM;
@@ -167,7 +167,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Always_on);
 
     mode Breath;
-    Breath.name                 = "Breath";
+    Breath.name                 = "Breath (Also Sidebars)";
     Breath.value                = AKKO_MODE::BREATH;
     Breath.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     Breath.color_mode           = MODE_COLORS_RANDOM;
@@ -193,7 +193,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Meteor);
 
     mode Ripple;
-    Ripple.name                 = "Ripple";
+    Ripple.name                 = "Ripple (Also Sidebars)";
     Ripple.value                = AKKO_MODE::RIPPLE;
     Ripple.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     Ripple.color_mode           = MODE_COLORS_RANDOM;
@@ -258,7 +258,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Steady_stream);
 
     mode Neon;
-    Neon.name               = "Neon";
+    Neon.name               = "Neon (Also Sidebars)";
     Neon.value              = AKKO_MODE::NEON;
     Neon.flags              = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
     Neon.brightness_min     = AKKO_BRIGHTNESS::B_MIN;
@@ -270,7 +270,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Neon);
 
     mode Wave;
-    Wave.name              = "Wave";
+    Wave.name              = "Wave (Also Sidebars)";
     Wave.value             = AKKO_MODE::WAVE;
     Wave.flags             = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD;
     Wave.color_mode        = MODE_COLORS_RANDOM;
