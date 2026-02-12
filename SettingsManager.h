@@ -85,12 +85,6 @@ public:
     /*----------------------------*\
     | Controller-specific settings |
     \*----------------------------*/
-    // template<typename T>
-    // std::optional<T> GetControllerSettings(const std::string& key);
-
-    // template<typename T>
-    // T GetControllerSettingsOrDefault(const std::string& key);
-
     void SetControllerSettingsAndSave(const std::string& key, json settings);
 
     /*---------------------------------------------------------------------*\
@@ -155,25 +149,29 @@ public:
     void LoadSettings(const filesystem::path& filename) override;
     void SaveSettings() override;
 
+private:
     /*----------------------------------------------------------*\
     | Migrates settings from an older version to the current one |
-    | Should be called right after `LoadSettings`                |
     \*----------------------------------------------------------*/
-    void MigrateSettings(const filesystem::path& filename);
-
-private:
+    void MigrateSettings(json& settings_json, const filesystem::path& save_path);
+    /*--------------------------------------------*\
+    | Returns whether this SettingsManager is for  |
+    | a local client that supports the             |
+    | SettingsManager API                          |
+    \*--------------------------------------------*/
+    bool IsLocalClient();
     json LoadSettingsAsJson(const filesystem::path& filename);
     void SaveSettingsJson(const filesystem::path& filename, const json& settings);
 
 private:
-    Settings             settings_data;
+    Settings         settings_data;
     json             settings_prototype;
     filesystem::path settings_filename;
     std::mutex       mutex;
     bool             config_found;
 
 
-    // Todo: make subset of settings that local users actually use
-    // for example, ui settings are unused by local users
-    Settings        local_settings;
+    // // Todo: make subset of settings that local users actually use
+    // // for example, ui settings are unused by local users
+    // Settings        local_settings;
 };

@@ -143,9 +143,7 @@ ResourceManager::ResourceManager()
     \*-----------------------------------------------------*/
     settings_manager        = new SettingsManager();
 
-    filesystem::path config_path = GetConfigurationDirectory() / "OpenRGB.json";
-    settings_manager->MigrateSettings(config_path);
-    settings_manager->LoadSettings(config_path);
+    settings_manager->LoadSettings(GetConfigurationDirectory() / "OpenRGB.json");
     SettingsAccessGuard settings = settings_manager->GetSettings();
 
     /*-----------------------------------------------------*\

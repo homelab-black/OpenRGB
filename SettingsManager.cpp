@@ -28,9 +28,15 @@ SettingsManager::~SettingsManager()
 {
 }
 
+bool SettingsManager::IsLocalClient()
+{
+    return ResourceManager::get()->IsLocalClient() &&
+        ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI();
+}
+
 SettingsAccessGuard SettingsManager::GetSettings()
 {
-    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+    if(IsLocalClient())
     {
         /*-------------------------------------------------*\
         | If this is a local client, request the settings   |
@@ -39,9 +45,9 @@ SettingsAccessGuard SettingsManager::GetSettings()
         try
         {
             json result = nlohmann::json::parse(ResourceManager::get()->GetLocalClient()->SettingsManager_GetSettings());
-            // todo: maybe only invalidate this after a save?
-            local_settings = result.get<Settings>();
-            return SettingsAccessGuard(local_settings, mutex);
+            mutex.lock();
+            settings_data = result.get<Settings>();
+            mutex.unlock();
         }
         catch(...)
         {
@@ -65,27 +71,19 @@ void SettingsManager::SetSettingsFromJsonString(std::string settings_json_str)
     | Parse the JSON string                                 |
     \*-----------------------------------------------------*/
     nlohmann::json settings_json = nlohmann::json::parse(settings_json_str);
-    Settings settings = settings_json.get<Settings>();
-
     mutex.lock();
-    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+    settings_data = settings_json.get<Settings>();
+
+    if(IsLocalClient())
     {
-        local_settings = settings;
-        json serialized = local_settings;
+        json serialized = settings_data;
         ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(serialized.dump());
-    }
-    else
-    {
-        settings_data = settings;
     }
     mutex.unlock();
 }
 
 void SettingsManager::LoadSettings(const filesystem::path& filename)
 {
-    /*-----------------------------------------------------*\
-    | Clear any stored settings before loading              |
-    \*-----------------------------------------------------*/
     mutex.lock();
 
     /*-----------------------------------------------------*\
@@ -98,6 +96,12 @@ void SettingsManager::LoadSettings(const filesystem::path& filename)
     \*-----------------------------------------------------*/
     config_found = filesystem::exists(filename);
     json raw_json = LoadSettingsAsJson(filename);
+
+    /*----------------------------------------------*\
+    | Migrate settings if still using an old version |
+    \*----------------------------------------------*/
+    MigrateSettings(raw_json, filename);
+
     try
     {
         settings_data = raw_json.get<Settings>();
@@ -177,28 +181,26 @@ json SettingsManager::LoadSettingsAsJson(const filesystem::path& filename)
 void SettingsManager::SaveSettings()
 {
     mutex.lock();
-    if(ResourceManager::get()->IsLocalClient() && (ResourceManager::get()->GetLocalClient()->GetSupportsSettingsManagerAPI()))
+    if(IsLocalClient())
     {
         /*-------------------------------------------------*\
         | If this is a local client, save the settings on   |
         | the server                                        |
         \*-------------------------------------------------*/
-        json settings_json = local_settings;
+        json settings_json = settings_data;
         ResourceManager::get()->GetLocalClient()->SettingsManager_SetSettings(settings_json.dump());
         ResourceManager::get()->GetLocalClient()->SettingsManager_SaveSettings();
     }
+    else
+    {
+        SaveSettingsJson(settings_filename, settings_data);
+    }
 
-    SaveSettingsJson(settings_filename, settings_data);
     mutex.unlock();
 }
 
-void SettingsManager::MigrateSettings(const filesystem::path& filename)
+void SettingsManager::MigrateSettings(json& settings_json, const filesystem::path& save_path)
 {
-    /*----------------------------*\
-    | pre settings rework settings |
-    \*----------------------------*/
-    json settings_json = LoadSettingsAsJson(filename);
-
     /*----------------------------------------------------*\
     | If no settings read, then there's nothing to migrate |
     \*----------------------------------------------------*/
@@ -206,7 +208,6 @@ void SettingsManager::MigrateSettings(const filesystem::path& filename)
     {
         return;
     }
-
 
     LOG_DEBUG("[SettingsManager] Checking if settings migration is needed");
     std::string version;
@@ -309,7 +310,12 @@ void SettingsManager::MigrateSettings(const filesystem::path& filename)
         | We should be able to deserialize now |
         \*------------------------------------*/
         settings_json[VERSION_CFG_KEY] = SETTINGS_VERSION;
-        SaveSettingsJson(filename, settings_json);
+
+        /*---------------------------------------------*\
+        | Save JSON to the file we read it from         |
+        | So we don't have to migrate next time we read |
+        \*---------------------------------------------*/
+        SaveSettingsJson(save_path, settings_json);
         LOG_DEBUG("[SettingsManager] Sucessfully migrated from 0.0 -> 1.0");
     }
     else if(version == "1.0")
