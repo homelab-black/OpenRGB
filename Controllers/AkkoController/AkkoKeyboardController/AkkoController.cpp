@@ -340,7 +340,7 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone)
         {
             unsigned char raw_byte = buffer[buffer_idx];
 
-            current_reconstructed_val |= (static_cast<unsigned int>(raw_byte) << (color_byte_k * 8));
+            current_reconstructed_val |= (raw_byte) << (color_byte_k * 8);
 
             buffer_idx++;
             color_byte_k++;
