@@ -252,7 +252,7 @@ void SettingsManager::MigrateSettings(const filesystem::path& filename)
         /*--------------------------*\
         | Migrate controllers        |
         \*--------------------------*/
-        std::vector<std::string> controller_keys {
+        std::string controller_keys[] {
             "ASRock Polychrome USB",
             "Asus Aura Core Laptop",
             "CorsairDominatorSettings",
@@ -282,12 +282,11 @@ void SettingsManager::MigrateSettings(const filesystem::path& filename)
         };
         LOG_TRACE("[SettingsManager] Migrating controllers");
         settings_json["Controllers"] = json::object({ {"data", {}}});
-        for(unsigned int i = 0; i < controller_keys.size(); i++)
+        for(const std::string& key : controller_keys)
         {
             /*------------------------------------------------------------*\
             | Move $.<ControllerKey> to $.Controllers.data.<ControllerKey> |
             \*------------------------------------------------------------*/
-            const std::string& key = controller_keys[i];
             LOG_TRACE("[SettingsManager] Migrating controller %s", key.c_str());
             if (settings_json.contains(key))
             {

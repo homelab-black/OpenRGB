@@ -36,7 +36,7 @@ typedef struct
 
 #define RGB_FUSION_2_SMBUS_NUM_DEVICES (sizeof(rgb_fusion_2_smbus_motherboards) / sizeof(rgb_fusion_2_smbus_motherboards[ 0 ]))
 
-std::vector<std::string> rgb_fusion_2_smbus_motherboards =
+std::string rgb_fusion_2_smbus_motherboards[] =
 {
     "B450 AORUS ELITE",
     "B450 AORUS ELITE V2",
@@ -90,7 +90,7 @@ DetectedControllers DetectGigabyteRGBFusion2SMBusControllers(std::vector<i2c_smb
         | to settings                                       |
         \*-------------------------------------------------*/
         RGBFusion2SMBusSettings default_settings {
-            .supported_devices = rgb_fusion_2_smbus_motherboards
+            .supported_devices = std::vector(std::begin(rgb_fusion_2_smbus_motherboards), std::end(rgb_fusion_2_smbus_motherboards)),
         };
         set_man->SetControllerSettingsAndSave(DETECTOR_NAME, default_settings);
         device_settings = default_settings;
