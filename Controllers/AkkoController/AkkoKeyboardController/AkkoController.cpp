@@ -119,23 +119,6 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     {
         LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
     }
-
-    // TEST STUFF
-    if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2 || mode == AKKO_MODE::LIGHT_SHADOW)
-    {
-        for(int i=0; i<20; i++)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2)
-            {
-                SetDirectMusic(zone_info);
-            }
-            else
-            {
-                SetDirectColor(zone_info);
-            }
-        }
-    }
 }
 
 AkkoZoneInfo AkkoController::GetZoneInfo(AKKO_ZONE zone)
@@ -251,7 +234,7 @@ void AkkoController::SetDirectMusic(const AkkoZoneInfo& zone_info)
 
     for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH + 1; i++)
     {
-        buffer[i] = i % 6;
+        buffer[i] = rand() % 7; // TODO: This is just a placeholder, as the actual mapping should be an Array of 32byte From 0 to 6 that maps from 473hz to 1540hz
     }
 
     int send_buffer_result = hid_send_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));

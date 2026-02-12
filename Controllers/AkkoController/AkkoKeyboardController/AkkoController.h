@@ -87,7 +87,7 @@ enum AKKO_MODE
     LIGHT_SHADOW        = 0x15,
 
     CUSTOM              = 0x0d,
-    //DIRECT              = 0x00, // Uknown
+    DIRECT              = 0x15,// Single color
 };
 
 enum AKKO_SPEED

@@ -445,8 +445,8 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     mode Light_shadow;
     Light_shadow.name               = "Light Shadow (Not Fully implemented)";
     Light_shadow.value              = AKKO_MODE::LIGHT_SHADOW;
-    Light_shadow.flags              = MODE_FLAG_HAS_RANDOM_COLOR;
-    Light_shadow.color_mode         = MODE_COLORS_NONE;
+    Light_shadow.flags              = MODE_FLAG_HAS_PER_LED_COLOR;
+    Light_shadow.color_mode         = MODE_COLORS_PER_LED;
     modes.push_back(Light_shadow);
 
     mode Custom; //Same as User Picture, but with max brightness;
@@ -459,8 +459,15 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     Custom.brightness           = AKKO_BRIGHTNESS::B_DEFAULT;
     modes.push_back(Custom);
 
+    mode Direct; //Same as Light Shadow;
+    Direct.name                 = "Direct";
+    Direct.value                = AKKO_MODE::DIRECT;
+    Direct.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
+    Direct.color_mode           = MODE_COLORS_PER_LED;
+    modes.push_back(Direct);
+
     AkkoZoneInfo akko_mode = zones_info[AKKO_ZONE::Z_KEYBOARD];
-    for(int i = 0; i < modes.size(); i++)
+    for(int i = modes.size() - 1; i >= 0; i--)
     {
         if(modes[i].value == akko_mode.mode)
         {
@@ -583,10 +590,25 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
             }
             controller->SetCustomLeds(zone_info);
         }
-        else
+        else if(zone_info.mode == AKKO_MODE::MUSIC_FOLLOW || zone_info.mode == AKKO_MODE::MUSIC_FOLLOW_2)
         {
             zone_info.color = color;
-            controller->SetZoneEffect(zone_info);
+            controller->SetDirectMusic(zone_info);
+            break;
+        }
+        else if(zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
+        {
+            zone_info.color = color;
+            controller->SetDirectColor(zone_info);
+            break;
+        }
+        else
+        {
+            if(zone_info.color != color)
+            {
+                zone_info.color = color;
+                controller->SetZoneEffect(zone_info);
+            }
         }
 
         led_index += zone_info.leds_count;
@@ -620,17 +642,6 @@ void RGBController_AkkoController::DeviceUpdateMode()
             bool should_resize = key == AKKO_ZONE::Z_KEYBOARD && mode != zone_info.mode
                 && (mode == AKKO_MODE::USER_PICTURE || zone_info.mode == AKKO_MODE::USER_PICTURE);
             zone_info.mode = mode;
-            if(should_resize)
-            {
-                if(mode == AKKO_MODE::USER_PICTURE)
-                {
-                    ResizeZone(key, AKKO_5075B::HEIGHT * AKKO_5075B::WIDTH);
-                }
-                else
-                {
-                    ResizeZone(key, 1);
-                }
-            }
             zone_info.speed = speed;
             zone_info.brightness = brightness;
             zone_info.flags = flags;
@@ -644,179 +655,81 @@ void RGBController_AkkoController::DeviceUpdateMode()
 
 AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigned int direction, unsigned int random_colors)
 {
+    bool is_music_follow = mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2;
+
     AKKO_FLAGS dazzle =  AKKO_FLAGS::DEFAULT;
-    if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2)
-    {
-        if(random_colors == MODE_COLORS_RANDOM)
-        {
-            dazzle = AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON;
-        }
-        else if(random_colors == MODE_COLORS_PER_LED)
-        {
-            dazzle = AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF;
-        }
-        else
-        {
-            dazzle = AKKO_FLAGS::DEFAULT;
-        }
+    switch (random_colors) {
+        case MODE_COLORS_RANDOM:
+            dazzle = is_music_follow ? AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON : AKKO_FLAGS::DAZZLE_ON;
+            break;
+        case MODE_COLORS_PER_LED:
+            dazzle = is_music_follow ? AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF : AKKO_FLAGS::DAZZLE_OFF;
+            break;
+        default:
+            break;
     }
-    else
-    {
-        if(random_colors == MODE_COLORS_RANDOM)
-        {
-            dazzle = AKKO_FLAGS::DAZZLE_ON;
-        }
-        else if(random_colors == MODE_COLORS_PER_LED)
-        {
-            dazzle = AKKO_FLAGS::DAZZLE_OFF;
-        }
-        else
-        {
-            dazzle = AKKO_FLAGS::DEFAULT;
-        }
-    }
+
     AKKO_FLAGS option = AKKO_FLAGS::DEFAULT;
-    if(mode == AKKO_MODE::STEADY_STREAM)
-    {
-        /*---------------------------------------------------------*\
-        | TODO: These OPTIONS (zig-zag, return) should not          |
-        |   be DIRECTIONS (left, right)                             |
-        \*---------------------------------------------------------*/
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::STEADY_STREAM_ZIG_ZAG;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::STEADY_STREAM_RETURN;
-        }
+    switch (direction) {
+    case MODE_DIRECTION_LEFT:
+        dazzle = AKKO_FLAGS::DRIFT_LEFT;
+        break;
+    case MODE_DIRECTION_RIGHT:
+        dazzle = AKKO_FLAGS::DRIFT_RIGHT;
+        break;
+    case MODE_DIRECTION_UP:
+        dazzle = is_music_follow ? AKKO_FLAGS::DRIFT_DOWN : AKKO_FLAGS::DRIFT_UP;
+        break;
+    case MODE_DIRECTION_DOWN:
+        dazzle = AKKO_FLAGS::DRIFT_DOWN;
+        break;
+    default:
+        break;
     }
-    else if(mode == AKKO_MODE::WAVE)
-    {
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::DRIFT_LEFT;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::DRIFT_RIGHT;
-        }
-        else if(direction == MODE_DIRECTION_UP)
-        {
-            option = AKKO_FLAGS::DRIFT_UP;
-        }
-        else if(direction == MODE_DIRECTION_DOWN)
-        {
-            option = AKKO_FLAGS::DRIFT_DOWN;
-        }
-    }
-    else if(mode == AKKO_MODE::FLOWING_SPRING)
-    {
-        /*---------------------------------------------------------*\
-        | TODO: These OPTIONS (in, out) should not                  |
-        |   be DIRECTIONS (left, right)                             |
-        \*---------------------------------------------------------*/
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::CAISPRING_SURGING_OUT;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::CAISPRING_SURGING_IN;
-        }
-    }
-    else if(mode == AKKO_MODE::PEAK_TURN)
-    {
-        /*---------------------------------------------------------*\
-        | TODO: These OPTIONS (clockwise, anti-clockwise)           |
-        |   should not be DIRECTIONS (left, right)                  |
-        \*---------------------------------------------------------*/
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::PEAK_TURN_ANTI_CLOCKWISE;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::PEAK_TURN_CLOCKWISE;
-        }
-    }
-    else if(mode == AKKO_MODE::ENDLESS)
-    {
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::FLOWERS_BLOOMING_LEFT;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::FLOWERS_BLOOMING_RIGHT;
-        }
-    }
-    else if(mode == AKKO_MODE::MUSIC_FOLLOW || mode == AKKO_MODE::MUSIC_FOLLOW_2)
-    {
-        if(direction == MODE_DIRECTION_LEFT)
-        {
-            option = AKKO_FLAGS::MUSIC_UPRIGHT;
-        }
-        else if(direction == MODE_DIRECTION_RIGHT)
-        {
-            option = AKKO_FLAGS::MUSIC_SEPARATE;
-        }
-        else if(direction == MODE_DIRECTION_UP || direction == MODE_DIRECTION_DOWN)
-        {
-            option = AKKO_FLAGS::MUSIC_INTERSECT;
-        }
-    }
-    else
-    {
-        option = AKKO_FLAGS::DEFAULT;
-    }
+
     int combined = option | dazzle;
     return *reinterpret_cast<AKKO_FLAGS*>(&combined); //Casting to suppres warnings
 }
 
 unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mode, AKKO_FLAGS flags)
 {
+    bool is_user_picture = mode == AKKO_MODE::USER_PICTURE;
+
     unsigned int dazzle_flags = flags & 0x0F;
-    if(dazzle_flags == AKKO_FLAGS::DAZZLE_ON || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON)
-    {
-        if(mode == AKKO_MODE::USER_PICTURE)
-        {
-            return MODE_COLORS_PER_LED;
-        }
-        return MODE_COLORS_RANDOM;
-    }
-    else if(dazzle_flags == AKKO_FLAGS::DAZZLE_OFF || dazzle_flags == AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF)
-    {
+    switch (dazzle_flags) {
+    case AKKO_FLAGS::DAZZLE_ON:
+    case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON:
+        return is_user_picture ? MODE_COLORS_PER_LED : MODE_COLORS_RANDOM;
+        break;
+    case AKKO_FLAGS::DAZZLE_OFF:
+    case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF:
         return MODE_COLORS_PER_LED;
-    }
-    else
-    {
+        break;
+    default:
         return MODE_COLORS_NONE;
+        break;
     }
 }
 
 unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flags)
 {
     unsigned int direction_flags = flags & 0xF0;
-    if(direction_flags == AKKO_FLAGS::DRIFT_LEFT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_LEFT || direction_flags == AKKO_FLAGS::PEAK_TURN_ANTI_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_ZIG_ZAG)
-    {
+    switch (direction_flags) {
+    case AKKO_FLAGS::DRIFT_LEFT:
         return MODE_DIRECTION_LEFT;
-    }
-    else if(direction_flags == AKKO_FLAGS::DRIFT_RIGHT || direction_flags == AKKO_FLAGS::FLOWERS_BLOOMING_RIGHT || direction_flags == AKKO_FLAGS::PEAK_TURN_CLOCKWISE || direction_flags == AKKO_FLAGS::STEADY_STREAM_RETURN)
-    {
+        break;
+    case AKKO_FLAGS::DRIFT_RIGHT:
         return MODE_DIRECTION_RIGHT;
-    }
-    else if(direction_flags == AKKO_FLAGS::DRIFT_UP)
-    {
+        break;
+    case AKKO_FLAGS::DRIFT_UP:
         return MODE_DIRECTION_UP;
-    }
-    else if(direction_flags == AKKO_FLAGS::DRIFT_DOWN)
-    {
+        break;
+    case AKKO_FLAGS::DRIFT_DOWN:
         return MODE_DIRECTION_DOWN;
-    }
-    else
-    {
+        break;
+    default:
         return MODE_DIRECTION_LEFT;
+        break;
     }
 }
 
