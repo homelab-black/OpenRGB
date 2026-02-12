@@ -646,7 +646,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartSetServerPort_clicked()
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
             settings.auto_start.setserverportbool = checked;
         });
-        ui->TextServerHost->setEnabled(checked);
+        ui->TextServerPort->setEnabled(checked);
     }
 }
 
@@ -658,7 +658,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartClient_clicked()
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
             settings.auto_start.setclient = checked;
         });
-        ui->TextServerHost->setEnabled(checked);
+        ui->TextClientHost->setEnabled(checked);
     }
 }
 
@@ -670,7 +670,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartProfile_clicked()
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
             settings.auto_start.setprofile = checked;
         });
-        ui->TextServerHost->setEnabled(checked);
+        ui->ComboBoxAutoStartProfile->setEnabled(checked);
     }
 }
 
@@ -682,7 +682,7 @@ void OpenRGBSettingsPage::on_CheckboxAutoStartCustom_clicked()
         ResourceManager::get()->GetSettingsManager()->ModifySettings([checked](Settings& settings) {
             settings.auto_start.setcustom = checked;
         });
-        ui->TextServerHost->setEnabled(checked);
+        ui->TextCustomArgs->setEnabled(checked);
     }
 }
 
