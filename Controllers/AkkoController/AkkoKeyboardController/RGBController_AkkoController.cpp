@@ -143,12 +143,6 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     serial      = controller->GetSerial();
     location    = controller->GetLocation();
 
-    zones_info.insert({AKKO_ZONE::Z_KEYBOARD, controller->GetZoneInfo(AKKO_ZONE::Z_KEYBOARD)});
-    if(controller->HasLightStrips())
-    {
-        zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
-    }
-
     mode Off;
     Off.name                = "Off (Also Sidebars)";
     Off.value               = AKKO_MODE::OFF;
@@ -466,20 +460,6 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     Direct.color_mode           = MODE_COLORS_PER_LED;
     modes.push_back(Direct);
 
-    AkkoZoneInfo akko_mode = zones_info[AKKO_ZONE::Z_KEYBOARD];
-    for(int i = modes.size() - 1; i >= 0; i--)
-    {
-        if(modes[i].value == akko_mode.mode)
-        {
-            active_mode = i;
-            modes[active_mode].speed = AKKO_SPEED::S_MAX - akko_mode.speed;
-            modes[active_mode].brightness = akko_mode.brightness;
-            modes[active_mode].color_mode = GetRandomColorFromFlags(akko_mode.mode, akko_mode.flags);
-            modes[active_mode].direction = GetDirectionFromFlags(akko_mode.flags);
-            break;
-        }
-    }
-
     SetupZones();
 }
 
@@ -490,6 +470,26 @@ RGBController_AkkoController::~RGBController_AkkoController()
 
 void RGBController_AkkoController::SetupZones()
 {
+    AkkoZoneInfo keyboard_zone_info = controller->GetZoneInfo(AKKO_ZONE::Z_KEYBOARD);
+    zones_info.insert({AKKO_ZONE::Z_KEYBOARD, keyboard_zone_info});
+    if(controller->HasLightStrips())
+    {
+        zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
+    }
+
+    for(int i = modes.size() - 1; i >= 0; i--) // Backwards to prioritize Direct and Custom modes, which have the same flags as User Picture and Light Shadow
+    {
+        if(modes[i].value == keyboard_zone_info.mode)
+        {
+            active_mode = i;
+            modes[active_mode].speed = AKKO_SPEED::S_MAX - keyboard_zone_info.speed;
+            modes[active_mode].brightness = keyboard_zone_info.brightness;
+            modes[active_mode].color_mode = GetRandomColorFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
+            modes[active_mode].direction = GetDirectionFromFlags(keyboard_zone_info.flags);
+            break;
+        }
+    }
+
     for(auto& [key, zone_info]: zones_info)
     {
         if(key == AKKO_ZONE::Z_KEYBOARD)
@@ -639,8 +639,6 @@ void RGBController_AkkoController::DeviceUpdateMode()
         RGBColor color = colors[led_index];
         if(IsZoneCompatibleWith(key, mode))
         {
-            bool should_resize = key == AKKO_ZONE::Z_KEYBOARD && mode != zone_info.mode
-                && (mode == AKKO_MODE::USER_PICTURE || zone_info.mode == AKKO_MODE::USER_PICTURE);
             zone_info.mode = mode;
             zone_info.speed = speed;
             zone_info.brightness = brightness;
@@ -672,16 +670,16 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     AKKO_FLAGS option = AKKO_FLAGS::DEFAULT;
     switch (direction) {
     case MODE_DIRECTION_LEFT:
-        dazzle = AKKO_FLAGS::DRIFT_LEFT;
+        option = AKKO_FLAGS::DRIFT_LEFT;
         break;
     case MODE_DIRECTION_RIGHT:
-        dazzle = AKKO_FLAGS::DRIFT_RIGHT;
+        option = AKKO_FLAGS::DRIFT_RIGHT;
         break;
     case MODE_DIRECTION_UP:
-        dazzle = is_music_follow ? AKKO_FLAGS::DRIFT_DOWN : AKKO_FLAGS::DRIFT_UP;
+        option = is_music_follow ? AKKO_FLAGS::DRIFT_DOWN : AKKO_FLAGS::DRIFT_UP;
         break;
     case MODE_DIRECTION_DOWN:
-        dazzle = AKKO_FLAGS::DRIFT_DOWN;
+        option = AKKO_FLAGS::DRIFT_DOWN;
         break;
     default:
         break;
@@ -693,7 +691,7 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
 
 unsigned int RGBController_AkkoController::GetRandomColorFromFlags(AKKO_MODE mode, AKKO_FLAGS flags)
 {
-    bool is_user_picture = mode == AKKO_MODE::USER_PICTURE;
+    bool is_user_picture = mode == AKKO_MODE::USER_PICTURE || mode == AKKO_MODE::LIGHT_SHADOW;
 
     unsigned int dazzle_flags = flags & 0x0F;
     switch (dazzle_flags) {
