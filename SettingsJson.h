@@ -87,7 +87,7 @@ struct DetectorSettings {
 
     /*---------------------------------------------------*\
     | Returns true if the detector exists and is enabled. |
-    | Returns false if detector_str does not exist        |
+    | Returns true if detector_str is not found           |
     \*---------------------------------------------------*/
     inline bool detection_enabled_for(const std::string& detector_str) const
     {
@@ -95,7 +95,7 @@ struct DetectorSettings {
         {
             return detectors.at(detector_str);
         }
-        return false;
+        return true;
     }
 };
 

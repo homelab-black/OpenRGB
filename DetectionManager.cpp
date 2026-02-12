@@ -1825,6 +1825,7 @@ int DetectionManager::HotplugCallbackFunction(hid_hotplug_callback_handle callba
     | and we shouldn't hold the lock for too long          |
     \*----------------------------------------------------*/
     DetectorSettings detector_settings = settings.access().detectors;
+    settings.Release();
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
@@ -1876,6 +1877,7 @@ int DetectionManager::WrappedHotplugCallbackFunction(hid_hotplug_callback_handle
     | and we shouldn't hold the lock for too long          |
     \*----------------------------------------------------*/
     DetectorSettings detector_settings = settings.access().detectors;
+    settings.Release();
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
