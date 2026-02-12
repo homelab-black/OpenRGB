@@ -899,7 +899,7 @@ void DetectionManager::BackgroundDetectI2CDevices(const DetectorSettings& detect
             }
         }
 
-        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -920,7 +920,12 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& de
 
     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-    for(std::size_t bus = 0; bus < i2c_buses.size() && IsAnyDimmDetectorEnabled(detector_settings); bus++)
+    if (!IsAnyDimmDetectorEnabled(detector_settings))
+    {
+        return;
+    }
+
+    for(std::size_t bus = 0; bus < i2c_buses.size(); bus++)
     {
         IF_DRAM_SMBUS(i2c_buses[bus]->pci_vendor, i2c_buses[bus]->pci_device)
         {
@@ -967,7 +972,7 @@ void DetectionManager::BackgroundDetectI2CDRAMDevices(const DetectorSettings& de
                         }
                     }
 
-                    // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+                    LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
                 }
 
                 /*-----------------------------------------*\
@@ -1020,7 +1025,7 @@ void DetectionManager::BackgroundDetectI2CPCIDevices(const DetectorSettings& det
             }
         }
 
-        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -1120,7 +1125,7 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(const DetectorSettings& de
                     }
                 }
 
-                // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+                LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
             }
 
             current_hid_device = current_hid_device->next;
@@ -1218,7 +1223,7 @@ void DetectionManager::BackgroundDetectOtherDevices(const DetectorSettings& dete
             }
         }
 
-        // LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
         /*-------------------------------------------------*\
         | Update detection percent                          |
@@ -1656,7 +1661,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const std::string& i2c_detector_str : i2c_device_detector_strings)
     {
         detection_string = i2c_detector_str.c_str();
-        if (!(detector_settings.detectors.count(i2c_detector_str) > 0))
+        if (!detector_settings.contains(i2c_detector_str))
         {
             detector_settings.detectors[i2c_detector_str] = true;
             save_settings = true;
@@ -1670,7 +1675,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const I2CDRAMDeviceDetectorBlock& detector : i2c_dram_device_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1684,7 +1689,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const I2CPCIDeviceDetectorBlock& detector : i2c_pci_device_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1698,7 +1703,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const HIDDeviceDetectorBlock& detector : hid_generic_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1712,7 +1717,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const HIDDeviceDetectorBlock& detector : hid_specific_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1726,7 +1731,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_generic_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1740,7 +1745,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_specific_detectors)
     {
         detection_string = detector.name.c_str();
-        if (!(detector_settings.detectors.count(detector.name) > 0))
+        if (!detector_settings.contains(detector.name))
         {
             detector_settings.detectors[detector.name] = true;
             save_settings = true;
@@ -1754,7 +1759,7 @@ void DetectionManager::UpdateDetectorSettings()
     for (const std::string& detector : device_detector_strings)
     {
         detection_string = detector.c_str();
-        if (!(detector_settings.detectors.count(detector) > 0))
+        if (!detector_settings.contains(detector))
         {
             detector_settings.detectors[detector] = true;
             save_settings = true;
@@ -1815,7 +1820,11 @@ int DetectionManager::HotplugCallbackFunction(hid_hotplug_callback_handle callba
     | device strings                                        |
     \*-----------------------------------------------------*/
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    const DetectorSettings& detector_settings = settings.access().detectors;
+    /*----------------------------------------------------*\
+    | Copying settings here, since detection can take long |
+    | and we shouldn't hold the lock for too long          |
+    \*----------------------------------------------------*/
+    DetectorSettings detector_settings = settings.access().detectors;
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
@@ -1862,7 +1871,11 @@ int DetectionManager::WrappedHotplugCallbackFunction(hid_hotplug_callback_handle
     | device strings                                        |
     \*-----------------------------------------------------*/
     SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
-    const DetectorSettings& detector_settings = settings.access().detectors;
+    /*----------------------------------------------------*\
+    | Copying settings here, since detection can take long |
+    | and we shouldn't hold the lock for too long          |
+    \*----------------------------------------------------*/
+    DetectorSettings detector_settings = settings.access().detectors;
     DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
