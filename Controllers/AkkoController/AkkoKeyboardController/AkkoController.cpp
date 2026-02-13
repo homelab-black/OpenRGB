@@ -100,7 +100,7 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     }
     else
     {
-        speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); //Invert speed (0 is max speed, 4 is min speed)
+        speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); // Invert speed (0 is max speed, 4 is min speed)
     }
 
     unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
