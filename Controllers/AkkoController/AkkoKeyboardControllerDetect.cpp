@@ -15,21 +15,21 @@
 #include "RGBController_AkkoController.h"
 
 /*-----------------------------------------------------*\
-| Akko vendor ID																				|
+| Akko vendor ID                                        |
 \*-----------------------------------------------------*/
 #define AKKO_VID                    0x3151
 
 /*-----------------------------------------------------*\
-| Akko product ID																				|
+| Akko product ID                                       |
 \*-----------------------------------------------------*/
 #define AKKO_5075B_USB_PID          0x4015
 #define AKKO_5075B_Dongle_PID       0x4011
 
 /******************************************************************************************\
 *                                                                                          *
-*   DetectAkkoControllers																																	 *
+*   DetectAkkoControllers                                                                  *
 *                                                                                          *
-*       Tests the USB address to see if any Akko Controllers exists there.								 *
+*       Tests the USB address to see if any Akko Controllers exists there.                 *
 *                                                                                          *
 \******************************************************************************************/
 

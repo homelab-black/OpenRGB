@@ -18,7 +18,6 @@
 class RGBController_AkkoController : public RGBController
 {
 public:
-    void extracted(AkkoZoneInfo &akko_mode);
     RGBController_AkkoController(AkkoController *controller_ptr);
     ~RGBController_AkkoController();
     

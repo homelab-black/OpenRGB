@@ -14,6 +14,8 @@
 #include "LogManager.h"
 #include "StringUtils.h"
 
+#define AKKO_PACKET_LENGTH_WITH_REPORT 65
+
 AkkoController::AkkoController(hid_device* dev_handle, char *_path, bool _is_wireless, bool _has_light_strips)
 {
     dev         = dev_handle;
@@ -103,7 +105,7 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
         speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); // Invert speed (0 is max speed, 4 is min speed)
     }
 
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
     buffer[AKKO_BYTE_INDEX::COMMAND]      = AKKO_BYTE_COMMAND::SET | command;
     buffer[AKKO_BYTE_INDEX::MODE]         = mode;
     buffer[AKKO_BYTE_INDEX::SPEED]        = speed;
@@ -114,10 +116,10 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     buffer[AKKO_BYTE_INDEX::BLUE]         = RGBGetBValue(color);
     buffer[AKKO_BYTE_INDEX::EFFECT_FILLER]   = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::BLUE);
 
-    int send_buffer_result = hid_send_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));
+    int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
     if(send_buffer_result<0)
     {
-        LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+        LOG_ERROR("[%s]: Send Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
     }
 }
 
@@ -126,7 +128,7 @@ AkkoZoneInfo AkkoController::GetZoneInfo(AKKO_ZONE zone)
     AkkoZoneInfo effect;
 
     AKKO_BYTE_COMMAND command = getByteFromZone(zone);
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
     buffer[AKKO_BYTE_INDEX::COMMAND]    = AKKO_BYTE_COMMAND::GET | command;
     buffer[AKKO_BYTE_INDEX::MODE]       = 0x00;
     buffer[AKKO_BYTE_INDEX::SPEED]      = 0x00;
@@ -136,18 +138,18 @@ AkkoZoneInfo AkkoController::GetZoneInfo(AKKO_ZONE zone)
     buffer[AKKO_BYTE_INDEX::GREEN]      = 0x00;
     buffer[AKKO_BYTE_INDEX::CUSTOM_FILLER]       = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-    int send_buffer_result = hid_send_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));
+    int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
     if(send_buffer_result<0)
     {
-        LOG_ERROR("[AKKO]: Get Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+        LOG_ERROR("[%s]: Get Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
         return effect;
     }
 
     memset(buffer, 0, sizeof(buffer));
-    int get_buffer_result = hid_get_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));
+    int get_buffer_result = hid_get_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
     if(get_buffer_result<0)
     {
-        LOG_ERROR("[AKKO]: Get Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+        LOG_ERROR("[%s]: Get Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
         return effect;
     }
 
@@ -175,7 +177,7 @@ void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info)
     }
 
     int pages = AKKO_ZONE_SIZE::Z_KEYBOARD_SIZE / ((AKKO_PACKET_LENGTH - AKKO_BYTE_INDEX::CUSTOM_FILLER) / 3);
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
 
     int led_index = 0;
     int color_byte_k = 0;
@@ -194,7 +196,7 @@ void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info)
 
         int buffer_idx = AKKO_BYTE_INDEX::CUSTOM_FILLER + 1;
 
-        while (buffer_idx < (AKKO_PACKET_LENGTH + 1) && led_index < zone_info.colors.size())
+        while (buffer_idx < AKKO_PACKET_LENGTH_WITH_REPORT && led_index < zone_info.colors.size())
         {
             RGBColor current_color = zone_info.colors[led_index];
             buffer[buffer_idx] = (current_color >> (color_byte_k * 8)) & 0xFF;
@@ -207,10 +209,10 @@ void AkkoController::SetCustomLeds(const AkkoZoneInfo& zone_info)
             }
         }
 
-        int send_buffer_result = hid_send_feature_report(dev, buffer, sizeof(buffer));
+        int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
         if(send_buffer_result < 0)
         {
-            LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+            LOG_ERROR("[%s]: Send Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
         }
     }
 }
@@ -221,7 +223,7 @@ void AkkoController::SetDirectMusic(const AkkoZoneInfo& zone_info)
     {
         return; // Only keyboard supports direct music mode and only if the mode is MUSIC_FOLLOW or MUSIC_FOLLOW_2
     }
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
 
     buffer[AKKO_BYTE_INDEX::COMMAND]      = AKKO_BYTE_COMMAND::SET | AKKO_BYTE_COMMAND::DIRECT_MUSIC;
     buffer[AKKO_BYTE_INDEX::MODE]         = 0x0;
@@ -232,15 +234,15 @@ void AkkoController::SetDirectMusic(const AkkoZoneInfo& zone_info)
     buffer[AKKO_BYTE_INDEX::GREEN]        = 0x0;
     buffer[AKKO_BYTE_INDEX::BLUE]         = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-    for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH + 1; i++)
+    for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH_WITH_REPORT; i++)
     {
         buffer[i] = rand() % 7; // TODO: This is just a placeholder, as the actual mapping should be an Array of 32byte From 0 to 6 that maps from 473hz to 1540hz
     }
 
-    int send_buffer_result = hid_send_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));
+    int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
     if(send_buffer_result<0)
     {
-        LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+        LOG_ERROR("[%s]: Send Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
     }
 }
 
@@ -250,7 +252,7 @@ void AkkoController::SetDirectColor(const AkkoZoneInfo& zone_info)
     {
         return; // Only keyboard supports direct color mode, and only in LIGHT_SHADOW mode
     }
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
 
     buffer[AKKO_BYTE_INDEX::COMMAND]      = AKKO_BYTE_COMMAND::SET | AKKO_BYTE_COMMAND::DIRECT_COLOR;
     buffer[AKKO_BYTE_INDEX::MODE]         = RGBGetRValue(zone_info.color);
@@ -261,10 +263,10 @@ void AkkoController::SetDirectColor(const AkkoZoneInfo& zone_info)
     buffer[AKKO_BYTE_INDEX::GREEN]        = 0x0;
     buffer[AKKO_BYTE_INDEX::BLUE]         = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-    int send_buffer_result = hid_send_feature_report(dev, buffer, (sizeof(buffer) / sizeof(buffer[0])));
+    int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
     if(send_buffer_result<0)
     {
-        LOG_ERROR("[AKKO]: Send Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+        LOG_ERROR("[%s]: Send Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
     }
 }
 
@@ -283,7 +285,7 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone)
 
     colors.reserve(AKKO_ZONE_SIZE::Z_KEYBOARD_SIZE);
 
-    unsigned char buffer[AKKO_PACKET_LENGTH + 1] = { 0x00 };
+    unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
 
     int color_byte_k = 0;
     unsigned int current_reconstructed_val = 0;
@@ -302,24 +304,24 @@ std::vector<RGBColor> AkkoController::getLedsData(AKKO_ZONE zone)
         buffer[AKKO_BYTE_INDEX::GREEN]         = 0x00;
         buffer[AKKO_BYTE_INDEX::CUSTOM_FILLER] = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-        int send_buffer_result = hid_send_feature_report(dev, buffer, sizeof(buffer));
+        int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
         if(send_buffer_result < 0)
         {
-            LOG_ERROR("[AKKO]: Send Buffer Error (Get Data). HIDAPI Error: %ls", hid_error(dev));
+            LOG_ERROR("[%s]: Send Buffer Error (Get Data). HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
             continue;
         }
 
         memset(buffer, 0, sizeof(buffer));
-        int get_buffer_result = hid_get_feature_report(dev, buffer, sizeof(buffer));
+        int get_buffer_result = hid_get_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
         if(get_buffer_result < 0)
         {
-            LOG_ERROR("[AKKO]: Get Buffer Error. HIDAPI Error: %ls", hid_error(dev));
+            LOG_ERROR("[%s]: Get Buffer Error. HIDAPI Error: %ls", device_name.c_str(), hid_error(dev));
             continue;
         }
 
         int buffer_idx = 1;
 
-        while (buffer_idx < (AKKO_PACKET_LENGTH + 1))
+        while (buffer_idx < (AKKO_PACKET_LENGTH_WITH_REPORT))
         {
             unsigned char raw_byte = buffer[buffer_idx];
 
