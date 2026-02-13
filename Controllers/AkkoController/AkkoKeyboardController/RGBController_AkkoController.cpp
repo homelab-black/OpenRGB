@@ -143,18 +143,24 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     serial      = controller->GetSerial();
     location    = controller->GetLocation();
 
-    mode Off;
-    Off.name        = "Off";
-    Off.value       = AKKO_MODE::OFF;
-    Off.flags       = 0;
-    Off.color_mode  = MODE_COLORS_NONE;
-    modes.push_back(Off);
+    mode Direct; //Same as Light Shadow;
+    Direct.name         = "Direct";
+    Direct.value        = AKKO_MODE::LIGHT_SHADOW;
+    Direct.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+    modes.push_back(Direct);
 
     mode Always_on;
     Always_on.name  = "Static";
     Always_on.value = AKKO_MODE::ALWAYS_ON;
     Always_on.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Always_on);
+
+    mode Custom; //Same as User Picture, but with max brightness;
+    Custom.name         = "Custom";
+    Custom.value        = AKKO_MODE::USER_PICTURE;
+    Custom.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
+    Custom.color_mode   = MODE_COLORS_PER_LED;
+    modes.push_back(Custom);
 
     mode Breath;
     Breath.name     = "Breathing";
@@ -295,18 +301,13 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     // Light_shadow.flags  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
     // modes.push_back(Light_shadow);
 
-    mode Custom; //Same as User Picture, but with max brightness;
-    Custom.name         = "Custom";
-    Custom.value        = AKKO_MODE::USER_PICTURE;
-    Custom.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
-    Custom.color_mode   = MODE_COLORS_PER_LED;
-    modes.push_back(Custom);
+    mode Off;
+    Off.name        = "Off";
+    Off.value       = AKKO_MODE::OFF;
+    Off.flags       = 0;
+    Off.color_mode  = MODE_COLORS_NONE;
+    modes.push_back(Off);
 
-    mode Direct; //Same as Light Shadow;
-    Direct.name         = "Direct";
-    Direct.value        = AKKO_MODE::LIGHT_SHADOW;
-    Direct.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
-    modes.push_back(Direct);
 
     for(mode &m : modes)
     {
@@ -315,15 +316,18 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
             m.colors_min = 1;
             m.colors_max = 1;
             m.colors.resize(1);
+            m.color_mode = MODE_COLORS_MODE_SPECIFIC;
         }
         if(m.flags & MODE_FLAG_HAS_SPEED)
         {
+            // m.speed_min = AKKO_SPEED::S_MIN;    // speed_min is 0 when constructed
             m.speed_max = AKKO_SPEED::S_MAX;
             m.speed     = AKKO_SPEED::S_DEFAULT;
         }
 
         if(m.flags & MODE_FLAG_HAS_BRIGHTNESS)
         {
+            // m.brightness_min    = AKKO_BRIGHTNESS::B_MIN; // brightness_min is 0 when constructed
             m.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
             m.brightness        = AKKO_BRIGHTNESS::B_MAX;
         }
@@ -345,16 +349,17 @@ void RGBController_AkkoController::SetupZones()
     {
         zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
     }
-
-    for(int i = 0; i < modes.size(); i++)
+    
+    for(std::vector<mode>::iterator it = modes.begin(); it != modes.end(); it++)
     {
-        if(modes[i].value == keyboard_zone_info.mode)
+        if (it->value == keyboard_zone_info.mode)
         {
-            active_mode = i;
-            modes[active_mode].speed = AKKO_SPEED::S_MAX - keyboard_zone_info.speed;
-            modes[active_mode].brightness = keyboard_zone_info.brightness;
-            modes[active_mode].color_mode = GetColorModeFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
-            modes[active_mode].direction = GetDirectionFromFlags(keyboard_zone_info.flags);
+            active_mode = std::distance(modes.begin(), it);
+
+            it->speed      = AKKO_SPEED::S_MAX - keyboard_zone_info.speed;
+            it->brightness = keyboard_zone_info.brightness;
+            it->color_mode = GetColorModeFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
+            it->direction  = GetDirectionFromFlags(keyboard_zone_info.flags);
             break;
         }
     }
