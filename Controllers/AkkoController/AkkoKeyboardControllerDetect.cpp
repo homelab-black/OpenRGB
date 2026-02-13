@@ -40,8 +40,7 @@ void DetectAkkoControllers(hid_device_info* info, const std::string&)
     if(dev)
     {
         bool isWireless = (info->product_id == AKKO_5075B_Dongle_PID);
-        bool hasLightStrips = true;
-        AkkoController*               controller     = new AkkoController(dev, info->path, isWireless, hasLightStrips);
+        AkkoController*               controller     = new AkkoController(dev, info->path, isWireless, true);
         RGBController_AkkoController* rgb_controller = new RGBController_AkkoController(controller);
         // Constructor sets the name
         ResourceManager::get()->RegisterRGBController(rgb_controller);
