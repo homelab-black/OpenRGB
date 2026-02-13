@@ -623,9 +623,6 @@ unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flag
     unsigned int direction_flags = flags & 0xF0;
     switch (direction_flags)
     {
-        case AKKO_FLAGS::DRIFT_LEFT:
-            return MODE_DIRECTION_LEFT;
-            break;
         case AKKO_FLAGS::DRIFT_RIGHT:
             return MODE_DIRECTION_RIGHT;
             break;
@@ -635,6 +632,7 @@ unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flag
         case AKKO_FLAGS::DRIFT_DOWN:
             return MODE_DIRECTION_DOWN;
             break;
+        case AKKO_FLAGS::DRIFT_LEFT:
         default:
             return MODE_DIRECTION_LEFT;
             break;
