@@ -561,20 +561,20 @@ AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigne
     AKKO_FLAGS option = AKKO_FLAGS::DEFAULT;
     switch (direction)
     {
-    case MODE_DIRECTION_LEFT:
-        option = AKKO_FLAGS::DRIFT_LEFT;
-        break;
-    case MODE_DIRECTION_RIGHT:
-        option = AKKO_FLAGS::DRIFT_RIGHT;
-        break;
-    case MODE_DIRECTION_UP:
-        option = is_music_follow ? AKKO_FLAGS::DRIFT_DOWN : AKKO_FLAGS::DRIFT_UP;
-        break;
-    case MODE_DIRECTION_DOWN:
-        option = AKKO_FLAGS::DRIFT_DOWN;
-        break;
-    default:
-        break;
+        case MODE_DIRECTION_LEFT:
+            option = AKKO_FLAGS::DRIFT_LEFT;
+            break;
+        case MODE_DIRECTION_RIGHT:
+            option = AKKO_FLAGS::DRIFT_RIGHT;
+            break;
+        case MODE_DIRECTION_UP:
+            option = is_music_follow ? AKKO_FLAGS::DRIFT_DOWN : AKKO_FLAGS::DRIFT_UP;
+            break;
+        case MODE_DIRECTION_DOWN:
+            option = AKKO_FLAGS::DRIFT_DOWN;
+            break;
+        default:
+            break;
     }
 
     int combined = option | dazzle;
@@ -597,17 +597,17 @@ unsigned int RGBController_AkkoController::GetColorModeFromFlags(AKKO_MODE mode,
     }
     switch (dazzle_flags)
     {
-    case AKKO_FLAGS::DAZZLE_ON:
-    case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON:
-        return MODE_COLORS_RANDOM;
-        break;
-    case AKKO_FLAGS::DAZZLE_OFF:
-    case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF:
-        return MODE_COLORS_MODE_SPECIFIC;
-        break;
-    default:
-        return MODE_COLORS_NONE;
-        break;
+        case AKKO_FLAGS::DAZZLE_ON:
+        case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_ON:
+            return MODE_COLORS_RANDOM;
+            break;
+        case AKKO_FLAGS::DAZZLE_OFF:
+        case AKKO_FLAGS::DAZZLE_MUSIC_FOLLOW_OFF:
+            return MODE_COLORS_MODE_SPECIFIC;
+            break;
+        default:
+            return MODE_COLORS_NONE;
+            break;
     }
 }
 
@@ -616,21 +616,21 @@ unsigned int RGBController_AkkoController::GetDirectionFromFlags(AKKO_FLAGS flag
     unsigned int direction_flags = flags & 0xF0;
     switch (direction_flags)
     {
-    case AKKO_FLAGS::DRIFT_LEFT:
-        return MODE_DIRECTION_LEFT;
-        break;
-    case AKKO_FLAGS::DRIFT_RIGHT:
-        return MODE_DIRECTION_RIGHT;
-        break;
-    case AKKO_FLAGS::DRIFT_UP:
-        return MODE_DIRECTION_UP;
-        break;
-    case AKKO_FLAGS::DRIFT_DOWN:
-        return MODE_DIRECTION_DOWN;
-        break;
-    default:
-        return MODE_DIRECTION_LEFT;
-        break;
+        case AKKO_FLAGS::DRIFT_LEFT:
+            return MODE_DIRECTION_LEFT;
+            break;
+        case AKKO_FLAGS::DRIFT_RIGHT:
+            return MODE_DIRECTION_RIGHT;
+            break;
+        case AKKO_FLAGS::DRIFT_UP:
+            return MODE_DIRECTION_UP;
+            break;
+        case AKKO_FLAGS::DRIFT_DOWN:
+            return MODE_DIRECTION_DOWN;
+            break;
+        default:
+            return MODE_DIRECTION_LEFT;
+            break;
     }
 }
 
