@@ -143,7 +143,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     serial      = controller->GetSerial();
     location    = controller->GetLocation();
 
-    mode Direct; //Same as Light Shadow;
+    mode Direct; // Same as Light Shadow;
     Direct.name         = "Direct";
     Direct.value        = AKKO_MODE::LIGHT_SHADOW;
     Direct.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
@@ -155,7 +155,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     Always_on.flags = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
     modes.push_back(Always_on);
 
-    mode Custom; //Same as User Picture, but with max brightness;
+    mode Custom; // Same as User Picture, but with max brightness;
     Custom.name         = "Custom";
     Custom.value        = AKKO_MODE::USER_PICTURE;
     Custom.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
@@ -309,27 +309,27 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     modes.push_back(Off);
 
 
-    for(mode &m : modes)
+    for(std::vector<mode>::iterator it = modes.begin(); it != modes.end(); it++)
     {
-        if(m.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)
+        if(it->flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)
         {
-            m.colors_min = 1;
-            m.colors_max = 1;
-            m.colors.resize(1);
-            m.color_mode = MODE_COLORS_MODE_SPECIFIC;
+            it->colors_min = 1;
+            it->colors_max = 1;
+            it->colors.resize(1);
+            it->color_mode = MODE_COLORS_MODE_SPECIFIC;
         }
-        if(m.flags & MODE_FLAG_HAS_SPEED)
+        if(it->flags & MODE_FLAG_HAS_SPEED)
         {
-            // m.speed_min = AKKO_SPEED::S_MIN;    // speed_min is 0 when constructed
-            m.speed_max = AKKO_SPEED::S_MAX;
-            m.speed     = AKKO_SPEED::S_DEFAULT;
+            // it->speed_min = AKKO_SPEED::S_MIN;    // speed_min is 0 when constructed
+            it->speed_max = AKKO_SPEED::S_MAX;
+            it->speed     = AKKO_SPEED::S_DEFAULT;
         }
 
-        if(m.flags & MODE_FLAG_HAS_BRIGHTNESS)
+        if(it->flags & MODE_FLAG_HAS_BRIGHTNESS)
         {
-            // m.brightness_min    = AKKO_BRIGHTNESS::B_MIN; // brightness_min is 0 when constructed
-            m.brightness_max    = AKKO_BRIGHTNESS::B_MAX;
-            m.brightness        = AKKO_BRIGHTNESS::B_MAX;
+            // it->brightness_min    = AKKO_BRIGHTNESS::B_MIN; // brightness_min is 0 when constructed
+            it->brightness_max    = AKKO_BRIGHTNESS::B_MAX;
+            it->brightness        = AKKO_BRIGHTNESS::B_MAX;
         }
     }
 
@@ -364,8 +364,10 @@ void RGBController_AkkoController::SetupZones()
         }
     }
 
-    for(auto& [key, zone_info]: zones_info)
+    for(std::map<AKKO_ZONE, AkkoZoneInfo>::iterator it = zones_info.begin(); it != zones_info.end(); ++it)
     {
+        const AKKO_ZONE& key    = it->first;
+        AkkoZoneInfo& zone_info   = it->second;
         if(key == AKKO_ZONE::Z_KEYBOARD)
         {
             unsigned int * led_matrix = (unsigned int *)&led_matrix_5075_ISO;
@@ -417,8 +419,9 @@ void RGBController_AkkoController::SetupZones()
     SetupColors();
 
     size_t led_index = 0;
-    for(auto& [key, zone_info]: zones_info)
+    for(std::map<AKKO_ZONE, AkkoZoneInfo>::iterator it = zones_info.begin(); it != zones_info.end(); ++it)
     {
+        AkkoZoneInfo& zone_info   = it->second;
         for(int i = 0; i < zone_info.leds_count; i++)
         {
             if(zone_info.mode == AKKO_MODE::USER_PICTURE)
@@ -452,8 +455,10 @@ void RGBController_AkkoController::ResizeZone(int /*zone*/, int /*new_size*/)
 void RGBController_AkkoController::DeviceUpdateLEDs()
 {
     size_t led_index = 0;
-    for(auto& [key, zone_info]: zones_info)
+    for(std::map<AKKO_ZONE, AkkoZoneInfo>::iterator it = zones_info.begin(); it != zones_info.end(); ++it)
     {
+        AkkoZoneInfo& zone_info   = it->second;
+
         RGBColor color = colors[led_index];
 
         if(zone_info.mode == AKKO_MODE::USER_PICTURE)
@@ -501,7 +506,7 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
 }
 
 
-void RGBController_AkkoController::UpdateZoneLEDs(int zone)
+void RGBController_AkkoController::UpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
@@ -519,8 +524,10 @@ void RGBController_AkkoController::DeviceUpdateMode()
     AKKO_FLAGS flags = GetFlagsForMode(mode, modes[active_mode].direction, modes[active_mode].color_mode);
     RGBColor color = modes[active_mode].colors.size() > 0 ? modes[active_mode].colors[0] : ToRGBColor(0, 0, 0);
 
-    for(auto& [key, zone_info]: zones_info)
+    for(std::map<AKKO_ZONE, AkkoZoneInfo>::iterator it = zones_info.begin(); it != zones_info.end(); ++it)
     {
+        const AKKO_ZONE& key    = it->first;
+        AkkoZoneInfo& zone_info   = it->second;
         if(IsZoneCompatibleWith(key, mode))
         {
             if (mode == AKKO_MODE::LIGHT_SHADOW && zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
