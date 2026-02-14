@@ -137,17 +137,6 @@ private:
     \*-----------------------------------------------------*/
     static DetectionManager*                    instance;
 
-
-    I2CDetectorGroup i2c_group;
-    HIDDetectorGroup hid_group;
-    MiscDeviceDetectorGroup others_group;
-
-
-    // /*-----------------------------------------------------*\
-    // | List of I2C buses managed by DetectorManager          |
-    // \*-----------------------------------------------------*/
-    // std::vector<i2c_smbus_interface*>           i2c_buses;
-
     /*-----------------------------------------------------*\
     | List of RGBControllers managed by DetectorManager     |
     \*-----------------------------------------------------*/
@@ -162,41 +151,11 @@ private:
     /*-----------------------------------------------------*\
     | Detectors                                             |
     \*-----------------------------------------------------*/
-    // std::vector<DeviceDetectorFunction>         device_detectors;
-    // std::vector<std::string>                    device_detector_strings;
-    // std::vector<I2CBusDetectorFunction>         i2c_bus_detectors;
-    // std::vector<I2CDeviceDetectorFunction>      i2c_device_detectors;
-    // std::vector<std::string>                    i2c_device_detector_strings;
-    // std::vector<I2CDRAMDeviceDetectorBlock>     i2c_dram_device_detectors;
-    // std::vector<I2CPCIDeviceDetectorBlock>      i2c_pci_device_detectors;
-    // std::vector<HIDDeviceDetectorBlock>         hid_generic_detectors;
-    // std::vector<HIDDeviceDetectorBlock>         hid_specific_detectors;
-    // std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_generic_detectors;
-    // std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_specific_detectors;
+    I2CDetectorGroup i2c_group;
+    HIDDetectorGroup hid_group;
+    MiscDeviceDetectorGroup others_group;
     std::vector<DynamicDetectorBlock>           dynamic_detectors;
     std::vector<PreDetectionHookFunction>       pre_detection_hooks;
-
-// #ifdef __linux__
-// #ifdef __GLIBC__
-//     /*-----------------------------------------------------*\
-//     | Wrapped libusb hidapi handles                         |
-//     \*-----------------------------------------------------*/
-//     void *                                      hidapi_libusb_handle;
-//     hidapi_wrapper                              hidapi_libusb_wrapper;
-// #endif
-// #endif
-
-//     /*-----------------------------------------------------*\
-//     | HID Hotplug handles                                   |
-//     \*-----------------------------------------------------*/
-// #if(HID_HOTPLUG_ENABLED)
-//     hid_hotplug_callback_handle                 hotplug_callback_handle;
-// #ifdef __linux__
-// #ifdef __GLIBC__
-//     hid_hotplug_callback_handle                 libusb_hotplug_callback_handle;
-// #endif
-// #endif
-// #endif
 
     /*-----------------------------------------------------*\
     | Detection Callbacks                                   |
@@ -210,11 +169,6 @@ private:
     \*-----------------------------------------------------*/
     std::mutex                                  DetectDevicesMutex;
     std::atomic<unsigned int>                   detection_percent;
-    unsigned int                                detection_percent_hid_count;
-    unsigned int                                detection_percent_i2c_count;
-    unsigned int                                detection_percent_i2c_dram_count;
-    unsigned int                                detection_percent_i2c_pci_count;
-    unsigned int                                detection_percent_other_count;
     unsigned int                                detection_percent_numerator;
     unsigned int                                detection_percent_denominator;
     std::vector<bool>                           detection_size_entry_used;
@@ -252,31 +206,6 @@ private:
     bool ProcessPreDetection();
     void ProcessPreDetectionHooks();
     void UpdateDetectorSettings();
-
-#if(HID_HOTPLUG_ENABLED)
-    /*-----------------------------------------------------*\
-    | HID hotplug management functions                      |
-    \*-----------------------------------------------------*/
-    void StartHIDHotplug();
-    void StopHIDHotplug();
-
-    /*-----------------------------------------------------*\
-    | HID hotplug callback functions                        |
-    \*-----------------------------------------------------*/
-    static int HotplugCallbackFunction(hid_hotplug_callback_handle callback_handle, hid_device_info *device, hid_hotplug_event event, void *user_data);
-    static int UnplugCallbackFunction(hid_hotplug_callback_handle callback_handle, hid_device_info *device, hid_hotplug_event event, void *user_data);
-
-#ifdef __linux__
-#ifdef __GLIBC__
-    static int WrappedHotplugCallbackFunction(hid_hotplug_callback_handle callback_handle, hid_device_info *device, hid_hotplug_event event, void *user_data);
-#endif
-#endif
-#endif
-
-    /*-----------------------------------------------------*\
-    | Function for signalling DetectionManager updates to   |
-    | registered callbacks                                  |
-    \*-----------------------------------------------------*/
 };
 
 /*---------------------------------------------------------*\
