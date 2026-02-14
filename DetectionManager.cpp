@@ -70,48 +70,7 @@ const char* UDEV_MUTLI =    QT_TRANSLATE_NOOP("DetectionManager",
                                               "<p>The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.</p>"
                                               "<p>Multiple udev rules files can conflict, it is recommended to remove one of them.</p>");
 
-/*---------------------------------------------------------*\
-| Default hidapi wrappter that just uses default hidapi     |
-\*---------------------------------------------------------*/
-const hidapi_wrapper default_hidapi_wrapper =
-{
-    NULL,
-    (hidapi_wrapper_send_feature_report)            hid_send_feature_report,
-    (hidapi_wrapper_get_feature_report)             hid_get_feature_report,
-    (hidapi_wrapper_get_serial_number_string)       hid_get_serial_number_string,
-    (hidapi_wrapper_open_path)                      hid_open_path,
-    (hidapi_wrapper_enumerate)                      hid_enumerate,
-    (hidapi_wrapper_free_enumeration)               hid_free_enumeration,
-    (hidapi_wrapper_close)                          hid_close,
-    (hidapi_wrapper_error)                          hid_error,
-#if(HID_HOTPLUG_ENABLED)
-    (hidapi_wrapper_hotplug_register_callback)      hid_hotplug_register_callback,
-    (hidapi_wrapper_hotplug_deregister_callback)    hid_hotplug_deregister_callback,
-#endif
-};
 
-/*---------------------------------------------------------*\
-| BasicHIDBlock Implementation                              |
-\*---------------------------------------------------------*/
-bool BasicHIDBlock::compare(hid_device_info* info)
-{
-    return(((vid        == HID_VID_ANY)
-         || (vid == info->vendor_id))
-        && ((pid        == HID_PID_ANY)
-         || (pid == info->product_id))
-        && ((usage_page == HID_USAGE_PAGE_ANY)
-         || (usage_page == info->usage_page))
-        && ((usage      == HID_USAGE_ANY)
-         || (usage      == info->usage))
-        && ((interface  == HID_INTERFACE_ANY)
-         || (interface  == info->interface_number))
-        );
-}
-
-bool BasicHIDBlock::matching_id(hid_device_info* info)
-{
-    return((vid == info->vendor_id) && (pid == info->product_id));
-}
 
 /*---------------------------------------------------------*\
 | DetectionManager Global Instance Pointer                  |
@@ -119,6 +78,7 @@ bool BasicHIDBlock::matching_id(hid_device_info* info)
 DetectionManager* DetectionManager::instance;
 
 DetectionManager::DetectionManager()
+: i2c_group(this), hid_group(this), others_group(this)
 {
     /*-----------------------------------------------------*\
     | Initialize global instance pointer the when created   |
@@ -149,12 +109,6 @@ DetectionManager::DetectionManager()
     dynamic_detectors_processed     = false;
     initial_detection               = true;
 
-#ifdef __linux__
-#ifdef __GLIBC__
-    hidapi_libusb_handle            = nullptr;
-#endif
-#endif
-
     /*-----------------------------------------------------*\
     | Start the background thread                           |
     \*-----------------------------------------------------*/
@@ -167,7 +121,7 @@ DetectionManager::~DetectionManager()
     /*-----------------------------------------------------*\
     | Exit HID in background thread                         |
     \*-----------------------------------------------------*/
-    RunInBackgroundThread(std::bind(&DetectionManager::BackgroundHIDExit, this));
+    // RunInBackgroundThread(std::bind(&DetectionManager::BackgroundHIDExit, this));
 
     /*-----------------------------------------------------*\
     | Mark the background detection thread as not running   |
@@ -208,7 +162,7 @@ DetectionManager* DetectionManager::get()
 \*---------------------------------------------------------*/
 std::vector<i2c_smbus_interface*>& DetectionManager::GetI2CBuses()
 {
-    return(i2c_buses);
+    return(i2c_group.GetI2CBuses());
 }
 
 std::vector<RGBController*>& DetectionManager::GetRGBControllers()
@@ -217,11 +171,19 @@ std::vector<RGBController*>& DetectionManager::GetRGBControllers()
 }
 
 /*---------------------------------------------------------*\
+| Functions for registering I2C buses from within detectors |
+\*---------------------------------------------------------*/
+void DetectionManager::RegisterI2CBus(i2c_smbus_interface *bus)
+{
+    i2c_group.RegisterI2CBus(bus);
+}
+
+/*---------------------------------------------------------*\
 | I2C Bus Detector Registration Function                    |
 \*---------------------------------------------------------*/
 void DetectionManager::RegisterI2CBusDetector(I2CBusDetectorFunction detector)
 {
-    i2c_bus_detectors.push_back(detector);
+    i2c_group.RegisterI2CBusDetector(detector);
 }
 
 /*---------------------------------------------------------*\
@@ -229,91 +191,42 @@ void DetectionManager::RegisterI2CBusDetector(I2CBusDetectorFunction detector)
 \*---------------------------------------------------------*/
 void DetectionManager::RegisterDeviceDetector(std::string name, DeviceDetectorFunction detector)
 {
-    device_detector_strings.push_back(name);
-    device_detectors.push_back(detector);
+    others_group.RegisterDeviceDetector(name, detector);
 }
 
 void DetectionManager::RegisterDynamicDetector(std::string name, DynamicDetectorFunction detector)
 {
-    dynamic_detector_strings.push_back(name);
-    dynamic_detectors.push_back(detector);
+    DynamicDetectorBlock block
+    {
+        .name = name,
+        .detector = detector,
+    };
+    dynamic_detectors.push_back(block);
 }
 
 void DetectionManager::RegisterHIDDeviceDetector(std::string name, HIDDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage)
 {
-    HIDDeviceDetectorBlock block;
-
-    block.name          = name;
-    block.vid           = vid;
-    block.pid           = pid;
-    block.function      = detector;
-    block.interface     = interface;
-    block.usage_page    = usage_page;
-    block.usage         = usage;
-
-    if(block.vid == HID_VID_ANY && block.pid == HID_PID_ANY)
-    {
-        hid_generic_detectors.push_back(block);
-    }
-    else
-    {
-        hid_specific_detectors.push_back(block);
-    }
+    hid_group.RegisterHIDDeviceDetector(name, detector, vid, pid, interface, usage_page, usage);
 }
 
 void DetectionManager::RegisterHIDWrappedDeviceDetector(std::string name, HIDWrappedDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage)
 {
-    HIDWrappedDeviceDetectorBlock block;
-
-    block.name          = name;
-    block.vid           = vid;
-    block.pid           = pid;
-    block.function      = detector;
-    block.interface     = interface;
-    block.usage_page    = usage_page;
-    block.usage         = usage;
-
-    if(block.vid == HID_VID_ANY && block.pid == HID_PID_ANY)
-    {
-        hid_wrapped_generic_detectors.push_back(block);
-    }
-    else
-    {
-        hid_wrapped_specific_detectors.push_back(block);
-    }
+    hid_group.RegisterHIDWrappedDeviceDetector(name, detector, vid, pid, interface, usage_page, usage);
 }
 
 void DetectionManager::RegisterI2CDeviceDetector(std::string name, I2CDeviceDetectorFunction detector)
 {
-    i2c_device_detector_strings.push_back(name);
-    i2c_device_detectors.push_back(detector);
+    i2c_group.RegisterI2CDeviceDetector(name, detector);
 }
 
 void DetectionManager::RegisterI2CDRAMDeviceDetector(std::string name, I2CDRAMDeviceDetectorFunction detector, uint16_t jedec_id, uint8_t dram_type)
 {
-    I2CDRAMDeviceDetectorBlock block;
-
-    block.name          = name;
-    block.function      = detector;
-    block.jedec_id      = jedec_id;
-    block.dram_type     = dram_type;
-
-    i2c_dram_device_detectors.push_back(block);
+    i2c_group.RegisterI2CDRAMDeviceDetector(name, detector, jedec_id, dram_type);
 }
 
 void DetectionManager::RegisterI2CPCIDeviceDetector(std::string name, I2CPCIDeviceDetectorFunction detector, uint16_t ven_id, uint16_t dev_id, uint16_t subven_id, uint16_t subdev_id, uint8_t i2c_addr)
 {
-    I2CPCIDeviceDetectorBlock block;
-
-    block.name          = name;
-    block.function      = detector;
-    block.ven_id        = ven_id;
-    block.dev_id        = dev_id;
-    block.subven_id     = subven_id;
-    block.subdev_id     = subdev_id;
-    block.i2c_addr      = i2c_addr;
-
-    i2c_pci_device_detectors.push_back(block);
+    i2c_group.RegisterI2CPCIDeviceDetector(name, detector, ven_id, dev_id, subven_id, subdev_id, i2c_addr);
 }
 
 /*---------------------------------------------------------*\
@@ -329,16 +242,13 @@ void DetectionManager::RegisterPreDetectionHook(PreDetectionHookFunction hook)
 \*---------------------------------------------------------*/
 void DetectionManager::RegisterDetectionCallback(DetectionCallback new_callback, void * new_callback_arg)
 {
-    DetectionCallbackMutex.lock();
+    std::unique_lock<std::mutex> lock(DetectionCallbackMutex);
 
     for(std::size_t idx = 0; idx < DetectionCallbacks.size(); idx++)
     {
         if(DetectionCallbacks[idx] == new_callback && DetectionCallbackArgs[idx] == new_callback_arg)
         {
-            DetectionCallbackMutex.unlock();
-
             LOG_TRACE("[%s] Tried to register an already registered detection callback, skipping.  Total callbacks registered: %d", DETECTIONMANAGER, DetectionCallbacks.size());
-
             return;
         }
     }
@@ -346,14 +256,12 @@ void DetectionManager::RegisterDetectionCallback(DetectionCallback new_callback,
     DetectionCallbacks.push_back(new_callback);
     DetectionCallbackArgs.push_back(new_callback_arg);
 
-    DetectionCallbackMutex.unlock();
-
     LOG_TRACE("[%s] Registered detection callback.  Total callbacks registered: %d", DETECTIONMANAGER, DetectionCallbacks.size());
 }
 
 void DetectionManager::UnregisterDetectionCallback(DetectionCallback callback, void *callback_arg)
 {
-    DetectionCallbackMutex.lock();
+    std::unique_lock<std::mutex> lock(DetectionCallbackMutex);
 
     for(std::size_t idx = 0; idx < DetectionCallbacks.size(); idx++)
     {
@@ -364,27 +272,7 @@ void DetectionManager::UnregisterDetectionCallback(DetectionCallback callback, v
         }
     }
 
-    DetectionCallbackMutex.unlock();
-
     LOG_TRACE("[%s] Unregistered detection callback.  Total callbacks registered: %d", DETECTIONMANAGER, DetectionCallbacks.size());
-}
-
-/*---------------------------------------------------------*\
-| Functions for registering I2C buses from within detectors |
-\*---------------------------------------------------------*/
-void DetectionManager::RegisterI2CBus(i2c_smbus_interface *bus)
-{
-    LOG_INFO("[%s] Registering I2C interface: %s Device %04X:%04X Subsystem: %04X:%04X", DETECTIONMANAGER, bus->device_name, bus->pci_vendor, bus->pci_device, bus->pci_subsystem_vendor, bus->pci_subsystem_device);
-
-    /*-----------------------------------------------------*\
-    | Add the new bus to the list                           |
-    \*-----------------------------------------------------*/
-    i2c_buses.push_back(bus);
-
-    /*-----------------------------------------------------*\
-    | Signal I2C Bus List Update                            |
-    \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_I2C_BUS_REGISTERED);
 }
 
 /*---------------------------------------------------------*\
@@ -576,6 +464,8 @@ void DetectionManager::RunInBackgroundThread(std::function<void()> coroutine)
 \*---------------------------------------------------------*/
 void DetectionManager::BackgroundDetectDevices()
 {
+    LOG_DEBUG("start detect device");
+
     /*-----------------------------------------------------*\
     | Lock detection mutex                                  |
     \*-----------------------------------------------------*/
@@ -589,11 +479,6 @@ void DetectionManager::BackgroundDetectDevices()
     /*-----------------------------------------------------*\
     | Initialize local variables                            |
     \*-----------------------------------------------------*/
-    hid_device_info*    current_hid_device;
-    json                detector_settings;
-    hid_device_info*    hid_devices                 = NULL;
-    bool                hid_safe_mode               = false;
-    unsigned int        initial_detection_delay_ms  = 0;
 
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|               Start device detection               |");
@@ -611,19 +496,11 @@ void DetectionManager::BackgroundDetectDevices()
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
-    detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
-
-    /*-----------------------------------------------------*\
-    | Check HID safe mode setting                           |
-    \*-----------------------------------------------------*/
-    if(detector_settings.contains("hid_safe_mode"))
-    {
-        hid_safe_mode = detector_settings["hid_safe_mode"];
-    }
-
+    json detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
     /*-----------------------------------------------------*\
     | Check initial detection delay setting                 |
     \*-----------------------------------------------------*/
+    unsigned int initial_detection_delay_ms  = 0;
     if(detector_settings.contains("initial_detection_delay_ms"))
     {
         initial_detection_delay_ms = detector_settings["initial_detection_delay_ms"];
@@ -648,7 +525,7 @@ void DetectionManager::BackgroundDetectDevices()
         | Also initialize HID on first detection, as this   |
         | must be called from the background thread         |
         \*-------------------------------------------------*/
-        BackgroundHIDInit();
+        // BackgroundHIDInit();
 
         initial_detection = false;
     }
@@ -663,101 +540,118 @@ void DetectionManager::BackgroundDetectDevices()
         detection_size_entry_used[size_idx] = false;
     }
 
-    /*-----------------------------------------------------*\
-    | Enumerate HID devices unless using HID safe mode      |
-    \*-----------------------------------------------------*/
-    if(!hid_safe_mode)
-    {
-        hid_devices = hid_enumerate(0, 0);
-    }
+    detection_percent_denominator = i2c_group.GetNumDetectors()
+                                    + hid_group.GetNumDetectors()
+                                    + others_group.GetNumDetectors();
+    /*------------------------------------------------------*\
+    | Run groups detectors in order                          |
+    | These internally register RGB devices as they're found |
+    | Theoretically we can run these in parallel             |
+    \*------------------------------------------------------*/
+    i2c_group.Prepare();
+    i2c_group.RunDetection();
 
-    /*-----------------------------------------------------*\
-    | Calculate the percentage denominator by adding the    |
-    | number of I2C and miscellaneous detectors and the     |
-    | number of enumerated HID devices                      |
-    |                                                       |
-    | Start by iterating through all HID devices in list to |
-    | get a total count                                     |
-    \*-----------------------------------------------------*/
-    detection_percent_i2c_count         = (unsigned int)i2c_device_detectors.size();
-    detection_percent_i2c_dram_count    = (unsigned int)i2c_dram_device_detectors.size();
-    detection_percent_i2c_pci_count     = (unsigned int)i2c_pci_device_detectors.size();
+    hid_group.Prepare();
+    hid_group.RunDetection();
 
-    if(hid_safe_mode)
-    {
-        detection_percent_hid_count     = (unsigned int)hid_generic_detectors.size() + (unsigned int)hid_specific_detectors.size();
-    }
-    else
-    {
-        current_hid_device              = hid_devices;
-        detection_percent_hid_count     = 0;
+    others_group.Prepare();
+    others_group.RunDetection();
 
-        while(current_hid_device)
-        {
-            detection_percent_hid_count++;
+//     /*-----------------------------------------------------*\
+//     | Enumerate HID devices unless using HID safe mode      |
+//     \*-----------------------------------------------------*/
+//     if(!hid_safe_mode)
+//     {
+//         hid_devices = hid_enumerate(0, 0);
+//     }
 
-            current_hid_device          = current_hid_device->next;
-        }
-    }
+//     /*-----------------------------------------------------*\
+//     | Calculate the percentage denominator by adding the    |
+//     | number of I2C and miscellaneous detectors and the     |
+//     | number of enumerated HID devices                      |
+//     |                                                       |
+//     | Start by iterating through all HID devices in list to |
+//     | get a total count                                     |
+//     \*-----------------------------------------------------*/
+//     detection_percent_i2c_count         = (unsigned int)i2c_device_detectors.size();
+//     detection_percent_i2c_dram_count    = (unsigned int)i2c_dram_device_detectors.size();
+//     detection_percent_i2c_pci_count     = (unsigned int)i2c_pci_device_detectors.size();
 
-    detection_percent_other_count       = (unsigned int)device_detectors.size();
+//     if(hid_safe_mode)
+//     {
+//         detection_percent_hid_count     = (unsigned int)hid_generic_detectors.size() + (unsigned int)hid_specific_detectors.size();
+//     }
+//     else
+//     {
+//         current_hid_device              = hid_devices;
+//         detection_percent_hid_count     = 0;
 
-    detection_percent_denominator       = detection_percent_i2c_count
-                                        + detection_percent_i2c_dram_count
-                                        + detection_percent_i2c_pci_count
-                                        + detection_percent_other_count
-                                        + detection_percent_hid_count;
+//         while(current_hid_device)
+//         {
+//             detection_percent_hid_count++;
 
-    /*-----------------------------------------------------*\
-    | Detect I2C interfaces                                 |
-    \*-----------------------------------------------------*/
-    BackgroundDetectI2CBuses();
+//             current_hid_device          = current_hid_device->next;
+//         }
+//     }
 
-    /*-----------------------------------------------------*\
-    | Detect I2C devices                                    |
-    \*-----------------------------------------------------*/
-    BackgroundDetectI2CDevices(detector_settings);
+//     detection_percent_other_count       = (unsigned int)device_detectors.size();
 
-    /*-----------------------------------------------------*\
-    | Detect I2C DRAM devices                               |
-    \*-----------------------------------------------------*/
-    BackgroundDetectI2CDRAMDevices(detector_settings);
+//     detection_percent_denominator       = detection_percent_i2c_count
+//                                         + detection_percent_i2c_dram_count
+//                                         + detection_percent_i2c_pci_count
+//                                         + detection_percent_other_count
+//                                         + detection_percent_hid_count;
 
-    /*-----------------------------------------------------*\
-    | Detect I2C PCI devices                                |
-    \*-----------------------------------------------------*/
-    BackgroundDetectI2CPCIDevices(detector_settings);
+//     /*-----------------------------------------------------*\
+//     | Detect I2C interfaces                                 |
+//     \*-----------------------------------------------------*/
+//     BackgroundDetectI2CBuses();
 
-    /*-----------------------------------------------------*\
-    | Detect HID devices                                    |
-    \*-----------------------------------------------------*/
-    if(hid_safe_mode)
-    {
-        BackgroundDetectHIDDevicesSafe(detector_settings);
-    }
-    else
-    {
-#if(HID_HOTPLUG_ENABLED)
-        StopHIDHotplug();
-        StartHIDHotplug();
-#else
-        BackgroundDetectHIDDevices(hid_devices, detector_settings);
-#endif
-    }
+//     /*-----------------------------------------------------*\
+//     | Detect I2C devices                                    |
+//     \*-----------------------------------------------------*/
+//     BackgroundDetectI2CDevices(detector_settings);
 
-    /*-----------------------------------------------------*\
-    | Detect Wrapped HID devices (GLIBC Linux only)         |
-    \*-----------------------------------------------------*/
-#ifdef __linux__
-#ifdef __GLIBC__
-    BackgroundDetectHIDDevicesWrapped(hid_devices, detector_settings);
-#endif
-#endif
+//     /*-----------------------------------------------------*\
+//     | Detect I2C DRAM devices                               |
+//     \*-----------------------------------------------------*/
+//     BackgroundDetectI2CDRAMDevices(detector_settings);
 
-    /*-----------------------------------------------------*\
-    | Detect other devices                                  |
-    \*-----------------------------------------------------*/
-    BackgroundDetectOtherDevices(detector_settings);
+//     /*-----------------------------------------------------*\
+//     | Detect I2C PCI devices                                |
+//     \*-----------------------------------------------------*/
+//     BackgroundDetectI2CPCIDevices(detector_settings);
+
+//     /*-----------------------------------------------------*\
+//     | Detect HID devices                                    |
+//     \*-----------------------------------------------------*/
+//     if(hid_safe_mode)
+//     {
+//         BackgroundDetectHIDDevicesSafe(detector_settings);
+//     }
+//     else
+//     {
+// #if(HID_HOTPLUG_ENABLED)
+//         StopHIDHotplug();
+//         StartHIDHotplug();
+// #else
+//         BackgroundDetectHIDDevices(hid_devices, detector_settings);
+// #endif
+//     }
+
+//     /*-----------------------------------------------------*\
+//     | Detect Wrapped HID devices (GLIBC Linux only)         |
+//     \*-----------------------------------------------------*/
+// #ifdef __linux__
+// #ifdef __GLIBC__
+//     BackgroundDetectHIDDevicesWrapped(hid_devices, detector_settings);
+// #endif
+// #endif
+
+//     /*-----------------------------------------------------*\
+//     | Detect other devices                                  |
+//     \*-----------------------------------------------------*/
+//     BackgroundDetectOtherDevices(detector_settings);
 
     /*-----------------------------------------------------*\
     | Signal that detection progress reached 100%           |
@@ -814,746 +708,748 @@ void DetectionManager::BackgroundDetectDevices()
         LOG_DIALOG("%s", UDEV_MISSING);
 
         udev_multiple       = false;
-        i2c_interface_fail  = false;
     }
 
     /*-----------------------------------------------------*\
     | If multiple udev rules files are installed, show a    |
     | dialog                                                |
     \*-----------------------------------------------------*/
-    if(udev_multiple)
+    else if(udev_multiple)
     {
         LOG_DIALOG("%s", UDEV_MUTLI);
-
-        i2c_interface_fail  = false;
     }
-
-#endif
 
     /*-----------------------------------------------------*\
     | If any i2c interfaces failed to detect due to an      |
     | error condition, show a dialog                        |
     \*-----------------------------------------------------*/
-    if(i2c_interface_fail)
+    else if (i2c_group.I2CInterfaceFailure())
     {
-#ifdef _WIN32
-        LOG_DIALOG("%s", I2C_ERR_WIN);
-#endif
-#ifdef __linux__
         LOG_DIALOG("%s", I2C_ERR_LINUX);
-#endif
-    }
-}
-
-void DetectionManager::BackgroundDetectI2CBuses()
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|             Detecting I2C interfaces               |");
-    LOG_INFO("------------------------------------------------------");
-
-    detection_percent   = 0;
-    detection_string    = "Detecting I2C interfaces";
-
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-    i2c_interface_fail = false;
-
-    for(std::size_t i2c_bus_detector_idx = 0; i2c_bus_detector_idx < i2c_bus_detectors.size(); i2c_bus_detector_idx++)
-    {
-        if(i2c_bus_detectors[i2c_bus_detector_idx]() == false)
-        {
-            i2c_interface_fail = true;
-        }
-    }
-}
-
-void DetectionManager::BackgroundDetectI2CDevices(json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|               Detecting I2C devices                |");
-    LOG_INFO("------------------------------------------------------");
-
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_device_detectors.size(); i2c_detector_idx++)
-    {
-        /*-------------------------------------------------*\
-        | Update detection string                           |
-        \*-------------------------------------------------*/
-        detection_string = i2c_device_detector_strings[i2c_detector_idx].c_str();
-
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
-
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
-
-        /*-------------------------------------------------*\
-        | If enabled, signal progress changed and call the  |
-        | detector                                          |
-        \*-------------------------------------------------*/
-        if(this_device_enabled)
-        {
-            SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-            DetectedControllers detected_controllers = i2c_device_detectors[i2c_detector_idx](i2c_buses);
-
-            for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-            {
-                RegisterRGBController(detected_controllers[detected_controller_idx]);
-            }
-        }
-
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
-
-        /*-------------------------------------------------*\
-        | Update detection percent                          |
-        \*-------------------------------------------------*/
-        unsigned int detection_percent_numerator = i2c_detector_idx;
-
-        detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-    }
-}
-
-void DetectionManager::BackgroundDetectI2CDRAMDevices(json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|            Detecting I2C DRAM modules              |");
-    LOG_INFO("------------------------------------------------------");
-
-    detection_string = "Reading DRAM SPD Information";
-
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-    for(std::size_t bus = 0; bus < i2c_buses.size() && IsAnyDimmDetectorEnabled(detector_settings); bus++)
-    {
-        IF_DRAM_SMBUS(i2c_buses[bus]->pci_vendor, i2c_buses[bus]->pci_device)
-        {
-            std::vector<SPDWrapper> slots;
-            SPDMemoryType dram_type = SPD_RESERVED;
-
-            for(uint8_t spd_addr = 0x50; spd_addr < 0x58; spd_addr++)
-            {
-                SPDDetector spd(i2c_buses[bus], spd_addr, dram_type);
-                if(spd.is_valid())
-                {
-                    SPDWrapper accessor(spd);
-                    dram_type = spd.memory_type();
-                    LOG_INFO("[%s] Detected occupied slot %d, bus %d, type %s", DETECTIONMANAGER, spd_addr - 0x50 + 1, bus, spd_memory_type_name[dram_type]);
-                    LOG_DEBUG("[%s] JEDEC ID: 0x%04x", DETECTIONMANAGER, accessor.jedec_id());
-                    slots.push_back(accessor);
-                }
-            }
-
-            for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
-            {
-                if((i2c_dram_device_detectors[i2c_detector_idx].dram_type == dram_type) && is_jedec_in_slots(slots, i2c_dram_device_detectors[i2c_detector_idx].jedec_id))
-                {
-                    detection_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-
-                    /*-------------------------------------*\
-                    | Check if this detector is enabled     |
-                    \*-------------------------------------*/
-                    bool this_device_enabled = true;
-
-                    if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-                    {
-                        this_device_enabled = detector_settings["detectors"][detection_string];
-                    }
-
-                    LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
-
-                    if(this_device_enabled)
-                    {
-                        SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-                        std::vector<SPDWrapper*> matching_slots = slots_with_jedec(slots, i2c_dram_device_detectors[i2c_detector_idx].jedec_id);
-
-                        DetectedControllers detected_controllers = i2c_dram_device_detectors[i2c_detector_idx].function(i2c_buses[bus], matching_slots, i2c_dram_device_detectors[i2c_detector_idx].name);
-
-                        for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-                        {
-                            RegisterRGBController(detected_controllers[detected_controller_idx]);
-                        }
-                    }
-
-                    LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
-                }
-
-                /*-----------------------------------------*\
-                | Update detection percent                  |
-                \*-----------------------------------------*/
-                unsigned int detection_percent_numerator = detection_percent_i2c_count
-                                                         + i2c_detector_idx;
-
-                detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-            }
-        }
-    }
-}
-
-void DetectionManager::BackgroundDetectI2CPCIDevices(json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|               Detecting I2C PCI devices            |");
-    LOG_INFO("------------------------------------------------------");
-
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_pci_device_detectors.size(); i2c_detector_idx++)
-    {
-        detection_string = i2c_pci_device_detectors[i2c_detector_idx].name.c_str();
-
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
-
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
-
-        if(this_device_enabled)
-        {
-            SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-            for(std::size_t bus = 0; bus < i2c_buses.size(); bus++)
-            {
-                if(i2c_buses[bus]->pci_vendor           == i2c_pci_device_detectors[i2c_detector_idx].ven_id    &&
-                   i2c_buses[bus]->pci_device           == i2c_pci_device_detectors[i2c_detector_idx].dev_id    &&
-                   i2c_buses[bus]->pci_subsystem_vendor == i2c_pci_device_detectors[i2c_detector_idx].subven_id &&
-                   i2c_buses[bus]->pci_subsystem_device == i2c_pci_device_detectors[i2c_detector_idx].subdev_id)
-                {
-                    DetectedControllers detected_controllers = i2c_pci_device_detectors[i2c_detector_idx].function(i2c_buses[bus], i2c_pci_device_detectors[i2c_detector_idx].i2c_addr, i2c_pci_device_detectors[i2c_detector_idx].name);
-
-                    for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-                    {
-                        RegisterRGBController(detected_controllers[detected_controller_idx]);
-                    }
-                }
-            }
-        }
-
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
-
-        /*-------------------------------------------------*\
-        | Update detection percent                          |
-        \*-------------------------------------------------*/
-        unsigned int detection_percent_numerator = detection_percent_i2c_count
-                                                 + detection_percent_i2c_dram_count
-                                                 + i2c_detector_idx;
-
-        detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-    }
-}
-
-void DetectionManager::BackgroundDetectHIDDevices(hid_device_info* hid_devices, json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|               Detecting HID devices                |");
-    LOG_INFO("------------------------------------------------------");
-
-    hid_device_info* current_hid_device = hid_devices;
-
-    /*-----------------------------------------------------*\
-    | Iterate through all devices in list and run detectors |
-    \*-----------------------------------------------------*/
-    unsigned int hid_device_count = 0;
-
-    while(current_hid_device)
-    {
-        RunHIDDetector(current_hid_device, detector_settings);
-        RunHIDWrappedDetector(&default_hidapi_wrapper, current_hid_device, detector_settings);
-
-        /*-------------------------------------------------*\
-        | Update detection percent                          |
-        \*-------------------------------------------------*/
-        hid_device_count++;
-
-        unsigned int detection_percent_numerator = detection_percent_i2c_count
-                                                 + detection_percent_i2c_dram_count
-                                                 + detection_percent_i2c_pci_count
-                                                 + hid_device_count;
-
-        detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-
-        /*-------------------------------------------------*\
-        | Move on to the next HID device                    |
-        \*-------------------------------------------------*/
-        current_hid_device = current_hid_device->next;
     }
 
-    /*-----------------------------------------------------*\
-    | Done using the device list, free it                   |
-    \*-----------------------------------------------------*/
-    hid_free_enumeration(hid_devices);
-}
-
-void DetectionManager::BackgroundDetectHIDDevicesSafe(json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|               Detecting HID devices                |");
-    LOG_INFO("|                  with safe mode                    |");
-    LOG_INFO("------------------------------------------------------");
-
-    /*-----------------------------------------------------*\
-    | Loop through all available detectors.  If all         |
-    | required information matches, run the detector        |
-    \*-----------------------------------------------------*/
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_specific_detectors.size(); hid_detector_idx++)
-    {
-        HIDDeviceDetectorBlock & detector = hid_specific_detectors[hid_detector_idx];
-
-        LOG_VERBOSE("[%s] Trying to run detector for [%s] (for %04x:%04x)", DETECTIONMANAGER, detector.name.c_str(), detector.vid, detector.pid);
-
-        hid_device_info* current_hid_device = hid_enumerate(detector.vid, detector.pid);
-
-        while(current_hid_device)
-        {
-            if(detector.compare(current_hid_device))
-            {
-                detection_string = detector.name.c_str();
-
-                /*-----------------------------------------*\
-                | Check if this detector is enabled or      |
-                | needs to be added to the settings list    |
-                \*-----------------------------------------*/
-                bool this_device_enabled = true;
-
-                if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-                {
-                    this_device_enabled = detector_settings["detectors"][detection_string];
-                }
-
-                LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
-
-                if(this_device_enabled)
-                {
-                    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-                    DetectedControllers detected_controllers = detector.function(current_hid_device, hid_specific_detectors[hid_detector_idx].name);
-
-                    for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-                    {
-                        RegisterRGBController(detected_controllers[detected_controller_idx]);
-                    }
-                }
-
-                LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
-            }
-
-            current_hid_device = current_hid_device->next;
-
-            /*---------------------------------------------*\
-            | Update detection percent                      |
-            \*---------------------------------------------*/
-            unsigned int detection_percent_numerator = detection_percent_i2c_count
-                                                    + detection_percent_i2c_dram_count
-                                                    + detection_percent_i2c_pci_count
-                                                    + hid_detector_idx;
-
-            detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-        }
-
-        hid_free_enumeration(current_hid_device);
-    }
-}
-
-#ifdef __linux__
-#ifdef __GLIBC__
-void DetectionManager::BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|            Detecting libusb HID devices            |");
-    LOG_INFO("------------------------------------------------------");
-
-    /*-----------------------------------------------------*\
-    | Load the libhidapi-libusb library                     |
-    \*-----------------------------------------------------*/
-    if(hidapi_libusb_handle)
-    {
-        hid_devices                         = hidapi_libusb_wrapper.hid_enumerate(0, 0);
-
-        hid_device_info* current_hid_device = hid_devices;
-
-        /*-------------------------------------------------*\
-        | Iterate through all devices in list and run       |
-        | detectors                                         |
-        \*-------------------------------------------------*/
-        unsigned int hid_device_count       = 0;
-
-        while(current_hid_device)
-        {
-            RunHIDWrappedDetector(&hidapi_libusb_wrapper, current_hid_device, detector_settings);
-
-            /*---------------------------------------------*\
-            | Update detection percent                      |
-            \*---------------------------------------------*/
-            hid_device_count++;
-
-            detection_percent = (unsigned int)(100.0f * ((i2c_device_detectors.size() + i2c_dram_device_detectors.size() + i2c_pci_device_detectors.size() + hid_device_count) / detection_percent_denominator));
-
-            /*---------------------------------------------*\
-            | Move on to the next HID device                |
-            \*---------------------------------------------*/
-            current_hid_device = current_hid_device->next;
-        }
-
-        /*-------------------------------------------------*\
-        | Done using the device list, free it               |
-        \*-------------------------------------------------*/
-        hidapi_libusb_wrapper.hid_free_enumeration(hid_devices);
-    }
-}
-#endif
 #endif
 
-void DetectionManager::BackgroundDetectOtherDevices(json detector_settings)
-{
-    LOG_INFO("------------------------------------------------------");
-    LOG_INFO("|              Detecting other devices               |");
-    LOG_INFO("------------------------------------------------------");
-
-    for(std::size_t detector_idx = 0; detector_idx < device_detectors.size(); detector_idx++)
-    {
-        detection_string = device_detector_strings[detector_idx].c_str();
-
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        bool this_device_enabled = true;
-
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-        {
-            this_device_enabled = detector_settings["detectors"][detection_string];
-        }
-
-        LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
-
-        if(this_device_enabled)
-        {
-            SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-            DetectedControllers detected_controllers = device_detectors[detector_idx]();
-
-            for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-            {
-                RegisterRGBController(detected_controllers[detected_controller_idx]);
-            }
-        }
-
-        LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
-
-        /*-------------------------------------------------*\
-        | Update detection percent                          |
-        \*-------------------------------------------------*/
-        unsigned int detection_percent_numerator = detection_percent_i2c_count
-                                                 + detection_percent_i2c_dram_count
-                                                 + detection_percent_i2c_pci_count
-                                                 + detection_percent_hid_count
-                                                 + detector_idx;
-
-        detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
-    }
-}
-
-void DetectionManager::BackgroundHIDExit()
-{
+#ifdef _WIN32
     /*-----------------------------------------------------*\
-    | Exit HID interface                                    |
+    | If any i2c interfaces failed to detect due to an      |
+    | error condition, show a dialog                        |
     \*-----------------------------------------------------*/
-    int hid_status = hid_exit();
-
-    LOG_DEBUG("[%s] Exiting HID interface: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
-}
-
-void DetectionManager::BackgroundHIDInit()
-{
-    /*-----------------------------------------------------*\
-    | Initialize HID interface                              |
-    \*-----------------------------------------------------*/
-    int hid_status = hid_init();
-
-    LOG_DEBUG("[%s] Initializing HID interfaces: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
-
-#ifdef __linux__
-#ifdef __GLIBC__
-    /*-----------------------------------------------------*\
-    | Load the libhidapi-libusb library                     |
-    \*-----------------------------------------------------*/
-#if(HID_HOTPLUG_ENABLED)
-    hidapi_libusb_handle = dlopen("libhidapi-hotplug-libusb.so", RTLD_NOW | RTLD_NODELETE | RTLD_DEEPBIND);
-#else
-    hidapi_libusb_handle = dlopen("libhidapi-libusb.so", RTLD_NOW | RTLD_NODELETE | RTLD_DEEPBIND);
-#endif
-
-    if(hidapi_libusb_handle)
+    if(i2c_group.I2CInterfaceFailure())
     {
-        LOG_DEBUG("[%s] Loaded libusb HID library", DETECTIONMANAGER);
-
-        /*-------------------------------------------------*\
-        | Create a wrapper with the libusb functions        |
-        \*-------------------------------------------------*/
-        hidapi_libusb_wrapper =
-        {
-            .dyn_handle                         = hidapi_libusb_handle,
-            .hid_send_feature_report            = (hidapi_wrapper_send_feature_report)          dlsym(hidapi_libusb_handle,"hid_send_feature_report"),
-            .hid_get_feature_report             = (hidapi_wrapper_get_feature_report)           dlsym(hidapi_libusb_handle,"hid_get_feature_report"),
-            .hid_get_serial_number_string       = (hidapi_wrapper_get_serial_number_string)     dlsym(hidapi_libusb_handle,"hid_get_serial_number_string"),
-            .hid_open_path                      = (hidapi_wrapper_open_path)                    dlsym(hidapi_libusb_handle,"hid_open_path"),
-            .hid_enumerate                      = (hidapi_wrapper_enumerate)                    dlsym(hidapi_libusb_handle,"hid_enumerate"),
-            .hid_free_enumeration               = (hidapi_wrapper_free_enumeration)             dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
-            .hid_close                          = (hidapi_wrapper_close)                        dlsym(hidapi_libusb_handle,"hid_close"),
-            .hid_error                          = (hidapi_wrapper_error)                        dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
-#if(HID_HOTPLUG_ENABLED)
-            .hid_hotplug_register_callback      = (hidapi_wrapper_hotplug_register_callback)    dlsym(hidapi_libusb_handle,"hid_hotplug_register_callback"),
-            .hid_hotplug_deregister_callback    = (hidapi_wrapper_hotplug_deregister_callback)  dlsym(hidapi_libusb_handle,"hid_hotplug_deregister_callback"),
-#endif
-        };
+        LOG_DIALOG("%s", I2C_ERR_WIN);
     }
-    else
-    {
-        LOG_DEBUG("[%s] Failed to load libusb HID library", DETECTIONMANAGER);
-    }
-#endif
 #endif
 }
 
-/*---------------------------------------------------------*\
-| Functions to run detectors                                |
-\*---------------------------------------------------------*/
-void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json detector_settings)
-{
-    if(LogManager::get()->getLoglevel() >= LL_DEBUG)
-    {
-        const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
-        const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
+// void DetectionManager::BackgroundDetectI2CBuses()
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|             Detecting I2C interfaces               |");
+//     LOG_INFO("------------------------------------------------------");
 
-        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
-    }
+//     detection_percent   = 0;
+//     detection_string    = "Detecting I2C interfaces";
 
-    detection_string = "";
+//     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+//     i2c_interface_fail = false;
 
-    /*-----------------------------------------------------*\
-    | Loop through all available detectors.  If all         |
-    | required information matches, run the detector.       |
-    \*-----------------------------------------------------*/
-    bool skip_generic_detectors = false;
+//     for(std::size_t i2c_bus_detector_idx = 0; i2c_bus_detector_idx < i2c_bus_detectors.size(); i2c_bus_detector_idx++)
+//     {
+//         if(i2c_bus_detectors[i2c_bus_detector_idx]() == false)
+//         {
+//             i2c_interface_fail = true;
+//         }
+//     }
+// }
 
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < (hid_specific_detectors.size() + hid_generic_detectors.size()); hid_detector_idx++)
-    {
-        /*-------------------------------------------------*\
-        | Loop through all specific detectors (those with   |
-        | VID/PID matching) first, then generic detectors   |
-        | (those that only check IPU values) second.        |
-        \*-------------------------------------------------*/
-        bool generic_detector = false;
-        if(hid_detector_idx >= hid_specific_detectors.size())
-        {
-            generic_detector = true;
-        }
+// void DetectionManager::BackgroundDetectI2CDevices(json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|               Detecting I2C devices                |");
+//     LOG_INFO("------------------------------------------------------");
 
-        /*-------------------------------------------------*\
-        | Get a pointer to the current detector             |
-        \*-------------------------------------------------*/
-        HIDDeviceDetectorBlock* detector;
+//     for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_device_detectors.size(); i2c_detector_idx++)
+//     {
+//         /*-------------------------------------------------*\
+//         | Update detection string                           |
+//         \*-------------------------------------------------*/
+//         detection_string = i2c_device_detector_strings[i2c_detector_idx].c_str();
 
-        if(generic_detector)
-        {
-            detector = &hid_generic_detectors[hid_detector_idx - hid_specific_detectors.size()];
-        }
-        else
-        {
-            detector = &hid_specific_detectors[hid_detector_idx];
-        }
+//         /*-------------------------------------------------*\
+//         | Check if this detector is enabled                 |
+//         \*-------------------------------------------------*/
+//         bool this_device_enabled = true;
 
-        /*-------------------------------------------------*\
-        | Try to use this detector if its VID/PID matches   |
-        | or if it is a generic detector and generic        |
-        | detectors are not skipped.                        |
-        \*-------------------------------------------------*/
-        if((detector->matching_id(current_hid_device))
-        || (generic_detector && !skip_generic_detectors))
-        {
-            /*---------------------------------------------*\
-            | Check if this detector is enabled or needs to |
-            | be added to the settings list                 |
-            \*---------------------------------------------*/
-            bool this_device_enabled = true;
+//         if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//         {
+//             this_device_enabled = detector_settings["detectors"][detection_string];
+//         }
 
-            if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-            {
-                this_device_enabled = detector_settings["detectors"][detection_string];
-            }
+//         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
-            LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+//         /*-------------------------------------------------*\
+//         | If enabled, signal progress changed and call the  |
+//         | detector                                          |
+//         \*-------------------------------------------------*/
+//         if(this_device_enabled)
+//         {
+//             SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-            if(this_device_enabled)
-            {
-                /*-----------------------------------------*\
-                | If this was a specific detector, this     |
-                | device VID/PID has at least one specific  |
-                | detector available, so ignore generic     |
-                | detectors.                                |
-                \*-----------------------------------------*/
-                if(!generic_detector)
-                {
-                    skip_generic_detectors = true;
-                }
+//             DetectedControllers detected_controllers = i2c_device_detectors[i2c_detector_idx](i2c_buses);
 
-                /*-----------------------------------------*\
-                | Now compare the detector to see if it     |
-                | should run.                               |
-                \*-----------------------------------------*/
-                if(detector->compare(current_hid_device))
-                {
-                    detection_string = detector->name.c_str();
+//             for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//             {
+//                 RegisterRGBController(detected_controllers[detected_controller_idx]);
+//             }
+//         }
 
-                    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+//         LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
 
-                    DetectedControllers detected_controllers = detector->function(current_hid_device, detector->name);
+//         /*-------------------------------------------------*\
+//         | Update detection percent                          |
+//         \*-------------------------------------------------*/
+//         unsigned int detection_percent_numerator = i2c_detector_idx;
 
-                    for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-                    {
-                        detected_controllers[detected_controller_idx]->detection_path = std::string(current_hid_device->path);
+//     }
+// }
 
-#if(HID_HOTPLUG_ENABLED)
-                        int handle;
-                        hid_hotplug_register_callback(current_hid_device->vendor_id, current_hid_device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, detected_controllers[detected_controller_idx], &handle);
-#endif
-                        RegisterRGBController(detected_controllers[detected_controller_idx]);
-                    }
+// void DetectionManager::BackgroundDetectI2CDRAMDevices(json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|            Detecting I2C DRAM modules              |");
+//     LOG_INFO("------------------------------------------------------");
 
-                    if(detected_controllers.size() > 0)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
+//     detection_string = "Reading DRAM SPD Information";
 
-void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, json detector_settings)
-{
-    if(LogManager::get()->getLoglevel() >= LL_DEBUG)
-    {
-        const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
-        const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
+//     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
-    }
+//     for(std::size_t bus = 0; bus < i2c_buses.size() && IsAnyDimmDetectorEnabled(detector_settings); bus++)
+//     {
+//         IF_DRAM_SMBUS(i2c_buses[bus]->pci_vendor, i2c_buses[bus]->pci_device)
+//         {
+//             std::vector<SPDWrapper> slots;
+//             SPDMemoryType dram_type = SPD_RESERVED;
 
-    detection_string = "";
+//             for(uint8_t spd_addr = 0x50; spd_addr < 0x58; spd_addr++)
+//             {
+//                 SPDDetector spd(i2c_buses[bus], spd_addr, dram_type);
+//                 if(spd.is_valid())
+//                 {
+//                     SPDWrapper accessor(spd);
+//                     dram_type = spd.memory_type();
+//                     LOG_INFO("[%s] Detected occupied slot %d, bus %d, type %s", DETECTIONMANAGER, spd_addr - 0x50 + 1, bus, spd_memory_type_name[dram_type]);
+//                     LOG_DEBUG("[%s] JEDEC ID: 0x%04x", DETECTIONMANAGER, accessor.jedec_id());
+//                     slots.push_back(accessor);
+//                 }
+//             }
 
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+//             for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
+//             {
+//                 if((i2c_dram_device_detectors[i2c_detector_idx].dram_type == dram_type) && is_jedec_in_slots(slots, i2c_dram_device_detectors[i2c_detector_idx].jedec_id))
+//                 {
+//                     detection_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
 
-    /*-----------------------------------------------------*\
-    | Loop through all available wrapped HID detectors.  If |
-    | all required information matches, run the detector.   |
-    \*-----------------------------------------------------*/
-    bool skip_generic_detectors = false;
+//                     /*-------------------------------------*\
+//                     | Check if this detector is enabled     |
+//                     \*-------------------------------------*/
+//                     bool this_device_enabled = true;
 
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < (hid_wrapped_specific_detectors.size() + hid_wrapped_generic_detectors.size()); hid_detector_idx++)
-    {
-        /*-------------------------------------------------*\
-        | Loop through all specific detectors (those with   |
-        | VID/PID matching) first, then generic detectors   |
-        | (those that only check IPU values) second.        |
-        \*-------------------------------------------------*/
-        bool generic_detector = false;
-        if(hid_detector_idx >= hid_wrapped_specific_detectors.size())
-        {
-            generic_detector = true;
-        }
+//                     if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//                     {
+//                         this_device_enabled = detector_settings["detectors"][detection_string];
+//                     }
 
-        /*-------------------------------------------------*\
-        | Get a pointer to the current detector             |
-        \*-------------------------------------------------*/
-        HIDWrappedDeviceDetectorBlock* detector;
+//                     LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
 
-        if(generic_detector)
-        {
-            detector = &hid_wrapped_generic_detectors[hid_detector_idx - hid_wrapped_specific_detectors.size()];
-        }
-        else
-        {
-            detector = &hid_wrapped_specific_detectors[hid_detector_idx];
-        }
+//                     if(this_device_enabled)
+//                     {
+//                         SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
 
-        /*-------------------------------------------------*\
-        | Try to use this detector if its VID/PID matches   |
-        | or if it is a generic detector and generic        |
-        | detectors are not skipped.                        |
-        \*-------------------------------------------------*/
-        if((detector->matching_id(current_hid_device))
-        || (generic_detector && !skip_generic_detectors))
-        {
-            /*---------------------------------------------*\
-            | Check if this detector is enabled or needs to |
-            | be added to the settings list                 |
-            \*---------------------------------------------*/
-            bool this_device_enabled = true;
+//                         std::vector<SPDWrapper*> matching_slots = slots_with_jedec(slots, i2c_dram_device_detectors[i2c_detector_idx].jedec_id);
 
-            if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
-            {
-                this_device_enabled = detector_settings["detectors"][detection_string];
-            }
+//                         DetectedControllers detected_controllers = i2c_dram_device_detectors[i2c_detector_idx].function(i2c_buses[bus], matching_slots, i2c_dram_device_detectors[i2c_detector_idx].name);
 
-            LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+//                         for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//                         {
+//                             RegisterRGBController(detected_controllers[detected_controller_idx]);
+//                         }
+//                     }
 
-            if(this_device_enabled)
-            {
-                /*-----------------------------------------*\
-                | If this was a specific detector, this     |
-                | device VID/PID has at least one specific  |
-                | detector available, so ignore generic     |
-                | detectors.                                |
-                \*-----------------------------------------*/
-                if(!generic_detector)
-                {
-                    skip_generic_detectors = true;
-                }
+//                     LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+//                 }
 
-                /*-----------------------------------------*\
-                | Now compare the detector to see if it     |
-                | should run.                               |
-                \*-----------------------------------------*/
-                if(detector->compare(current_hid_device))
-                {
-                    detection_string = detector->name.c_str();
+//                 /*-----------------------------------------*\
+//                 | Update detection percent                  |
+//                 \*-----------------------------------------*/
+//                 unsigned int detection_percent_numerator = detection_percent_i2c_count
+//                                                          + i2c_detector_idx;
 
-                    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+//                 detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+//             }
+//         }
+//     }
+// }
 
-                    DetectedControllers detected_controllers = detector->function(*wrapper, current_hid_device, detector->name);
+// void DetectionManager::BackgroundDetectI2CPCIDevices(json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|               Detecting I2C PCI devices            |");
+//     LOG_INFO("------------------------------------------------------");
 
-                    for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
-                    {
-                        detected_controllers[detected_controller_idx]->detection_path = std::string(current_hid_device->path);
-#if(HID_HOTPLUG_ENABLED)
-                        int handle;
+//     for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_pci_device_detectors.size(); i2c_detector_idx++)
+//     {
+//         detection_string = i2c_pci_device_detectors[i2c_detector_idx].name.c_str();
 
-                        wrapper->hid_hotplug_register_callback(current_hid_device->vendor_id, current_hid_device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, detected_controllers[detected_controller_idx], &handle);
-#endif
-                        RegisterRGBController(detected_controllers[detected_controller_idx]);
-                    }
+//         /*-------------------------------------------------*\
+//         | Check if this detector is enabled                 |
+//         \*-------------------------------------------------*/
+//         bool this_device_enabled = true;
 
-                    if(detected_controllers.size() > 0)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
+//         if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//         {
+//             this_device_enabled = detector_settings["detectors"][detection_string];
+//         }
+
+//         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+
+//         if(this_device_enabled)
+//         {
+//             SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//             for(std::size_t bus = 0; bus < i2c_buses.size(); bus++)
+//             {
+//                 if(i2c_buses[bus]->pci_vendor           == i2c_pci_device_detectors[i2c_detector_idx].ven_id    &&
+//                    i2c_buses[bus]->pci_device           == i2c_pci_device_detectors[i2c_detector_idx].dev_id    &&
+//                    i2c_buses[bus]->pci_subsystem_vendor == i2c_pci_device_detectors[i2c_detector_idx].subven_id &&
+//                    i2c_buses[bus]->pci_subsystem_device == i2c_pci_device_detectors[i2c_detector_idx].subdev_id)
+//                 {
+//                     DetectedControllers detected_controllers = i2c_pci_device_detectors[i2c_detector_idx].function(i2c_buses[bus], i2c_pci_device_detectors[i2c_detector_idx].i2c_addr, i2c_pci_device_detectors[i2c_detector_idx].name);
+
+//                     for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//                     {
+//                         RegisterRGBController(detected_controllers[detected_controller_idx]);
+//                     }
+//                 }
+//             }
+//         }
+
+//         LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+
+//         /*-------------------------------------------------*\
+//         | Update detection percent                          |
+//         \*-------------------------------------------------*/
+//         unsigned int detection_percent_numerator = detection_percent_i2c_count
+//                                                  + detection_percent_i2c_dram_count
+//                                                  + i2c_detector_idx;
+
+//         detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+//     }
+// }
+
+// void DetectionManager::BackgroundDetectHIDDevices(hid_device_info* hid_devices, json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|               Detecting HID devices                |");
+//     LOG_INFO("------------------------------------------------------");
+
+//     hid_device_info* current_hid_device = hid_devices;
+
+//     /*-----------------------------------------------------*\
+//     | Iterate through all devices in list and run detectors |
+//     \*-----------------------------------------------------*/
+//     unsigned int hid_device_count = 0;
+
+//     while(current_hid_device)
+//     {
+//         RunHIDDetector(current_hid_device, detector_settings);
+//         RunHIDWrappedDetector(&default_hidapi_wrapper, current_hid_device, detector_settings);
+
+//         /*-------------------------------------------------*\
+//         | Update detection percent                          |
+//         \*-------------------------------------------------*/
+//         hid_device_count++;
+
+//         unsigned int detection_percent_numerator = detection_percent_i2c_count
+//                                                  + detection_percent_i2c_dram_count
+//                                                  + detection_percent_i2c_pci_count
+//                                                  + hid_device_count;
+
+//         detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+
+//         /*-------------------------------------------------*\
+//         | Move on to the next HID device                    |
+//         \*-------------------------------------------------*/
+//         current_hid_device = current_hid_device->next;
+//     }
+
+//     /*-----------------------------------------------------*\
+//     | Done using the device list, free it                   |
+//     \*-----------------------------------------------------*/
+//     hid_free_enumeration(hid_devices);
+// }
+
+// void DetectionManager::BackgroundDetectHIDDevicesSafe(json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|               Detecting HID devices                |");
+//     LOG_INFO("|                  with safe mode                    |");
+//     LOG_INFO("------------------------------------------------------");
+
+//     /*-----------------------------------------------------*\
+//     | Loop through all available detectors.  If all         |
+//     | required information matches, run the detector        |
+//     \*-----------------------------------------------------*/
+//     for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_specific_detectors.size(); hid_detector_idx++)
+//     {
+//         HIDDeviceDetectorBlock & detector = hid_specific_detectors[hid_detector_idx];
+
+//         LOG_VERBOSE("[%s] Trying to run detector for [%s] (for %04x:%04x)", DETECTIONMANAGER, detector.name.c_str(), detector.vid, detector.pid);
+
+//         hid_device_info* current_hid_device = hid_enumerate(detector.vid, detector.pid);
+
+//         while(current_hid_device)
+//         {
+//             if(detector.compare(current_hid_device))
+//             {
+//                 detection_string = detector.name.c_str();
+
+//                 /*-----------------------------------------*\
+//                 | Check if this detector is enabled or      |
+//                 | needs to be added to the settings list    |
+//                 \*-----------------------------------------*/
+//                 bool this_device_enabled = true;
+
+//                 if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//                 {
+//                     this_device_enabled = detector_settings["detectors"][detection_string];
+//                 }
+
+//                 LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+
+//                 if(this_device_enabled)
+//                 {
+//                     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//                     DetectedControllers detected_controllers = detector.function(current_hid_device, hid_specific_detectors[hid_detector_idx].name);
+
+//                     for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//                     {
+//                         RegisterRGBController(detected_controllers[detected_controller_idx]);
+//                     }
+//                 }
+
+//                 LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+//             }
+
+//             current_hid_device = current_hid_device->next;
+
+//             /*---------------------------------------------*\
+//             | Update detection percent                      |
+//             \*---------------------------------------------*/
+//             unsigned int detection_percent_numerator = detection_percent_i2c_count
+//                                                     + detection_percent_i2c_dram_count
+//                                                     + detection_percent_i2c_pci_count
+//                                                     + hid_detector_idx;
+
+//             detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+//         }
+
+//         hid_free_enumeration(current_hid_device);
+//     }
+// }
+
+// #ifdef __linux__
+// #ifdef __GLIBC__
+// void DetectionManager::BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|            Detecting libusb HID devices            |");
+//     LOG_INFO("------------------------------------------------------");
+
+//     /*-----------------------------------------------------*\
+//     | Load the libhidapi-libusb library                     |
+//     \*-----------------------------------------------------*/
+//     if(hidapi_libusb_handle)
+//     {
+//         hid_devices                         = hidapi_libusb_wrapper.hid_enumerate(0, 0);
+
+//         hid_device_info* current_hid_device = hid_devices;
+
+//         /*-------------------------------------------------*\
+//         | Iterate through all devices in list and run       |
+//         | detectors                                         |
+//         \*-------------------------------------------------*/
+//         unsigned int hid_device_count       = 0;
+
+//         while(current_hid_device)
+//         {
+//             RunHIDWrappedDetector(&hidapi_libusb_wrapper, current_hid_device, detector_settings);
+
+//             /*---------------------------------------------*\
+//             | Update detection percent                      |
+//             \*---------------------------------------------*/
+//             hid_device_count++;
+
+//             detection_percent = (unsigned int)(100.0f * ((i2c_device_detectors.size() + i2c_dram_device_detectors.size() + i2c_pci_device_detectors.size() + hid_device_count) / detection_percent_denominator));
+
+//             /*---------------------------------------------*\
+//             | Move on to the next HID device                |
+//             \*---------------------------------------------*/
+//             current_hid_device = current_hid_device->next;
+//         }
+
+//         /*-------------------------------------------------*\
+//         | Done using the device list, free it               |
+//         \*-------------------------------------------------*/
+//         hidapi_libusb_wrapper.hid_free_enumeration(hid_devices);
+//     }
+// }
+// #endif
+// #endif
+
+// void DetectionManager::BackgroundDetectOtherDevices(json detector_settings)
+// {
+//     LOG_INFO("------------------------------------------------------");
+//     LOG_INFO("|              Detecting other devices               |");
+//     LOG_INFO("------------------------------------------------------");
+
+//     for(std::size_t detector_idx = 0; detector_idx < device_detectors.size(); detector_idx++)
+//     {
+//         detection_string = device_detector_strings[detector_idx].c_str();
+
+//         /*-------------------------------------------------*\
+//         | Check if this detector is enabled                 |
+//         \*-------------------------------------------------*/
+//         bool this_device_enabled = true;
+
+//         if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//         {
+//             this_device_enabled = detector_settings["detectors"][detection_string];
+//         }
+
+//         LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+
+//         if(this_device_enabled)
+//         {
+//             SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//             DetectedControllers detected_controllers = device_detectors[detector_idx]();
+
+//             for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//             {
+//                 RegisterRGBController(detected_controllers[detected_controller_idx]);
+//             }
+//         }
+
+//         LOG_TRACE("[%s] %s detection end", DETECTIONMANAGER, detection_string.c_str());
+
+//         /*-------------------------------------------------*\
+//         | Update detection percent                          |
+//         \*-------------------------------------------------*/
+//         unsigned int detection_percent_numerator = detection_percent_i2c_count
+//                                                  + detection_percent_i2c_dram_count
+//                                                  + detection_percent_i2c_pci_count
+//                                                  + detection_percent_hid_count
+//                                                  + detector_idx;
+
+//         detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+//     }
+// }
+
+// void DetectionManager::BackgroundHIDExit()
+// {
+//     /*-----------------------------------------------------*\
+//     | Exit HID interface                                    |
+//     \*-----------------------------------------------------*/
+//     int hid_status = hid_exit();
+
+//     LOG_DEBUG("[%s] Exiting HID interface: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
+// }
+
+// void DetectionManager::BackgroundHIDInit()
+// {
+//     /*-----------------------------------------------------*\
+//     | Initialize HID interface                              |
+//     \*-----------------------------------------------------*/
+//     int hid_status = hid_init();
+
+//     LOG_DEBUG("[%s] Initializing HID interfaces: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
+
+// #ifdef __linux__
+// #ifdef __GLIBC__
+//     /*-----------------------------------------------------*\
+//     | Load the libhidapi-libusb library                     |
+//     \*-----------------------------------------------------*/
+// #if(HID_HOTPLUG_ENABLED)
+//     hidapi_libusb_handle = dlopen("libhidapi-hotplug-libusb.so", RTLD_NOW | RTLD_NODELETE | RTLD_DEEPBIND);
+// #else
+//     hidapi_libusb_handle = dlopen("libhidapi-libusb.so", RTLD_NOW | RTLD_NODELETE | RTLD_DEEPBIND);
+// #endif
+
+//     if(hidapi_libusb_handle)
+//     {
+//         LOG_DEBUG("[%s] Loaded libusb HID library", DETECTIONMANAGER);
+
+//         /*-------------------------------------------------*\
+//         | Create a wrapper with the libusb functions        |
+//         \*-------------------------------------------------*/
+//         hidapi_libusb_wrapper =
+//         {
+//             .dyn_handle                         = hidapi_libusb_handle,
+//             .hid_send_feature_report            = (hidapi_wrapper_send_feature_report)          dlsym(hidapi_libusb_handle,"hid_send_feature_report"),
+//             .hid_get_feature_report             = (hidapi_wrapper_get_feature_report)           dlsym(hidapi_libusb_handle,"hid_get_feature_report"),
+//             .hid_get_serial_number_string       = (hidapi_wrapper_get_serial_number_string)     dlsym(hidapi_libusb_handle,"hid_get_serial_number_string"),
+//             .hid_open_path                      = (hidapi_wrapper_open_path)                    dlsym(hidapi_libusb_handle,"hid_open_path"),
+//             .hid_enumerate                      = (hidapi_wrapper_enumerate)                    dlsym(hidapi_libusb_handle,"hid_enumerate"),
+//             .hid_free_enumeration               = (hidapi_wrapper_free_enumeration)             dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
+//             .hid_close                          = (hidapi_wrapper_close)                        dlsym(hidapi_libusb_handle,"hid_close"),
+//             .hid_error                          = (hidapi_wrapper_error)                        dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
+// #if(HID_HOTPLUG_ENABLED)
+//             .hid_hotplug_register_callback      = (hidapi_wrapper_hotplug_register_callback)    dlsym(hidapi_libusb_handle,"hid_hotplug_register_callback"),
+//             .hid_hotplug_deregister_callback    = (hidapi_wrapper_hotplug_deregister_callback)  dlsym(hidapi_libusb_handle,"hid_hotplug_deregister_callback"),
+// #endif
+//         };
+//     }
+//     else
+//     {
+//         LOG_DEBUG("[%s] Failed to load libusb HID library", DETECTIONMANAGER);
+//     }
+// #endif
+// #endif
+// }
+
+// /*---------------------------------------------------------*\
+// | Functions to run detectors                                |
+// \*---------------------------------------------------------*/
+// void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json detector_settings)
+// {
+//     if(LogManager::get()->getLoglevel() >= LL_DEBUG)
+//     {
+//         const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
+//         const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
+
+//         LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
+//     }
+
+//     detection_string = "";
+
+//     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//     /*-----------------------------------------------------*\
+//     | Loop through all available detectors.  If all         |
+//     | required information matches, run the detector.       |
+//     \*-----------------------------------------------------*/
+//     bool skip_generic_detectors = false;
+
+//     for(std::size_t hid_detector_idx = 0; hid_detector_idx < (hid_specific_detectors.size() + hid_generic_detectors.size()); hid_detector_idx++)
+//     {
+//         /*-------------------------------------------------*\
+//         | Loop through all specific detectors (those with   |
+//         | VID/PID matching) first, then generic detectors   |
+//         | (those that only check IPU values) second.        |
+//         \*-------------------------------------------------*/
+//         bool generic_detector = false;
+//         if(hid_detector_idx >= hid_specific_detectors.size())
+//         {
+//             generic_detector = true;
+//         }
+
+//         /*-------------------------------------------------*\
+//         | Get a pointer to the current detector             |
+//         \*-------------------------------------------------*/
+//         HIDDeviceDetectorBlock* detector;
+
+//         if(generic_detector)
+//         {
+//             detector = &hid_generic_detectors[hid_detector_idx - hid_specific_detectors.size()];
+//         }
+//         else
+//         {
+//             detector = &hid_specific_detectors[hid_detector_idx];
+//         }
+
+//         /*-------------------------------------------------*\
+//         | Try to use this detector if its VID/PID matches   |
+//         | or if it is a generic detector and generic        |
+//         | detectors are not skipped.                        |
+//         \*-------------------------------------------------*/
+//         if((detector->matching_id(current_hid_device))
+//         || (generic_detector && !skip_generic_detectors))
+//         {
+//             /*---------------------------------------------*\
+//             | Check if this detector is enabled or needs to |
+//             | be added to the settings list                 |
+//             \*---------------------------------------------*/
+//             bool this_device_enabled = true;
+
+//             if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//             {
+//                 this_device_enabled = detector_settings["detectors"][detection_string];
+//             }
+
+//             LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+
+//             if(this_device_enabled)
+//             {
+//                 /*-----------------------------------------*\
+//                 | If this was a specific detector, this     |
+//                 | device VID/PID has at least one specific  |
+//                 | detector available, so ignore generic     |
+//                 | detectors.                                |
+//                 \*-----------------------------------------*/
+//                 if(!generic_detector)
+//                 {
+//                     skip_generic_detectors = true;
+//                 }
+
+//                 /*-----------------------------------------*\
+//                 | Now compare the detector to see if it     |
+//                 | should run.                               |
+//                 \*-----------------------------------------*/
+//                 if(detector->compare(current_hid_device))
+//                 {
+//                     detection_string = detector->name.c_str();
+
+//                     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//                     DetectedControllers detected_controllers = detector->function(current_hid_device, detector->name);
+
+//                     for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//                     {
+//                         detected_controllers[detected_controller_idx]->detection_path = std::string(current_hid_device->path);
+
+// #if(HID_HOTPLUG_ENABLED)
+//                         int handle;
+//                         hid_hotplug_register_callback(current_hid_device->vendor_id, current_hid_device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, detected_controllers[detected_controller_idx], &handle);
+// #endif
+//                         RegisterRGBController(detected_controllers[detected_controller_idx]);
+//                     }
+
+//                     if(detected_controllers.size() > 0)
+//                     {
+//                         break;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, json detector_settings)
+// {
+//     if(LogManager::get()->getLoglevel() >= LL_DEBUG)
+//     {
+//         const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
+//         const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
+
+//         LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
+//     }
+
+//     detection_string = "";
+
+//     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//     /*-----------------------------------------------------*\
+//     | Loop through all available wrapped HID detectors.  If |
+//     | all required information matches, run the detector.   |
+//     \*-----------------------------------------------------*/
+//     bool skip_generic_detectors = false;
+
+//     for(std::size_t hid_detector_idx = 0; hid_detector_idx < (hid_wrapped_specific_detectors.size() + hid_wrapped_generic_detectors.size()); hid_detector_idx++)
+//     {
+//         /*-------------------------------------------------*\
+//         | Loop through all specific detectors (those with   |
+//         | VID/PID matching) first, then generic detectors   |
+//         | (those that only check IPU values) second.        |
+//         \*-------------------------------------------------*/
+//         bool generic_detector = false;
+//         if(hid_detector_idx >= hid_wrapped_specific_detectors.size())
+//         {
+//             generic_detector = true;
+//         }
+
+//         /*-------------------------------------------------*\
+//         | Get a pointer to the current detector             |
+//         \*-------------------------------------------------*/
+//         HIDWrappedDeviceDetectorBlock* detector;
+
+//         if(generic_detector)
+//         {
+//             detector = &hid_wrapped_generic_detectors[hid_detector_idx - hid_wrapped_specific_detectors.size()];
+//         }
+//         else
+//         {
+//             detector = &hid_wrapped_specific_detectors[hid_detector_idx];
+//         }
+
+//         /*-------------------------------------------------*\
+//         | Try to use this detector if its VID/PID matches   |
+//         | or if it is a generic detector and generic        |
+//         | detectors are not skipped.                        |
+//         \*-------------------------------------------------*/
+//         if((detector->matching_id(current_hid_device))
+//         || (generic_detector && !skip_generic_detectors))
+//         {
+//             /*---------------------------------------------*\
+//             | Check if this detector is enabled or needs to |
+//             | be added to the settings list                 |
+//             \*---------------------------------------------*/
+//             bool this_device_enabled = true;
+
+//             if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string))
+//             {
+//                 this_device_enabled = detector_settings["detectors"][detection_string];
+//             }
+
+//             LOG_DEBUG("[%s] %s is %s", DETECTIONMANAGER, detection_string.c_str(), ((this_device_enabled == true) ? "enabled" : "disabled"));
+
+//             if(this_device_enabled)
+//             {
+//                 /*-----------------------------------------*\
+//                 | If this was a specific detector, this     |
+//                 | device VID/PID has at least one specific  |
+//                 | detector available, so ignore generic     |
+//                 | detectors.                                |
+//                 \*-----------------------------------------*/
+//                 if(!generic_detector)
+//                 {
+//                     skip_generic_detectors = true;
+//                 }
+
+//                 /*-----------------------------------------*\
+//                 | Now compare the detector to see if it     |
+//                 | should run.                               |
+//                 \*-----------------------------------------*/
+//                 if(detector->compare(current_hid_device))
+//                 {
+//                     detection_string = detector->name.c_str();
+
+//                     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+
+//                     DetectedControllers detected_controllers = detector->function(*wrapper, current_hid_device, detector->name);
+
+//                     for(std::size_t detected_controller_idx = 0; detected_controller_idx < detected_controllers.size(); detected_controller_idx++)
+//                     {
+//                         detected_controllers[detected_controller_idx]->detection_path = std::string(current_hid_device->path);
+// #if(HID_HOTPLUG_ENABLED)
+//                         int handle;
+
+//                         wrapper->hid_hotplug_register_callback(current_hid_device->vendor_id, current_hid_device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, detected_controllers[detected_controller_idx], &handle);
+// #endif
+//                         RegisterRGBController(detected_controllers[detected_controller_idx]);
+//                     }
+
+//                     if(detected_controllers.size() > 0)
+//                     {
+//                         break;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
 /*---------------------------------------------------------*\
 | Detection processing functions                            |
@@ -1562,9 +1458,12 @@ void DetectionManager::ProcessCleanup()
 {
     WaitForDetection();
 
-#if(HID_HOTPLUG_ENABLED)
-    StopHIDHotplug();
-#endif
+    /*--------------------------*\
+    | Clean up detectors          |
+    \*--------------------------*/
+    i2c_group.CleanUp();
+    hid_group.CleanUp();
+    others_group.CleanUp();
 
     /*-----------------------------------------------------*\
     | Make a copy of the list so that the controllers can   |
@@ -1589,32 +1488,14 @@ void DetectionManager::ProcessCleanup()
     {
         delete rgb_controller;
     }
-
-    /*-----------------------------------------------------*\
-    | Make a copy of the list so that the I2C buses can be  |
-    | deleted after the list is cleared                     |
-    \*-----------------------------------------------------*/
-    std::vector<i2c_smbus_interface *> i2c_buses_copy = i2c_buses;
-
-    /*-----------------------------------------------------*\
-    | Clear the I2C buses list                              |
-    \*-----------------------------------------------------*/
-    i2c_buses.clear();
-
-    /*-----------------------------------------------------*\
-    | Delete the I2C buses                                  |
-    \*-----------------------------------------------------*/
-    for(i2c_smbus_interface* bus : i2c_buses_copy)
-    {
-        delete bus;
-    }
 }
 
 void DetectionManager::ProcessDynamicDetectors()
 {
     for(std::size_t detector_idx = 0; detector_idx < dynamic_detectors.size(); detector_idx++)
     {
-        dynamic_detectors[detector_idx]();
+        LOG_INFO("Running dynamic detector %s", dynamic_detectors[detector_idx].name.c_str());
+        dynamic_detectors[detector_idx].detector();
     }
 
     dynamic_detectors_processed = true;
@@ -1659,11 +1540,14 @@ bool DetectionManager::ProcessPreDetection()
     /*-----------------------------------------------------*\
     | Initialize sizes list                                 |
     \*-----------------------------------------------------*/
+    LOG_DEBUG("get controller size");
+
     rgb_controllers_sizes = ResourceManager::get()->GetProfileManager()->GetControllerListFromSizes();
 
     /*-----------------------------------------------------*\
     | Clean up any existing detected devices                |
     \*-----------------------------------------------------*/
+    LOG_DEBUG("process cleanup");
     ProcessCleanup();
 
     return true;
@@ -1679,131 +1563,28 @@ void DetectionManager::ProcessPreDetectionHooks()
 
 void DetectionManager::UpdateDetectorSettings()
 {
-    json                detector_settings;
-    bool                save_settings       = false;
-
     /*-----------------------------------------------------*\
     | Open device disable list and read in disabled device  |
     | strings                                               |
     \*-----------------------------------------------------*/
-    detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    json detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    bool save_settings = false;
 
-    /*-----------------------------------------------------*\
-    | Loop through all I2C detectors and see if any need to |
-    | be saved to the settings                              |
-    \*-----------------------------------------------------*/
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_device_detectors.size(); i2c_detector_idx++)
+    std::vector<const std::string*> detector_names;
+
+    std::vector<const std::string*> i2c_names = i2c_group.GetDetectorNames();
+    std::vector<const std::string*> hid_names = hid_group.GetDetectorNames();
+    std::vector<const std::string*> others_names = others_group.GetDetectorNames();
+
+    detector_names.insert(detector_names.end(), i2c_names.begin(), i2c_names.end());
+    detector_names.insert(detector_names.end(), hid_names.begin(), hid_names.end());
+    detector_names.insert(detector_names.end(), others_names.begin(), others_names.end());
+
+    for (const std::string* detector_name : detector_names)
     {
-        detection_string = i2c_device_detector_strings[i2c_detector_idx].c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
+        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(*detector_name)))
         {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all I2C DRAM detectors and see if any    |
-    | need to be saved to the settings                      |
-    \*-----------------------------------------------------*/
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
-    {
-        detection_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all I2C PCI detectors and see if any     |
-    | need to be saved to the settings                      |
-    \*-----------------------------------------------------*/
-    for(std::size_t i2c_pci_detector_idx = 0; i2c_pci_detector_idx < i2c_pci_device_detectors.size(); i2c_pci_detector_idx++)
-    {
-        detection_string = i2c_pci_device_detectors[i2c_pci_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all generic HID detectors and see if any |
-    | need to be saved to the settings                      |
-    \*-----------------------------------------------------*/
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_generic_detectors.size(); hid_detector_idx++)
-    {
-        detection_string = hid_generic_detectors[hid_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all specific HID detectors and see if    |
-    | any need to be saved to the settings                  |
-    \*-----------------------------------------------------*/
-    for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_specific_detectors.size(); hid_detector_idx++)
-    {
-        detection_string = hid_specific_detectors[hid_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all generic HID wrapped detectors and    |
-    | see if any need to be saved to the settings           |
-    \*-----------------------------------------------------*/
-    for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_generic_detectors.size(); hid_wrapped_detector_idx++)
-    {
-        detection_string = hid_wrapped_generic_detectors[hid_wrapped_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through all specific HID wrapped detectors and   |
-    | see if any need to be saved to the settings           |
-    \*-----------------------------------------------------*/
-    for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_specific_detectors.size(); hid_wrapped_detector_idx++)
-    {
-        detection_string = hid_wrapped_specific_detectors[hid_wrapped_detector_idx].name.c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
-            save_settings = true;
-        }
-    }
-
-    /*-----------------------------------------------------*\
-    | Loop through remaining detectors and see if any need  |
-    | to be saved to the settings                           |
-    \*-----------------------------------------------------*/
-    for(std::size_t detector_idx = 0; detector_idx < device_detectors.size(); detector_idx++)
-    {
-        detection_string = device_detector_strings[detector_idx].c_str();
-
-        if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
-        {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][*detector_name] = true;
             save_settings = true;
         }
     }
@@ -1816,11 +1597,16 @@ void DetectionManager::UpdateDetectorSettings()
     if(save_settings)
     {
         LOG_INFO("[%s] Saving detector settings", DETECTIONMANAGER);
-
         ResourceManager::get()->GetSettingsManager()->SetSettings("Detectors", detector_settings);
-
         ResourceManager::get()->GetSettingsManager()->SaveSettings();
     }
+
+    /*--------------------------------*\
+    | apply updates to detector groups |
+    \*--------------------------------*/
+    i2c_group.UpdateSettings();
+    hid_group.UpdateSettings();
+    others_group.UpdateSettings();
 }
 
 #if(HID_HOTPLUG_ENABLED)
@@ -1945,19 +1731,13 @@ void DetectionManager::SignalUpdate(unsigned int update_reason)
     LOG_TRACE("[%s] Update signalled: %d.", DETECTIONMANAGER, update_reason);
 }
 
-bool DetectionManager::IsAnyDimmDetectorEnabled(json &detector_settings)
+void DetectionManager::IncrementDetectorCount()
 {
-    for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
-    {
-        std::string detector_name_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detector_name_string) &&
-           detector_settings["detectors"][detector_name_string] == true)
-        {
-            return true;
-        }
-    }
-    return false;
+    detection_percent_numerator++;
+    detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+}
+
+void DetectionManager::SetDetectorString(std::string _detection_string)
+{
+    detection_string = _detection_string.c_str();
 }

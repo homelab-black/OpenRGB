@@ -987,8 +987,8 @@
 /*---------------------------------------------------------*\
 | PCI ID Macros                                             |
 \*---------------------------------------------------------*/
-#define IF_DRAM_SMBUS(ven, dev)                             \
-    if(((ven == AMD_VEN) && (dev == AMD_FCH_SMBUS_DEV)) ||  \
+#define IS_DRAM_SMBUS(ven, dev)                             \
+    ((ven == AMD_VEN) && (dev == AMD_FCH_SMBUS_DEV)) ||  \
     ((ven == INTEL_VEN) && (dev == INTEL_ICH10_SMBUS_DEV)) || \
     ((ven == INTEL_VEN) && (dev == INTEL_SUNRISE_POINT_H_SMBUS_DEV)) || \
     ((ven == INTEL_VEN) && (dev == INTEL_SKYLAKEX_PCU_SMBUS_DEV)) || \
@@ -999,7 +999,9 @@
     ((ven == INTEL_VEN) && (dev == INTEL_TIGER_LAKE_SMBUS_DEV)) || \
     ((ven == INTEL_VEN) && (dev == INTEL_ALDER_LAKE_SMBUS_DEV)) || \
     ((ven == INTEL_VEN) && (dev == INTEL_RAPTOR_LAKE_SMBUS_DEV)) || \
-    ((ven == INTEL_VEN) && (dev == INTEL_ARROW_LAKE_SMBUS_DEV)))
+    ((ven == INTEL_VEN) && (dev == INTEL_ARROW_LAKE_SMBUS_DEV))
+
+#define IF_DRAM_SMBUS(ven, dev) if(IS_DRAM_SMBUS(ven, dev))
 
 #define IF_MOBO_SMBUS(ven, dev)                             \
     if((ven == 0) ||                                        \

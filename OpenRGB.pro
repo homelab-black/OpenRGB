@@ -143,6 +143,7 @@ INCLUDEPATH +=                                                                  
     dependencies/json/                                                                          \
     dependencies/mdns                                                                           \
     dmiinfo/                                                                                    \
+    detectors/                                                                                  \
     hidapi_wrapper/                                                                             \
     i2c_smbus/                                                                                  \
     i2c_tools/                                                                                  \
@@ -178,6 +179,11 @@ HEADERS +=                                                                      
     SettingsManager.h                                                                           \
     DetectionManager.h                                                                          \
     dmiinfo/dmiinfo.h                                                                           \
+    detectors/detector_group.h                                                                  \
+    detectors/detector_types.h                                                                  \
+    detectors/device_detector.h                                                                 \
+    detectors/hid_detector.h                                                                    \
+    detectors/i2c_detector.h                                                                    \
     filesystem.h                                                                                \
     hidapi_wrapper/hidapi_wrapper.h                                                             \
     i2c_smbus/i2c_smbus.h                                                                       \
@@ -238,6 +244,11 @@ SOURCES +=                                                                      
     cli.cpp                                                                                     \
     DetectionManager.cpp                                                                        \
     dmiinfo/dmiinfo.cpp                                                                         \
+    detectors/detector_group.cpp                                                                \
+    detectors/detector_types.cpp                                                                \
+    detectors/device_detector.cpp                                                               \
+    detectors/hid_detector.cpp                                                                  \
+    detectors/i2c_detector.cpp                                                                  \
     LogManager.cpp                                                                              \
     NetworkClient.cpp                                                                           \
     NetworkProtocol.cpp                                                                         \

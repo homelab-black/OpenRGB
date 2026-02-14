@@ -26,84 +26,17 @@
 #include "RGBController.h"
 #include "SPDWrapper.h"
 
+#include "detector_types.h"
+#include "i2c_detector.h"
+#include "hid_detector.h"
+#include "device_detector.h"
+
 using json = nlohmann::json;
 
 /*---------------------------------------------------------*\
 | Windows defines "interface" in its headers, stop it       |
 \*---------------------------------------------------------*/
 #undef interface
-
-/*---------------------------------------------------------*\
-| HID Default Values                                        |
-\*---------------------------------------------------------*/
-#define HID_PID_ANY                     -1
-#define HID_VID_ANY                     -1
-#define HID_INTERFACE_ANY               -1
-#define HID_USAGE_ANY                   -1
-#define HID_USAGE_PAGE_ANY              -1
-
-/*---------------------------------------------------------*\
-| Detector Function Types                                   |
-\*---------------------------------------------------------*/
-typedef std::vector<RGBController*> DetectedControllers;
-
-typedef std::function<bool()>                                                                                       I2CBusDetectorFunction;
-typedef std::function<DetectedControllers()>                                                                        DeviceDetectorFunction;
-typedef std::function<DetectedControllers(std::vector<i2c_smbus_interface*>&)>                                      I2CDeviceDetectorFunction;
-typedef std::function<DetectedControllers(i2c_smbus_interface*, std::vector<SPDWrapper*>&, const std::string&)>     I2CDRAMDeviceDetectorFunction;
-typedef std::function<DetectedControllers(i2c_smbus_interface*, uint8_t, const std::string&)>                       I2CPCIDeviceDetectorFunction;
-typedef std::function<DetectedControllers(hid_device_info*, const std::string&)>                                    HIDDeviceDetectorFunction;
-typedef std::function<DetectedControllers(hidapi_wrapper wrapper, hid_device_info*, const std::string&)>            HIDWrappedDeviceDetectorFunction;
-typedef std::function<void()>                                                                                       DynamicDetectorFunction;
-typedef std::function<void()>                                                                                       PreDetectionHookFunction;
-
-/*---------------------------------------------------------*\
-| Detector Block Types                                      |
-\*---------------------------------------------------------*/
-class BasicHIDBlock
-{
-public:
-    std::string                         name;
-    int                                 vid;
-    int                                 pid;
-    int                                 interface;
-    int                                 usage_page;
-    int                                 usage;
-
-    bool compare(hid_device_info* info);
-    bool matching_id(hid_device_info* info);
-};
-
-class HIDDeviceDetectorBlock : public BasicHIDBlock
-{
-public:
-    HIDDeviceDetectorFunction           function;
-};
-
-class HIDWrappedDeviceDetectorBlock : public BasicHIDBlock
-{
-public:
-    HIDWrappedDeviceDetectorFunction    function;
-};
-
-typedef struct
-{
-    std::string                         name;
-    I2CPCIDeviceDetectorFunction        function;
-    uint16_t                            ven_id;
-    uint16_t                            dev_id;
-    uint16_t                            subven_id;
-    uint16_t                            subdev_id;
-    uint8_t                             i2c_addr;
-} I2CPCIDeviceDetectorBlock;
-
-typedef struct
-{
-    std::string                         name;
-    I2CDRAMDeviceDetectorFunction       function;
-    uint16_t                            jedec_id;
-    uint8_t                             dram_type;
-} I2CDRAMDeviceDetectorBlock;
 
 /*---------------------------------------------------------*\
 | Detection Callback Type                                   |
@@ -193,16 +126,27 @@ public:
     std::string                         GetDetectionString();
     void                                WaitForDetection();
 
+
+    void IncrementDetectorCount();
+    void SetDetectorString(std::string _detection_string);
+    void SignalUpdate(unsigned int update_reason);
+
 private:
     /*-----------------------------------------------------*\
     | Static pointer to shared instance of DetectionManager |
     \*-----------------------------------------------------*/
     static DetectionManager*                    instance;
 
-    /*-----------------------------------------------------*\
-    | List of I2C buses managed by DetectorManager          |
-    \*-----------------------------------------------------*/
-    std::vector<i2c_smbus_interface*>           i2c_buses;
+
+    I2CDetectorGroup i2c_group;
+    HIDDetectorGroup hid_group;
+    MiscDeviceDetectorGroup others_group;
+
+
+    // /*-----------------------------------------------------*\
+    // | List of I2C buses managed by DetectorManager          |
+    // \*-----------------------------------------------------*/
+    // std::vector<i2c_smbus_interface*>           i2c_buses;
 
     /*-----------------------------------------------------*\
     | List of RGBControllers managed by DetectorManager     |
@@ -218,42 +162,41 @@ private:
     /*-----------------------------------------------------*\
     | Detectors                                             |
     \*-----------------------------------------------------*/
-    std::vector<DeviceDetectorFunction>         device_detectors;
-    std::vector<std::string>                    device_detector_strings;
-    std::vector<I2CBusDetectorFunction>         i2c_bus_detectors;
-    std::vector<I2CDeviceDetectorFunction>      i2c_device_detectors;
-    std::vector<std::string>                    i2c_device_detector_strings;
-    std::vector<I2CDRAMDeviceDetectorBlock>     i2c_dram_device_detectors;
-    std::vector<I2CPCIDeviceDetectorBlock>      i2c_pci_device_detectors;
-    std::vector<HIDDeviceDetectorBlock>         hid_generic_detectors;
-    std::vector<HIDDeviceDetectorBlock>         hid_specific_detectors;
-    std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_generic_detectors;
-    std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_specific_detectors;
-    std::vector<DynamicDetectorFunction>        dynamic_detectors;
-    std::vector<std::string>                    dynamic_detector_strings;
+    // std::vector<DeviceDetectorFunction>         device_detectors;
+    // std::vector<std::string>                    device_detector_strings;
+    // std::vector<I2CBusDetectorFunction>         i2c_bus_detectors;
+    // std::vector<I2CDeviceDetectorFunction>      i2c_device_detectors;
+    // std::vector<std::string>                    i2c_device_detector_strings;
+    // std::vector<I2CDRAMDeviceDetectorBlock>     i2c_dram_device_detectors;
+    // std::vector<I2CPCIDeviceDetectorBlock>      i2c_pci_device_detectors;
+    // std::vector<HIDDeviceDetectorBlock>         hid_generic_detectors;
+    // std::vector<HIDDeviceDetectorBlock>         hid_specific_detectors;
+    // std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_generic_detectors;
+    // std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_specific_detectors;
+    std::vector<DynamicDetectorBlock>           dynamic_detectors;
     std::vector<PreDetectionHookFunction>       pre_detection_hooks;
 
-#ifdef __linux__
-#ifdef __GLIBC__
-    /*-----------------------------------------------------*\
-    | Wrapped libusb hidapi handles                         |
-    \*-----------------------------------------------------*/
-    void *                                      hidapi_libusb_handle;
-    hidapi_wrapper                              hidapi_libusb_wrapper;
-#endif
-#endif
+// #ifdef __linux__
+// #ifdef __GLIBC__
+//     /*-----------------------------------------------------*\
+//     | Wrapped libusb hidapi handles                         |
+//     \*-----------------------------------------------------*/
+//     void *                                      hidapi_libusb_handle;
+//     hidapi_wrapper                              hidapi_libusb_wrapper;
+// #endif
+// #endif
 
-    /*-----------------------------------------------------*\
-    | HID Hotplug handles                                   |
-    \*-----------------------------------------------------*/
-#if(HID_HOTPLUG_ENABLED)
-    hid_hotplug_callback_handle                 hotplug_callback_handle;
-#ifdef __linux__
-#ifdef __GLIBC__
-    hid_hotplug_callback_handle                 libusb_hotplug_callback_handle;
-#endif
-#endif
-#endif
+//     /*-----------------------------------------------------*\
+//     | HID Hotplug handles                                   |
+//     \*-----------------------------------------------------*/
+// #if(HID_HOTPLUG_ENABLED)
+//     hid_hotplug_callback_handle                 hotplug_callback_handle;
+// #ifdef __linux__
+// #ifdef __GLIBC__
+//     hid_hotplug_callback_handle                 libusb_hotplug_callback_handle;
+// #endif
+// #endif
+// #endif
 
     /*-----------------------------------------------------*\
     | Detection Callbacks                                   |
@@ -272,12 +215,12 @@ private:
     unsigned int                                detection_percent_i2c_dram_count;
     unsigned int                                detection_percent_i2c_pci_count;
     unsigned int                                detection_percent_other_count;
+    unsigned int                                detection_percent_numerator;
     unsigned int                                detection_percent_denominator;
     std::vector<bool>                           detection_size_entry_used;
     std::string                                 detection_string;
     bool                                        dynamic_detectors_processed;
     bool                                        initial_detection;
-    bool                                        i2c_interface_fail;
 
     /*-----------------------------------------------------*\
     | Background Thread Variables                           |
@@ -300,26 +243,6 @@ private:
     | Functions that must be run in the background thread   |
     \*-----------------------------------------------------*/
     void BackgroundDetectDevices();
-    void BackgroundDetectHIDDevices(hid_device_info* hid_devices, json detector_settings);
-    void BackgroundDetectHIDDevicesSafe(json detector_settings);
-#ifdef __linux__
-#ifdef __GLIBC__
-    void BackgroundDetectHIDDevicesWrapped(hid_device_info* hid_devices, json detector_settings);
-#endif
-#endif
-    void BackgroundDetectI2CBuses();
-    void BackgroundDetectI2CDevices(json detector_settings);
-    void BackgroundDetectI2CDRAMDevices(json detector_settings);
-    void BackgroundDetectI2CPCIDevices(json detector_settings);
-    void BackgroundDetectOtherDevices(json detector_settings);
-    void BackgroundHIDExit();
-    void BackgroundHIDInit();
-
-    /*-----------------------------------------------------*\
-    | Functions to run detectors                            |
-    \*-----------------------------------------------------*/
-    void RunHIDDetector(hid_device_info* current_hid_device, json detector_settings);
-    void RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_device_info* current_hid_device, json detector_settings);
 
     /*-----------------------------------------------------*\
     | Detection processing functions                        |
@@ -354,93 +277,6 @@ private:
     | Function for signalling DetectionManager updates to   |
     | registered callbacks                                  |
     \*-----------------------------------------------------*/
-    void SignalUpdate(unsigned int update_reason);
-
-    bool IsAnyDimmDetectorEnabled(json &detector_settings);
-};
-
-/*---------------------------------------------------------*\
-| Detector Types                                            |
-\*---------------------------------------------------------*/
-class DeviceDetector
-{
-public:
-    DeviceDetector(std::string name, DeviceDetectorFunction detector)
-	{
-        DetectionManager::get()->RegisterDeviceDetector(name, detector);
-	}
-};
-
-class I2CDeviceDetector
-{
-public:
-    I2CDeviceDetector(std::string name, I2CDeviceDetectorFunction detector)
-	{
-        DetectionManager::get()->RegisterI2CDeviceDetector(name, detector);
-	}
-};
-
-class I2CDRAMDeviceDetector
-{
-public:
-    I2CDRAMDeviceDetector(std::string name, I2CDRAMDeviceDetectorFunction detector, uint16_t jedec_id, uint8_t dram_type)
-	{
-        DetectionManager::get()->RegisterI2CDRAMDeviceDetector(name, detector, jedec_id, dram_type);
-	}
-};
-
-class I2CPCIDeviceDetector
-{
-public:
-    I2CPCIDeviceDetector(std::string name, I2CPCIDeviceDetectorFunction detector, uint16_t ven_id, uint16_t dev_id, uint16_t subven_id, uint16_t subdev_id, uint8_t i2c_addr)
-    {
-        DetectionManager::get()->RegisterI2CPCIDeviceDetector(name, detector, ven_id, dev_id, subven_id, subdev_id, i2c_addr);
-    }
-};
-
-class I2CBusDetector
-{
-public:
-    I2CBusDetector(I2CBusDetectorFunction detector)
-    {
-        DetectionManager::get()->RegisterI2CBusDetector(detector);
-    }
-};
-
-class HIDDeviceDetector
-{
-public:
-    HIDDeviceDetector(std::string name, HIDDeviceDetectorFunction detector, int vid, int pid, int interface, int usage_page, int usage)
-    {
-        DetectionManager::get()->RegisterHIDDeviceDetector(name, detector, vid, pid, interface, usage_page, usage);
-    }
-};
-
-class HIDWrappedDeviceDetector
-{
-public:
-    HIDWrappedDeviceDetector(std::string name, HIDWrappedDeviceDetectorFunction detector, int vid, int pid, int interface, int usage_page, int usage)
-    {
-        DetectionManager::get()->RegisterHIDWrappedDeviceDetector(name, detector, vid, pid, interface, usage_page, usage);
-    }
-};
-
-class DynamicDetector
-{
-public:
-    DynamicDetector(std::string name, DynamicDetectorFunction detector)
-    {
-        DetectionManager::get()->RegisterDynamicDetector(name, detector);
-    }
-};
-
-class PreDetectionHook
-{
-public:
-    PreDetectionHook(PreDetectionHookFunction hook)
-    {
-        DetectionManager::get()->RegisterPreDetectionHook(hook);
-    }
 };
 
 /*---------------------------------------------------------*\
