@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "KeyboardLayoutManager.h"
 #include "RGBController.h"
 #include <string>
 #include <hidapi.h>
@@ -136,7 +137,6 @@ struct AkkoZoneInfo
     RGBColor                color;
     int                     leds_count;
     std::vector<RGBColor>   colors;
-
 };
 
 class AkkoController
@@ -148,6 +148,10 @@ public:
     std::string GetDeviceName();
     std::string GetSerial();
     std::string GetLocation();
+
+    KEYBOARD_LAYOUT GetKeyboardLayout();
+    KEYBOARD_SIZE GetKeyboardSize();
+    keyboard_keymap_overlay_values GetKeyboardLayoutValues();
 
     AkkoZoneInfo GetZoneInfo(AKKO_ZONE zone);
 

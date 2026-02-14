@@ -10,116 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_AkkoController.h"
-#include "RGBControllerKeyNames.h"
-
-#define NA  0xFFFFFFFF
-
-enum AKKO_5075B {
-    HEIGHT  = 6,
-    WIDTH   = 15,
-};
-
-static unsigned int led_matrix_5075_ISO[AKKO_5075B::HEIGHT][AKKO_5075B::WIDTH] = {
-    {   0,   6,  12,  18,  24,  30,  36,  42,  48,  54,  60,  66,  72,  78,  NA},
-    {   1,   7,  13,  19,  25,  31,  37,  43,  49,  55,  61,  67,  73,  79,  85},
-    {   2,   8,  14,  20,  26,  32,  38,  44,  50,  56,  62,  68,  74,  80,  86},
-    {   3,   9,  15,  21,  27,  33,  39,  45,  51,  57,  63,  69,  81,  NA,  87},
-    {   4,  10,  16,  22,  28,  34,  40,  46,  52,  58,  64,  70,  76,  82,  88},
-    {   5,  17,  23,  NA,  NA,  NA,  41,  NA,  NA,  53,  59,  71,  77,  83,  89}
-};
-
-static const char *led_names_5075_ISO[] = {
-    KEY_EN_ESCAPE,
-    KEY_EN_BACK_TICK,
-    KEY_EN_TAB,
-    KEY_EN_CAPS_LOCK,
-    KEY_EN_LEFT_SHIFT,
-    KEY_EN_LEFT_CONTROL,
-    KEY_EN_F1,
-    KEY_EN_1,
-    KEY_EN_Q,
-    KEY_EN_A,
-    KEY_NORD_ANGLE_BRACKET,
-    KEY_EN_UNUSED,
-    KEY_EN_F2,
-    KEY_EN_2,
-    KEY_EN_W,
-    KEY_EN_S,
-    KEY_EN_Z,
-    KEY_EN_LEFT_WINDOWS,
-    KEY_EN_F3,
-    KEY_EN_3,
-    KEY_EN_E,
-    KEY_EN_D,
-    KEY_EN_X,
-    KEY_EN_LEFT_ALT,
-    KEY_EN_F4,
-    KEY_EN_4,
-    KEY_EN_R,
-    KEY_EN_F,
-    KEY_EN_C,
-    KEY_EN_UNUSED,
-    KEY_EN_F5,
-    KEY_EN_5,
-    KEY_EN_T,
-    KEY_EN_G,
-    KEY_EN_V,
-    KEY_EN_UNUSED,
-    KEY_EN_F6,
-    KEY_EN_6,
-    KEY_EN_Y,
-    KEY_EN_H,
-    KEY_EN_B,
-    KEY_EN_SPACE,
-    KEY_EN_F7,
-    KEY_EN_7,
-    KEY_EN_U,
-    KEY_EN_J,
-    KEY_EN_N,
-    KEY_EN_UNUSED,
-    KEY_EN_F8,
-    KEY_EN_8,
-    KEY_EN_I,
-    KEY_EN_K,
-    KEY_EN_M,
-    KEY_EN_RIGHT_ALT,
-    KEY_EN_F9,
-    KEY_EN_9,
-    KEY_EN_O,
-    KEY_EN_L,
-    KEY_EN_COMMA,
-    KEY_EN_RIGHT_FUNCTION,
-    KEY_EN_F10,
-    KEY_EN_0,
-    KEY_EN_P,
-    KEY_EN_SEMICOLON,
-    KEY_EN_PERIOD,
-    KEY_EN_UNUSED,
-    KEY_EN_F11,
-    KEY_EN_MINUS,
-    KEY_EN_LEFT_BRACKET,
-    KEY_EN_QUOTE,
-    KEY_EN_FORWARD_SLASH,
-    KEY_EN_RIGHT_CONTROL,
-    KEY_EN_F12,
-    KEY_EN_EQUALS,
-    KEY_EN_RIGHT_BRACKET,
-    KEY_EN_UNUSED,
-    KEY_EN_RIGHT_SHIFT,
-    KEY_EN_LEFT_ARROW,
-    KEY_EN_DELETE,
-    KEY_EN_BACKSPACE,
-    KEY_EN_ISO_ENTER,
-    KEY_EN_ISO_BACK_SLASH,
-    KEY_EN_UP_ARROW,
-    KEY_EN_DOWN_ARROW,
-    KEY_EN_UNUSED,
-    KEY_EN_HOME,
-    KEY_EN_PAGE_UP,
-    KEY_EN_PAGE_DOWN,
-    KEY_EN_END,
-    KEY_EN_RIGHT_ARROW,
-};
+#include "KeyboardLayoutManager.h"
 
 /**------------------------------------------------------------------*\
     @name Akko TH80 Pro
@@ -349,7 +240,11 @@ void RGBController_AkkoController::SetupZones()
     {
         zones_info.insert({AKKO_ZONE::Z_LIGHT_STRIPS, controller->GetZoneInfo(AKKO_ZONE::Z_LIGHT_STRIPS)});
     }
-    
+
+    keyboard_keymap_overlay_values keyboard_layout = controller->GetKeyboardLayoutValues();
+    KeyboardLayoutManager new_kb(controller->GetKeyboardLayout(), controller->GetKeyboardSize(), keyboard_layout.key_values);
+    new_kb.ChangeKeys(keyboard_layout);
+
     for(std::vector<mode>::iterator it = modes.begin(); it != modes.end(); it++)
     {
         if (it->value == keyboard_zone_info.mode)
@@ -370,29 +265,27 @@ void RGBController_AkkoController::SetupZones()
         AkkoZoneInfo& zone_info   = it->second;
         if(key == AKKO_ZONE::Z_KEYBOARD)
         {
-            unsigned int * led_matrix = (unsigned int *)&led_matrix_5075_ISO;
-            int m_height = AKKO_5075B::HEIGHT;
-            int m_width = AKKO_5075B::WIDTH;
-            int n_leds = m_height * m_width;
-            zone_info.leds_count = n_leds;
+            zone_info.leds_count = new_kb.GetKeyCount();
 
             zone keyboard;
             keyboard.name               = "Keyboard";
             keyboard.type               = ZONE_TYPE_MATRIX;
-            keyboard.leds_min           = n_leds;
-            keyboard.leds_max           = n_leds;
-            keyboard.leds_count         = n_leds;
+            keyboard.leds_count         = zone_info.leds_count;
+            keyboard.leds_min           = keyboard.leds_count;
+            keyboard.leds_max           = keyboard.leds_count;
             keyboard.matrix_map         = new matrix_map_type;
-            keyboard.matrix_map->height = m_height;
-            keyboard.matrix_map->width  = m_width;
-            keyboard.matrix_map->map    = led_matrix;
+            keyboard.matrix_map->height = new_kb.GetRowCount();
+            keyboard.matrix_map->width  = new_kb.GetColumnCount();
+            keyboard.matrix_map->map    = new unsigned int[keyboard.matrix_map->height * keyboard.matrix_map->width];
             zones.push_back(keyboard);
 
-            for(int i = 0; i < n_leds; i++)
+            new_kb.GetKeyMap(keyboard.matrix_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT, keyboard.matrix_map->height, keyboard.matrix_map->width);
+
+            for(unsigned int led_idx  = 0; led_idx  < keyboard.leds_count; led_idx ++)
             {
                 led keyboard_led;
-                keyboard_led.name = led_names_5075_ISO[i];
-                keyboard_led.value = i;
+                keyboard_led.name = new_kb.GetKeyNameAt(led_idx);
+                keyboard_led.value = new_kb.GetKeyValueAt(led_idx);
                 leds.push_back(keyboard_led);
             }
         }
@@ -426,13 +319,10 @@ void RGBController_AkkoController::SetupZones()
         {
             if(zone_info.mode == AKKO_MODE::USER_PICTURE)
             {
-                if(i + led_index < colors.size())
+                unsigned int device_idx = leds[led_index + i].value;
+                if(i + led_index < colors.size() && device_idx < zone_info.colors.size())
                 {
-                    colors[i + led_index] = zone_info.colors[i];
-                }
-                else
-                {
-                    break;
+                    colors[i + led_index] = zone_info.colors[device_idx];
                 }
             }
             else
@@ -464,17 +354,20 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
         if(zone_info.mode == AKKO_MODE::USER_PICTURE)
         {
             bool changed = false;
-            for(int i = 0; i < colors.size() && i < zone_info.colors.size(); i++)
+            for(std::size_t i = 0; i < zone_info.leds_count; i++)
             {
-                if(!changed && zone_info.colors[i] != colors[led_index + i])
+                unsigned int device_idx = leds[led_index + i].value;
+
+                if(device_idx < zone_info.colors.size())
                 {
-                    changed = true;
-                }
-                if (changed)
-                {
-                    zone_info.colors[i] = colors[led_index + i];
+                    if(zone_info.colors[device_idx] != colors[led_index + i])
+                    {
+                        zone_info.colors[device_idx] = colors[led_index + i];
+                        changed = true;
+                    }
                 }
             }
+
             if(changed)
             {
                 controller->SetCustomLeds(zone_info);
