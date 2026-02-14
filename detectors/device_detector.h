@@ -8,13 +8,13 @@ public:
     MiscDeviceDetectorGroup(DetectionManager* dm);
     ~MiscDeviceDetectorGroup();
 
-    virtual void Prepare() override;
-    virtual void RunDetection() override;
-    virtual void CleanUp() override;
+    void Prepare() override;
+    void RunDetection() override;
+    void CleanUp() override;
 
-    virtual std::string GroupName() override;
-    virtual unsigned int GetNumDetectors() override;
-    virtual std::vector<const std::string*> GetDetectorNames() const override;
+    std::string GroupName() override;
+    unsigned int GetNumDetectors() override;
+    std::vector<const std::string*> GetDetectorNames() const override;
 
     void RegisterDeviceDetector(std::string name, DeviceDetectorFunction detector);
 

@@ -75,7 +75,7 @@ public:
     HIDDeviceDetectorFunction           function;
     ~HIDDeviceDetectorBlock();
 
-    virtual DetectedControllers run(hid_device_info* device) override;
+    DetectedControllers run(hid_device_info* device) override;
 };
 
 class HIDWrappedDeviceDetectorBlock : public BasicHIDBlock
@@ -86,7 +86,7 @@ public:
 
     ~HIDWrappedDeviceDetectorBlock();
 
-    virtual DetectedControllers run(hid_device_info* device) override;
+    DetectedControllers run(hid_device_info* device) override;
 };
 
 struct I2CDeviceDetectorBlock

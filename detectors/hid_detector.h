@@ -9,13 +9,13 @@ public:
     HIDDetectorGroup(DetectionManager* detection_manager);
     ~HIDDetectorGroup();
 
-    virtual void Prepare() override;
-    virtual void RunDetection() override;
-    virtual void CleanUp() override;
+    void Prepare() override;
+    void RunDetection() override;
+    void CleanUp() override;
 
-    virtual std::string GroupName() override;
-    virtual unsigned int GetNumDetectors() override;
-    virtual std::vector<const std::string*> GetDetectorNames() const override;
+    std::string GroupName() override;
+    unsigned int GetNumDetectors() override;
+    std::vector<const std::string*> GetDetectorNames() const override;
 
     void RegisterHIDDeviceDetector(std::string name, HIDDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage);
     void RegisterHIDWrappedDeviceDetector(std::string name, HIDWrappedDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage);
