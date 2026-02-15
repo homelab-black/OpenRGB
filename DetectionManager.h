@@ -21,10 +21,8 @@
 #include <thread>
 #include <vector>
 #include <nlohmann/json.hpp>
-#include "hidapi_wrapper.h"
 #include "i2c_smbus.h"
 #include "RGBController.h"
-#include "SPDWrapper.h"
 
 #include "detector_types.h"
 #include "i2c_detector.h"

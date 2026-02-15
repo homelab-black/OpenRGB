@@ -19,10 +19,6 @@ bool BasicHIDBlock::compare(hid_device_info* info)
         );
 }
 
-BasicHIDBlock::~BasicHIDBlock()
-{
-}
-
 bool BasicHIDBlock::matching_id(hid_device_info* info)
 {
     return((vid == info->vendor_id) && (pid == info->product_id));
@@ -43,7 +39,7 @@ HIDWrappedDeviceDetectorBlock::~HIDWrappedDeviceDetectorBlock()
 
 DetectedControllers HIDWrappedDeviceDetectorBlock::run(hid_device_info* device)
 {
-    return function(hid_wrapper, device, name);
+    return function(*hid_wrapper, device, name);
 }
 
 DeviceDetector::DeviceDetector(std::string name, DeviceDetectorFunction detector)

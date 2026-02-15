@@ -3,6 +3,7 @@
 #include "LogManager.h"
 #include "ResourceManager.h"
 #include "SettingsManager.h"
+#include "detector_types.h"
 #ifdef __linux__
 #include <unistd.h>
 #endif
@@ -141,6 +142,11 @@ void HIDDetectorGroup::RunDetection()
         found = RunNormalDetection();
     }
 
+#if defined(__linux__) && defined(__GLIBC__)
+    DetectedControllers lib_usb_found = RunLibusbDetection();
+    found.insert(found.end(), lib_usb_found.begin(), lib_usb_found.end());
+#endif
+
     for (RGBController* ctrl : found)
     {
         RegisterRGBController(ctrl);
@@ -189,7 +195,7 @@ DetectedControllers HIDDetectorGroup::RunNormalDetection()
     while (current)
     {
         DetectedControllers found1 = DetectNonWrapped(current);
-        DetectedControllers found2 = DetectWrapped(current);
+        DetectedControllers found2 = DetectWrapped(current, (hidapi_wrapper*)&default_hidapi_wrapper);
         found.insert(found.end(), found1.begin(), found1.end());
         found.insert(found.end(), found2.begin(), found2.end());
 
@@ -199,6 +205,26 @@ DetectedControllers HIDDetectorGroup::RunNormalDetection()
 
     return found;
 }
+
+#if defined(__linux__) && defined(__GLIBC__)
+DetectedControllers HIDDetectorGroup::RunLibusbDetection()
+{
+    DetectedControllers found;
+    if (!hidapi_libusb_handle)
+    {
+        return found;
+    }
+    hid_device_info* hid_device = hidapi_libusb_wrapper.hid_enumerate(0, 0);
+    hid_device_info* current = hid_device;
+    while(current)
+    {
+        DetectedControllers new_found = DetectWrapped(current, &hidapi_libusb_wrapper);
+        found.insert(found.end(), new_found.begin(), new_found.end());
+        current = current->next;
+    }
+    return found;
+}
+#endif
 
 DetectedControllers HIDDetectorGroup::DetectNonWrapped(hid_device_info* device)
 {
@@ -226,7 +252,7 @@ DetectedControllers HIDDetectorGroup::DetectNonWrapped(hid_device_info* device)
     return found;
 }
 
-DetectedControllers HIDDetectorGroup::DetectWrapped(hid_device_info* device)
+DetectedControllers HIDDetectorGroup::DetectWrapped(hid_device_info* device, hidapi_wrapper* wrapper)
 {
     DetectedControllers found;
     bool skip_generic = false;
@@ -237,7 +263,7 @@ DetectedControllers HIDDetectorGroup::DetectWrapped(hid_device_info* device)
         {
             skip_generic = true;
         }
-        detector.hid_wrapper = default_hidapi_wrapper;
+        detector.hid_wrapper = wrapper;
         DetectedControllers new_found = DetectWithDetector(device, detector);
         found.insert(found.end(), new_found.begin(), new_found.end());
     }
@@ -246,7 +272,7 @@ DetectedControllers HIDDetectorGroup::DetectWrapped(hid_device_info* device)
     {
         for(HIDWrappedDeviceDetectorBlock& generic_detector : hid_wrapped_generic_detectors)
         {
-            generic_detector.hid_wrapper = default_hidapi_wrapper;
+            generic_detector.hid_wrapper = wrapper;
             DetectedControllers new_found = DetectWithDetector(device, generic_detector);
             found.insert(found.end(), new_found.begin(), new_found.end());
         }
@@ -390,7 +416,6 @@ int DetectionManager::HotplugCallbackFunction(hid_hotplug_callback_handle callba
     | device strings                                        |
     \*-----------------------------------------------------*/
     json                detector_settings   = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
-    DetectionManager*   dm                  = DetectionManager::get();
 
     if(event == HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED)
     {

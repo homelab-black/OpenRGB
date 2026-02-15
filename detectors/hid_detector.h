@@ -2,6 +2,12 @@
 
 #include "detector_group.h"
 #include "detector_types.h"
+#include "hidapi.h"
+#include "hidapi_wrapper.h"
+
+#if(HID_HOTPLUG_ENABLED)
+#include "dependencies/hidapi-hotplug-win/include/hidapi.h"
+#endif
 
 class HIDDetectorGroup : public DetectorGroup
 {
@@ -27,8 +33,11 @@ private:
 
     DetectedControllers RunNormalDetection();
     DetectedControllers RunSafeDetectection();
+#if defined(__linux__) && defined(__GLIBC__)
+    DetectedControllers RunLibusbDetection();
+#endif
     DetectedControllers DetectNonWrapped(hid_device_info* device);
-    DetectedControllers DetectWrapped(hid_device_info* device);
+    DetectedControllers DetectWrapped(hid_device_info* device, hidapi_wrapper* wrapper);
 
     /*----------------------------*\
     | Runs detector using a device |
@@ -45,14 +54,13 @@ private:
     std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_generic_detectors;
     std::vector<HIDWrappedDeviceDetectorBlock>  hid_wrapped_specific_detectors;
 
-#ifdef __linux__
-#ifdef __GLIBC__
+#if defined(__linux__) && defined(__GLIBC__)
+
     /*-----------------------------------------------------*\
     | Wrapped libusb hidapi handles                         |
     \*-----------------------------------------------------*/
     void *                                      hidapi_libusb_handle;
     hidapi_wrapper                              hidapi_libusb_wrapper;
-#endif
 #endif
 
 /*-----------------------------------------------------*\

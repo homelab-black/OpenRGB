@@ -5,6 +5,7 @@
 #include "hidapi_wrapper.h"
 #include "SPDWrapper.h"
 #include "RGBController.h"
+#include "i2c_smbus.h"
 
 /*---------------------------------------------------------*\
 | HID Default Values                                        |
@@ -15,8 +16,6 @@
 #define HID_USAGE_ANY                   -1
 #define HID_USAGE_PAGE_ANY              -1
 
-// todo: remove
-#define HID_HOTPLUG_ENABLED 0
 
 
 /*---------------------------------------------------------*\
@@ -63,7 +62,7 @@ public:
     int                                 usage_page;
     int                                 usage;
 
-    ~BasicHIDBlock();
+    virtual ~BasicHIDBlock() = default;
     bool compare(hid_device_info* info);
     bool matching_id(hid_device_info* info);
     virtual DetectedControllers run(hid_device_info* device) = 0;
@@ -82,7 +81,7 @@ class HIDWrappedDeviceDetectorBlock : public BasicHIDBlock
 {
 public:
     HIDWrappedDeviceDetectorFunction    function;
-    hidapi_wrapper                     hid_wrapper;
+    hidapi_wrapper*                     hid_wrapper;
 
     ~HIDWrappedDeviceDetectorBlock();
 

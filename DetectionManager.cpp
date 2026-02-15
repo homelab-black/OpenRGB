@@ -10,14 +10,12 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include <chrono>
 #include "DetectionManager.h"
 #include "LogManager.h"
 #include "pci_ids.h"
 #include "ProfileManager.h"
 #include "ResourceManager.h"
 #include "SettingsManager.h"
-#include "StringUtils.h"
 
 #ifdef __linux__
 #include <unistd.h>
