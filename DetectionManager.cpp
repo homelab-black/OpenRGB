@@ -817,7 +817,7 @@ void DetectionManager::SignalUpdate(unsigned int update_reason)
 void DetectionManager::IncrementDetectorCount()
 {
     detection_percent_numerator++;
-    detection_percent = (unsigned int)(100.0f * (detection_percent_numerator / detection_percent_denominator));
+    detection_percent = (unsigned int)(100.0f * ((float)detection_percent_numerator / (float)detection_percent_denominator));
 }
 
 void DetectionManager::SetDetectorString(std::string _detection_string)
