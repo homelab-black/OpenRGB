@@ -33,8 +33,6 @@ HIDDetectorGroup::HIDDetectorGroup(DetectionManager* dm) : DetectorGroup(dm)
 #if defined(__linux__) && defined(__GLIBC__)
     hidapi_libusb_handle            = nullptr;
 #endif
-
-    HIDInit();
 }
 
 HIDDetectorGroup::~HIDDetectorGroup()

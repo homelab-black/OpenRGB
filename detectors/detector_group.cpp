@@ -33,7 +33,7 @@ void DetectorGroup::RegisterRGBController(RGBController* ctrl)
     detection_manager->RegisterRGBController(ctrl);
 }
 
-void DetectorGroup::SignalUpdate(unsigned int update_reason)
+void DetectorGroup::SignalUpdate(DetectionUpdate update_reason)
 {
     detection_manager->SignalUpdate(update_reason);
 }
@@ -41,20 +41,21 @@ void DetectorGroup::SignalUpdate(unsigned int update_reason)
 void DetectorGroup::OnSkipDetection(const std::string& detector_str, const std::string& reason)
 {
     detection_manager->IncrementDetectorCount();
+    detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
     LOG_TRACE("[%s] skpping %s: %s", GroupName().c_str(), detector_str.c_str(), reason.c_str());
 }
 
 void DetectorGroup::OnStartDetection(const std::string& detector_str)
 {
     detection_manager->SetDetectorString(detector_str);
-    detection_manager->SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+    detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
     LOG_DEBUG("[%s] %s detection start", GroupName().c_str(), detector_str.c_str());
 }
 
 void DetectorGroup::OnEndDetection(const std::string& detector_str)
 {
     detection_manager->IncrementDetectorCount();
-    detection_manager->SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+    detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
     LOG_DEBUG("[%s] %s detection end", GroupName().c_str(), detector_str.c_str());
 }
 

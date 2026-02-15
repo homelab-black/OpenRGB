@@ -1,4 +1,5 @@
 #include "i2c_detector.h"
+#include "DetectionManager.h"
 #include "LogManager.h"
 #include "ResourceManager.h"
 #include "SettingsManager.h"
@@ -31,7 +32,7 @@ void I2CDetectorGroup::RegisterI2CBus(i2c_smbus_interface *bus)
     /*-----------------------------------------------------*\
     | Signal I2C Bus List Update                            |
     \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_I2C_BUS_REGISTERED);
+    SignalUpdate(DetectionUpdate::I2CBusRegistered);
 }
 
 void I2CDetectorGroup::RegisterI2CBusDetector(I2CBusDetectorFunction detector)

@@ -300,7 +300,7 @@ void DetectionManager::RegisterRGBController(RGBController *rgb_controller)
     /*-----------------------------------------------------*\
     | Signal Device List Update                             |
     \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_REGISTERED);
+    SignalUpdate(DetectionUpdate::RGBControllerRegistered);
 }
 
 void DetectionManager::UnregisterRGBController(RGBController* rgb_controller)
@@ -326,7 +326,7 @@ void DetectionManager::UnregisterRGBController(RGBController* rgb_controller)
     /*-----------------------------------------------------*\
     | Signal Device List Update                             |
     \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_UNREGISTERED);
+    SignalUpdate(DetectionUpdate::RGBControllerUnregistered);
 }
 
 /*---------------------------------------------------------*\
@@ -384,7 +384,7 @@ void DetectionManager::BackgroundThreadFunction()
     | when applicable                                       |
     | Stays asleep if nothing is scheduled                  |
     | NOTE: this thread owns the HIDAPI library internal    |
-    | objects on MacOS                                      |
+    | objects on MacOS (see `hid_detector.h`)               |
     | hid_init and hid_exit may not be called outside of    |
     | this thread.  Calling hid_exit outside of this thread |
     | WILL cause an immediate CRASH on MacOS.               |
@@ -488,7 +488,7 @@ void DetectionManager::BackgroundDetectDevices()
     detection_percent   = 0;
     detection_string    = "";
 
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+    SignalUpdate(DetectionUpdate::DetectionProgressChanged);
 
     /*-----------------------------------------------------*\
     | Open device disable list and read in disabled         |
@@ -513,7 +513,7 @@ void DetectionManager::BackgroundDetectDevices()
         if(initial_detection_delay_ms != 0)
         {
             detection_string = "Waiting for detection delay";
-            SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+            SignalUpdate(DetectionUpdate::DetectionProgressChanged);
 
             LOG_INFO("[%s] Delaying detection for %d ms", DETECTIONMANAGER, initial_detection_delay_ms);
             std::this_thread::sleep_for(initial_detection_delay_ms * 1ms);
@@ -542,23 +542,27 @@ void DetectionManager::BackgroundDetectDevices()
     \*------------------------------------------------------*/
     i2c_group.Prepare();
     i2c_group.RunDetection();
+    LOG_DEBUG("[%s] after i2c detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
 
     hid_group.Prepare();
     hid_group.RunDetection();
+    LOG_DEBUG("[%s] after hid detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
 
     others_group.Prepare();
     others_group.RunDetection();
+    LOG_DEBUG("[%s] after misc detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
+
 
     /*-----------------------------------------------------*\
     | Signal that detection progress reached 100%           |
     \*-----------------------------------------------------*/
     detection_percent     = 100;
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
+    SignalUpdate(DetectionUpdate::DetectionProgressChanged);
 
     /*-----------------------------------------------------*\
     | Signal that detection is complete                     |
     \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_COMPLETE);
+    SignalUpdate(DetectionUpdate::DetectionCompleted);
 
     LOG_INFO("------------------------------------------------------");
     LOG_INFO("|                Detection completed                 |");
@@ -666,7 +670,7 @@ void DetectionManager::ProcessCleanup()
     /*-----------------------------------------------------*\
     | Signal the list cleared callback                      |
     \*-----------------------------------------------------*/
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_LIST_CLEARED);
+    SignalUpdate(DetectionUpdate::RGBControllerListCleared);
 
     /*-----------------------------------------------------*\
     | Delete the controllers                                |
@@ -717,7 +721,7 @@ bool DetectionManager::ProcessPreDetection()
     \*-----------------------------------------------------*/
     LOG_TRACE("[%s] Signaling detection start", DETECTIONMANAGER);
 
-    SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_STARTED);
+    SignalUpdate(DetectionUpdate::DetectionStarted);
 
     /*-----------------------------------------------------*\
     | Update the detector settings                          |
@@ -800,17 +804,13 @@ void DetectionManager::UpdateDetectorSettings()
 | Function for signalling DetectionManager updates to       |
 | registered callbacks                                      |
 \*---------------------------------------------------------*/
-void DetectionManager::SignalUpdate(unsigned int update_reason)
+void DetectionManager::SignalUpdate(DetectionUpdate update_reason)
 {
-    DetectionCallbackMutex.lock();
-
+    std::unique_lock<std::mutex> lock(DetectionCallbackMutex);
     for(std::size_t callback_idx = 0; callback_idx < DetectionCallbacks.size(); callback_idx++)
     {
         DetectionCallbacks[callback_idx](DetectionCallbackArgs[callback_idx], update_reason);
     }
-
-    DetectionCallbackMutex.unlock();
-
     LOG_TRACE("[%s] Update signalled: %d.", DETECTIONMANAGER, update_reason);
 }
 
@@ -818,6 +818,7 @@ void DetectionManager::IncrementDetectorCount()
 {
     detection_percent_numerator++;
     detection_percent = (unsigned int)(100.0f * ((float)detection_percent_numerator / (float)detection_percent_denominator));
+    LOG_DEBUG("[%s] detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
 }
 
 void DetectionManager::SetDetectorString(std::string _detection_string)

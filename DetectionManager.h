@@ -37,23 +37,23 @@ using json = nlohmann::json;
 #undef interface
 
 /*---------------------------------------------------------*\
-| Detection Callback Type                                   |
-\*---------------------------------------------------------*/
-typedef void (*DetectionCallback)(void *, unsigned int);
-
-/*---------------------------------------------------------*\
 | Update Reason Codes                                       |
 \*---------------------------------------------------------*/
-enum
+enum class DetectionUpdate
 {
-    DETECTIONMANAGER_UPDATE_REASON_I2C_BUS_REGISTERED,          /* RegisterI2CBus() called          */
-    DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_REGISTERED,    /* RegisterRGBController() called   */
-    DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_UNREGISTERED,  /* UnregisterRGBController() called */
-    DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_LIST_CLEARED,  /* RGBController list cleared       */
-    DETECTIONMANAGER_UPDATE_REASON_DETECTION_STARTED,           /* Detection started                */
-    DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED,  /* Detection progress changed       */
-    DETECTIONMANAGER_UPDATE_REASON_DETECTION_COMPLETE,          /* Detection completed              */
+    I2CBusRegistered,          /* RegisterI2CBus() called          */
+    RGBControllerRegistered,    /* RegisterRGBController() called   */
+    RGBControllerUnregistered,  /* UnregisterRGBController() called */
+    RGBControllerListCleared,  /* RGBController list cleared       */
+    DetectionStarted,           /* Detection started                */
+    DetectionProgressChanged,  /* Detection progress changed       */
+    DetectionCompleted,          /* Detection completed              */
 };
+
+/*---------------------------------------------------------*\
+| Detection Callback Type                                   |
+\*---------------------------------------------------------*/
+typedef void (*DetectionCallback)(void *, DetectionUpdate);
 
 /*---------------------------------------------------------*\
 | DetectionManager class                                    |
@@ -127,7 +127,7 @@ public:
 
     void IncrementDetectorCount();
     void SetDetectorString(std::string _detection_string);
-    void SignalUpdate(unsigned int update_reason);
+    void SignalUpdate(DetectionUpdate update_reason);
 
 private:
     /*-----------------------------------------------------*\

@@ -8,6 +8,7 @@ using json = nlohmann::json;
 
 // forward decl
 class DetectionManager;
+enum class DetectionUpdate;
 
 #define DETECTOR_DISABLED_REASON "Detector is disabled"
 
@@ -31,7 +32,7 @@ protected:
     bool IsDetectionEnabledFor(const std::string& detector_str);
 
     void RegisterRGBController(RGBController* ctrl);
-    void SignalUpdate(unsigned int update_reason);
+    void SignalUpdate(DetectionUpdate update_reason);
 
     void OnSkipDetection(const std::string& detector_str, const std::string& reason);
     void OnStartDetection(const std::string& detector_str);
