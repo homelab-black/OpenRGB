@@ -63,8 +63,8 @@ public:
     int                                 usage;
 
     virtual ~BasicHIDBlock() = default;
-    bool compare(hid_device_info* info);
-    bool matching_id(hid_device_info* info);
+    bool compare(hid_device_info* info) const;
+    bool matching_id(hid_device_info* info) const;
     virtual DetectedControllers run(hid_device_info* device) = 0;
 };
 

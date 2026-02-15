@@ -124,8 +124,8 @@ public:
     std::string                         GetDetectionString();
     void                                WaitForDetection();
 
-
-    void IncrementDetectorCount();
+    void IncrementProcessedDetectorCount();
+    void IncrementProcessedDetectorCount(unsigned int count);
     void SetDetectorString(std::string _detection_string);
     void SignalUpdate(DetectionUpdate update_reason);
 
@@ -167,8 +167,8 @@ private:
     \*-----------------------------------------------------*/
     std::mutex                                  DetectDevicesMutex;
     std::atomic<unsigned int>                   detection_percent;
-    unsigned int                                detection_percent_numerator;
-    unsigned int                                detection_percent_denominator;
+    unsigned int                                processed_detectors;
+    unsigned int                                total_detectors;
     std::vector<bool>                           detection_size_entry_used;
     std::string                                 detection_string;
     bool                                        dynamic_detectors_processed;
@@ -204,6 +204,7 @@ private:
     bool ProcessPreDetection();
     void ProcessPreDetectionHooks();
     void UpdateDetectorSettings();
+    void SetDetectorCount(unsigned int count);
 };
 
 /*---------------------------------------------------------*\

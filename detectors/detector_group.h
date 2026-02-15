@@ -37,6 +37,8 @@ protected:
     void OnSkipDetection(const std::string& detector_str, const std::string& reason);
     void OnStartDetection(const std::string& detector_str);
     void OnEndDetection(const std::string& detector_str);
+    void IncrementProcessedCount();
+    void IncrementProcessedCount(unsigned int count);
 
 private:
     DetectionManager* detection_manager;

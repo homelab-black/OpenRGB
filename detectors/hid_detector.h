@@ -9,6 +9,32 @@
 #include "dependencies/hidapi-hotplug-win/include/hidapi.h"
 #endif
 
+class HIDDeviceEnumeration
+{
+public:
+    HIDDeviceEnumeration(uint16_t v_id, uint16_t p_id);
+    HIDDeviceEnumeration(hidapi_wrapper* wrapper, uint16_t v_id, uint16_t p_id);
+    ~HIDDeviceEnumeration();
+
+    std::vector<hid_device_info*>& Devices();
+    std::vector<hid_device_info*>& GenericDevices();
+    // two methods since I'm too stupid to figure out how to use BaseHIDBlock here
+    void BuildGenericList(const std::vector<HIDDeviceDetectorBlock>& detectors);
+    void BuildGenericList(const std::vector<HIDWrappedDeviceDetectorBlock>& detectors);
+private:
+
+    void BuildDeviceList();
+
+    // device at which enumeration starts, `hid_free_enumeration` must be called on this
+    hid_device_info* root_device;
+    hidapi_wrapper* hid_wrapper = nullptr;
+    // devices that should use specific detector
+    std::vector<hid_device_info*> devices;
+    // devices that should us generic detector
+    std::vector<hid_device_info*> device_use_generic;
+};
+
+
 class HIDDetectorGroup : public DetectorGroup
 {
 public:
@@ -36,13 +62,13 @@ private:
 #if defined(__linux__) && defined(__GLIBC__)
     DetectedControllers RunLibusbDetection();
 #endif
-    DetectedControllers DetectNonWrapped(hid_device_info* device);
-    DetectedControllers DetectWrapped(hid_device_info* device, hidapi_wrapper* wrapper);
+    DetectedControllers DetectNonWrapped(HIDDeviceEnumeration& devices);
+    DetectedControllers DetectWrapped(HIDDeviceEnumeration& devices, hidapi_wrapper* wrapper);
 
     /*----------------------------*\
     | Runs detector using a device |
     \*----------------------------*/
-    DetectedControllers DetectWithDetector(hid_device_info* device, BasicHIDBlock& detector);
+    DetectedControllers DetectWithDetector(std::vector<hid_device_info*>& devices, BasicHIDBlock& detector);
 
 
     hid_device_info* hid_devices = NULL; // only valid after PrepareDetection() and before CleanUp();

@@ -3,7 +3,10 @@
 #include "LogManager.h"
 #include "ResourceManager.h"
 #include "SettingsManager.h"
+#include "detector_group.h"
 #include "detector_types.h"
+#include "hidapi.h"
+#include <cstddef>
 #ifdef __linux__
 #include <unistd.h>
 #endif
@@ -28,11 +31,114 @@ const hidapi_wrapper default_hidapi_wrapper =
 #endif
 };
 
+HIDDeviceEnumeration::HIDDeviceEnumeration(uint16_t v_id, uint16_t p_id)
+{
+    root_device = hid_enumerate(v_id, p_id);
+    BuildDeviceList();
+}
+
+HIDDeviceEnumeration::HIDDeviceEnumeration(hidapi_wrapper* wrapper, uint16_t v_id, uint16_t p_id)
+{
+    root_device = wrapper->hid_enumerate(v_id, p_id);
+    hid_wrapper = wrapper;
+    BuildDeviceList();
+}
+
+HIDDeviceEnumeration::~HIDDeviceEnumeration()
+{
+    if(hid_wrapper != nullptr )
+    {
+        hid_wrapper->hid_free_enumeration(root_device);
+    }
+    else
+    {
+        hid_free_enumeration(root_device);
+    }
+}
+
+std::vector<hid_device_info*>& HIDDeviceEnumeration::Devices()
+{
+    return devices;
+}
+
+std::vector<hid_device_info*>& HIDDeviceEnumeration::GenericDevices()
+{
+    return device_use_generic;
+}
+
+void HIDDeviceEnumeration::BuildDeviceList()
+{
+    this->devices = {};
+    hid_device_info* current = root_device;
+    while(current)
+    {
+        this->devices.push_back(current);
+        current = current->next;
+    }
+}
+
+void HIDDeviceEnumeration::BuildGenericList(const std::vector<HIDDeviceDetectorBlock>& detectors)
+{
+    std::vector<hid_device_info*> use_specific;
+    std::vector<hid_device_info*> use_generic;
+
+    for(hid_device_info* device : this->devices)
+    {
+        bool any_match = false;
+        for(const BasicHIDBlock& detector : detectors)
+        {
+            if(detector.matching_id(device))
+            {
+                any_match = true;
+                break;
+            }
+        }
+
+        if(any_match)
+        {
+            use_specific.push_back(device);
+        }
+        else
+        {
+            use_generic.push_back(device);
+        }
+    }
+    this->devices = use_specific;
+    this->device_use_generic = use_generic;
+}
+
+void HIDDeviceEnumeration::BuildGenericList(const std::vector<HIDWrappedDeviceDetectorBlock>& detectors)
+{
+    std::vector<hid_device_info*> use_specific;
+    std::vector<hid_device_info*> use_generic;
+
+    for(hid_device_info* device : this->devices)
+    {
+        bool any_match = false;
+        for(const BasicHIDBlock& detector : detectors)
+        {
+            if(detector.matching_id(device))
+            {
+                any_match = true;
+                break;
+            }
+        }
+
+        if(any_match)
+        {
+            use_specific.push_back(device);
+        }
+        else
+        {
+            use_generic.push_back(device);
+        }
+    }
+    this->devices = use_specific;
+    this->device_use_generic = use_generic;
+}
+
 HIDDetectorGroup::HIDDetectorGroup(DetectionManager* dm) : DetectorGroup(dm)
 {
-#if defined(__linux__) && defined(__GLIBC__)
-    hidapi_libusb_handle            = nullptr;
-#endif
 }
 
 HIDDetectorGroup::~HIDDetectorGroup()
@@ -155,27 +261,12 @@ void HIDDetectorGroup::RunDetection()
 DetectedControllers HIDDetectorGroup::RunSafeDetectection()
 {
     DetectedControllers found = DetectedControllers {};
-
-    // only create hid_device for known detectors
     for(HIDDeviceDetectorBlock& detector : hid_specific_detectors)
     {
-        hid_device_info* hid_device = hid_enumerate(detector.vid, detector.pid);
-        hid_device_info* current = hid_device;
-        while(current)
-        {
-            DetectedControllers new_found = DetectWithDetector(hid_device, detector);
-            if (!found.empty())
-            {
-                /*---------------------------------------*\
-                | we can only find 1 device per detector? |
-                \*---------------------------------------*/
-                found.insert(found.end(), new_found.begin(), new_found.end());
-                break;
-            }
-            current = current->next;
-        }
-
-        hid_free_enumeration(hid_device);
+        // only create hid_device for known ids
+        HIDDeviceEnumeration devices(detector.vid, detector.pid);
+        DetectedControllers new_found = DetectWithDetector(devices.Devices(), detector);
+        found.insert(found.end(), new_found.begin(), new_found.end());
     }
     return found;
 }
@@ -187,106 +278,72 @@ DetectedControllers HIDDetectorGroup::RunNormalDetection()
     StartHIDHotplug();
 #endif
 
-    DetectedControllers found;
-    hid_device_info* hid_device = hid_enumerate(0, 0);
-    hid_device_info* current = hid_device;
-    while (current)
-    {
-        DetectedControllers found1 = DetectNonWrapped(current);
-        DetectedControllers found2 = DetectWrapped(current, (hidapi_wrapper*)&default_hidapi_wrapper);
-        found.insert(found.end(), found1.begin(), found1.end());
-        found.insert(found.end(), found2.begin(), found2.end());
-
-        current = current->next;
-    }
-    hid_free_enumeration(hid_device);
-
+    HIDDeviceEnumeration devices(0, 0);
+    DetectedControllers found = DetectNonWrapped(devices);
+    DetectedControllers found_wrapped = DetectWrapped(devices, (hidapi_wrapper*)&default_hidapi_wrapper);
+    found.insert(found.end(), found_wrapped.begin(), found_wrapped.end());
     return found;
 }
 
 #if defined(__linux__) && defined(__GLIBC__)
 DetectedControllers HIDDetectorGroup::RunLibusbDetection()
 {
-    DetectedControllers found;
     if (!hidapi_libusb_handle)
     {
-        return found;
+        return DetectedControllers {};
     }
-    hid_device_info* hid_device = hidapi_libusb_wrapper.hid_enumerate(0, 0);
-    hid_device_info* current = hid_device;
-    while(current)
-    {
-        DetectedControllers new_found = DetectWrapped(current, &hidapi_libusb_wrapper);
-        found.insert(found.end(), new_found.begin(), new_found.end());
-        current = current->next;
-    }
-    return found;
+    HIDDeviceEnumeration devices(&hidapi_libusb_wrapper, 0, 0);
+    return DetectWrapped(devices, &hidapi_libusb_wrapper);
 }
 #endif
 
-DetectedControllers HIDDetectorGroup::DetectNonWrapped(hid_device_info* device)
+DetectedControllers HIDDetectorGroup::DetectNonWrapped(HIDDeviceEnumeration& devices)
 {
     DetectedControllers found;
-    bool skip_generic = false;
+    // Build list of devices for which no specific detector matches
+    // these will use a generic detector instead
+    devices.BuildGenericList(hid_specific_detectors);
     for(HIDDeviceDetectorBlock& detector : hid_specific_detectors)
     {
-        // we skip generics if at least one matching specific detector is on
-        if (IsDetectionEnabledFor(detector.name) && detector.matching_id(device))
-        {
-            skip_generic = true;
-        }
-        DetectedControllers new_found = DetectWithDetector(device, detector);
+        DetectedControllers new_found = DetectWithDetector(devices.Devices(), detector);
         found.insert(found.end(), new_found.begin(), new_found.end());
     }
 
-    if (!skip_generic)
+    // Try generic detectors
+    for(HIDDeviceDetectorBlock& generic_detector : hid_generic_detectors)
     {
-        for(HIDDeviceDetectorBlock& generic_detector : hid_generic_detectors)
-        {
-            DetectedControllers new_found = DetectWithDetector(device, generic_detector);
-            found.insert(found.end(), new_found.begin(), new_found.end());
-        }
+        DetectedControllers new_found = DetectWithDetector(devices.GenericDevices(), generic_detector);
+        found.insert(found.end(), new_found.begin(), new_found.end());
     }
     return found;
 }
 
-DetectedControllers HIDDetectorGroup::DetectWrapped(hid_device_info* device, hidapi_wrapper* wrapper)
+DetectedControllers HIDDetectorGroup::DetectWrapped(HIDDeviceEnumeration& devices, hidapi_wrapper* wrapper)
 {
     DetectedControllers found;
-    bool skip_generic = false;
+    // Build list of devices for which no specific detector matches
+    // these will use a generic detector instead
+    devices.BuildGenericList(hid_wrapped_specific_detectors);
     for(HIDWrappedDeviceDetectorBlock& detector : hid_wrapped_specific_detectors)
     {
-        // we skip generics if at least one matching specific detector is on
-        if (IsDetectionEnabledFor(detector.name) && detector.matching_id(device))
-        {
-            skip_generic = true;
-        }
         detector.hid_wrapper = wrapper;
-        DetectedControllers new_found = DetectWithDetector(device, detector);
+        DetectedControllers new_found = DetectWithDetector(devices.Devices(), detector);
         found.insert(found.end(), new_found.begin(), new_found.end());
     }
 
-    if (!skip_generic)
+    // Try generic detectors
+    for(HIDWrappedDeviceDetectorBlock& generic_detector : hid_wrapped_generic_detectors)
     {
-        for(HIDWrappedDeviceDetectorBlock& generic_detector : hid_wrapped_generic_detectors)
-        {
-            generic_detector.hid_wrapper = wrapper;
-            DetectedControllers new_found = DetectWithDetector(device, generic_detector);
-            found.insert(found.end(), new_found.begin(), new_found.end());
-        }
+        generic_detector.hid_wrapper = wrapper;
+        DetectedControllers new_found = DetectWithDetector(devices.GenericDevices(), generic_detector);
+        found.insert(found.end(), new_found.begin(), new_found.end());
     }
     return found;
 }
 
-DetectedControllers HIDDetectorGroup::DetectWithDetector(hid_device_info* device, BasicHIDBlock& detector)
+DetectedControllers HIDDetectorGroup::DetectWithDetector(std::vector<hid_device_info*>& devices, BasicHIDBlock& detector)
 {
     DetectedControllers found;
-
-    if (!detector.compare(device))
-    {
-        return found;
-    }
-
     if (!IsDetectionEnabledFor(detector.name))
     {
         OnSkipDetection(detector.name, DETECTOR_DISABLED_REASON);
@@ -294,19 +351,30 @@ DetectedControllers HIDDetectorGroup::DetectWithDetector(hid_device_info* device
     }
 
     OnStartDetection(detector.name);
-    found = detector.run(device);
-    OnEndDetection(detector.name);
-
-    for(std::size_t idx = 0; idx < found.size(); idx++)
+    for (hid_device_info* device : devices)
     {
-        found[idx]->SetDetectionPath(std::string(device->path));
+        if (!detector.compare(device))
+        {
+            continue;
+        }
+        DetectedControllers new_found = detector.run(device);
+        found.insert(found.end(), new_found.begin(), new_found.end());
+        // assumption, only 1 device can match
+        if (!found.empty())
+        {
+            for(std::size_t idx = 0; idx < found.size(); idx++)
+            {
+                found[idx]->SetDetectionPath(std::string(device->path));
 
-#if(HID_HOTPLUG_ENABLED)
-        int handle;
-        hid_hotplug_register_callback(device->vendor_id, device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, found[idx], &handle);
-#endif
+                #if(HID_HOTPLUG_ENABLED)
+                int handle;
+                hid_hotplug_register_callback(device->vendor_id, device->product_id, HID_API_HOTPLUG_EVENT_DEVICE_LEFT, 0, &DetectionManager::UnplugCallbackFunction, found[idx], &handle);
+                #endif
+            }
+            break;
+        }
     }
-
+    OnEndDetection(detector.name);
     return found;
 }
 

@@ -40,7 +40,7 @@ void DetectorGroup::SignalUpdate(DetectionUpdate update_reason)
 
 void DetectorGroup::OnSkipDetection(const std::string& detector_str, const std::string& reason)
 {
-    detection_manager->IncrementDetectorCount();
+    detection_manager->IncrementProcessedDetectorCount();
     detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
     LOG_TRACE("[%s] skpping %s: %s", GroupName().c_str(), detector_str.c_str(), reason.c_str());
 }
@@ -54,9 +54,20 @@ void DetectorGroup::OnStartDetection(const std::string& detector_str)
 
 void DetectorGroup::OnEndDetection(const std::string& detector_str)
 {
-    detection_manager->IncrementDetectorCount();
+    detection_manager->IncrementProcessedDetectorCount();
     detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
     LOG_DEBUG("[%s] %s detection end", GroupName().c_str(), detector_str.c_str());
+}
+
+void DetectorGroup::IncrementProcessedCount()
+{
+    IncrementProcessedCount(1);
+}
+
+void DetectorGroup::IncrementProcessedCount(unsigned int count)
+{
+    detection_manager->IncrementProcessedDetectorCount(count);
+    detection_manager->SignalUpdate(DetectionUpdate::DetectionProgressChanged);
 }
 
 json& DetectorGroup::GetDetectorSettings()

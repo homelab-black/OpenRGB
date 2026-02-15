@@ -102,7 +102,7 @@ DetectionManager::DetectionManager()
     \*-----------------------------------------------------*/
     detection_in_progress           = false;
     detection_percent               = 100;
-    detection_percent_denominator   = 0;
+    total_detectors   = 0;
     detection_string                = "";
     dynamic_detectors_processed     = false;
     initial_detection               = true;
@@ -483,14 +483,6 @@ void DetectionManager::BackgroundDetectDevices()
     LOG_INFO("------------------------------------------------------");
 
     /*-----------------------------------------------------*\
-    | Start at 0% detection progress                        |
-    \*-----------------------------------------------------*/
-    detection_percent   = 0;
-    detection_string    = "";
-
-    SignalUpdate(DetectionUpdate::DetectionProgressChanged);
-
-    /*-----------------------------------------------------*\
     | Open device disable list and read in disabled         |
     | device strings                                        |
     \*-----------------------------------------------------*/
@@ -523,6 +515,17 @@ void DetectionManager::BackgroundDetectDevices()
     }
 
     /*-----------------------------------------------------*\
+    | Start at 0% detection progress                        |
+    \*-----------------------------------------------------*/
+    total_detectors = i2c_group.GetNumDetectors()
+                    + hid_group.GetNumDetectors()
+                    + others_group.GetNumDetectors();
+    SetDetectorCount(0);
+    SetDetectorString("");
+
+    SignalUpdate(DetectionUpdate::DetectionProgressChanged);
+
+    /*-----------------------------------------------------*\
     | Reset the size entry used flags vector                |
     \*-----------------------------------------------------*/
     detection_size_entry_used.resize(rgb_controllers_sizes.size());
@@ -532,9 +535,6 @@ void DetectionManager::BackgroundDetectDevices()
         detection_size_entry_used[size_idx] = false;
     }
 
-    detection_percent_denominator = i2c_group.GetNumDetectors()
-                                    + hid_group.GetNumDetectors()
-                                    + others_group.GetNumDetectors();
     /*------------------------------------------------------*\
     | Run groups detectors in order                          |
     | These internally register RGB devices as they're found |
@@ -552,12 +552,10 @@ void DetectionManager::BackgroundDetectDevices()
     others_group.RunDetection();
     LOG_DEBUG("[%s] after misc detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
 
-
     /*-----------------------------------------------------*\
     | Signal that detection progress reached 100%           |
     \*-----------------------------------------------------*/
-    detection_percent     = 100;
-    SignalUpdate(DetectionUpdate::DetectionProgressChanged);
+    SetDetectorCount(total_detectors);
 
     /*-----------------------------------------------------*\
     | Signal that detection is complete                     |
@@ -814,11 +812,21 @@ void DetectionManager::SignalUpdate(DetectionUpdate update_reason)
     LOG_TRACE("[%s] Update signalled: %d.", DETECTIONMANAGER, update_reason);
 }
 
-void DetectionManager::IncrementDetectorCount()
+void DetectionManager::SetDetectorCount(unsigned int count)
 {
-    detection_percent_numerator++;
-    detection_percent = (unsigned int)(100.0f * ((float)detection_percent_numerator / (float)detection_percent_denominator));
+    processed_detectors = count;
+    detection_percent = (unsigned int)(100.0f * ((float)processed_detectors / (float)total_detectors));
     LOG_DEBUG("[%s] detection_percent: %d", DETECTIONMANAGER, detection_percent.load());
+}
+
+void DetectionManager::IncrementProcessedDetectorCount()
+{
+    IncrementProcessedDetectorCount(1);
+}
+
+void DetectionManager::IncrementProcessedDetectorCount(unsigned int count)
+{
+    SetDetectorCount(processed_detectors + count);
 }
 
 void DetectionManager::SetDetectorString(std::string _detection_string)

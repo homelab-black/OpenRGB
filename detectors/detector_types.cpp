@@ -4,7 +4,7 @@
 /*---------------------------------------------------------*\
 | BasicHIDBlock Implementation                              |
 \*---------------------------------------------------------*/
-bool BasicHIDBlock::compare(hid_device_info* info)
+bool BasicHIDBlock::compare(hid_device_info* info) const
 {
     return(((vid        == HID_VID_ANY)
          || (vid == info->vendor_id))
@@ -19,7 +19,7 @@ bool BasicHIDBlock::compare(hid_device_info* info)
         );
 }
 
-bool BasicHIDBlock::matching_id(hid_device_info* info)
+bool BasicHIDBlock::matching_id(hid_device_info* info) const
 {
     return((vid == info->vendor_id) && (pid == info->product_id));
 }
