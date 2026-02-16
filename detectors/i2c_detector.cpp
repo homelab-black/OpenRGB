@@ -1,8 +1,6 @@
 #include "i2c_detector.h"
 #include "DetectionManager.h"
 #include "LogManager.h"
-#include "ResourceManager.h"
-#include "SettingsManager.h"
 #include "pci_ids.h"
 
 I2CDetectorGroup::I2CDetectorGroup(DetectionManager* dm) : DetectorGroup(dm)
@@ -322,15 +320,10 @@ DetectedControllers I2CDetectorGroup::DetectPCIDevices()
 
 bool I2CDetectorGroup::IsAnyDimmDetectorEnabled()
 {
-    const json& detector_settings = GetDetectorSettings();
     for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
     {
-        const std::string& detector_name_string = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
-        /*-------------------------------------------------*\
-        | Check if this detector is enabled                 |
-        \*-------------------------------------------------*/
-        if(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detector_name_string) &&
-           detector_settings["detectors"][detector_name_string] == true)
+        const std::string& detector_str = i2c_dram_device_detectors[i2c_detector_idx].name.c_str();
+        if (IsDetectionEnabledFor(detector_str))
         {
             return true;
         }

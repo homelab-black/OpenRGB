@@ -1,7 +1,5 @@
 #include "device_detector.h"
 #include "LogManager.h"
-#include "ResourceManager.h"
-#include "SettingsManager.h"
 
 MiscDeviceDetectorGroup::MiscDeviceDetectorGroup(DetectionManager* dm) : DetectorGroup(dm)
 {
@@ -78,7 +76,6 @@ DetectedControllers MiscDeviceDetectorGroup::DetectDevices()
         }
 
         OnStartDetection(detector.name);
-
         DetectedControllers new_found = detector.detector();
         found.insert(found.end(), new_found.begin(), new_found.end());
         OnEndDetection(detector.name);
