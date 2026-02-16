@@ -17,27 +17,27 @@
 
 #define AKKO_PACKET_LENGTH_WITH_REPORT 65
 
-std::vector<unsigned int> akko_5075_ISO_values =
+std::vector<unsigned int> akko_5075_values =
     {
     /*ESC   F1   F2   F3   F4   F5   F6   F7   F8   F9  F10  F11  F12  DEL      */
         0,   6,  12,  18,  24,  30,  36,  42,  48,  54,  60,  66,  72,
     /*BKTK   1    2    3    4    5    6    7    8    9    0    -    = BSPC HOME */
         1,   7,  13,  19,  25,  31,  37,  43,  49,  55,  61,  67,  73,  79,
-    /*TAB    Q    W    E    R    T    Y    U    I    O    P    [    ] ENTR PGUP */
+    /*TAB    Q    W    E    R    T    Y    U    I    O    P    [    ]    \  PGUP */
         2,   8,  14,  20,  26,  32,  38,  44,  50,  56,  62,  68,  74,  80,
-    /*CPLK   A    S    D    F    G    H    J    K    L    ;    "         # PGDW */
-        3,   9,  15,  21,  27,  33,  39,  45,  51,  57,  63,  69,       81, 0,
+    /*CPLK   A    S    D    F    G    H    J    K    L    ;    "  POUN ENTR PGDW */
+        3,   9,  15,  21,  27,  33,  39,  45,  51,  57,  63,  69,  75,  81,
     /*LSFT ISO\   Z    X    C    V    B    N    M    ,    .    /  RSFT ARWU  END */
-        4,  10,  16,  22,  28,  34,  40,  46,  52,  58,  64,  70,   76,
-    /*LCTL      LWIN LALT            SPC      RALT  RFN       RCTL ARWL ARWD  ARWR*/
-        5,       17,  23,            41,       53,  59,       71,
+        4,  10,  16,  22,  28,  34,  40,  46,  52,  58,  64,  70,  76,
+    /*LCTL      LWIN LALT            SPC      RALT  RFN MENU RCTL ARWL ARWD  ARWR*/
+        5,       17,  23,            41,       53,  59,  65,  71,
 };
 
 keyboard_keymap_overlay_values akko_5075_ISO_layout
 {
     KEYBOARD_SIZE_SEVENTY_FIVE,
     {
-        akko_5075_ISO_values,
+        akko_5075_values,
         {
             /* Add more regional layout fixes here */
         }
@@ -47,13 +47,12 @@ keyboard_keymap_overlay_values akko_5075_ISO_layout
         | Edit Keys                                                                                                                             |
         |   Zone,   Row,    Column,     Value,      Key,                        Alternate Name,             OpCode,                             |
         \*-------------------------------------------------------------------------------------------------------------------------------------*/
-        {   0,      3,      13,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove ANSI Enter
-        {   0,      2,      13,          80,        KEY_EN_ISO_ENTER,           KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert ISO Enter
+        {   0,      2,      12,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove ANSI Enter
+        {   0,      2,      12,          80,        KEY_EN_ISO_ENTER,           KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert ISO Enter
         {   0,      4,      13,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove Right Shift
-        {   0,      4,      12,          76,        KEY_EN_RIGHT_SHIFT,         KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Right Shift
+        {   0,      4,      12,          76,        KEY_EN_RIGHT_SHIFT,         KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Move Right Shift
         {   0,      5,      12,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove Menu
-        {   0,      5,      12,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove Right Control
-        {   0,      5,      12,          71,        KEY_EN_RIGHT_CONTROL,       KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Right Control
+        {   0,      5,      12,          71,        KEY_EN_RIGHT_CONTROL,       KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Move Right Control
 
         {   0,      0,      14,          78,        KEY_EN_DELETE,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Delete
         {   0,      1,      15,          85,        KEY_EN_HOME,                KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Home
