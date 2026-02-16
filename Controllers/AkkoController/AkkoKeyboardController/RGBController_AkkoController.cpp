@@ -204,14 +204,14 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     {
         if(it->flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)
         {
-            it->colors_min = 1;
+            // it->colors_min = 0; // colors_min is 0 when constructed
             it->colors_max = 1;
             it->colors.resize(1);
             it->color_mode = MODE_COLORS_MODE_SPECIFIC;
         }
         if(it->flags & MODE_FLAG_HAS_SPEED)
         {
-            // it->speed_min = AKKO_SPEED::S_MIN;    // speed_min is 0 when constructed
+            // it->speed_min = AKKO_SPEED::S_MIN; // speed_min is 0 when constructed
             it->speed_max = AKKO_SPEED::S_MAX;
             it->speed     = AKKO_SPEED::S_DEFAULT;
         }
