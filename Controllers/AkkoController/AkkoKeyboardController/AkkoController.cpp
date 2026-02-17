@@ -39,6 +39,17 @@ keyboard_keymap_overlay_values akko_5075_ISO_layout
     {
         akko_5075_values,
         {
+            {
+                KEYBOARD_LAYOUT_ISO_QWERTY,
+                {
+                    /*-------------------------------------------------------------------------------------------------------------------------------------*\
+                    | Edit Keys                                                                                                                             |
+                    |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode                              |
+                    \*-------------------------------------------------------------------------------------------------------------------------------------*/
+                    {   0,      3,      13,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove ANSI Enter
+                    {   0,      2,      13,          80,        KEY_EN_ISO_ENTER,           KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert ISO Enter
+                }
+            },
             /* Add more regional layout fixes here */
         }
     },
@@ -47,8 +58,6 @@ keyboard_keymap_overlay_values akko_5075_ISO_layout
         | Edit Keys                                                                                                                             |
         |   Zone,   Row,    Column,     Value,      Key,                        Alternate Name,             OpCode,                             |
         \*-------------------------------------------------------------------------------------------------------------------------------------*/
-        {   0,      3,      13,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove ANSI Enter
-        {   0,      2,      13,          80,        KEY_EN_ISO_ENTER,           KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert ISO Enter
         {   0,      4,      13,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove Right Shift
         {   0,      4,      12,          76,        KEY_EN_RIGHT_SHIFT,         KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Move Right Shift
         {   0,      5,      12,           0,        KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },  // Remove Menu
