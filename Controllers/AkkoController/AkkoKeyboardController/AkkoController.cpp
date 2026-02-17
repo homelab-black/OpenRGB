@@ -33,7 +33,7 @@ std::vector<unsigned int> akko_5075_values =
         5,       17,  23,            41,       53,  59,  65,  71,
 };
 
-keyboard_keymap_overlay_values akko_5075_ISO_layout
+keyboard_keymap_overlay_values akko_5075_layout
 {
     KEYBOARD_SIZE_SEVENTY_FIVE,
     {
@@ -134,7 +134,7 @@ KEYBOARD_SIZE AkkoController::GetKeyboardSize()
 
 keyboard_keymap_overlay_values AkkoController::GetKeyboardLayoutValues()
 {
-    return akko_5075_ISO_layout;
+    return akko_5075_layout;
 }
 
 int calculateFiller(unsigned char *buffer, int start, int end)
@@ -307,9 +307,25 @@ void AkkoController::SetDirectMusic(const AkkoZoneInfo& zone_info)
     buffer[AKKO_BYTE_INDEX::GREEN]        = 0x0;
     buffer[AKKO_BYTE_INDEX::BLUE]         = calculateFiller(buffer, AKKO_BYTE_INDEX::COMMAND, AKKO_BYTE_INDEX::GREEN);
 
-    for(int i=AKKO_BYTE_INDEX::EFFECT_FILLER; i<AKKO_PACKET_LENGTH_WITH_REPORT; i++)
+    // Map colors to LED column heights (0-6) for each frequency band
+    // Typically 32 values representing frequency spectrum from 473hz to 1540hz
+    // Each value (0-6) represents how many LED rows from bottom to top should be lit
+    int buffer_idx = AKKO_BYTE_INDEX::EFFECT_FILLER;
+    int max_values = std::min(32, (int)zone_info.colors.size());
+
+    for(int i = 0; i < max_values; i++)
     {
-        buffer[i] = rand() % 7; // TODO: This is just a placeholder, as the actual mapping should be an Array of 32byte From 0 to 6 that maps from 473hz to 1540hz
+        RGBColor color = zone_info.colors[i];
+        // Extract intensity from color and map to LED column height (0-6)
+        // 0 = no LEDs lit, 6 = all LEDs in column lit from bottom to top
+        int intensity = std::max({RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color)});
+        buffer[buffer_idx++] = (intensity * 7) / 256;
+    }
+
+    // Fill remaining bytes with 0
+    while(buffer_idx < AKKO_PACKET_LENGTH_WITH_REPORT)
+    {
+        buffer[buffer_idx++] = 0;
     }
 
     int send_buffer_result = hid_send_feature_report(dev, buffer, AKKO_PACKET_LENGTH_WITH_REPORT);
