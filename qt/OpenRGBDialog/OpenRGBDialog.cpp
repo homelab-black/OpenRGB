@@ -189,6 +189,17 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     ui->setupUi(this);
 
     /*-----------------------------------------------------*\
+    | Lower process priority to potentially reduce.         |
+    | interference with other programs                      |
+    \*-----------------------------------------------------*/
+#ifdef _WIN32
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+#endif
+#ifdef __linux__
+    setpriority(PRIO_PROCESS, 0, 10);
+#endif
+
+    /*-----------------------------------------------------*\
     | Set window icon                                       |
     \*-----------------------------------------------------*/
     QIcon logo(":org.openrgb.OpenRGB.png");
@@ -547,17 +558,6 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     {
         onDetectionEnded();
     }
-    /*-----------------------------------------------------*\
-    | Lower process priority to potentially reduce.         |
-    | interference with other programs                      |
-    \*-----------------------------------------------------*/
-#ifdef _WIN32
-    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
-#endif
-#ifdef __linux__
-    setpriority(PRIO_PROCESS, 0, 10);
-#endif
-
 }
 
 OpenRGBDialog::~OpenRGBDialog()
