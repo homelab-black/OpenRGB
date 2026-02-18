@@ -36,7 +36,7 @@ typedef struct
 
 #define RGB_FUSION_2_SMBUS_NUM_DEVICES (sizeof(rgb_fusion_2_smbus_motherboards) / sizeof(rgb_fusion_2_smbus_motherboards[ 0 ]))
 
-json rgb_fusion_2_smbus_motherboards[] =
+std::string rgb_fusion_2_smbus_motherboards[] =
 {
     "B450 AORUS ELITE",
     "B450 AORUS ELITE V2",
@@ -78,35 +78,33 @@ DetectedControllers DetectGigabyteRGBFusion2SMBusControllers(std::vector<i2c_smb
 {
     DetectedControllers                 detected_controllers;
     SettingsManager*                    set_man = ResourceManager::get()->GetSettingsManager();
-    json                                device_settings;
+    std::optional<RGBFusion2SMBusSettings> device_settings = set_man->GetControllerSettings<RGBFusion2SMBusSettings>(DETECTOR_NAME);
 
     DMIInfo                             dmi;
     bool                                found = false;
 
-    /*-----------------------------------------------------*\
-    | Get Linux LED settings from settings manager          |
-    \*-----------------------------------------------------*/
-    device_settings = set_man->GetSettings(DETECTOR_NAME);
-
-    if(!device_settings.contains("SupportedDevices"))
+    if(!device_settings.has_value())
     {
         /*-------------------------------------------------*\
         | If supported devices is not found then write it   |
         | to settings                                       |
         \*-------------------------------------------------*/
-        device_settings["SupportedDevices"] = rgb_fusion_2_smbus_motherboards;
-        set_man->SetSettings(DETECTOR_NAME, device_settings);
-        set_man->SaveSettings();
+        RGBFusion2SMBusSettings default_settings {
+            .supported_devices = std::vector(std::begin(rgb_fusion_2_smbus_motherboards), std::end(rgb_fusion_2_smbus_motherboards)),
+        };
+        set_man->SetControllerSettingsAndSave(DETECTOR_NAME, default_settings);
+        device_settings = default_settings;
     }
 
-    bool boolVendor                                    = ( dmi.getManufacturer() == VENDOR_NAME );
-    bool boolMotherboard                               = false;
-    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(device_settings["SupportedDevices"]), std::end(device_settings["SupportedDevices"]), dmi.getMainboard() );
+    std::vector<std::string>& supported_devices = device_settings.value().supported_devices;
+    bool boolVendor = ( dmi.getManufacturer() == VENDOR_NAME );
+    std::vector<std::string>::iterator result = std::find(
+        supported_devices.begin(),
+        supported_devices.end(),
+        dmi.getMainboard()
+    );
+    bool boolMotherboard = result != supported_devices.end();
 
-    if(result != std::end(device_settings["SupportedDevices"]))
-    {
-        boolMotherboard = true;
-    }
     found = ( boolVendor && boolMotherboard );
 
     if(found)

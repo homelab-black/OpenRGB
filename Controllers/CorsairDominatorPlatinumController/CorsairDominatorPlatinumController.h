@@ -16,6 +16,37 @@
 
 #define CORSAIR_DOMINATOR_PLATINUM_DATA_SIZE 38
 
+#define CORSAIR_DOMINATOR_PLATINUM_SETTINGS_KEY "CorsairDominatorSettings"
+
+enum CorsairDominatorModel
+{
+    /*---*\
+    | CMT |
+    \*---*/
+    DominatorPlatinum,
+    /*---*\
+    | CMH |
+    \*---*/
+    VengeanceProSL,
+    /*---*\
+    | CMN |
+    \*---*/
+    VengeanceRgbRT,
+    /*---*\
+    | CMG |
+    \*---*/
+    VengeanceRgbRS,
+    /*---*\
+    | CMP |
+    \*---*/
+    DominatorTitanium,
+};
+
+struct CorsairDominatorPlatinumSettings
+{
+    CorsairDominatorModel model;
+};
+
 typedef unsigned char corsair_dev_id;
 
 class CorsairDominatorPlatinumController

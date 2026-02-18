@@ -95,7 +95,7 @@ void ManualDevicesSettingsPage::saveSettings()
     /*-----------------------------------------------------------------------------*\
     | First, cache the data that will be stored as JSON                             |
     | We wrap data into arrays by type (except Nanoleaf)                            |
-    | Nanoleaf stores it's data as an object with "location" as key for some reason |
+    | Nanoleaf stores its data as an object with "location" as key for some reason  |
     \*-----------------------------------------------------------------------------*/
     for(std::size_t idx = 0; idx < entries.size(); idx++)
     {
@@ -123,9 +123,8 @@ void ManualDevicesSettingsPage::saveSettings()
     std::vector<ManualDeviceTypeBlock> blocks = ManualDevicesTypeManager::get()->getRegisteredTypes();
     for(std::size_t i = 0; i < blocks.size(); i++)
     {
-        sm->SetSettings(blocks[i].settingsSection, result[blocks[i].settingsSection]);
+        sm->SetControllerSettingsAndSaveRaw(blocks[i].settingsSection, result[blocks[i].settingsSection]);
     }
-    sm->SaveSettings();
 
     setUnsavedChanges(false);
 }
@@ -254,7 +253,7 @@ void ManualDevicesSettingsPage::addEntries(const ManualDeviceTypeBlock& block)
     /*---------------------------------------------------------*\
     | Spawn list entries for all config entries of one type     |
     \*---------------------------------------------------------*/
-    json settings = ResourceManager::get()->GetSettingsManager()->GetSettings(block.settingsSection);
+    json settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsRaw(block.settingsSection);
     const char* array_name = "devices";
     if(block.settingsSection == "PhilipsHueDevices")
     {
@@ -298,7 +297,13 @@ void ManualDevicesSettingsPage::onAddDeviceItemSelected(QAction* action)
     | Spawn new entry based on name                             |
     \*---------------------------------------------------------*/
     std::string             entryName   = action->data().toString().toStdString();
-    BaseManualDeviceEntry*  entry       = ManualDevicesTypeManager::get()->spawnByTypeName(entryName, json());
+    /*-------------------------------------------------------------------------------*\
+    | This function must take a `json::object`, not `json()` (which is same as null)  |
+    | The deserializer crashes when getting a null value.                             |
+    | When getting an empty object, the default value is used instead                 |
+    | which is what we want                                                           |
+    \*-------------------------------------------------------------------------------*/
+    BaseManualDeviceEntry*  entry       = ManualDevicesTypeManager::get()->spawnByTypeName(entryName, json::object());
 
     /*---------------------------------------------------------*\
     | Note: spawn functions are allowed to return nullptr       |

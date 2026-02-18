@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "DDPController.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class DDPSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit DDPSettingsEntry(QWidget *parent = nullptr);
     ~DDPSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const DDPDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

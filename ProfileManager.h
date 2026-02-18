@@ -13,6 +13,7 @@
 
 #include "RGBController.h"
 #include "filesystem.h"
+#include "SettingsJson.h"
 
 /*---------------------------------------------------------*\
 | Callback Types                                            |
@@ -157,7 +158,7 @@ private:
     /*-----------------------------------------------------*\
     | Private functions                                     |
     \*-----------------------------------------------------*/
-    bool                        LoadAutoProfile(std::string setting_name);
+    bool                        LoadAutoProfile(ManagedProfileType setting_name);
 
     bool                        LoadProfileWithOptions
                                     (

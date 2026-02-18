@@ -16,6 +16,7 @@
 #include "net_port.h"
 #include "hsv.h"
 
+
 class ElgatoLightStripController
 {
     public:

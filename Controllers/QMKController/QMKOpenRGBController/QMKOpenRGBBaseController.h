@@ -17,6 +17,34 @@
 #include "SettingsManager.h"
 #include "QMKOpenRGBController.h"
 
+#define QMK_OPEN_SETTINGS_KEY "QMKOpenRGBDevices"
+
+struct QMKOpenDeviceSettings
+{
+    std::string usb_pid;
+    std::string usb_vid;
+    std::string name;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenDeviceSettings,
+    usb_pid,
+    usb_vid,
+    name
+);
+
+struct QMKOpenSettings
+{
+    unsigned char leds_per_update;
+    unsigned int delay;
+    std::vector<QMKOpenDeviceSettings> devices;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(QMKOpenSettings,
+    leds_per_update,
+    delay,
+    devices
+);
+
 class QMKOpenRGBBaseController
 {
 public:

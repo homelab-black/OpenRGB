@@ -31,19 +31,17 @@ void ElgatoLightStripSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void ElgatoLightStripSettingsEntry::loadFromSettings(const json& data)
+void ElgatoLightStripSettingsEntry::loadFromSettings(const ElgatoDeviceSettings& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
 }
 
 json ElgatoLightStripSettingsEntry::saveSettings()
 {
-    json result;
-    result["ip"] = ui->IPEdit->text().toStdString();
-    return result;
+    return ElgatoDeviceSettings
+    {
+        .ip = ui->IPEdit->text().toStdString(),
+    };
 }
 
 bool ElgatoLightStripSettingsEntry::isDataValid()
@@ -59,5 +57,5 @@ static BaseManualDeviceEntry* SpawnElgatoLightStripEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Elgato Light Strip", "ElgatoLightStripDevices", SpawnElgatoLightStripEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Elgato Light Strip", ELGATO_LIGHTSTRIP_CFG_KEY, SpawnElgatoLightStripEntry);
 

@@ -106,14 +106,9 @@ static void DialogShowCallback(void * this_ptr, PLogMessage msg)
 
 bool OpenRGBDialog::IsMinimizeOnClose()
 {
-    json ui_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("UserInterface");
-
-    if(ui_settings.contains("minimize_on_close"))
-    {
-        return ui_settings["minimize_on_close"];
-    }
-
-    return false;
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const UserInterfaceSettings& ui_settings = settings.access().ui;
+    return ui_settings.minimize_on_close;
 }
 
 OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::OpenRGBDialog)
@@ -126,74 +121,36 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     QIcon logo(":org.openrgb.OpenRGB.png");
     setWindowIcon(logo);
 
-    /*-----------------------------------------------------*\
-    | Set window geometry from config (if available)        |
-    \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         ui_string           = "UserInterface";
-    json                ui_settings;
-    bool                new_settings_keys   = false;
+    /*-----------------------------*\
+    | Extra block so settings mutex |
+    | is automatically unlocked     |
+    \*-----------------------------*/
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const UserInterfaceSettings& ui_settings = settings.access().ui;
 
-    ui_settings = settings_manager->GetSettings(ui_string);
-
-    if(ui_settings.contains("show_led_view") && ui_settings["show_led_view"])
+    if(ui_settings.show_led_view)
     {
         ShowLEDView();
     }
 
     /*-----------------------------------------------------*\
-    | If geometry info doesn't exist, write it to config    |
-    \*-----------------------------------------------------*/
-    if(!ui_settings.contains("geometry"))
-    {
-        json geometry_settings;
-
-        geometry_settings["load_geometry"]  = false;
-        geometry_settings["save_on_exit"]   = false;
-        geometry_settings["x"]              = 0;
-        geometry_settings["y"]              = 0;
-        geometry_settings["width"]          = 0;
-        geometry_settings["height"]         = 0;
-
-        ui_settings["geometry"] = geometry_settings;
-        new_settings_keys       = true;
-    }
-
-    /*-----------------------------------------------------*\
     | If geometry information exists in settings, apply it  |
     \*-----------------------------------------------------*/
-    bool load_geometry = false;
-
-    if(ui_settings["geometry"].contains("load_geometry"))
-    {
-        load_geometry = ui_settings["geometry"]["load_geometry"].get<bool>();
-    }
-
-    if(load_geometry)
+    if(ui_settings.geometry.load_geometry)
     {
         QRect set_window;
-
         /*-------------------------------------------------*\
         | x and y can be set independent of width and       |
         | height.  QT attempts to clamp these values in     |
         | case the user enters invalid numbers.             |
         \*-------------------------------------------------*/
-        if( ui_settings["geometry"].contains("x")
-         && ui_settings["geometry"].contains("y"))
-        {
-            set_window.setX(ui_settings["geometry"]["x"].get<int>());
-            set_window.setY(ui_settings["geometry"]["y"].get<int>());
-        }
-
-        if( ui_settings["geometry"].contains("width")
-         && ui_settings["geometry"].contains("height"))
-        {
-            set_window.setWidth(ui_settings["geometry"]["width"].get<int>());
-            set_window.setHeight(ui_settings["geometry"]["height"].get<int>());
-        }
-
+        set_window.setX(ui_settings.geometry.x);
+        set_window.setY(ui_settings.geometry.y);
+        set_window.setWidth(ui_settings.geometry.width);
+        set_window.setHeight(ui_settings.geometry.height);
         setGeometry(set_window);
     }
+
 
     /*-----------------------------------------------------*\
     | Register resource manager callbacks                   |
@@ -294,46 +251,14 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     connect( actionExit, SIGNAL( triggered() ), this, SLOT( on_Exit() ));
     trayIconMenu->addAction(actionExit);
 
-    /*-----------------------------------------------------*\
-    | If tray minimize flag isn't in the config, set        |
-    | default value to false                                |
-    \*-----------------------------------------------------*/
-    if(!ui_settings.contains("minimize_on_close"))
-    {
-        ui_settings["minimize_on_close"] = false;
-        new_settings_keys                = true;
-    }
-
     connect(trayIcon,SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(on_ReShow(QSystemTrayIcon::ActivationReason)));
-
-    /*-----------------------------------------------------*\
-    | If Greyscale Tray Icon flag is not set in config then |
-    | set the default value to false                        |
-    \*-----------------------------------------------------*/
-    if(!ui_settings.contains("greyscale_tray_icon"))
-    {
-        ui_settings["greyscale_tray_icon"] = false;
-        new_settings_keys                  = true;
-    }
 
     /*-----------------------------------------------------*\
     | If greyscale tray icon exists in settings, apply it   |
     |   or else set the icon to the default window logo     |
     \*-----------------------------------------------------*/
-    if(ui_settings.contains("greyscale_tray_icon"))
-    {
-        SetTrayIcon(ui_settings["greyscale_tray_icon"].get<bool>());
-    }
-
-    /*-----------------------------------------------------*\
-    | Save the settings if new default values have been     |
-    | inserted                                              |
-    \*-----------------------------------------------------*/
-    if(new_settings_keys)
-    {
-        settings_manager->SetSettings(ui_string, ui_settings);
-        settings_manager->SaveSettings();
-    }
+    SetTrayIcon(ui_settings.greyscale_tray_icon);
+    settings.Release();
 
     trayIcon->setToolTip("OpenRGB");
     trayIcon->setContextMenu(trayIconMenu);
@@ -409,18 +334,12 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     /*-----------------------------------------------------*\
     | If log console is enabled in settings, enable it      |
     \*-----------------------------------------------------*/
-    json log_manager_settings = settings_manager->GetSettings("LogManager");
-
-    bool log_console_enabled = false;
-    if(log_manager_settings.contains("log_console"))
-    {
-        log_console_enabled = log_manager_settings["log_console"];
-    }
+    const LogManagerSettings& log_manager_settings = settings.access().log_manager;
 
     /*-----------------------------------------------------*\
     | Add the log console page                              |
     \*-----------------------------------------------------*/
-    if(log_console_enabled)
+    if(log_manager_settings.log_console)
     {
         AddConsolePage();
     }
@@ -460,29 +379,16 @@ void OpenRGBDialog::handleAboutToQuit()
     /*-----------------------------------------------------*\
     | Write window geometry to config (if enabled)          |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         ui_string           = "UserInterface";
-    json                ui_settings;
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    UserInterfaceSettings& ui_settings = settings.access_mut().ui;
 
-    ui_settings = settings_manager->GetSettings(ui_string);
-
-    if(ui_settings.contains("geometry"))
+    if(ui_settings.geometry.load_geometry && ui_settings.geometry.save_on_exit)
     {
-        if( ui_settings["geometry"].contains("load_geometry")
-         && ui_settings["geometry"].contains("save_on_exit"))
-        {
-            if( ui_settings["geometry"]["load_geometry"].get<bool>()
-            && ui_settings["geometry"]["save_on_exit"].get<bool>())
-            {
-                ui_settings["geometry"]["x"]                = geometry().x();
-                ui_settings["geometry"]["y"]                = geometry().y();
-                ui_settings["geometry"]["width"]            = geometry().width();
-                ui_settings["geometry"]["height"]           = geometry().height();
-
-                settings_manager->SetSettings(ui_string, ui_settings);
-                settings_manager->SaveSettings();
-            }
-        }
+        ui_settings.geometry.x      = geometry().x();
+        ui_settings.geometry.y      = geometry().y();
+        ui_settings.geometry.width  = geometry().width();
+        ui_settings.geometry.height = geometry().height();
+        settings.Save();
     }
 
     disconnect(qApp, &QCoreApplication::aboutToQuit, this, &OpenRGBDialog::handleAboutToQuit);
@@ -1444,25 +1350,19 @@ void OpenRGBDialog::onShowDialogMessage()
     | Load the LogManager settings and check if the hash of |
     | this message is in the no-show list                   |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         log_manager_string  = "LogManager";
-    json                log_manager_settings;
-
-    log_manager_settings = settings_manager->GetSettings(log_manager_string);
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    LogManagerSettings& log_manager_settings = settings.access_mut().log_manager;
 
     /*-----------------------------------------------------*\
     | If in the no-show list, clear the message string and  |
     | return without displaying message box                 |
     \*-----------------------------------------------------*/
-    if(log_manager_settings.contains("dialog_no_show_hashes"))
+    for(unsigned int list_idx = 0; list_idx < log_manager_settings.dialog_no_show_hashes.size(); list_idx++)
     {
-        for(unsigned int list_idx = 0; list_idx < log_manager_settings["dialog_no_show_hashes"].size(); list_idx++)
+        if(log_manager_settings.dialog_no_show_hashes[list_idx] == hash)
         {
-            if(log_manager_settings["dialog_no_show_hashes"][list_idx] == hash)
-            {
-                dialog_message.clear();
-                return;
-            }
+            dialog_message.clear();
+            return;
         }
     }
 
@@ -1498,10 +1398,9 @@ void OpenRGBDialog::onShowDialogMessage()
         | Add hash of dialog text to no-show list in        |
         | LogManager settings                               |
         \*-------------------------------------------------*/
-        log_manager_settings["dialog_no_show_hashes"].push_back(hash);
+        log_manager_settings.dialog_no_show_hashes.push_back(hash);
+        settings.Save();
 
-        settings_manager->SetSettings(log_manager_string, log_manager_settings);
-        settings_manager->SaveSettings();
     }
 
     DontShowAgain = false;

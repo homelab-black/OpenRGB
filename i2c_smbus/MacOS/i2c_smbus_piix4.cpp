@@ -22,15 +22,9 @@
 
 i2c_smbus_piix4::i2c_smbus_piix4()
 {
-    json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
-
-    bool amd_smbus_reduce_cpu = false;
-    if(drivers_settings.contains("amd_smbus_reduce_cpu"))
-    {
-        amd_smbus_reduce_cpu = drivers_settings["amd_smbus_reduce_cpu"].get<bool>();
-    }
-
-    delay_timer = amd_smbus_reduce_cpu;
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DriverSettings& drivers_settings = settings.access().drivers;
+    delay_timer = drivers_settings.amd_smbus_reduce_cpu;
 }
 
 i2c_smbus_piix4::~i2c_smbus_piix4()

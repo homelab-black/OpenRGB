@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "RGBController_E131.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class E131SettingsEntry : public BaseManualDeviceEntry
 public:
     explicit E131SettingsEntry(QWidget *parent = nullptr);
     ~E131SettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const E131Device& data);
     json saveSettings() override;
     bool isDataValid() override;
 

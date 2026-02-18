@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "YeelightController.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class YeelightSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit YeelightSettingsEntry(QWidget *parent = nullptr);
     ~YeelightSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const YeelightDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

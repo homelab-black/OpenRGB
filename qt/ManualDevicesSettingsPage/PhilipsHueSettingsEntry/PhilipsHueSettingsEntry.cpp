@@ -36,61 +36,27 @@ void PhilipsHueSettingsEntry::on_UnpairButton_clicked()
     ui->ClientKeyValue->setText("");
 }
 
-void PhilipsHueSettingsEntry::loadFromSettings(const json& data)
+void PhilipsHueSettingsEntry::loadFromSettings(const BridgeSettings& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-
-    if(data.contains("mac"))
-    {
-        ui->MACEdit->setText(QString::fromStdString(data["mac"]));
-    }
-
-    if(data.contains("entertainment"))
-    {
-        ui->EntertainmentCheckBox->setChecked(data["entertainment"]);
-    }
-
-    if(data.contains("autoconnect"))
-    {
-        ui->AutoConnectCheckBox->setChecked(data["autoconnect"]);
-    }
-
-    if(data.contains("username"))
-    {
-        ui->UsernameValue->setText(QString::fromStdString(data["username"]));
-    }
-
-    if(data.contains("clientkey"))
-    {
-        ui->ClientKeyValue->setText(QString::fromStdString(data["clientkey"]));
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->MACEdit->setText(QString::fromStdString(data.mac));
+    ui->EntertainmentCheckBox->setChecked(data.entertainment);
+    ui->AutoConnectCheckBox->setChecked(data.autoconnect);
+    ui->UsernameValue->setText(QString::fromStdString(data.username));
+    ui->ClientKeyValue->setText(QString::fromStdString(data.clientkey));
 }
 
 json PhilipsHueSettingsEntry::saveSettings()
 {
-    json result;
-    /*-------------------------------------------------*\
-    | Required parameters                               |
-    \*-------------------------------------------------*/
-    result["ip"]               = ui->IPEdit->text().toStdString();
-    result["mac"]              = ui->MACEdit->text().toStdString();
-    result["entertainment"]    = ui->EntertainmentCheckBox->isChecked();
-    result["autoconnect"]      = ui->AutoConnectCheckBox->isChecked();
-
-    if(ui->UsernameValue->text() != "")
+    return BridgeSettings
     {
-        result["username"]     = ui->UsernameValue->text().toStdString();
-    }
-
-    if(ui->ClientKeyValue->text() != "")
-    {
-        result["clientkey"]    = ui->ClientKeyValue->text().toStdString();
-    }
-
-    return result;
+        .ip               = ui->IPEdit->text().toStdString(),
+        .mac              = ui->MACEdit->text().toStdString(),
+        .username         = ui->UsernameValue->text().toStdString(),
+        .clientkey        = ui->ClientKeyValue->text().toStdString(),
+        .autoconnect      = ui->AutoConnectCheckBox->isChecked(),
+        .entertainment    = ui->EntertainmentCheckBox->isChecked(),
+    };
 }
 
 bool PhilipsHueSettingsEntry::isDataValid()
@@ -106,4 +72,4 @@ static BaseManualDeviceEntry* SpawnPhilipsHueSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Philips Hue", "PhilipsHueDevices", SpawnPhilipsHueSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Philips Hue", PHILIPSHUE_SETTINGS_KEY, SpawnPhilipsHueSettingsEntry);

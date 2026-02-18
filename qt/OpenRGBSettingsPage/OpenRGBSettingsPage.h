@@ -13,9 +13,7 @@
 #include <QDirIterator>
 #include <QTranslator>
 #include <QWidget>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
+#include "SettingsManager.h"
 
 namespace Ui
 {
@@ -38,14 +36,11 @@ public slots:
 
 private:
     Ui::OpenRGBSettingsPage *ui;
-    void SaveSettings();
 
-    void CreateAutoStartSettings();
-    void ConfigureAutoStart();
-    void RemediateAutoStartProfile(json &autostart_settings);
+    void CreateAutoStartSettings(SettingsAccessGuard& guard);
+    void ConfigureAutoStart(const AutoStartSettings& autostart_settings);
+    void RemediateAutoStartProfile(AutoStartSettings& autostart_settings);
     void SetAutoStartVisibility(bool visible);
-    void SaveAutoStartSetting(std::string name, QString value);
-    void SaveAutoStartSetting(std::string name, bool value);
 
     bool theme_initialized = false;
     bool autostart_initialized = false;

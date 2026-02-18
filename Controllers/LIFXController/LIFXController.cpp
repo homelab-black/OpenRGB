@@ -10,10 +10,8 @@
 \*---------------------------------------------------------*/
 
 #include "LIFXController.h"
-#include <nlohmann/json.hpp>
 #include "hsv.h"
 
-using json = nlohmann::json;
 using namespace std::chrono_literals;
 
 LIFXController::LIFXController(std::string ip, std::string name, bool multizone, bool extended_multizone)

@@ -21,44 +21,65 @@
 
 using namespace std::chrono_literals;
 
-json corsair_dominator_models =
+struct ModelData
+{
+    std::string name;
+    int leds;
+};
+
+std::unordered_map<CorsairDominatorModel, ModelData> corsair_dominator_models =
 {
     {
-        "CMT",
+        CorsairDominatorModel::DominatorPlatinum,
+        ModelData
         {
-            {"name",  "Corsair Dominator Platinum"},
-            {"leds",  12}
+            .name = "Corsair Dominator Platinum",
+            .leds = 12,
         }
     },
     {
-        "CMH",
+        CorsairDominatorModel::VengeanceProSL,
+        ModelData
         {
-            {"name",  "Corsair Vengeance Pro SL"},
-            {"leds",  10}
+            .name = "Corsair Vengeance Pro SL",
+            .leds = 10,
         }
     },
     {
-        "CMN",
+        CorsairDominatorModel::VengeanceRgbRT,
+        ModelData
         {
-            {"name",  "Corsair Vengeance RGB RT"},
-            {"leds",  10}
+            .name = "Corsair Vengeance RGB RT",
+            .leds = 10,
         }
     },
     {
-        "CMG",
+        CorsairDominatorModel::VengeanceRgbRS,
+        ModelData
         {
-            {"name",  "Corsair Vengeance RGB RS"},
-            {"leds",  6}
+            .name = "Corsair Vengeance RGB RS",
+            .leds = 6,
         }
     },
     {
-        "CMP",
+        CorsairDominatorModel::DominatorTitanium,
+        ModelData
         {
-            {"name",  "Corsair Dominator Titanium"},
-            {"leds",  11}
+            .name = "Corsair Dominator Titanium",
+            .leds = 11,
         }
     }
 };
+
+NLOHMANN_JSON_SERIALIZE_ENUM(CorsairDominatorModel, {
+    {DominatorPlatinum, "CMT"},
+    {VengeanceProSL, "CMH"},
+    {VengeanceRgbRT, "CMN"},
+    {VengeanceRgbRS, "CMG"},
+    {DominatorTitanium, "CMP"}
+});
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CorsairDominatorPlatinumSettings, model);
 
 #define CORSAIR_DOMINATOR_PLATINUM_NAME "Corsair Dominator Platinum"
 
@@ -97,17 +118,20 @@ DetectedControllers DetectCorsairDominatorPlatinumControllers(std::vector<i2c_sm
 {
     DetectedControllers detected_controllers;
     SettingsManager*    settings_manager            = ResourceManager::get()->GetSettingsManager();
-    json                corsair_dominator_settings  = settings_manager->GetSettings("CorsairDominatorSettings");
+    std::optional<CorsairDominatorPlatinumSettings> corsair_dominator_settings  = settings_manager->GetControllerSettings<CorsairDominatorPlatinumSettings>(CORSAIR_DOMINATOR_PLATINUM_SETTINGS_KEY);
 
-    if(!corsair_dominator_settings.contains("model"))
+    if(!corsair_dominator_settings.has_value())
     {
         // Set default value
-        corsair_dominator_settings["model"] = "CMT";
-        settings_manager->SetSettings("CorsairDominatorSettings", corsair_dominator_settings);
-        settings_manager->SaveSettings();
+        CorsairDominatorPlatinumSettings default_settings
+        {
+            .model = CorsairDominatorModel::DominatorPlatinum
+        };
+        settings_manager->SetControllerSettingsAndSave(CORSAIR_DOMINATOR_PLATINUM_SETTINGS_KEY, default_settings);
+        corsair_dominator_settings = default_settings;
     }
 
-    std::string model = corsair_dominator_settings["model"];
+    CorsairDominatorModel model = corsair_dominator_settings.value().model;
 
     for(unsigned int bus = 0; bus < busses.size(); bus++)
     {
@@ -131,19 +155,11 @@ DetectedControllers DetectCorsairDominatorPlatinumControllers(std::vector<i2c_sm
             {
                 if(TestForCorsairDominatorPlatinumController(busses[bus], addr))
                 {
-                    unsigned int leds;
-                    std::string name;
-
-                    if(corsair_dominator_models.contains(model))
-                    {
-                        leds = corsair_dominator_models[model]["leds"];
-                        name = corsair_dominator_models[model]["name"];
-                    }
-                    else
-                    {
-                        leds = corsair_dominator_models["CMT"]["leds"];
-                        name = corsair_dominator_models["CMT"]["name"];
-                    }
+                    /*--------------------------------------------*\
+                    | model always has an entry, no need to check  |
+                    \*--------------------------------------------*/
+                    unsigned int leds = corsair_dominator_models[model].leds;
+                    std::string name = corsair_dominator_models[model].name;
 
                     LOG_DEBUG("[%s] Model: %s, Leds: %d", CORSAIR_DOMINATOR_PLATINUM_NAME, name.c_str(), leds);
 

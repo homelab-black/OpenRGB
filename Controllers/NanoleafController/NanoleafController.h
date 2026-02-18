@@ -13,11 +13,43 @@
 
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define NANOLEAF_DIRECT_MODE_EFFECT_NAME    "*Dynamic*"
 #define NANOLEAF_LIGHT_PANELS_MODEL         "NL22"
 #define NANOLEAF_CANVAS_MODEL               "NL29"
 #define NANOLEAF_SHAPES_MODEL               "NL42"
+
+#define NANOLEAF_CFG_KEY "NanoleafDevices"
+
+struct NanoleafDeviceSettings
+{
+    std::string ip;
+    unsigned int port;
+    std::string auth_token;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafDeviceSettings,
+    ip,
+    port,
+    auth_token
+);
+
+struct NanoleafSettings
+{
+    /*---------------------------------------------------------------*\
+    | Map of devices, key is the location of the device               |
+    | The location is defined as "<ip>:<port>",                       |
+    | where <ip> and <port> are the device's ip and port respectively |
+    \*---------------------------------------------------------------*/
+    std::unordered_map<std::string, NanoleafDeviceSettings> devices;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NanoleafSettings,
+    devices
+);
 
 class NanoleafController
 {

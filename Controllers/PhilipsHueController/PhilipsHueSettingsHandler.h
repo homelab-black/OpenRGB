@@ -16,6 +16,39 @@
 
 #include <cstddef>
 #include <string>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define PHILIPSHUE_SETTINGS_KEY "PhilipsHueDevices"
+
+struct BridgeSettings
+{
+    std::string ip;
+    std::string mac;
+    std::string username;
+    std::string clientkey;
+    bool autoconnect;
+    bool entertainment;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(BridgeSettings,
+    ip,
+    mac,
+    username,
+    clientkey,
+    autoconnect,
+    entertainment
+);
+
+struct HueSettings
+{
+    std::vector<BridgeSettings> bridges;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(HueSettings,
+    bridges
+);
 
 class PhilipsHueSettingsHandler
 {
@@ -24,24 +57,16 @@ public:
     ~PhilipsHueSettingsHandler();
 
     std::size_t     GetBridgeCount();
+    /*----------------------------------------------*\
+    | Gets a reference to the bridge at `bridge_idx` |
+    | crashes if `bridge_idx` is out of bounds       |
+    | Use `GetBridgeCount()` to check bounds         |
+    \*----------------------------------------------*/
+    const BridgeSettings&  GetBridge(unsigned int bridge_idx);
 
-    std::string     GetBridgeIP(unsigned int bridge_idx);
-    std::string     GetBridgeMAC(unsigned int bridge_idx);
-    std::string     GetBridgeUsername(unsigned int bridge_idx);
-    std::string     GetBridgeClientKey(unsigned int bridge_idx);
-    bool            GetBridgeAutoconnect(unsigned int bridge_idx);
-    bool            GetBridgeUseEntertainment(unsigned int bridge_idx);
-
-    bool            BridgeHasUsername(unsigned int bridge_idx);
-    bool            BridgeHasClientKey(unsigned int bridge_idx);
-
-    void            SetBridgeUsername(unsigned int bridge_idx, std::string username);
-    void            SetBridgeClientKey(unsigned int bridge_idx, std::string clientkey);
-    void            SetBridgeAutoconnect(unsigned int bridge_ip, bool auto_connect);
-    void            SetBridgeUseEntertainment(unsigned int bridge_idx, bool use_entertainment);
-
+    void            SetBridge(unsigned int bridge_idx, BridgeSettings new_settings);
     void            SaveSettings();
 
 private:
-    void *          hue_settings;
+    HueSettings     settings;
 };

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "KasaSmartController.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class KasaSmartSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit KasaSmartSettingsEntry(QWidget *parent = nullptr);
     ~KasaSmartSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const KasaSmartDevice& data);
     void setName(QString name);
 
     json saveSettings() override;

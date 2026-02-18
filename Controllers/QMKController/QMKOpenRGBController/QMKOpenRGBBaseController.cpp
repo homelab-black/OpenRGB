@@ -22,38 +22,34 @@ QMKOpenRGBBaseController::QMKOpenRGBBaseController(hid_device *dev_handle, const
     /*-------------------------------------------------*\
     | Get QMKOpenRGB settings                           |
     \*-------------------------------------------------*/
-    json qmk_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("QMKOpenRGBDevices");
-    if(qmk_settings.contains("leds_per_update"))
+    SettingsManager* sm = ResourceManager::get()->GetSettingsManager();
+    std::optional<QMKOpenSettings> cfg_settings = sm->GetControllerSettings<QMKOpenSettings>(QMK_OPEN_SETTINGS_KEY);
+
+    /*----------------------------------------*\
+    | Read settings or create default settings |
+    \*----------------------------------------*/
+    QMKOpenSettings settings;
+    if(cfg_settings.has_value())
     {
-        if(qmk_settings["leds_per_update"] > max_led_count)
-        {
-            qmk_settings["leds_per_update"] = max_led_count;
-        }
-        else if(qmk_settings["leds_per_update"] < 1)
-        {
-            qmk_settings["leds_per_update"] = 1;
-        }
-        SettingsManager* settings_manager   = ResourceManager::get()->GetSettingsManager();
-        settings_manager->SetSettings("QMKOpenRGBDevices", qmk_settings);
-        settings_manager->SaveSettings();
-        leds_per_update = qmk_settings["leds_per_update"];
+        settings = cfg_settings.value();
     }
     else
     {
-        leds_per_update = max_led_count;
+        QMKOpenSettings default_settings
+        {
+            .leds_per_update = max_led_count,
+            .delay = 0,
+            .devices = std::vector<QMKOpenDeviceSettings>(),
+        };
+        sm->SetControllerSettingsAndSave(QMK_OPEN_SETTINGS_KEY, default_settings);
+        settings = default_settings;
     }
 
-    if(qmk_settings.contains("delay"))
-    {
-        delay = (unsigned int)qmk_settings["delay"] * 1ms;
-    }
-    else
-    {
-        delay = 0ms;
-    }
 
-    dev         = dev_handle;
-    location    = path;
+    leds_per_update = settings.leds_per_update;
+    delay           = settings.delay * 1ms;
+    dev             = dev_handle;
+    location        = path;
 
     GetDeviceInfo();
     GetModeInfo();

@@ -11,10 +11,8 @@
 
 #include <cstdint>
 #include "KasaSmartController.h"
-#include <nlohmann/json.hpp>
 #include "hsv.h"
 
-using json = nlohmann::json;
 
 KasaSmartController::KasaSmartController(std::string ipAddress, std::string name)
 {

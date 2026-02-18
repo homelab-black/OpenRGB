@@ -106,6 +106,23 @@ struct p_state
     bool        state;
 };
 
+#define POWER_SECTION_JSON_KEY "PowerConfig"
+
+struct AsusAuraCoreLaptopSettings
+{
+    std::unordered_map<std::string, bool> power_config;
+};
+
+inline void to_json(json& j, const AsusAuraCoreLaptopSettings& settings)
+{
+    j[POWER_SECTION_JSON_KEY] = settings.power_config;
+}
+
+inline void from_json(const json& j, AsusAuraCoreLaptopSettings& settings)
+{
+    j.at(POWER_SECTION_JSON_KEY).get_to(settings.power_config);
+}
+
 class AsusAuraCoreLaptopController
 {
 public:

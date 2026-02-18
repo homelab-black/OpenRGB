@@ -34,53 +34,25 @@ void DDPSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void DDPSettingsEntry::loadFromSettings(const json& data)
+void DDPSettingsEntry::loadFromSettings(const DDPDevice& data)
 {
-    if(data.contains("name"))
-    {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
-    }
-
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-
-    if(data.contains("port"))
-    {
-        ui->PortSpinBox->setValue(data["port"]);
-    }
-    else
-    {
-        ui->PortSpinBox->setValue(4048);
-    }
-
-    if(data.contains("num_leds"))
-    {
-        ui->NumLedsSpinBox->setValue(data["num_leds"]);
-    }
-
-    if(data.contains("keepalive_time"))
-    {
-        ui->KeepaliveTimeSpinBox->setValue(data["keepalive_time"]);
-    }
+    ui->NameEdit->setText(QString::fromStdString(data.name));
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->PortSpinBox->setValue(data.port);
+    ui->NumLedsSpinBox->setValue(data.num_leds);
+    ui->KeepaliveTimeSpinBox->setValue(data.keepalive_time);
 }
 
 json DDPSettingsEntry::saveSettings()
 {
-    json result;
-
-    result["name"] = ui->NameEdit->text().toStdString();
-    result["ip"] = ui->IPEdit->text().toStdString();
-    result["port"] = ui->PortSpinBox->value();
-    result["num_leds"] = ui->NumLedsSpinBox->value();
-
-    if(ui->KeepaliveTimeSpinBox->value() > 0)
+    return DDPDevice
     {
-        result["keepalive_time"] = ui->KeepaliveTimeSpinBox->value();
-    }
-
-    return result;
+        .name = ui->NameEdit->text().toStdString(),
+        .ip = ui->IPEdit->text().toStdString(),
+        .port = (unsigned short) ui->PortSpinBox->value(),
+        .num_leds = (unsigned int) ui->NumLedsSpinBox->value(),
+        .keepalive_time = (unsigned int) ui->KeepaliveTimeSpinBox->value(),
+    };
 }
 
 bool DDPSettingsEntry::isDataValid()
@@ -97,4 +69,4 @@ static BaseManualDeviceEntry* SpawnDDPEntry(const json& data)
 
 static const char* DDPDeviceName = QT_TRANSLATE_NOOP("ManualDevice", "DDP (Distributed Display Protocol)");
 
-REGISTER_MANUAL_DEVICE_TYPE(DDPDeviceName, "DDPDevices", SpawnDDPEntry);
+REGISTER_MANUAL_DEVICE_TYPE(DDPDeviceName, DDP_CONFIG_KEY, SpawnDDPEntry);

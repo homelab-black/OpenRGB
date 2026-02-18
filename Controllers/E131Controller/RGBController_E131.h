@@ -15,48 +15,91 @@
 #include <thread>
 #include <e131.h>
 #include "RGBController.h"
+#include <nlohmann/json.hpp>
 
-typedef unsigned int e131_rgb_order;
+using json = nlohmann::json;
 
-enum
+enum class E131RGBOrder
 {
-    E131_RGB_ORDER_RGB,
-    E131_RGB_ORDER_RBG,
-    E131_RGB_ORDER_GRB,
-    E131_RGB_ORDER_GBR,
-    E131_RGB_ORDER_BRG,
-    E131_RGB_ORDER_BGR
+    RGB,
+    RBG,
+    GRB,
+    GBR,
+    BRG,
+    BGR
 };
 
-enum
+NLOHMANN_JSON_SERIALIZE_ENUM(E131RGBOrder, {
+    {E131RGBOrder::RGB, "RGB"},
+    {E131RGBOrder::RBG, "RBG"},
+    {E131RGBOrder::GRB, "GRB"},
+    {E131RGBOrder::GBR, "GBR"},
+    {E131RGBOrder::BRG, "BRG"},
+    {E131RGBOrder::BGR, "BGR"},
+});
+
+enum class E131MatrixOrder
 {
-    E131_MATRIX_ORDER_HORIZONTAL_TOP_LEFT,
-    E131_MATRIX_ORDER_HORIZONTAL_TOP_RIGHT,
-    E131_MATRIX_ORDER_HORIZONTAL_BOTTOM_LEFT,
-    E131_MATRIX_ORDER_HORIZONTAL_BOTTOM_RIGHT,
-    E131_MATRIX_ORDER_VERTICAL_TOP_LEFT,
-    E131_MATRIX_ORDER_VERTICAL_TOP_RIGHT,
-    E131_MATRIX_ORDER_VERTICAL_BOTTOM_LEFT,
-    E131_MATRIX_ORDER_VERTICAL_BOTTOM_RIGHT
+    HORIZONTAL_TOP_LEFT,
+    HORIZONTAL_TOP_RIGHT,
+    HORIZONTAL_BOTTOM_LEFT,
+    HORIZONTAL_BOTTOM_RIGHT,
+    VERTICAL_TOP_LEFT,
+    VERTICAL_TOP_RIGHT,
+    VERTICAL_BOTTOM_LEFT,
+    VERTICAL_BOTTOM_RIGHT
 };
 
-typedef unsigned int e131_matrix_order;
+NLOHMANN_JSON_SERIALIZE_ENUM(E131MatrixOrder, {
+    {E131MatrixOrder::HORIZONTAL_TOP_LEFT, "HORIZONTAL_TOP_LEFT" },
+    {E131MatrixOrder::HORIZONTAL_TOP_RIGHT, "HORIZONTAL_TOP_RIGHT" },
+    {E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT, "HORIZONTAL_BOTTOM_LEFT" },
+    {E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT, "HORIZONTAL_BOTTOM_RIGHT" },
+    {E131MatrixOrder::VERTICAL_TOP_LEFT, "VERTICAL_TOP_LEFT" },
+    {E131MatrixOrder::VERTICAL_TOP_RIGHT, "VERTICAL_TOP_RIGHT" },
+    {E131MatrixOrder::VERTICAL_BOTTOM_LEFT, "VERTICAL_BOTTOM_LEFT" },
+    {E131MatrixOrder::VERTICAL_BOTTOM_RIGHT, "VERTICAL_BOTTOM_RIGHT" },
+});
+
+#define E131_SETTINGS_KEY "E131Devices"
 
 struct E131Device
 {
-    std::string name;
-    std::string ip;
-    unsigned int num_leds;
-    unsigned int start_universe;
-    unsigned int start_channel;
+    std::string name = "";
+    std::string ip = "";
+    unsigned int num_leds = 0;
+    unsigned int start_universe = 1;
+    unsigned int start_channel = 1;
     unsigned int keepalive_time;
-    e131_rgb_order rgb_order;
-    zone_type type;
-    unsigned int matrix_width;
-    unsigned int matrix_height;
-    unsigned int universe_size;
-    e131_matrix_order matrix_order;
+    E131RGBOrder rgb_order = E131RGBOrder::RBG;
+    zone_type type = ZONE_TYPE_SINGLE;
+    unsigned int matrix_width = 0;
+    unsigned int matrix_height = 0;
+    unsigned int universe_size = 512;
+    E131MatrixOrder matrix_order = E131MatrixOrder::HORIZONTAL_TOP_LEFT;
 };
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Device,
+    name,
+    ip,
+    num_leds,
+    start_universe,
+    start_channel,
+    keepalive_time,
+    rgb_order,
+    type,
+    matrix_width,
+    matrix_height,
+    universe_size,
+    matrix_order
+);
+
+struct E131Settings
+{
+    std::vector<E131Device> devices;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(E131Settings, devices);
 
 class RGBController_E131 : public RGBController
 {

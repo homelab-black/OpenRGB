@@ -176,6 +176,7 @@ HEADERS +=                                                                      
     ResourceManager.h                                                                           \
     ResourceManagerInterface.h                                                                  \
     SettingsManager.h                                                                           \
+    SettingsJson.h                                                                           \
     DetectionManager.h                                                                          \
     dmiinfo/dmiinfo.h                                                                           \
     filesystem.h                                                                                \
@@ -252,6 +253,7 @@ SOURCES +=                                                                      
     SPDAccessor/SPDDetector.cpp                                                                 \
     SPDAccessor/SPDWrapper.cpp                                                                  \
     SettingsManager.cpp                                                                         \
+    SettingsJson.cpp                                                                         \
     i2c_smbus/i2c_smbus.cpp                                                                     \
     i2c_tools/i2c_tools.cpp                                                                     \
     interop/DeviceGuard.cpp                                                                     \

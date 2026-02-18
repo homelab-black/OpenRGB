@@ -31,11 +31,6 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
     this->name      = name;
 
     /*-----------------------------------------------------*\
-    | Get driver settings                                   |
-    \*-----------------------------------------------------*/
-    json drivers_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Drivers");
-
-    /*-----------------------------------------------------*\
     | Get bus information                                   |
     \*-----------------------------------------------------*/
     const SIZE_T    in_size         = 1;
@@ -69,19 +64,15 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
     }
 
     /*-----------------------------------------------------*\
-    | Get shared SMBus access setting                       |
+    | Get driver settings                                   |
     \*-----------------------------------------------------*/
-    bool shared_smbus_access = true;
-
-    if(drivers_settings.contains("shared_smbus_access"))
-    {
-        shared_smbus_access = drivers_settings["shared_smbus_access"].get<bool>();
-    }
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DriverSettings& drivers_settings = settings.access().drivers;
 
     /*-----------------------------------------------------*\
     | Create global SMBus mutex if enabled                  |
     \*-----------------------------------------------------*/
-    if(shared_smbus_access)
+    if(drivers_settings.shared_smbus_access)
     {
         global_smbus_access_handle = CreateMutexA(NULL, FALSE, GLOBAL_SMBUS_MUTEX_NAME);
     }

@@ -17,6 +17,9 @@
 #include <atomic>
 #include <mutex>
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define DDP_DEFAULT_PORT        4048
 #define DDP_HEADER_SIZE         10
@@ -48,13 +51,31 @@ struct ddp_header
 };
 #pragma pack(pop)
 
+#define DDP_CONFIG_KEY "DDPDevices"
+
 struct DDPDevice
 {
-    std::string         name;
-    std::string         ip;
-    unsigned short      port;
-    unsigned int        num_leds;
+    std::string         name        = "";
+    std::string         ip          = "";
+    unsigned short      port        = DDP_DEFAULT_PORT;
+    unsigned int        num_leds    = 0;
+    unsigned int        keepalive_time = 0;
 };
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPDevice,
+    name,
+    ip,
+    port,
+    num_leds,
+    keepalive_time
+);
+
+struct DDPSettings
+{
+    std::vector<DDPDevice> devices;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DDPSettings, devices);
 
 struct DDPEndpoint
 {

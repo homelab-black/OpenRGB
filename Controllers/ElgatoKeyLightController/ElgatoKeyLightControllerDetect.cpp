@@ -12,35 +12,31 @@
 #include "ResourceManager.h"
 #include "RGBController_ElgatoKeyLight.h"
 #include "SettingsManager.h"
+#include "ElgatoSettings.h"
+
 
 DetectedControllers DetectElgatoKeyLightControllers()
 {
     DetectedControllers detected_controllers;
-    json                elgato_keylight_settings;
 
     /*-----------------------------------------------------*\
     | Get KeyLight settings from settings manager           |
     \*-----------------------------------------------------*/
-    elgato_keylight_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("ElgatoKeyLightDevices");
-
+    SettingsManager* sm = ResourceManager::get()->GetSettingsManager();
+    std::optional<ElgatoSettings> cfg_settings = sm->GetControllerSettings<ElgatoSettings>(ELGATO_KEY_LIGHT_CFG_KEY);
+    ElgatoSettings settings = cfg_settings.value_or(ElgatoSettings {});
     /*-----------------------------------------------------*\
     | If the Elgato Key Light settings contains devices,    |
     | process                                               |
     \*-----------------------------------------------------*/
-    if(elgato_keylight_settings.contains("devices"))
+    for(unsigned int device_idx = 0; device_idx < settings.devices.size(); device_idx++)
     {
-        for(unsigned int device_idx = 0; device_idx < elgato_keylight_settings["devices"].size(); device_idx++)
-        {
-            if(elgato_keylight_settings["devices"][device_idx].contains("ip"))
-            {
-                std::string elgato_keylight_ip = elgato_keylight_settings["devices"][device_idx]["ip"];
+        std::string elgato_keylight_ip = settings.devices[device_idx].ip;
 
-                ElgatoKeyLightController*     controller     = new ElgatoKeyLightController(elgato_keylight_ip);
-                RGBController_ElgatoKeyLight* rgb_controller = new RGBController_ElgatoKeyLight(controller);
+        ElgatoKeyLightController*     controller     = new ElgatoKeyLightController(elgato_keylight_ip);
+        RGBController_ElgatoKeyLight* rgb_controller = new RGBController_ElgatoKeyLight(controller);
 
-                detected_controllers.push_back(rgb_controller);
-            }
-        }
+        detected_controllers.push_back(rgb_controller);
     }
 
     return(detected_controllers);

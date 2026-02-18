@@ -186,37 +186,29 @@ void OpenRGBPluginsPage::on_RemovePluginButton_clicked()
     /*-----------------------------------------------------*\
     | Open plugin settings                                  |
     \*-----------------------------------------------------*/
-    json plugin_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Plugins");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    PluginSettings& plugin_settings = settings.access_mut().plugins;
 
     /*-----------------------------------------------------*\
     | Find plugin's entry in settings and remove it         |
     \*-----------------------------------------------------*/
-    if(plugin_settings.contains("plugins"))
+    const std::string& row_name = entries[cur_row]->getName();
+    const std::string& row_desc = entries[cur_row]->getDescription();
+    for(unsigned int plugin_idx = 0; plugin_idx < plugin_settings.plugins.size(); plugin_idx++)
     {
-        for(unsigned int plugin_idx = 0; plugin_idx < plugin_settings["plugins"].size(); plugin_idx++)
+        const OnePluginSettings& plugin = plugin_settings.plugins[plugin_idx];
+        if(plugin.name == row_name && plugin.description == row_desc)
         {
-            if((plugin_settings["plugins"][plugin_idx].contains("name"))
-             &&(plugin_settings["plugins"][plugin_idx].contains("description")))
-            {
-                if((plugin_settings["plugins"][plugin_idx]["name"] == entries[cur_row]->getName())
-                 &&(plugin_settings["plugins"][plugin_idx]["description"] == entries[cur_row]->getDescription()))
-                {
-                    /*-------------------------------------*\
-                    | Remove plugin from settings           |
-                    \*-------------------------------------*/
-                    plugin_settings["plugins"].erase(plugin_idx);
-                }
-            }
+            plugin_settings.plugins.erase(plugin_settings.plugins.begin() + plugin_idx);
+            break;
         }
     }
 
     /*-----------------------------------------------------*\
     | Mark plugin to be removed on next restart             |
     \*-----------------------------------------------------*/
-    plugin_settings["plugins_remove"][plugin_settings["plugins_remove"].size()] = entries[cur_row]->getPath();
-
-    ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-    ResourceManager::get()->GetSettingsManager()->SaveSettings();
+    plugin_settings.plugins_remove.push_back(entries[cur_row]->getPath());
+    settings.Save();
 
     QMessageBox::information(this, tr("Restart Needed"), tr("The plugin will be fully removed after restarting OpenRGB."), QMessageBox::Ok);
 }
@@ -226,44 +218,27 @@ void OpenRGBPluginsPage::on_EnableButton_clicked(OpenRGBPluginsEntry* entry)
     /*-----------------------------------------------------*\
     | Open plugin list and check if plugin is in the list   |
     \*-----------------------------------------------------*/
-    json plugin_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Plugins");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    PluginSettings& plugin_settings = settings.access_mut().plugins;
 
     /*-----------------------------------------------------*\
     | Search the settings to find the correct index         |
     \*-----------------------------------------------------*/
-    std::string     name        = "";
-    std::string     description = "";
     bool            enabled     = entry->isPluginEnabled();
     bool            found       = false;
-    unsigned int    plugin_ct   = 0;
     unsigned int    plugin_idx  = 0;
 
     std::string     entry_name  = entry->getName();
     std::string     entry_desc  = entry->getDescription();
     std::string     entry_path  = entry->getPath();
 
-    if(plugin_settings.contains("plugins"))
+    for(plugin_idx = 0; plugin_idx < (unsigned int)plugin_settings.plugins.size(); plugin_idx++)
     {
-        plugin_ct = (unsigned int)plugin_settings["plugins"].size();
-
-        for(plugin_idx = 0; plugin_idx < (unsigned int)plugin_settings["plugins"].size(); plugin_idx++)
+        const OnePluginSettings& plugin = plugin_settings.plugins[plugin_idx];
+        if(plugin.name == entry_name && plugin.description == entry_desc)
         {
-            if(plugin_settings["plugins"][plugin_idx].contains("name"))
-            {
-                name        = plugin_settings["plugins"][plugin_idx]["name"];
-            }
-
-            if(plugin_settings["plugins"][plugin_idx].contains("description"))
-            {
-                description = plugin_settings["plugins"][plugin_idx]["description"];
-            }
-
-            if((entry_name == name)
-             &&(entry_desc == description))
-            {
-                found = true;
-                break;
-            }
+            found = true;
+            break;
         }
     }
 
@@ -273,19 +248,20 @@ void OpenRGBPluginsPage::on_EnableButton_clicked(OpenRGBPluginsEntry* entry)
     \*-----------------------------------------------------*/
     if(!found)
     {
-        plugin_settings["plugins"][plugin_ct]["name"]           = entry_name;
-        plugin_settings["plugins"][plugin_ct]["description"]    = entry_desc;
-        plugin_settings["plugins"][plugin_ct]["enabled"]        = enabled;
-
-        ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
+        OnePluginSettings new_plugin = OnePluginSettings
+        {
+            .name = entry_name,
+            .description = entry_desc,
+            .enabled = enabled,
+        };
+        plugin_settings.plugins.emplace_back(new_plugin);
         ResourceManager::get()->GetSettingsManager()->SaveSettings();
     }
     else
     {
-        plugin_settings["plugins"][plugin_idx]["enabled"]       = enabled;
-        ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-        ResourceManager::get()->GetSettingsManager()->SaveSettings();
+        plugin_settings.plugins[plugin_idx].enabled = enabled;
     }
+    settings.Save();
 
     if(enabled)
     {

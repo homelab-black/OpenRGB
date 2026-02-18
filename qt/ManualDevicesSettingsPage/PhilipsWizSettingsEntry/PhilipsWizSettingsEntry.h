@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "PhilipsWizController.h"
 
 namespace Ui
 {
@@ -23,7 +24,7 @@ class PhilipsWizSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit PhilipsWizSettingsEntry(QWidget *parent = nullptr);
     ~PhilipsWizSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const PhilipsWizDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

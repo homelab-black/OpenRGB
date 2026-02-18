@@ -62,35 +62,25 @@ void YeelightSettingsEntry::on_HostIPChooserButton_clicked()
     ui->HostIPEdit->setText(inp.textValue());
 }
 
-void YeelightSettingsEntry::loadFromSettings(const json& data)
+void YeelightSettingsEntry::loadFromSettings(const YeelightDevice& data)
 {
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-
-    if(data.contains("host_ip"))
-    {
-        ui->HostIPEdit->setText(QString::fromStdString(data["host_ip"]));
-    }
-
-    if(data.contains("music_mode"))
-    {
-        ui->MusicModeCheckBox->setChecked(data["music_mode"]);
-    }
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->HostIPEdit->setText(QString::fromStdString(data.host_ip));
+    ui->MusicModeCheckBox->setChecked(data.music_mode);
 }
 
 json YeelightSettingsEntry::saveSettings()
 {
-    json result;
     /*-------------------------------------------------*\
     | Required parameters                               |
     \*-------------------------------------------------*/
-    result["ip"]          = ui->IPEdit->text().toStdString();
-    result["host_ip"]     = ui->HostIPEdit->text().toStdString();
-    result["music_mode"]  = ui->MusicModeCheckBox->isChecked();
+    return YeelightDevice
+    {
+        .ip          = ui->IPEdit->text().toStdString(),
+        .host_ip     = ui->HostIPEdit->text().toStdString(),
+        .music_mode  = ui->MusicModeCheckBox->isChecked(),
+    };
 
-    return result;
 }
 
 bool YeelightSettingsEntry::isDataValid()
@@ -106,4 +96,4 @@ static BaseManualDeviceEntry* SpawnYeelightSettingsEntry(const json& data)
     return entry;
 }
 
-REGISTER_MANUAL_DEVICE_TYPE("Yeelight", "YeelightDevices", SpawnYeelightSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE("Yeelight", YEELIGHT_CFG_KEY, SpawnYeelightSettingsEntry);

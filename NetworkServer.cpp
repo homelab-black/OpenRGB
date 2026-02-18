@@ -1218,11 +1218,9 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo * client_info)
 
                 if(settings_manager != NULL)
                 {
-                    std::string settings_key;
-                    settings_key.assign(data, header.pkt_size);
-                    settings_key = StringUtils::remove_null_terminating_chars(settings_key);
-
-                    nlohmann::json settings_json = settings_manager->GetSettings(settings_key);
+                    SettingsAccessGuard settings = settings_manager->GetSettings();
+                    json settings_json = settings.access();
+                    settings.Release();
                     std::string settings_json_str = settings_json.dump();
 
                     NetPacketHeader reply_hdr;

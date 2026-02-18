@@ -10,10 +10,9 @@
 \*---------------------------------------------------------*/
 
 #include "PhilipsWizController.h"
-#include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
 using namespace std::chrono_literals;
+
 
 PhilipsWizController::PhilipsWizController(std::string ip, bool use_cool, bool use_warm, std::string selected_white_strategy)
 {

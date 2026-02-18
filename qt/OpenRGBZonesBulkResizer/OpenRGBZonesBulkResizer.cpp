@@ -24,24 +24,15 @@ void OpenRGBZonesBulkResizer::RunChecks(QWidget *parent)
     /*---------------------------------------------------------*\
     | Determine if we should run (user setting)                 |
     \*---------------------------------------------------------*/
-    SettingsManager* settings_manager = ResourceManager::get()->GetSettingsManager();
-    json ui_settings = settings_manager->GetSettings("UserInterface");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const UserInterfaceSettings& ui_settings = settings.access().ui;
 
-    if(!ui_settings.is_null() && ui_settings.contains("run_zone_checks"))
+    if(!ui_settings.run_zone_checks)
     {
-        json run_zone_checks = ui_settings["run_zone_checks"];
-
-        if(!run_zone_checks.is_null() && run_zone_checks.is_boolean())
-        {
-            bool should_run = run_zone_checks;
-
-            if(!should_run)
-            {
-                LOG_DEBUG("[ZonesBulkResizer] Skipping zones sizes checks.");
-                return;
-            }
-        }
+        LOG_DEBUG("[ZonesBulkResizer] Skipping zones sizes checks.");
+        return;
     }
+    settings.Release();
 
     LOG_DEBUG("[ZonesBulkResizer] Running zones sizes checks...");
 
@@ -223,13 +214,8 @@ void OpenRGBZonesBulkResizer::SaveDoNotRunState()
     | Save the "Do not show again" checkbox state in            |
     | settings manager                                          |
     \*---------------------------------------------------------*/
-    SettingsManager* settings_manager = ResourceManager::get()->GetSettingsManager();
-    json ui_settings = settings_manager->GetSettings("UserInterface");
-
     bool state = ui->do_not_show_again_checkbox->checkState() == Qt::Checked;
-
-    ui_settings["run_zone_checks"] = !state;
-
-    settings_manager->SetSettings("UserInterface", ui_settings);
-    settings_manager->SaveSettings();
+    ResourceManager::get()->GetSettingsManager()->ModifySettings([state](Settings& settings) {
+        settings.ui.run_zone_checks = state;
+    });
 }

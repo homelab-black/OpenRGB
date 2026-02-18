@@ -107,6 +107,8 @@ typedef struct
     unsigned char   col;
 } vialrgb_led_info;
 
+#define QMK_VIAL_CFG_KEY "QMKVialRGBDevices"
+
 class QMKVialRGBController
 {
 public:

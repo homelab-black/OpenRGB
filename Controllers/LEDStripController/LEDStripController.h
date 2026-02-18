@@ -16,6 +16,9 @@
 #include "i2c_smbus.h"
 #include "serial_port.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #ifndef TRUE
 #define TRUE true
@@ -27,24 +30,40 @@
 #define strtok_s        strtok_r
 #endif
 
-typedef unsigned int    led_protocol;
 
-enum
+#define LEDSTRIP_CFG_KEY "LEDStripDevices"
+
+enum class LedProtocol
 {
-    LED_PROTOCOL_KEYBOARD_VISUALIZER,
-    LED_PROTOCOL_ADALIGHT,
-    LED_PROTOCOL_TPM2,
-    LED_PROTOCOL_BASIC_I2C
+    KEYBOARD_VISUALIZER,
+    ADALIGHT,
+    TPM2,
+    BASIC_I2C
 };
+
+NLOHMANN_JSON_SERIALIZE_ENUM(LedProtocol, {
+    {LedProtocol::KEYBOARD_VISUALIZER, "keyboard_visualizer"},
+    {LedProtocol::ADALIGHT, "adalight"},
+    {LedProtocol::TPM2, "tpm2"},
+    {LedProtocol::BASIC_I2C, "basic_i2c"}
+});
 
 struct LEDStripDevice
 {
-    std::string     name;
+    std::string     name = "LED Strip";
     std::string     port;
     unsigned int    baud        = 0;
     unsigned int    num_leds    = 0;
-    led_protocol    protocol;
+    LedProtocol    protocol = LedProtocol::KEYBOARD_VISUALIZER;
 };
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LEDStripDevice,
+    name,
+    port,
+    baud,
+    num_leds,
+    protocol
+);
 
 class LEDStripController
 {
@@ -52,7 +71,7 @@ public:
     LEDStripController(std::string dev_name);
     ~LEDStripController();
 
-    void        Initialize(char* ledstring, led_protocol proto);
+    void        Initialize(char* ledstring, LedProtocol proto);
 
     void        InitializeI2C(char* i2cname);
     void        InitializeSerial(char* portname, int baud);
@@ -82,5 +101,5 @@ private:
     net_port *udpport;
     i2c_smbus_interface *i2cport;
     unsigned char i2c_addr;
-    led_protocol protocol;
+    LedProtocol protocol;
 };

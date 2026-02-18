@@ -30,35 +30,21 @@ void QMKORGBSettingsEntry::changeEvent(QEvent *event)
     }
 }
 
-void QMKORGBSettingsEntry::loadFromSettings(const json& data)
+void QMKORGBSettingsEntry::loadFromSettings(const QMKOpenDeviceSettings& data)
 {
-    if(data.contains("name"))
-    {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
-    }
-
-    if(data.contains("usb_vid"))
-    {
-        ui->USBVIDEdit->setText(QString::fromStdString(data["usb_vid"]));
-    }
-
-    if(data.contains("usb_pid"))
-    {
-        ui->USBPIDEdit->setText(QString::fromStdString(data["usb_pid"]));
-    }
+    ui->NameEdit->setText(QString::fromStdString(data.name));
+    ui->USBVIDEdit->setText(QString::fromStdString(data.usb_vid));
+    ui->USBPIDEdit->setText(QString::fromStdString(data.usb_pid));
 }
 
 json QMKORGBSettingsEntry::saveSettings()
 {
-    json result;
-    /*-------------------------------------------------*\
-    | Required parameters                               |
-    \*-------------------------------------------------*/
-    result["name"]     = ui->NameEdit->text().toStdString();
-    result["usb_vid"]  = ui->USBVIDEdit->text().toStdString();
-    result["usb_pid"]  = ui->USBPIDEdit->text().toStdString();
-
-    return result;
+    return QMKOpenDeviceSettings
+    {
+        .usb_pid  = ui->USBPIDEdit->text().toStdString(),
+        .usb_vid  = ui->USBVIDEdit->text().toStdString(),
+        .name     = ui->NameEdit->text().toStdString(),
+    };
 }
 
 bool QMKORGBSettingsEntry::isDataValid()
@@ -76,4 +62,4 @@ static BaseManualDeviceEntry* SpawnQMKORGBSettingsEntry(const json& data)
 
 static const char* QMKDeviceName = QT_TRANSLATE_NOOP("ManualDevice", "QMK (OpenRGB Protocol)");
 
-REGISTER_MANUAL_DEVICE_TYPE(QMKDeviceName, "QMKOpenRGBDevices", SpawnQMKORGBSettingsEntry);
+REGISTER_MANUAL_DEVICE_TYPE(QMKDeviceName, QMK_OPEN_SETTINGS_KEY, SpawnQMKORGBSettingsEntry);

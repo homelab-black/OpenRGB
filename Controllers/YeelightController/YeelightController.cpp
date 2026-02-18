@@ -10,9 +10,6 @@
 \*---------------------------------------------------------*/
 
 #include "YeelightController.h"
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
 
 YeelightController::YeelightController(std::string ip, std::string host_ip, bool music_mode_val)
 {

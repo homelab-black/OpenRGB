@@ -16,6 +16,9 @@
 #include <climits>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 #define LIFX_MANUFACTURER    "LIFX"
 #define LIFX_UDP_PORT        "56700"
@@ -163,6 +166,23 @@ enum
     LIFX_SET_EXTENDED_COLOR_ZONES_PACKET_OFFSET_COLORS       = LIFX_PACKET_HEADER_LENGTH + 8, /* 656 bytes (82 * 4 * 2), 82 HSBK values to change  */
                                                                                               /*     the device with                               */
 };
+
+#define LIFX_CFG_KEY "LIFXDevices"
+
+struct LIFXDevice
+{
+    std::string ip;
+    std::string name;
+    bool multizone;
+    bool extended_multizone;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LIFXDevice,
+    ip,
+    name,
+    multizone,
+    extended_multizone
+);
 
 class LIFXController
 {

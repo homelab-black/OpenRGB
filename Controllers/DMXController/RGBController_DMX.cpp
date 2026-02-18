@@ -15,6 +15,8 @@
 
 using namespace std::chrono_literals;
 
+
+
 /**------------------------------------------------------------------*\
     @name DMX Devices
     @category LEDStrip
@@ -73,7 +75,7 @@ RGBController_DMX::RGBController_DMX(std::vector<DMXDevice> device_list)
 
     SetupZones();
 
-    for (std::size_t device_idx = 0; device_idx < devices.size(); device_idx++)
+    for(std::size_t device_idx = 0; device_idx < devices.size(); device_idx++)
     {
         /*-----------------------------------------*\
         | Update keepalive delay                    |

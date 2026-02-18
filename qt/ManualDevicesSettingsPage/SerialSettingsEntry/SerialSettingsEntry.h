@@ -10,6 +10,7 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+#include "LEDStripController.h"
 
 namespace Ui
 {
@@ -28,7 +29,7 @@ private slots:
 public:
     explicit SerialSettingsEntry(QWidget *parent = nullptr);
     ~SerialSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const LEDStripDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

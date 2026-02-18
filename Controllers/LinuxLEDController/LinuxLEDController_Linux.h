@@ -12,6 +12,35 @@
 #pragma once
 
 #include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define LINUX_LED_DEVICE_CFG_KEY "LinuxLEDDevices"
+
+struct LinuxLEDDevice
+{
+    std::string name;
+    std::string red_path;
+    std::string green_path;
+    std::string blue_path;
+    std::string rgb_path;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LinuxLEDDevice,
+    name,
+    red_path,
+    green_path,
+    blue_path,
+    rgb_path
+);
+
+struct LinuxLEDSettings
+{
+    std::vector<LinuxLEDDevice> devices;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LinuxLEDSettings, devices);
 
 class LinuxLEDController
 {

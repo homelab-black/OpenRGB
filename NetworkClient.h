@@ -108,7 +108,7 @@ public:
     /*-----------------------------------------------------*\
     | SettingsManager functions                             |
     \*-----------------------------------------------------*/
-    std::string                         SettingsManager_GetSettings(std::string settings_key);
+    std::string                         SettingsManager_GetSettings();
     void                                SettingsManager_SaveSettings();
     void                                SettingsManager_SetSettings(std::string settings_json_str);
 

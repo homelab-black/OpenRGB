@@ -160,34 +160,31 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     /*---------------------------------------------------------------------*\
     | Open plugin settings                                                  |
     \*---------------------------------------------------------------------*/
-    json plugin_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Plugins");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    PluginSettings& plugin_settings = settings.access_mut().plugins;
 
     /*---------------------------------------------------------------------*\
     | Check if this plugin is on the remove list                            |
     \*---------------------------------------------------------------------*/
-    if(plugin_settings.contains("plugins_remove"))
+    for(unsigned int plugin_remove_idx = 0; plugin_remove_idx < plugin_settings.plugins_remove.size(); plugin_remove_idx++)
     {
-        for(unsigned int plugin_remove_idx = 0; plugin_remove_idx < plugin_settings["plugins_remove"].size(); plugin_remove_idx++)
+        std::filesystem::path& plugin_to_remove = plugin_settings.plugins_remove[plugin_remove_idx];
+        LOG_WARNING("[PluginManager] Checking remove %d, %s", plugin_remove_idx, plugin_to_remove.c_str());
+
+        if(plugin_to_remove == path)
         {
-            LOG_WARNING("[PluginManager] Checking remove %d, %s", plugin_remove_idx, to_string(plugin_settings["plugins_remove"][plugin_remove_idx]).c_str());
-
-            if(plugin_settings["plugins_remove"][plugin_remove_idx] == path.generic_u8string())
-            {
-                /*---------------------------------------------------------*\
-                | Delete the plugin file                                    |
-                \*---------------------------------------------------------*/
-                filesystem::remove(path);
-            }
-
-            /*-----------------------------------------------------------------*\
-            | Erase the plugin from the remove list                             |
-            \*-----------------------------------------------------------------*/
-            plugin_settings["plugins_remove"].erase(plugin_remove_idx);
-
-            ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-            ResourceManager::get()->GetSettingsManager()->SaveSettings();
+            /*---------------------------------------------------------*\
+            | Delete the plugin file                                    |
+            \*---------------------------------------------------------*/
+            filesystem::remove(path);
         }
+
+        /*-----------------------------------------------------------------*\
+        | Erase the plugin from the remove list                             |
+        \*-----------------------------------------------------------------*/
+        plugin_settings.plugins_remove.erase(plugin_settings.plugins_remove.begin() + plugin_remove_idx);
     }
+    settings.Save();
 
     /*---------------------------------------------------------------------*\
     | Search active plugins to see if this path already exists              |
@@ -220,80 +217,59 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
         /*-----------------------------------------------------------------*\
         | Check that the plugin is valid, then check the API version        |
         \*-----------------------------------------------------------------*/
-        if(instance)
+        if(!instance)
         {
-            plugin = qobject_cast<OpenRGBPluginInterface*>(instance);
+            LOG_WARNING("[PluginManager] Plugin %s cannot be instantiated.", path.c_str());
+            return;
+        }
 
-            if(plugin)
+        plugin = qobject_cast<OpenRGBPluginInterface*>(instance);
+        if (!plugin)
+        {
+            LOG_WARNING("[PluginManager] Plugin %s cannot be casted to OpenRGBPluginInterface", path.c_str());
+        }
+
+        if(plugin->GetPluginAPIVersion() == OPENRGB_PLUGIN_API_VERSION)
+        {
+            LOG_TRACE("[PluginManager] Plugin %s has a compatible API version", path.c_str());
+
+            /*-----------------------------------------------------*\
+            | Get the plugin information                            |
+            \*-----------------------------------------------------*/
+            OpenRGBPluginInfo info = plugin->GetPluginInfo();
+
+            /*-----------------------------------------------------*\
+            | Search the settings to see if it is enabled           |
+            \*-----------------------------------------------------*/
+            std::optional<OnePluginSettings> found = plugin_settings.find(info.Name, info.Description);
+            bool enabled;
+            /*-----------------------------------------------------*\
+            | If the plugin was not in the list, add it to the list |
+            | and default it to enabled, then save the settings     |
+            \*-----------------------------------------------------*/
+            if(!found.has_value())
             {
-                if(plugin->GetPluginAPIVersion() == OPENRGB_PLUGIN_API_VERSION)
+                enabled = true;
+                OnePluginSettings new_plugin
                 {
-                    LOG_TRACE("[PluginManager] Plugin %s has a compatible API version", path.c_str());
+                    .name = info.Name,
+                    .description = info.Description,
+                    .enabled = enabled
+                };
+                plugin_settings.plugins.push_back(new_plugin);
+                settings.Save();
+            }
+            else
+            {
+                enabled = found.value().enabled;
+            }
 
-                    /*-----------------------------------------------------*\
-                    | Get the plugin information                            |
-                    \*-----------------------------------------------------*/
-                    OpenRGBPluginInfo info = plugin->GetPluginInfo();
+            LOG_VERBOSE("[PluginManager] Loaded plugin %s", info.Name.c_str());
 
-                    /*-----------------------------------------------------*\
-                    | Search the settings to see if it is enabled           |
-                    \*-----------------------------------------------------*/
-                    std::string     name        = "";
-                    std::string     description = "";
-                    bool            enabled     = true;
-                    bool            found       = false;
-                    unsigned int    plugin_ct   = 0;
-
-                    if(plugin_settings.contains("plugins"))
-                    {
-                        plugin_ct = (unsigned int)plugin_settings["plugins"].size();
-
-                        for(unsigned int plugin_settings_idx = 0; plugin_settings_idx < plugin_settings["plugins"].size(); plugin_settings_idx++)
-                        {
-                            if(plugin_settings["plugins"][plugin_settings_idx].contains("name"))
-                            {
-                                name        = plugin_settings["plugins"][plugin_settings_idx]["name"];
-                            }
-
-                            if(plugin_settings["plugins"][plugin_settings_idx].contains("description"))
-                            {
-                                description = plugin_settings["plugins"][plugin_settings_idx]["description"];
-                            }
-
-                            if(plugin_settings["plugins"][plugin_settings_idx].contains("enabled"))
-                            {
-                                enabled     = plugin_settings["plugins"][plugin_settings_idx]["enabled"];
-                            }
-
-                            if((info.Name == name)
-                             &&(info.Description == description))
-                            {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    /*-----------------------------------------------------*\
-                    | If the plugin was not in the list, add it to the list |
-                    | and default it to enabled, then save the settings     |
-                    \*-----------------------------------------------------*/
-                    if(!found)
-                    {
-                        plugin_settings["plugins"][plugin_ct]["name"]           = info.Name;
-                        plugin_settings["plugins"][plugin_ct]["description"]    = info.Description;
-                        plugin_settings["plugins"][plugin_ct]["enabled"]        = enabled;
-
-                        ResourceManager::get()->GetSettingsManager()->SetSettings("Plugins", plugin_settings);
-                        ResourceManager::get()->GetSettingsManager()->SaveSettings();
-                    }
-
-                    LOG_VERBOSE("[PluginManager] Loaded plugin %s", info.Name.c_str());
-
-                    /*-----------------------------------------------------*\
-                    | Add the plugin to the PluginManager active plugins    |
-                    \*-----------------------------------------------------*/
-                    OpenRGBPluginEntry entry;
+            /*-----------------------------------------------------*\
+            | Add the plugin to the PluginManager active plugins    |
+            \*-----------------------------------------------------*/
+            OpenRGBPluginEntry entry;
 
                     entry.info          = info;
                     entry.plugin        = plugin;
@@ -306,31 +282,31 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
                     entry.api_version   = plugin->GetPluginAPIVersion();
                     entry.is_system     = is_system;
 
-                    loader->unload();
+            loader->unload();
 
-                    ActivePlugins.push_back(entry);
+            ActivePlugins.push_back(entry);
 
-                    if(entry.enabled)
-                    {
-                        LoadPlugin(&ActivePlugins.back());
-                    }
-                }
-                else
-                {
-                    /*-----------------------------------------------------*\
-                    | Fill in a plugin information object with text showing |
-                    | the plugin is incompatible                            |
-                    \*-----------------------------------------------------*/
-                    OpenRGBPluginInfo info;
+            if(entry.enabled)
+            {
+                LoadPlugin(&ActivePlugins.back());
+            }
+        }
+        else
+        {
+            /*-----------------------------------------------------*\
+            | Fill in a plugin information object with text showing |
+            | the plugin is incompatible                            |
+            \*-----------------------------------------------------*/
+            OpenRGBPluginInfo info;
 
-                    info.Name           = "Incompatible Plugin";
-                    info.Description    = "This plugin is not compatible with this version of OpenRGB.";
+            info.Name           = "Incompatible Plugin";
+            info.Description    = "This plugin is not compatible with this version of OpenRGB.";
 
-                    /*-----------------------------------------------------*\
-                    | Add the plugin to the PluginManager active plugins    |
-                    | but mark it as incompatible                           |
-                    \*-----------------------------------------------------*/
-                    OpenRGBPluginEntry entry;
+            /*-----------------------------------------------------*\
+            | Add the plugin to the PluginManager active plugins    |
+            | but mark it as incompatible                           |
+            \*-----------------------------------------------------*/
+            OpenRGBPluginEntry entry;
 
                     entry.info          = info;
                     entry.plugin        = plugin;
@@ -343,28 +319,18 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
                     entry.api_version   = plugin->GetPluginAPIVersion();
                     entry.is_system     = is_system;
 
-                    loader->unload();
+            loader->unload();
 
-                    PluginManager::ActivePlugins.push_back(entry);
+            PluginManager::ActivePlugins.push_back(entry);
 
-                    bool unloaded = loader->unload();
+            bool unloaded = loader->unload();
 
-                    LOG_WARNING("[PluginManager] Plugin %s has an incompatible API version", path.c_str());
+            LOG_WARNING("[PluginManager] Plugin %s has an incompatible API version", path.c_str());
 
-                    if(!unloaded)
-                    {
-                        LOG_WARNING("[PluginManager] Plugin %s cannot be unloaded", path.c_str());
-                    }
-                }
-            }
-            else
+            if(!unloaded)
             {
-                LOG_WARNING("[PluginManager] Plugin %s cannot be casted to OpenRGBPluginInterface", path.c_str());
+                LOG_WARNING("[PluginManager] Plugin %s cannot be unloaded", path.c_str());
             }
-        }
-        else
-        {
-            LOG_WARNING("[PluginManager] Plugin %s cannot be instantiated.", path.c_str());
         }
     }
 }

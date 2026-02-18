@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "OpenRGBPluginAPI.h"
+#include "SettingsJson.h"
 
 OpenRGBPluginAPI::OpenRGBPluginAPI()
 {
@@ -169,7 +170,58 @@ std::vector<RGBController*> & OpenRGBPluginAPI::GetRGBControllers()
 \*---------------------------------------------------------*/
 nlohmann::json OpenRGBPluginAPI::GetSettings(std::string settings_key)
 {
-    return(settings_manager->GetSettings(settings_key));
+    /*-------------------------------------*\
+    | The only acceptable settings_key are  |
+    | the fields of `Settings` struct       |
+    \*-------------------------------------*/
+    SettingsAccessGuard guard = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const Settings& settings = guard.access();
+    json result = json {};
+    if(settings_key == "AutoStart")
+    {
+        return settings.auto_start;
+    }
+    else if(settings_key == "Detectors")
+    {
+        to_json(result, settings.detectors);
+    }
+    else if(settings_key == "LogManager")
+    {
+        to_json(result, settings.log_manager);
+    }
+    else if(settings_key == "ProfileManager")
+    {
+        to_json(result, settings.profile_manager);
+    }
+    else if(settings_key == "Theme")
+    {
+        to_json(result, settings.theme);
+    }
+    else if(settings_key == "UserInterface")
+    {
+        to_json(result, settings.ui);
+    }
+    else if(settings_key == "Plugins")
+    {
+        to_json(result, settings.plugins);
+    }
+    else if(settings_key == "Clients")
+    {
+        to_json(result, settings.clients);
+    }
+    else if(settings_key == "Drivers")
+    {
+        to_json(result, settings.drivers);
+    }
+    else if(settings_key == "Servers")
+    {
+        to_json(result, settings.servers);
+    }
+    else if(settings_key == "Controllers")
+    {
+        to_json(result, settings.controllers);
+    }
+    return result;
 }
 
 void OpenRGBPluginAPI::SaveSettings()
@@ -179,5 +231,50 @@ void OpenRGBPluginAPI::SaveSettings()
 
 void OpenRGBPluginAPI::SetSettings(std::string settings_key, nlohmann::json new_settings)
 {
-    settings_manager->SetSettings(settings_key, new_settings);
+    SettingsAccessGuard guard = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    Settings& settings = guard.access_mut();
+    if(settings_key == "AutoStart")
+    {
+        from_json(new_settings, settings.auto_start);
+    }
+    else if(settings_key == "Detectors")
+    {
+        from_json(new_settings, settings.detectors);
+    }
+    else if(settings_key == "LogManager")
+    {
+        from_json(new_settings, settings.log_manager);
+    }
+    else if(settings_key == "ProfileManager")
+    {
+        from_json(new_settings, settings.profile_manager);
+    }
+    else if(settings_key == "Theme")
+    {
+        from_json(new_settings, settings.theme);
+    }
+    else if(settings_key == "UserInterface")
+    {
+        from_json(new_settings, settings.ui);
+    }
+    else if(settings_key == "Plugins")
+    {
+        from_json(new_settings, settings.plugins);
+    }
+    else if(settings_key == "Clients")
+    {
+        from_json(new_settings, settings.clients);
+    }
+    else if(settings_key == "Drivers")
+    {
+        from_json(new_settings, settings.drivers);
+    }
+    else if(settings_key == "Servers")
+    {
+        from_json(new_settings, settings.servers);
+    }
+    else if(settings_key == "Controllers")
+    {
+        from_json(new_settings, settings.controllers);
+    }
 }

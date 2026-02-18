@@ -10,11 +10,9 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
-#include <nlohmann/json.hpp>
 #include "base64.hpp"
 #include "GoveeController.h"
 
-using json = nlohmann::json;
 using namespace std::chrono_literals;
 
 base64::byte CalculateXorChecksum(std::vector<base64::byte> packet)

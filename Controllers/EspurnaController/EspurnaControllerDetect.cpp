@@ -19,55 +19,30 @@
 DetectedControllers DetectEspurnaControllers()
 {
     DetectedControllers detected_controllers;
-    json                espurna_settings;
 
     /*-----------------------------------------------------*\
     | Get Espurna settings from settings manager            |
     \*-----------------------------------------------------*/
-    espurna_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("EspurnaDevices");
+    EspurnaSettings espurna_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<EspurnaSettings>(ESPURNA_CFG_KEY);
 
     /*-----------------------------------------------------*\
     | If the Espurna settings contains devices, process     |
     \*-----------------------------------------------------*/
-    if(espurna_settings.contains("devices"))
+
+    for(unsigned int device_idx = 0; device_idx < espurna_settings.devices.size(); device_idx++)
     {
-        for(unsigned int device_idx = 0; device_idx < espurna_settings["devices"].size(); device_idx++)
-        {
-            std::string ip;
-            std::string port;
-            std::string apikey;
+        std::string ip = espurna_settings.devices[device_idx].ip;
+        std::string port = espurna_settings.devices[device_idx].port;
+        std::string apikey = espurna_settings.devices[device_idx].apikey;
 
-            if(espurna_settings["devices"][device_idx].contains("ip"))
-            {
-                ip = espurna_settings["devices"][device_idx]["ip"];
-            }
+        std::string value = ip + "," + port + "," + apikey;
 
-            if(espurna_settings["devices"][device_idx].contains("port"))
-            {
-                if(espurna_settings["devices"][device_idx]["port"].type() == json::value_t::string)
-                {
-                    port = espurna_settings["devices"][device_idx]["port"];
-                }
-                else
-                {
-                    port = std::to_string((unsigned int)espurna_settings["devices"][device_idx]["port"]);
-                }
-            }
+        EspurnaController*     controller     = new EspurnaController();
+        controller->Initialize((char *)value.c_str());
 
-            if(espurna_settings["devices"][device_idx].contains("apikey"))
-            {
-                apikey = espurna_settings["devices"][device_idx]["apikey"];
-            }
+        RGBController_Espurna* rgb_controller = new RGBController_Espurna(controller);
 
-            std::string value = ip + "," + port + "," + apikey;
-
-            EspurnaController*     controller     = new EspurnaController();
-            controller->Initialize((char *)value.c_str());
-
-            RGBController_Espurna* rgb_controller = new RGBController_Espurna(controller);
-
-            detected_controllers.push_back(rgb_controller);
-        }
+        detected_controllers.push_back(rgb_controller);
     }
 
     return(detected_controllers);

@@ -17,20 +17,21 @@ DetectorTableModel::DetectorTableModel(QObject* parent) : QAbstractTableModel(pa
     /*-----------------------------------------------------*\
     | Read the detector list from the settings manager      |
     \*-----------------------------------------------------*/
-    json settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    const DetectorSettings& detector_settings = settings.access().detectors;
 
-    if(settings.contains("detectors"))
+    /*---------------------------------------------------------*\
+    | Using foreach loop since we're iterating over a map here  |
+    \*---------------------------------------------------------*/
+    for(const auto& [detector_str, enabled] : detector_settings.detectors)
     {
-        for(json::const_iterator it = settings["detectors"].begin(); it != settings["detectors"].end(); it++)
-        {
-            DetectorTableValue new_entry;
-
-            new_entry.key   = it.key();
-            new_entry.value = it.value();
-
-            detectors.push_back(new_entry);
-        }
+        DetectorTableValue new_entry {
+            .key = detector_str,
+            .value = enabled,
+        };
+        detectors.push_back(new_entry);
     }
+    settings.Release();
 
     /*-----------------------------------------------------*\
     | If settings contains the detectors list, fill in rows |
@@ -135,25 +136,23 @@ void DetectorTableModel::applySettings()
     /*-----------------------------------------------------*\
     | Read the detector list from the settings manager      |
     \*-----------------------------------------------------*/
-    json settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+    SettingsAccessGuard settings = ResourceManager::get()->GetSettingsManager()->GetSettings();
+    DetectorSettings& detector_settings = settings.access_mut().detectors;
 
     /*-----------------------------------------------------*\
     | Loop through all detectors in the list and update the |
     | value in the settings                                 |
     \*-----------------------------------------------------*/
-    if(settings.contains("detectors"))
+    for(unsigned int detector_idx = 0; detector_idx < detectors.size(); detector_idx++)
     {
-        for(unsigned int detector_idx = 0; detector_idx < detectors.size(); detector_idx++)
-        {
-            settings["detectors"][detectors[detector_idx].key] = detectors[detector_idx].value;
-        }
+        const DetectorTableValue& pair = detectors[detector_idx];
+        detector_settings.detectors[pair.key] = pair.value;
     }
 
     /*-----------------------------------------------------*\
     | Set and save the settings                             |
     \*-----------------------------------------------------*/
-    ResourceManager::get()->GetSettingsManager()->SetSettings("Detectors", settings);
-    ResourceManager::get()->GetSettingsManager()->SaveSettings();
+    settings.Save();
 }
 
 void DetectorTableModel::toggleAll(const bool state, QSortFilterProxyModel* detectorSortModel)

@@ -17,6 +17,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "filesystem.h"
+#include "SettingsJson.h"
 
 /*-------------------------------------------------*\
 | Common LOG strings                                |
@@ -92,7 +93,7 @@ private:
 
 public:
     static LogManager* get();
-    void configure(json config, const filesystem::path & defaultDir);
+    void configure(const LogManagerSettings& config, const filesystem::path & defaultDir);
     void flush();
     void append(const char* filename, int line, unsigned int level, const char* fmt, ...);
     void append_va(const char* filename, int line, unsigned int level, const char* fmt, va_list va);

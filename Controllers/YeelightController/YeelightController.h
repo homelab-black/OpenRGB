@@ -16,6 +16,24 @@
 #include <vector>
 #include "RGBController.h"
 #include "net_port.h"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define YEELIGHT_CFG_KEY "YeelightDevices"
+
+struct YeelightDevice
+{
+    std::string ip;
+    std::string host_ip;
+    bool music_mode;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(YeelightDevice,
+    host_ip,
+    ip,
+    music_mode
+);
 
 class YeelightController
 {

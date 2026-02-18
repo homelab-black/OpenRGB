@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include "ElgatoKeyLightController.h"
+#include "ElgatoSettings.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -71,7 +72,7 @@ void ElgatoKeyLightController::SetColor(hsv_t hsv_color)
 
 std::string ElgatoKeyLightController::GetRequest(int brightness, int temperature)
 {
-    json command;
+    nlohmann::json command;
 
     command["numberOfLights"] = 1;
 

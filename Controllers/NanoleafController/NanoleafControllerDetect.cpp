@@ -18,29 +18,22 @@
 DetectedControllers DetectNanoleafControllers()
 {
     DetectedControllers detected_controllers;
-    json                nanoleaf_settings;
 
-    nanoleaf_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("NanoleafDevices");
+    NanoleafSettings nanoleaf_settings = ResourceManager::get()->GetSettingsManager()->GetControllerSettingsOrDefault<NanoleafSettings>(NANOLEAF_CFG_KEY);
 
-    if(nanoleaf_settings.contains("devices"))
+    /*-------------------------------------------------*\
+    | using foreach loop since we iterate through a map |
+    \*-------------------------------------------------*/
+    for(const auto& [location, device] : nanoleaf_settings.devices)
     {
-        for(json::const_iterator it = nanoleaf_settings["devices"].begin(); it != nanoleaf_settings["devices"].end(); ++it)
+        try
         {
-            const json& device = it.value();
-
-            if(device.contains("ip") && device.contains("port") && device.contains("auth_token"))
-            {
-                try
-                {
-                    RGBController_Nanoleaf* rgb_controller = new RGBController_Nanoleaf(device["ip"], device["port"], device["auth_token"]);
-
-                    detected_controllers.push_back(rgb_controller);
-                }
-                catch(...)
-                {
-                    LOG_DEBUG("[Nanoleaf] Could not connect to device at %s:%d using auth_token %s", device["ip"].get<std::string>().c_str(), device["port"].get<int>(), device["auth_token"].get<std::string>().c_str());
-                }
-            }
+            RGBController_Nanoleaf* rgb_controller = new RGBController_Nanoleaf(device.ip, device.port, device.auth_token);
+            detected_controllers.push_back(rgb_controller);
+        }
+        catch(...)
+        {
+            LOG_DEBUG("[Nanoleaf] Could not connect to device at %s:%d using auth_token %s", device.ip.c_str(), device.port, device.auth_token.c_str());
         }
     }
 

@@ -10,6 +10,10 @@
 #pragma once
 
 #include "BaseManualDeviceEntry.h"
+/*--------------------------*\
+| included for settings      |
+\*--------------------------*/
+#include "RGBController_DMX.h"
 
 namespace Ui
 {
@@ -23,7 +27,7 @@ class DMXSettingsEntry : public BaseManualDeviceEntry
 public:
     explicit DMXSettingsEntry(QWidget *parent = nullptr);
     ~DMXSettingsEntry();
-    void loadFromSettings(const json& data);
+    void loadFromSettings(const DMXDevice& data);
     json saveSettings() override;
     bool isDataValid() override;
 

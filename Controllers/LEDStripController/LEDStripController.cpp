@@ -25,7 +25,7 @@ LEDStripController::~LEDStripController()
 {
 }
 
-void LEDStripController::Initialize(char* ledstring, led_protocol proto)
+void LEDStripController::Initialize(char* ledstring, LedProtocol proto)
 {
     LPSTR   numleds = NULL;
     LPSTR   source = NULL;
@@ -64,7 +64,7 @@ void LEDStripController::Initialize(char* ledstring, led_protocol proto)
 
     if (serial)
     {
-        if (protocol == LED_PROTOCOL_BASIC_I2C)
+        if (protocol == LedProtocol::BASIC_I2C)
         {
             //I2C uses the baud field for address
             i2c_addr = atoi(udpport_baud);
@@ -172,19 +172,19 @@ void LEDStripController::SetLEDs(std::vector<RGBColor> colors)
 {
     switch(protocol)
     {
-        case LED_PROTOCOL_KEYBOARD_VISUALIZER:
+        case LedProtocol::KEYBOARD_VISUALIZER:
             SetLEDsKeyboardVisualizer(colors);
             break;
 
-        case LED_PROTOCOL_ADALIGHT:
+        case LedProtocol::ADALIGHT:
             SetLEDsAdalight(colors);
             break;
 
-        case LED_PROTOCOL_TPM2:
+        case LedProtocol::TPM2:
             SetLEDsTPM2(colors);
             break;
 
-        case LED_PROTOCOL_BASIC_I2C:
+        case LedProtocol::BASIC_I2C:
             SetLEDsBasicI2C(colors);
             break;
     }

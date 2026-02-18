@@ -88,200 +88,186 @@ void E131SettingsEntry::on_TypeComboBox_currentIndexChanged(int index)
     }
 }
 
-void E131SettingsEntry::loadFromSettings(const json& data)
+void E131SettingsEntry::loadFromSettings(const E131Device& data)
 {
-    if(data.contains("name"))
+    ui->NameEdit->setText(QString::fromStdString(data.name));
+    ui->IPEdit->setText(QString::fromStdString(data.ip));
+    ui->StartUniverseEdit->setText(QString::number((int)data.start_universe));
+    ui->StartChannelEdit->setText(QString::number((int)data.start_channel));
+    ui->NumLEDsEdit->setText(QString::number((int)data.num_leds));
+
+    switch(data.type)
     {
-        ui->NameEdit->setText(QString::fromStdString(data["name"]));
+        case ZONE_TYPE_SINGLE:
+            ui->TypeComboBox->setCurrentIndex(0);
+            break;
+        case ZONE_TYPE_LINEAR:
+            ui->TypeComboBox->setCurrentIndex(1);
+            break;
+        case ZONE_TYPE_MATRIX:
+            ui->TypeComboBox->setCurrentIndex(2);
+            break;
+        default:
+            ui->TypeComboBox->setCurrentIndex(data.type);
+    };
+
+    switch(data.rgb_order)
+    {
+        case E131RGBOrder::RGB:
+            ui->RGBOrderComboBox->setCurrentIndex(0);
+            break;
+        case E131RGBOrder::RBG:
+            ui->RGBOrderComboBox->setCurrentIndex(1);
+            break;
+        case E131RGBOrder::GRB:
+            ui->RGBOrderComboBox->setCurrentIndex(2);
+            break;
+        case E131RGBOrder::GBR:
+            ui->RGBOrderComboBox->setCurrentIndex(3);
+            break;
+        case E131RGBOrder::BRG:
+            ui->RGBOrderComboBox->setCurrentIndex(4);
+            break;
+        case E131RGBOrder::BGR:
+            ui->RGBOrderComboBox->setCurrentIndex(5);
+            break;
+    };
+
+    ui->MatrixWidthEdit->setText(QString::number((int)data.matrix_width));
+    ui->MatrixHeightEdit->setText(QString::number((int)data.matrix_height));
+
+    switch(data.matrix_order)
+    {
+        case E131MatrixOrder::HORIZONTAL_TOP_LEFT:
+            ui->MatrixOrderComboBox->setCurrentIndex(0);
+            break;
+        case E131MatrixOrder::HORIZONTAL_TOP_RIGHT:
+            ui->MatrixOrderComboBox->setCurrentIndex(1);
+            break;
+        case E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT:
+            ui->MatrixOrderComboBox->setCurrentIndex(2);
+            break;
+        case E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT:
+            ui->MatrixOrderComboBox->setCurrentIndex(3);
+            break;
+        case E131MatrixOrder::VERTICAL_TOP_LEFT:
+            ui->MatrixOrderComboBox->setCurrentIndex(4);
+            break;
+        case E131MatrixOrder::VERTICAL_TOP_RIGHT:
+            ui->MatrixOrderComboBox->setCurrentIndex(5);
+            break;
+        case E131MatrixOrder::VERTICAL_BOTTOM_LEFT:
+            ui->MatrixOrderComboBox->setCurrentIndex(6);
+            break;
+        case E131MatrixOrder::VERTICAL_BOTTOM_RIGHT:
+            ui->MatrixOrderComboBox->setCurrentIndex(7);
+            break;
     }
 
-    if(data.contains("ip"))
-    {
-        ui->IPEdit->setText(QString::fromStdString(data["ip"]));
-    }
-
-    if(data.contains("start_universe"))
-    {
-        ui->StartUniverseEdit->setText(QString::number((int)data["start_universe"]));
-    }
-
-    if(data.contains("start_channel"))
-    {
-        ui->StartChannelEdit->setText(QString::number((int)data["start_channel"]));
-    }
-
-    if(data.contains("num_leds"))
-    {
-        ui->NumLEDsEdit->setText(QString::number((int)data["num_leds"]));
-    }
-
-    if(data.contains("type"))
-    {
-        if(data["type"].is_string())
-        {
-            std::string type_val = data["type"];
-
-            if(type_val == "SINGLE")
-            {
-                ui->TypeComboBox->setCurrentIndex(0);
-            }
-            else if(type_val == "LINEAR")
-            {
-                ui->TypeComboBox->setCurrentIndex(1);
-            }
-            else if(type_val == "MATRIX")
-            {
-                ui->TypeComboBox->setCurrentIndex(2);
-            }
-        }
-        else
-        {
-            ui->TypeComboBox->setCurrentIndex(data["type"]);
-        }
-    }
-
-    if(data.contains("rgb_order"))
-    {
-        if(data["rgb_order"].is_string())
-        {
-            std::string rgb_order_val = data["rgb_order"];
-
-            if(rgb_order_val == "RGB")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(0);
-            }
-            else if(rgb_order_val == "RBG")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(1);
-            }
-            else if(rgb_order_val == "GRB")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(2);
-            }
-            else if(rgb_order_val == "GBR")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(3);
-            }
-            else if(rgb_order_val == "BRG")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(4);
-            }
-            else if(rgb_order_val == "BGR")
-            {
-                ui->RGBOrderComboBox->setCurrentIndex(5);
-            }
-        }
-        else
-        {
-            ui->RGBOrderComboBox->setCurrentIndex(data["rgb_order"]);
-        }
-    }
-
-    if(data.contains("matrix_width"))
-    {
-        ui->MatrixWidthEdit->setText(QString::number((int)data["matrix_width"]));
-    }
-
-    if(data.contains("matrix_height"))
-    {
-        ui->MatrixHeightEdit->setText(QString::number((int)data["matrix_height"]));
-    }
-
-    if(data.contains("matrix_order"))
-    {
-        if(data["matrix_order"].is_string())
-        {
-            std::string matrix_order_val = data["matrix_order"];
-
-            if(matrix_order_val == "HORIZONTAL_TOP_LEFT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(0);
-            }
-            else if(matrix_order_val == "HORIZONTAL_TOP_RIGHT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(1);
-            }
-            else if(matrix_order_val == "HORIZONTAL_BOTTOM_LEFT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(2);
-            }
-            else if(matrix_order_val == "HORIZONTAL_BOTTOM_RIGHT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(3);
-            }
-            else if(matrix_order_val == "VERTICAL_TOP_LEFT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(4);
-            }
-            else if(matrix_order_val == "VERTICAL_TOP_RIGHT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(5);
-            }
-            else if(matrix_order_val == "VERTICAL_BOTTOM_LEFT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(6);
-            }
-            else if(matrix_order_val == "VERTICAL_BOTTOM_RIGHT")
-            {
-                ui->MatrixOrderComboBox->setCurrentIndex(7);
-            }
-        }
-        else
-        {
-            ui->MatrixOrderComboBox->setCurrentIndex(data["matrix_order"]);
-        }
-    }
-
-    if(data.contains("universe_size"))
-    {
-        ui->UniverseSizeEdit->setText(QString::number((int)data["universe_size"]));
-    }
-
-    if(data.contains("keepalive_time"))
-    {
-        ui->KeepaliveTimeEdit->setText(QString::number((int)data["keepalive_time"]));
-    }
+    ui->UniverseSizeEdit->setText(QString::number((int)data.universe_size));
+    ui->KeepaliveTimeEdit->setText(QString::number((int)data.keepalive_time));
 }
 
 json E131SettingsEntry::saveSettings()
 {
-    json result;
+    E131Device device;
     /*-------------------------------------------------*\
     | Required parameters                               |
     \*-------------------------------------------------*/
-    result["name"]                = ui->NameEdit->text().toStdString();
-    result["start_universe"]      = ui->StartUniverseEdit->text().toUInt();
-    result["start_channel"]       = ui->StartChannelEdit->text().toUInt();
-    result["num_leds"]            = ui->NumLEDsEdit->text().toUInt();
-    result["type"]                = ui->TypeComboBox->currentIndex();
-    result["rgb_order"]           = ui->RGBOrderComboBox->currentIndex();
+    device.name                = ui->NameEdit->text().toStdString();
+    device.start_universe      = ui->StartUniverseEdit->text().toUInt();
+    device.start_channel       = ui->StartChannelEdit->text().toUInt();
+    device.num_leds            = ui->NumLEDsEdit->text().toUInt();
+
+    switch(ui->RGBOrderComboBox->currentIndex())
+    {
+        case 0:
+            device.type = ZONE_TYPE_SINGLE;
+            break;
+        case 1:
+            device.type = ZONE_TYPE_LINEAR;
+            break;
+        case 2:
+            device.type = ZONE_TYPE_MATRIX;
+            break;
+    };
+
+    switch(ui->RGBOrderComboBox->currentIndex())
+    {
+        case 0:
+            device.rgb_order = E131RGBOrder::RGB;
+            break;
+        case 1:
+            device.rgb_order = E131RGBOrder::RBG;
+            break;
+        case 2:
+            device.rgb_order = E131RGBOrder::GRB;
+            break;
+        case 3:
+            device.rgb_order = E131RGBOrder::GBR;
+            break;
+        case 4:
+            device.rgb_order = E131RGBOrder::BRG;
+            break;
+        case 5:
+            device.rgb_order = E131RGBOrder::BGR;
+            break;
+    };
 
     /*-------------------------------------------------*\
     | Optional parameters                               |
     \*-------------------------------------------------*/
     if(ui->IPEdit->text() != "")
     {
-        result["ip"]              = ui->IPEdit->text().toStdString();
+        device.ip              = ui->IPEdit->text().toStdString();
     }
 
-    if(result["type"] == 2)
+    /*---------------------------------------*\
+    | Only used when type is ZONE_TYPE_MATRIX |
+    | but keep it in for completeness         |
+    \*---------------------------------------*/
+    device.matrix_width    = ui->MatrixWidthEdit->text().toUInt();
+    device.matrix_height   = ui->MatrixHeightEdit->text().toUInt();
+
+    switch(ui->MatrixOrderComboBox->currentIndex())
     {
-        result["matrix_width"]    = ui->MatrixWidthEdit->text().toUInt();
-        result["matrix_height"]   = ui->MatrixHeightEdit->text().toUInt();
-        result["matrix_order"]    = ui->MatrixOrderComboBox->currentIndex();
+        case 0:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_TOP_LEFT;
+            break;
+        case 1:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_TOP_RIGHT;
+            break;
+        case 2:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_BOTTOM_LEFT;
+            break;
+        case 3:
+            device.matrix_order = E131MatrixOrder::HORIZONTAL_BOTTOM_RIGHT;
+            break;
+        case 4:
+            device.matrix_order = E131MatrixOrder::VERTICAL_TOP_LEFT;
+            break;
+        case 5:
+            device.matrix_order = E131MatrixOrder::VERTICAL_TOP_RIGHT;
+            break;
+        case 6:
+            device.matrix_order = E131MatrixOrder::VERTICAL_BOTTOM_LEFT;
+            break;
+        case 7:
+            device.matrix_order = E131MatrixOrder::VERTICAL_BOTTOM_RIGHT;
+            break;
     }
 
     if(ui->UniverseSizeEdit->text() != "")
     {
-        result["universe_size"]   = ui->UniverseSizeEdit->text().toUInt();
+        device.universe_size   = ui->UniverseSizeEdit->text().toUInt();
     }
 
     if(ui->KeepaliveTimeEdit->text() != "")
     {
-        result["keepalive_time"]  = ui->KeepaliveTimeEdit->text().toUInt();
+        device.keepalive_time  = ui->KeepaliveTimeEdit->text().toUInt();
     }
 
-    return result;
+    return device;
 }
 
 bool E131SettingsEntry::isDataValid()
@@ -299,4 +285,4 @@ static BaseManualDeviceEntry* SpawnE131Entry(const json& data)
 
 static const char* E131DeviceName = QT_TRANSLATE_NOOP("ManualDevice", "E1.31 (including WLED)");
 
-REGISTER_MANUAL_DEVICE_TYPE(E131DeviceName, "E131Devices", SpawnE131Entry);
+REGISTER_MANUAL_DEVICE_TYPE(E131DeviceName, E131_SETTINGS_KEY, SpawnE131Entry);

@@ -13,6 +13,18 @@
 
 #include "RGBController.h"
 #include "ENESMBusController.h"
+#include <nlohmann/json.hpp>
+
+#define ENESMBUS_CFG_KEY "ENESMBusSettings"
+
+struct ENESMBusSettings
+{
+    bool enable_save;
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ENESMBusSettings,
+    enable_save
+);
 
 class RGBController_ENESMBus : public RGBController
 {
