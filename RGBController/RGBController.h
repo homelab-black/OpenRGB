@@ -697,6 +697,8 @@ public:
     virtual void            DeviceUpdateZoneMode(int zone);
     virtual void            DeviceSaveMode();
 
+    void                    SetDetectionPath(std::string path);
+
 protected:
     /*-----------------------------------------------------*\
     | Controller information strings                        |

@@ -33,31 +33,31 @@ using namespace std::chrono_literals;
 /*---------------------------------------------------------*\
 | ResourceManager Callback Functions                        |
 \*---------------------------------------------------------*/
-static void ResourceManagerDetectionCallback(void * this_ptr, unsigned int update_reason)
+static void ResourceManagerDetectionCallback(void * this_ptr, DetectionUpdate update_reason)
 {
     ResourceManager* this_obj = (ResourceManager *)this_ptr;
 
     switch(update_reason)
     {
-        case DETECTIONMANAGER_UPDATE_REASON_I2C_BUS_REGISTERED:
+        case DetectionUpdate::I2CBusRegistered:
             this_obj->SignalResourceManagerUpdate(RESOURCEMANAGER_UPDATE_REASON_I2C_BUS_LIST_UPDATED);
             break;
 
-        case DETECTIONMANAGER_UPDATE_REASON_DETECTION_STARTED:
+        case DetectionUpdate::DetectionStarted:
             this_obj->SignalResourceManagerUpdate(RESOURCEMANAGER_UPDATE_REASON_DETECTION_STARTED);
             break;
 
-        case DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_REGISTERED:
-        case DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_UNREGISTERED:
-        case DETECTIONMANAGER_UPDATE_REASON_RGBCONTROLLER_LIST_CLEARED:
+        case DetectionUpdate::RGBControllerRegistered:
+        case DetectionUpdate::RGBControllerUnregistered:
+        case DetectionUpdate::RGBControllerListCleared:
             this_obj->UpdateDeviceList();
             break;
 
-        case DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED:
+        case DetectionUpdate::DetectionProgressChanged:
             this_obj->SignalResourceManagerUpdate(RESOURCEMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
             break;
 
-        case DETECTIONMANAGER_UPDATE_REASON_DETECTION_COMPLETE:
+        case DetectionUpdate::DetectionCompleted:
             this_obj->SignalResourceManagerUpdate(RESOURCEMANAGER_UPDATE_REASON_DETECTION_COMPLETE);
             break;
     }

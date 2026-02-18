@@ -3921,3 +3921,8 @@ std::string device_type_to_str(device_type type)
         return "Unknown";
     }
 }
+
+void RGBController::SetDetectionPath(std::string path)
+{
+    detection_path = path;
+}
