@@ -190,7 +190,8 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
 
     /*-----------------------------------------------------*\
     | Lower process priority to potentially reduce          |
-    | interference with other programs                      |
+    | interference with other programs. Positive nice values|
+    | decrease priority on Linux                            |
     \*-----------------------------------------------------*/
 #ifdef __linux__
     setpriority(PRIO_PROCESS, 0, 10);
