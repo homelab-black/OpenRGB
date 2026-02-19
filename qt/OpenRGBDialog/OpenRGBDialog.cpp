@@ -37,9 +37,14 @@
 #include <string>
 #include <functional>
 
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
+
 #ifdef __APPLE__
 #include "macutils.h"
 #endif
+
 
 static int GetIcon(device_type type)
 {
@@ -193,7 +198,7 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     | interference with other programs. Positive nice values|
     | decrease priority on Linux                            |
     \*-----------------------------------------------------*/
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     setpriority(PRIO_PROCESS, 0, 10);
 #endif
 #ifdef _WIN32
