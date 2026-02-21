@@ -209,6 +209,11 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
             it->colors.resize(1);
             it->color_mode = MODE_COLORS_MODE_SPECIFIC;
         }
+        else if(it->flags & MODE_FLAG_HAS_RANDOM_COLOR)
+        {
+            it->color_mode = MODE_COLORS_RANDOM;
+        }
+
         if(it->flags & MODE_FLAG_HAS_SPEED)
         {
             // it->speed_min = AKKO_SPEED::S_MIN; // speed_min is 0 when constructed
@@ -439,6 +444,12 @@ void RGBController_AkkoController::DeviceUpdateMode()
             }
         }
     }
+}
+
+void RGBController_AkkoController::DeviceSaveMode(){
+    /*---------------------------------------------------------*\
+    | Not implemented                                           |
+    \*---------------------------------------------------------*/
 }
 
 AKKO_FLAGS RGBController_AkkoController::GetFlagsForMode(AKKO_MODE mode, unsigned int direction, unsigned int random_colors)
