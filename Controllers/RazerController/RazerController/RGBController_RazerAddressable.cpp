@@ -215,21 +215,10 @@ void RGBController_RazerAddressable::SetupZones()
     SetupColors();
 }
 
-void RGBController_RazerAddressable::DeviceResizeZone(int zone, int new_size)
+void RGBController_RazerAddressable::DeviceConfigureZone(int zone_idx)
 {
-    /*---------------------------------------------------------*\
-    | Only the Razer Chroma Addressable RGB Controller supports |
-    | zone resizing                                             |
-    \*---------------------------------------------------------*/
-    if((size_t) zone >= zones.size())
+    if((size_t)zone_idx < zones.size())
     {
-        return;
-    }
-
-    if(((unsigned int)new_size >= zones[zone].leds_min) && ((unsigned int)new_size <= zones[zone].leds_max))
-    {
-        zones[zone].leds_count = new_size;
-
         controller->SetAddressableZoneSizes(zones[0].leds_count,
                                             zones[1].leds_count,
                                             zones[2].leds_count,
@@ -243,10 +232,6 @@ void RGBController_RazerAddressable::DeviceResizeZone(int zone, int new_size)
 
 void RGBController_RazerAddressable::DeviceUpdateLEDs()
 {
-    /*---------------------------------------------------------*\
-    | Only the Razer Chroma Addressable RGB Controller supports |
-    | zone resizing                                             |
-    \*---------------------------------------------------------*/
     RGBColor    colors_buf[80 * 6];
 
     for(unsigned int zone_id = 0; zone_id < zones.size(); zone_id++)

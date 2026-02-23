@@ -159,7 +159,7 @@ void RGBController_MSIMysticLight761::SetupZones()
                 new_zone.leds_max   = 30;//maxLeds;
                 new_zone.leds_count = 0;
                 last_resizable_zone = zd->zone_type;
-                new_zone.flags     |= ZONE_FLAG_RESIZE_EFFECTS_ONLY;
+                new_zone.flags     |= ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE_EFFECTS_ONLY;
             }
             /*--------------------------------------------------*\
             | This is a resizable zone on a board that does      |
@@ -176,7 +176,7 @@ void RGBController_MSIMysticLight761::SetupZones()
             /*-------------------------------------------------*\
             | Determine zone type based on max number of LEDs   |
             \*-------------------------------------------------*/
-            if((new_zone.leds_max == 1) || (new_zone.flags & ZONE_FLAG_RESIZE_EFFECTS_ONLY))
+            if((new_zone.leds_max == 1) || (new_zone.flags & ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE_EFFECTS_ONLY))
             {
                 new_zone.type       = ZONE_TYPE_SINGLE;
             }
@@ -196,7 +196,7 @@ void RGBController_MSIMysticLight761::SetupZones()
     {
         controller->SetCycleCount(zone_description[zone_idx]->zone_type, zones[zone_idx].leds_count);
 
-        if((zones[zone_idx].flags & ZONE_FLAG_RESIZE_EFFECTS_ONLY) == 0)
+        if((zones[zone_idx].flags & ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE_EFFECTS_ONLY) == 0)
         {
             for(unsigned int led_idx = 0; led_idx < zones[zone_idx].leds_count; ++led_idx)
             {
@@ -228,23 +228,13 @@ void RGBController_MSIMysticLight761::SetupZones()
 }
 
 
-void RGBController_MSIMysticLight761::DeviceResizeZone
-    (
-    int zone,
-    int new_size
-    )
+void RGBController_MSIMysticLight761::DeviceConfigureZone(int zone_idx)
 {
-    if((std::size_t)zone >= zones.size())
+    if((std::size_t)zone_idx < zones.size())
     {
-        return;
-    }
-
-    if(((unsigned int)new_size >= zones[zone].leds_min) && ((unsigned int)new_size <= zones[zone].leds_max))
-    {
-        zones[zone].leds_count = new_size;
         SetupZones();
 
-        if(zone_description[zone]->zone_type == last_resizable_zone)
+        if(zone_description[zone_idx]->zone_type == last_resizable_zone)
         {
             GetDeviceConfig();
             last_resizable_zone = MSI_ZONE_NONE;

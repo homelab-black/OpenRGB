@@ -151,39 +151,32 @@ void RGBController_Nollie::SetupZones()
     SetupColors();
 }
 
-void RGBController_Nollie::DeviceResizeZone(int zone, int new_size)
+void RGBController_Nollie::DeviceConfigureZone(int zone_idx)
 {
-    /*-----------------------------------------------------*\
-    |  Set whether MOS is enabled or not                    |
-    \*-----------------------------------------------------*/
-    if(controller->GetUSBVID() == NOLLIE32_VID && NOLLIE32_PID == controller->GetUSBPID())
+    if((size_t)zone_idx < zones.size())
     {
-        if(zone == NOLLIE32_MOS_TRIGGER_CH && new_size > NOLLIE32_MOS_TRIGGER_LED)
+        /*-------------------------------------------------*\
+        |  Set whether MOS is enabled or not                |
+        \*-------------------------------------------------*/
+        if(controller->GetUSBVID() == NOLLIE32_VID && NOLLIE32_PID == controller->GetUSBPID())
         {
-            controller->SetMos(false);
+            if(zone_idx == NOLLIE32_MOS_TRIGGER_CH && zones[zone_idx].leds_count > NOLLIE32_MOS_TRIGGER_LED)
+            {
+                controller->SetMos(false);
+            }
+            else if(zone_idx == NOLLIE32_MOS_TRIGGER_CH)
+            {
+                controller->SetMos(true);
+            }
         }
-        else if(zone == NOLLIE32_MOS_TRIGGER_CH)
+
+        /*-------------------------------------------------*\
+        |  Nollie1 needs to report the number of LEDs       |
+        \*-------------------------------------------------*/
+        if(controller->GetUSBVID() == NOLLIE1_VID && controller->GetUSBPID() == NOLLIE1_PID)
         {
-            controller->SetMos(true);
+            controller->InitChLEDs(&zones[zone_idx].leds_count, NOLLIE1_CHANNELS_NUM);
         }
-    }
-
-    /*-----------------------------------------------------*\
-    |  Nollie1 needs to report the number of LEDs           |
-    \*-----------------------------------------------------*/
-    if(controller->GetUSBVID() == NOLLIE1_VID && controller->GetUSBPID() == NOLLIE1_PID)
-    {
-        controller->InitChLEDs(&new_size,NOLLIE1_CHANNELS_NUM);
-    }
-
-    if((size_t) zone >= zones.size())
-    {
-        return;
-    }
-
-    if(((unsigned int)new_size >= zones[zone].leds_min) && ((unsigned int)new_size <= zones[zone].leds_max))
-    {
-        zones[zone].leds_count = new_size;
 
         SetupZones();
     }

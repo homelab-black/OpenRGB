@@ -57,7 +57,7 @@ unsigned short NollieController::GetUSBVID()
     return(usb_vid);
 }
 
-void NollieController::InitChLEDs(int *led_num_list,int ch_num)
+void NollieController::InitChLEDs(unsigned int *led_num_list,int ch_num)
 {
     unsigned char   usb_buf[65];
     memset(usb_buf, 0x00, sizeof(usb_buf));

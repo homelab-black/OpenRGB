@@ -415,17 +415,10 @@ void RGBController_LianLiUniHub_AL10::SetupZones()
     SetupColors();
 }
 
-void RGBController_LianLiUniHub_AL10::DeviceResizeZone(int zone, int new_size)
+void RGBController_LianLiUniHub_AL10::DeviceConfigureZone(int zone_idx)
 {
-    if((size_t) zone >= zones.size())
+    if((size_t)zone_idx < zones.size())
     {
-        return;
-    }
-
-    if(((unsigned int)new_size >= zones[zone].leds_min) && ((unsigned int)new_size <= zones[zone].leds_max))
-    {
-        zones[zone].leds_count = new_size;
-
         SetupZones();
     }
 }
