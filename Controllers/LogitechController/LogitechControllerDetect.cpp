@@ -355,7 +355,19 @@ void DetectLogitechKeyboardG815(hid_device_info* info, const std::string& name)
 void DetectLogitechKeyboardG915(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
-    bool is_tkl = info->product_id == LOGITECH_G915TKL_RECEIVER_PID;
+    /*
+     * PID 0xC547 (LOGITECH_G915_RECEIVER_2_PID) is mislabeled in OpenRGB as
+     * a full-size G915 receiver. Research confirms it is actually a G915 TKL
+     * receiver (later production variant). Map it to the TKL PID so the
+     * correct controller layout is used.
+     * See: OpenRGB GitLab issue #3128, Linux kernel HID patches, libratbag
+     */
+    uint16_t mapped_pid = info->product_id;
+    if(mapped_pid == LOGITECH_G915_RECEIVER_2_PID)
+    {
+        mapped_pid = LOGITECH_G915TKL_RECEIVER_PID;
+    }
+    bool is_tkl = mapped_pid == LOGITECH_G915TKL_RECEIVER_PID;
 
     if(dev)
     {
