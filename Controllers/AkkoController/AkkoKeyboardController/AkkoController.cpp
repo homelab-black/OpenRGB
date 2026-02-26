@@ -343,10 +343,26 @@ void AkkoController::SetDirectColor(const AkkoZoneInfo& zone_info)
     }
     unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
 
+    unsigned int average_red = 0;
+    unsigned int average_green = 0;
+    unsigned int average_blue = 0;
+    for (size_t i = 0; i < zone_info.colors.size(); i++)
+    {
+        average_red += RGBGetRValue(zone_info.colors[i]);
+        average_green += RGBGetGValue(zone_info.colors[i]);
+        average_blue += RGBGetBValue(zone_info.colors[i]);
+    }
+    if(!zone_info.colors.empty())
+    {
+        average_red /= zone_info.colors.size();
+        average_green /= zone_info.colors.size();
+        average_blue /= zone_info.colors.size();
+    }
+
     buffer[AKKO_BYTE_INDEX::COMMAND]      = AKKO_BYTE_COMMAND::SET | AKKO_BYTE_COMMAND::DIRECT_COLOR;
-    buffer[AKKO_BYTE_INDEX::MODE]         = RGBGetRValue(zone_info.color);
-    buffer[AKKO_BYTE_INDEX::SPEED]        = RGBGetGValue(zone_info.color);
-    buffer[AKKO_BYTE_INDEX::BRIGHTNESS]   = RGBGetBValue(zone_info.color);
+    buffer[AKKO_BYTE_INDEX::MODE]         = average_red;
+    buffer[AKKO_BYTE_INDEX::SPEED]        = average_green;
+    buffer[AKKO_BYTE_INDEX::BRIGHTNESS]   = average_blue;
     buffer[AKKO_BYTE_INDEX::FLAGS]        = 0x0;
     buffer[AKKO_BYTE_INDEX::RED]          = 0x0;
     buffer[AKKO_BYTE_INDEX::GREEN]        = 0x0;
