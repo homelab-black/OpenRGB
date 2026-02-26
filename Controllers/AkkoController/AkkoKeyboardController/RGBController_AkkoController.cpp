@@ -37,7 +37,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     mode Direct; // Same as Light Shadow;
     Direct.name         = "Direct";
     Direct.value        = AKKO_MODE::LIGHT_SHADOW;
-    Direct.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+    Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
     modes.push_back(Direct);
 
     mode Always_on;
@@ -50,7 +50,6 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     Custom.name         = "Custom";
     Custom.value        = AKKO_MODE::USER_PICTURE;
     Custom.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
-    Custom.color_mode   = MODE_COLORS_PER_LED;
     modes.push_back(Custom);
 
     mode Breath;
@@ -209,6 +208,10 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
             it->colors.resize(1);
             it->color_mode = MODE_COLORS_MODE_SPECIFIC;
         }
+        else if (it->flags & MODE_FLAG_HAS_PER_LED_COLOR)
+        {
+            it->color_mode = MODE_COLORS_PER_LED;
+        }
         else if(it->flags & MODE_FLAG_HAS_RANDOM_COLOR)
         {
             it->color_mode = MODE_COLORS_RANDOM;
@@ -356,9 +359,8 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
 
         RGBColor color = colors[led_index];
 
-        if(zone_info.mode == AKKO_MODE::USER_PICTURE)
+        if(zone_info.mode == AKKO_MODE::USER_PICTURE || zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
         {
-            bool changed = false;
             for(std::size_t i = 0; i < zone_info.leds_count; i++)
             {
                 unsigned int device_idx = leds[led_index + i].value;
@@ -368,35 +370,23 @@ void RGBController_AkkoController::DeviceUpdateLEDs()
                     if(zone_info.colors[device_idx] != colors[led_index + i])
                     {
                         zone_info.colors[device_idx] = colors[led_index + i];
-                        changed = true;
                     }
                 }
             }
 
-            if(changed)
+            if (zone_info.mode == AKKO_MODE::USER_PICTURE)
             {
-                controller->SetCustomLeds(zone_info);
+                controller->SetZoneEffect(zone_info);
+            }
+            else if (zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
+            {
+                controller->SetDirectColor(zone_info);
             }
         }
         else if(zone_info.mode == AKKO_MODE::MUSIC_FOLLOW || zone_info.mode == AKKO_MODE::MUSIC_FOLLOW_2)
         {
             zone_info.color = color;
             controller->SetDirectMusic(zone_info);
-            break;
-        }
-        else if(zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
-        {
-            zone_info.color = color;
-            controller->SetDirectColor(zone_info);
-            break;
-        }
-        else
-        {
-            if(zone_info.color != color)
-            {
-                zone_info.color = color;
-                controller->SetZoneEffect(zone_info);
-            }
         }
 
         led_index += zone_info.leds_count;
@@ -498,10 +488,8 @@ unsigned int RGBController_AkkoController::GetColorModeFromFlags(AKKO_MODE mode,
     switch (mode)
     {
         case AKKO_MODE::USER_PICTURE:
-            return MODE_COLORS_PER_LED;
-            break;
         case AKKO_MODE::LIGHT_SHADOW:
-            return MODE_COLORS_MODE_SPECIFIC;
+            return MODE_COLORS_PER_LED;
             break;
         default:
             break;
