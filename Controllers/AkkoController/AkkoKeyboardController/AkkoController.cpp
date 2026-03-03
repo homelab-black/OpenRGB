@@ -175,7 +175,10 @@ void AkkoController::SetZoneEffect(const AkkoZoneInfo& zone_info)
     }
     else
     {
-        speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); // Invert speed (0 is max speed, 4 is min speed)
+        if (zone_info.zone == AKKO_ZONE::Z_KEYBOARD)
+        {
+            speed = (AKKO_SPEED)(AKKO_SPEED::S_MAX - speed); // Invert speed (0 is max speed, 4 is min speed)
+        }
     }
 
     unsigned char buffer[AKKO_PACKET_LENGTH_WITH_REPORT] = { 0x00 };
