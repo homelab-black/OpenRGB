@@ -408,7 +408,7 @@ void RGBController_AkkoController::DeviceUpdateMode()
     {
         const AKKO_ZONE& key    = it->first;
         AkkoZoneInfo& zone_info   = it->second;
-        if(IsZoneCompatibleWith(key, mode) && (mode != zone_info.mode || speed != AKKO_SPEED::S_MAX - zone_info.speed || brightness != zone_info.brightness || flags != zone_info.flags))
+        if(IsZoneCompatibleWith(key, mode))
         {
             if (mode == AKKO_MODE::LIGHT_SHADOW && zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
             {
