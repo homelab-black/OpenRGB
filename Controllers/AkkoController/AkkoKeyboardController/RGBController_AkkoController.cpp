@@ -37,7 +37,7 @@ RGBController_AkkoController::RGBController_AkkoController(AkkoController* contr
     mode Direct; // Same as Light Shadow;
     Direct.name     = "Direct";
     Direct.value    = AKKO_MODE::LIGHT_SHADOW;
-    Direct.flags    = MODE_FLAG_AUTOMATIC_SAVE | MODE_FLAG_HAS_PER_LED_COLOR;
+    Direct.flags    = MODE_FLAG_HAS_PER_LED_COLOR;
     modes.push_back(Direct);
 
     mode Always_on;
@@ -259,7 +259,7 @@ void RGBController_AkkoController::SetupZones()
         {
             active_mode = std::distance(modes.begin(), it);
 
-            it->speed      = AKKO_SPEED::S_MAX - keyboard_zone_info.speed;
+            it->speed      = keyboard_zone_info.speed;
             it->brightness = keyboard_zone_info.brightness;
             it->color_mode = GetColorModeFromFlags(keyboard_zone_info.mode, keyboard_zone_info.flags);
             it->direction  = GetDirectionFromFlags(keyboard_zone_info.flags);
@@ -403,25 +403,37 @@ void RGBController_AkkoController::DeviceUpdateMode()
     AKKO_SPEED speed = (AKKO_SPEED)modes[active_mode].speed;
     AKKO_BRIGHTNESS brightness = (AKKO_BRIGHTNESS)modes[active_mode].brightness;
     AKKO_FLAGS flags = GetFlagsForMode(mode, modes[active_mode].direction, modes[active_mode].color_mode);
+    RGBColor color = modes[active_mode].colors.size() > 0 ? modes[active_mode].colors[0] : ToRGBColor(0,0,0);
 
     for(std::map<AKKO_ZONE, AkkoZoneInfo>::iterator it = zones_info.begin(); it != zones_info.end(); ++it)
     {
         const AKKO_ZONE& key    = it->first;
         AkkoZoneInfo& zone_info   = it->second;
-        if(IsZoneCompatibleWith(key, mode))
+        if (mode == AKKO_MODE::LIGHT_SHADOW && zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
         {
-            if (mode == AKKO_MODE::LIGHT_SHADOW && zone_info.mode == AKKO_MODE::LIGHT_SHADOW)
-            {
-                controller->SetDirectColor(zone_info);
-            }
-            else
+            controller->SetDirectColor(zone_info);
+        }
+        else
+        {
+            if (IsZoneCompatibleWith(key, mode))
             {
                 zone_info.mode = mode;
-                zone_info.speed = speed;
-                zone_info.brightness = brightness;
                 zone_info.flags = flags;
-                controller->SetZoneEffect(zone_info);
             }
+            if (modes[active_mode].brightness & MODE_FLAG_HAS_BRIGHTNESS)
+            {
+                zone_info.brightness = brightness;
+            }
+            if (modes[active_mode].flags & MODE_FLAG_HAS_SPEED)
+            {
+                zone_info.speed = speed;
+            }
+            if (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR || modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_UD)
+            {
+                zone_info.flags = GetFlagsForMode(mode, modes[active_mode].direction, modes[active_mode].color_mode);
+            }
+            zone_info.color = color;
+            controller->SetZoneEffect(zone_info);
         }
     }
 }
@@ -446,7 +458,7 @@ void RGBController_AkkoController::DeviceSaveMode(){
             }
             controller->SetCustomLeds(zone_info);
         } else {
-            RGBColor color = modes[active_mode].colors.size() > 0 ? modes[active_mode].colors[0] : colors[led_index];
+            RGBColor color = colors[led_index];
             zone_info.color = color;
             controller->SetZoneEffect(zone_info);
         }
