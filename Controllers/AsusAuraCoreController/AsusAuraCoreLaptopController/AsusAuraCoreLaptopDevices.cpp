@@ -730,6 +730,243 @@ keyboard_keymap_overlay_values g814jv_lightbar_layout
 };
 
 
+keyboard_keymap_overlay_values g834jy_layout
+{
+	KEYBOARD_SIZE_EMPTY,
+    {
+        {   /* No base values, we build everything via edit keys */ },
+            {
+            /* Regional layout fixes (none yet) */
+            }
+	},
+	{
+        /*---------------------------------------------------------------------*\
+        |  Row 0 - Top macro row (left to right)                               |
+        \*---------------------------------------------------------------------*/
+        { 0, 0, 2,   2,   KEY_EN_MEDIA_VOLUME_DOWN, KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 0, 3,   3,   KEY_EN_MEDIA_VOLUME_UP,   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 0, 4,   4,   KEY_EN_MEDIA_MUTE,        KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 0, 5,   5,   "Key: Fan",               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 0, 6,   6,   "Key: ROG",               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 1 -                                                             |
+        \*---------------------------------------------------------------------*/
+        { 0, 1, 0,  21,  KEY_EN_ESCAPE,            KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 1, 2,  23,  KEY_EN_F1,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1, 3,  24,  KEY_EN_F2,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1, 4,  25,  KEY_EN_F3,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1, 5,  26,  KEY_EN_F4,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 1, 7,  28,  KEY_EN_F5,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1, 8,  29,  KEY_EN_F6,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1, 9,  30,  KEY_EN_F7,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,10,  31,  KEY_EN_F8,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 1,11,  33,  KEY_EN_F9,                KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,12,  34,  KEY_EN_F10,               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,13,  35,  KEY_EN_F11,               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,14,  36,  KEY_EN_F12,               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 1,15,  38,  KEY_EN_DELETE,            KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,16,  39,  KEY_EN_PAUSE_BREAK,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,17,  40,  KEY_EN_PRINT_SCREEN,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 1,18,  41,  KEY_EN_HOME,              KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 2 - `                                                           |
+        \*---------------------------------------------------------------------*/
+        { 0, 2, 0,  42,  KEY_EN_BACK_TICK,         KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 1,  43,  KEY_EN_1,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 2,  44,  KEY_EN_2,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 3,  45,  KEY_EN_3,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 4,  46,  KEY_EN_4,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 5,  47,  KEY_EN_5,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 6,  48,  KEY_EN_6,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 7,  49,  KEY_EN_7,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 8,  50,  KEY_EN_8,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2, 9,  51,  KEY_EN_9,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,10,  52,  KEY_EN_0,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,11,  53,  KEY_EN_MINUS,             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,12,  54,  KEY_EN_EQUALS,            KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,13,  56,  KEY_EN_BACKSPACE,         KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 2,15,  59,  KEY_EN_NUMPAD_LOCK,       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,16,  60,  KEY_EN_NUMPAD_DIVIDE,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,17,  61,  KEY_EN_NUMPAD_TIMES,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 2,18,  62,  KEY_EN_NUMPAD_MINUS,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 3 -                                                             |
+        \*---------------------------------------------------------------------*/
+        { 0, 3, 0,  63,  KEY_EN_TAB,               KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 1,  64,  KEY_EN_Q,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 2,  65,  KEY_EN_W,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 3,  66,  KEY_EN_E,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 4,  67,  KEY_EN_R,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 5,  68,  KEY_EN_T,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 6,  69,  KEY_EN_Y,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 7,  70,  KEY_EN_U,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 8,  71,  KEY_EN_I,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3, 9,  72,  KEY_EN_O,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,10,  73,  KEY_EN_P,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,11,  74,  KEY_EN_LEFT_BRACKET,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,12,  75,  KEY_EN_RIGHT_BRACKET,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,13,  76,  KEY_EN_POUND,             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 3,15,  80,  KEY_EN_NUMPAD_7,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,16,  81,  KEY_EN_NUMPAD_8,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,17,  82,  KEY_EN_NUMPAD_9,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 3,18,  83,  KEY_EN_PLUS,              KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 4 -                                                             |
+        \*---------------------------------------------------------------------*/
+        { 0, 4, 0,  84,  KEY_EN_CAPS_LOCK,         KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 1,  85,  KEY_EN_A,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 2,  86,  KEY_EN_S,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 3,  87,  KEY_EN_D,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 4,  88,  KEY_EN_F,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 5,  89,  KEY_EN_G,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 6,  90,  KEY_EN_H,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 7,  91,  KEY_EN_J,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 8,  92,  KEY_EN_K,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4, 9,  93,  KEY_EN_L,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4,10,  94,  KEY_EN_SEMICOLON,         KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4,11,  95,  KEY_EN_QUOTE,             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4,12,  98,  KEY_EN_ANSI_ENTER,        KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT},
+	
+        { 0, 4,15,  101,  KEY_EN_NUMPAD_4,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4,16,  102,  KEY_EN_NUMPAD_5,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 4,17,  103,  KEY_EN_NUMPAD_6,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 5 -                                                             |
+        \*---------------------------------------------------------------------*/
+        { 0, 5, 0, 105,  KEY_EN_LEFT_SHIFT,        KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 1, 106,  KEY_EN_ANSI_BACK_SLASH,   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 2, 107,  KEY_EN_Z,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 3, 108,  KEY_EN_X,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 4, 109,  KEY_EN_C,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 5, 110,  KEY_EN_V,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 6, 111,  KEY_EN_B,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 7, 112,  KEY_EN_N,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 8, 113,  KEY_EN_M,                 KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5, 9, 114,  KEY_EN_COMMA,             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5,10, 115,  KEY_EN_PERIOD,            KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5,11, 116,  KEY_EN_FORWARD_SLASH,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5,12, 118,  KEY_EN_RIGHT_SHIFT,       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 5,14, 121,  KEY_EN_UP_ARROW,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+		
+        { 0, 5,15, 122,  KEY_EN_NUMPAD_1,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5,16, 123,  KEY_EN_NUMPAD_2,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 5,17, 124,  KEY_EN_NUMPAD_3,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        /*---------------------------------------------------------------------*\
+        |  Row 6 -                                                             |
+        \*---------------------------------------------------------------------*/
+        { 0, 6, 0, 126,  KEY_EN_LEFT_CONTROL,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6, 1, 127,  KEY_EN_LEFT_FUNCTION,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6, 2, 128,  KEY_EN_LEFT_WINDOWS,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6, 3, 129,  KEY_EN_LEFT_ALT,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6, 4, 131,  KEY_EN_SPACE,             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 6, 9, 135,  KEY_EN_RIGHT_ALT,         KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,10, 136,  KEY_EN_PRINT_SCREEN,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,11, 137,  KEY_EN_RIGHT_CONTROL,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 6,13, 141,  KEY_EN_LEFT_ARROW,        KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,14, 142,  KEY_EN_DOWN_ARROW,        KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,15, 143,  KEY_EN_RIGHT_ARROW,       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+
+        { 0, 6,16, 144,  KEY_EN_NUMPAD_0,          KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,17, 145,  KEY_EN_NUMPAD_PERIOD,     KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+        { 0, 6,18, 125,  KEY_EN_NUMPAD_ENTER,      KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
+	}
+};
+
+keyboard_keymap_overlay_values g834jy_lid_layout
+{
+    KEYBOARD_SIZE_EMPTY,
+    {
+        {   /* Values not set in empty keyboard */   },
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                                             |
+        |   Zone,   Row,    Column,     Value,      Key,                        Alternate Name,             OpCode,                             |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,       0,         167,        "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Logo
+        
+        {   0,      1,       0,         177,    "Rear L01",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L01
+        {   0,      1,       1,         178,    "Rear L02",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L12
+        {   0,      1,       2,         179,    "Rear L03",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L13
+        {   0,      1,       3,         180,    "Rear L04",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L14
+        {   0,      1,       4,         181,    "Rear L05",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L05
+        {   0,      1,       5,         182,    "Rear L06",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L06
+        {   0,      1,       6,         183,    "Rear L07",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L17
+        {   0,      1,       7,         184,    "Rear L08",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L18
+        {   0,      1,       8,         185,    "Rear L09",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L19
+        {   0,      1,       9,         186,    "Rear L10",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L10
+        {   0,      1,      10,         187,    "Rear L11",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L11
+        {   0,      1,      11,         188,    "Rear L12",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L12
+        {   0,      1,      12,         189,    "Rear L13",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L13
+        {   0,      1,      13,         190,    "Rear L14",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L14
+        {   0,      1,      14,         191,    "Rear L15",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L15
+        {   0,      1,      15,         192,    "Rear L16",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L16
+        {   0,      1,      16,         193,    "Rear L17",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L17
+        {   0,      1,      17,         194,    "Rear L18",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L18
+        {   0,      1,      18,         195,    "Rear L19",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L19
+        {   0,      1,      19,         196,    "Rear L20",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L20
+        {   0,      1,      20,         197,    "Rear L21",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L21
+        {   0,      1,      21,         198,    "Rear L22",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L22
+        {   0,      1,      22,         199,    "Rear L23",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L23
+        {   0,      1,      23,         200,    "Rear L24",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L24
+        {   0,      1,      24,         201,    "Rear L25",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L25
+        {   0,      1,      25,         202,    "Rear L26",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L26
+        {   0,      1,      26,         203,    "Rear L27",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L27
+        {   0,      1,      27,         204,    "Rear L28",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L28
+        {   0,      1,      28,         205,    "Rear L29",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L29
+        {   0,      1,      29,         206,    "Rear L30",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L30
+        {   0,      1,      30,         207,    "Rear L31",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L31
+        {   0,      1,      31,         208,    "Rear L32",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L32
+        {   0,      1,      32,         209,    "Rear L33",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L33
+        {   0,      1,      33,         210,    "Rear L34",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L34
+        {   0,      1,      34,         211,    "Rear L35",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L35
+        {   0,      1,      35,         212,    "Rear L36",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L36
+        {   0,      1,      36,         213,    "Rear L37",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L37
+        {   0,      1,      37,         214,    "Rear L38",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L38
+        {   0,      1,      38,         215,    "Rear L39",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Lightbar L39
+    }
+};
+
+keyboard_keymap_overlay_values g834jy_lightbar_layout
+{
+    KEYBOARD_SIZE_EMPTY,
+    {
+        {   /* Values not set in empty keyboard */   },
+        {
+            /* Regional layout fixes (none) */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys - Front Lightbar                                                                                                            |
+        |   Zone,   Row,    Column,     Value,      Key,                        Alternate Name,             OpCode,                             |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,       1,         173,        "Lightbar L1",              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       2,         172,        "Lightbar L2",              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       3,         170,        "Lightbar R2",              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       4,         169,        "Lightbar R1",              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    }
+};
+
+
 /*-------------------------------------------------------------------------*\
 |  AURA CORE LAPTOP DEVICES                                                 |
 \*-------------------------------------------------------------------------*/
@@ -940,6 +1177,44 @@ static const aura_core_laptop_device g814jv_device =
     }
 };
 
+/*-------------------------------------------------------------*\
+|  ASUS ROG Strix SCAR 18 G834JY                                |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       7 Rows, 16 Columns                                      |
+\*-------------------------------------------------------------*/
+static const aura_core_laptop_zone g834jy_lid_zone =
+{
+    "Lid",
+    &g834jy_lid_layout
+};
+
+static const aura_core_laptop_zone g834jy_kb_zone =
+{
+    ZONE_EN_KEYBOARD,
+    &g834jy_layout
+};
+
+static const aura_core_laptop_zone g834jy_lightbar_zone =
+{
+    "Lightbar",
+    &g834jy_lightbar_layout
+};
+
+static const aura_core_laptop_device g834jy_device =
+{
+    "G834JY",
+    {
+        &g834jy_kb_zone,
+        &g834jy_lid_zone,
+        &g834jy_lightbar_zone,
+        nullptr,
+        nullptr,
+        nullptr
+    }
+};
+
 /*-------------------------------------------------------------------------*\
 |  DEVICE MASTER LIST                                                       |
 \*-------------------------------------------------------------------------*/
@@ -954,6 +1229,7 @@ const aura_core_laptop_device* aura_core_laptop_device_list_data[] =
     &g713rw_device,
     &g733qr_device,
     &g814jv_device,
+    &g834jy_device,
 };
 
 const unsigned int AURA_CORE_LAPTOP_DEVICE_COUNT = (sizeof(aura_core_laptop_device_list_data) / sizeof(aura_core_laptop_device_list_data[ 0 ]));
