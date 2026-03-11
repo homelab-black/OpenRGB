@@ -165,7 +165,8 @@ INCLUDEPATH +=                                                                  
     qt/                                                                                         \
     SPDAccessor/                                                                                \
     SuspendResume/                                                                              \
-    dependencies/stb/
+    dependencies/stb/                                                                           \
+    dependencies/rtk_argb_lib/include                                                           \
 
 HEADERS +=                                                                                      \
     $$GUI_H                                                                                     \
@@ -377,7 +378,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
         -L"$$PWD/dependencies/hidapi-win/x64/" -lhidapi                                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x64/" -lmbedcrypto -lmbedtls -lmbedx509         \
         -L"$$PWD/dependencies/PawnIO/" -lPawnIOLib                                              \
-        -L"$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/windows/x64/" -lrtk_argb_libx64 \
+        -L"$$PWD/dependencies/rtk_argb_lib/lib/windows/x64/" -lrtk_argb_libx64                  \
 }
 
 win32:contains(QMAKE_TARGET.arch, x86) {
@@ -390,7 +391,7 @@ win32:contains(QMAKE_TARGET.arch, x86) {
         -L"$$PWD/dependencies/libusb-1.0.27/VS2019/MS32/dll" -llibusb-1.0                       \
         -L"$$PWD/dependencies/hidapi-win/x86/" -lhidapi                                         \
         -L"$$PWD/dependencies/mbedtls-3.2.1/lib/x86/" -lmbedcrypto -lmbedtls -lmbedx509         \
-        -L"$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/windows/x86/" -lrtk_argb_libx86 \
+        -L"$$PWD/dependencies/rtk_argb_lib/lib/windows/x86/" -lrtk_argb_libx86                  \
 }
 
 win32:DEFINES -=                                                                                \
@@ -508,12 +509,12 @@ contains(QMAKE_PLATFORM, linux) {
 
         contains(QMAKE_HOST.arch, x86_64) {
             LIBS +=                                                                                 \
-            -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/hidraw/ -l_rtk_argbx86_64  \
+            -L$$PWD/dependencies/rtk_argb_lib/lib/linux/hidraw/ -l_rtk_argbx86_64                   \
         }
 
         contains(QMAKE_HOST.arch, aarch64) {
             LIBS +=                                                                                 \
-            -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/hidraw/ -l_rtk_argbaarch64 \
+            -L$$PWD/dependencies/rtk_argb_lib/lib/linux/hidraw/ -l_rtk_argbaarch64                  \
         }
 
         #---------------------------------------------------------------------------------------#
@@ -530,23 +531,23 @@ contains(QMAKE_PLATFORM, linux) {
 
             contains(QMAKE_HOST.arch, x86_64) {
                 LIBS +=                                                                                 \
-                -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbx86_64  \
+                -L$$PWD/dependencies/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbx86_64                   \
             }
 
             contains(QMAKE_HOST.arch, aarch64) {
                 LIBS +=                                                                                 \
-                -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbaarch64 \
+                -L$$PWD/dependencies/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbaarch64                  \
             }
         } else {
             PKGCONFIG += hidapi
             contains(QMAKE_HOST.arch, x86_64) {
                 LIBS +=                                                                                 \
-                -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbx86_64  \
+                -L$$PWD/dependencies/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbx86_64                   \
             }
 
             contains(QMAKE_HOST.arch, aarch64) {
                 LIBS +=                                                                                 \
-                -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbaarch64 \
+                -L$$PWD/dependencies/rtk_argb_lib/lib/linux/libusb/ -l_rtk_argbaarch64                  \
             }
         }
     }
@@ -802,7 +803,7 @@ macx:contains(QMAKE_HOST.arch, arm64) {
 
     LIBS +=                                                                                     \
     -L/opt/homebrew/lib                                                                         \
-    -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/mac/arm64/ -l_rtk_argbarm64          \
+    -L$$PWD/dependencies/rtk_argb_lib/lib/mac/arm64/ -l_rtk_argbarm64                           \
 }
 
 #-----------------------------------------------------------------------------------------------#
@@ -832,7 +833,7 @@ macx:contains(QMAKE_HOST.arch, x86_64) {
     LIBS +=                                                                                     \
     -L/usr/local/lib                                                                            \
     -L/usr/local/homebrew/lib                                                                   \
-    -L$$PWD/Controllers/RtkArgbController/rtk_argb_lib/lib/mac/x86_64/ -l_rtk_argbx86_64        \
+    -L$$PWD/dependencies/rtk_argb_lib/lib/mac/x86_64/ -l_rtk_argbx86_64                         \
 
     DEFINES +=                                                                                  \
     _MACOSX_X86_X64                                                                             \
