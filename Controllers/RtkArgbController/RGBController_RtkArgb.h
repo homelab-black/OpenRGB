@@ -1,3 +1,12 @@
+/*---------------------------------------------------------*\
+| RGBController_RtkArgb.h                                   |
+|                                                           |
+|   RGBController for Realtek Usb Argb ICs                  |
+|                                                           |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-only                   |
+\*---------------------------------------------------------*/
 #pragma once
 
 #include "RGBController.h"

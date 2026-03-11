@@ -1,3 +1,12 @@
+/*---------------------------------------------------------*\
+| RtkArgbWrapper.h                                          |
+|                                                           |
+|   Wrapper for Realtek Usb Argb ICs                        |
+|                                                           |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-only                   |
+\*---------------------------------------------------------*/
 #pragma once
 
 #define CONFIG_HID

@@ -1,3 +1,12 @@
+/*---------------------------------------------------------*\
+| RGBController_RtkBridge.h                                 |
+|                                                           |
+|   RGBController for Realtek Usb Bridge ICs                |
+|                                                           |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-only                   |
+\*---------------------------------------------------------*/
 #pragma once
 
 #include "RGBController.h"

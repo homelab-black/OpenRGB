@@ -1,7 +1,7 @@
 /*---------------------------------------------------------*\
 | RGBController_RtkArgb.cpp                                 |
 |                                                           |
-|   RGBController for Realtek Argb ICs                      |
+|   RGBController for Realtek Usb Argb ICs                  |
 |                                                           |
 |                                                           |
 |   This file is part of the OpenRGB project                |
