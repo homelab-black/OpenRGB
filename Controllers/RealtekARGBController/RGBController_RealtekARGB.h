@@ -1,22 +1,24 @@
 /*---------------------------------------------------------*\
-| RGBController_RtkArgb.h                                   |
+| RGBController_RealtekARGB.h                               |
 |                                                           |
-|   RGBController for Realtek Usb Argb ICs                  |
+|   RGBController for Realtek USB ARGB ICs                  |
 |                                                           |
+|   Jerry Fan (JerryFan0612)                    13 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
+
 #pragma once
 
 #include "RGBController.h"
-#include "RtkArgbWrapper.h"
+#include "RealtekARGBController.h"
 
-class RGBController_RtkArgb : public RGBController
+class RGBController_RealtekARGB : public RGBController
 {
 public:
-    RGBController_RtkArgb(RtkArgbWrapper *_wrapper);
-    ~RGBController_RtkArgb();
+    RGBController_RealtekARGB(RealtekARGBController* controller_ptr);
+    ~RGBController_RealtekARGB();
 
     void        SetupStrip();
 
@@ -28,6 +30,6 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    RtkArgbWrapper *wrapper;
+    RealtekARGBController* controller;
     std::vector<int> valid_grp;
 };

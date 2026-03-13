@@ -1,50 +1,51 @@
 /*---------------------------------------------------------*\
-| RGBController_RtkArgb.cpp                                 |
+| RGBController_RealtekARGB.cpp                             |
 |                                                           |
-|   RGBController for Realtek Usb Argb ICs                  |
+|   RGBController for Realtek USB ARGB ICs                  |
 |                                                           |
+|   Jerry Fan (JerryFan0612)                    13 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
+
 #ifndef __FreeBSD__
 
-#include "RGBController_RtkArgb.h"
+#include "RGBController_RealtekARGB.h"
 
 /**------------------------------------------------------------------*\
-    @name Realtek Argb Device
-    @category Keyboard,LEDStrip
+    @name Realtek ARGB Device
+    @category LEDStrip
     @type USB
     @save :x:
     @direct :rotating_light:
     @effects :white_check_mark:
-    @detectors DetectRtkArgbControllers
+    @detectors RealtekARGBControllerDetect
     @comment
 \*-------------------------------------------------------------------*/
 
-RGBController_RtkArgb::RGBController_RtkArgb(RtkArgbWrapper *_wrapper)
+RGBController_RealtekARGB::RGBController_RealtekARGB(RealtekARGBController* controller_ptr)
 {
-    this->wrapper = _wrapper;
-
-    name        = wrapper->get_dev_name();
-    vendor      = wrapper->get_manu_name();
-    location    = wrapper->get_dev_loc();
-    serial      = wrapper->get_sn();
-    version     = wrapper->get_fw_ver();
-    description = vendor + "Argb Device";
+    controller  = controller_ptr;
+    name        = controller_ptr->get_dev_name();
+    vendor      = controller_ptr->get_manu_name();
+    location    = controller_ptr->get_dev_loc();
+    serial      = controller_ptr->get_sn();
+    version     = controller_ptr->get_fw_ver();
+    description = vendor + "ARGB Device";
     type        = DEVICE_TYPE_LEDSTRIP;
 
     SetupStrip();
     SetupZones();
 }
 
-void RGBController_RtkArgb::SetupStrip()
+void RGBController_RealtekARGB::SetupStrip()
 {
-    int brightness = wrapper->get_argb_brightness(0) >> 8;
+    int brightness = controller->get_argb_brightness(0) >> 8;
 
     mode Direct;
     Direct.name                   = "Direct";
-    Direct.value                  = EFF_NULL;
+    Direct.value                  = REALTEK_ARGB_EFF_NULL;
     Direct.flags                  = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
     Direct.color_mode             = MODE_COLORS_PER_LED;
     Direct.brightness_min         = 0;
@@ -54,7 +55,7 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Static;
     Static.name                   = "Static";
-    Static.value                  = EFF_ALWAYS_ON;
+    Static.value                  = REALTEK_ARGB_EFF_ALWAYS_ON;
     Static.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
     Static.colors_min             = 1;
     Static.colors_max             = 1;
@@ -67,11 +68,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Blink;
     Blink.name                    = "Blink";
-    Blink.value                   = EFF_BLINK;
+    Blink.value                   = REALTEK_ARGB_EFF_BLINK;
     Blink.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Blink.speed_min               = RTK_ARGB_SPEED_MIN;
-    Blink.speed_max               = RTK_ARGB_SPEED_MAX;
-    Blink.speed                   = RTK_ARGB_SPEED_NORMAL;
+    Blink.speed_min               = REALTEK_ARGB_SPEED_MIN;
+    Blink.speed_max               = REALTEK_ARGB_SPEED_MAX;
+    Blink.speed                   = REALTEK_ARGB_SPEED_NORMAL;
     Blink.colors_min              = 1;
     Blink.colors_max              = 2;
     Blink.color_mode              = MODE_COLORS_MODE_SPECIFIC;
@@ -83,11 +84,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Breathing;
     Breathing.name                = "Breathing";
-    Breathing.value               = EFF_BREATH;
+    Breathing.value               = REALTEK_ARGB_EFF_BREATH;
     Breathing.flags               = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Breathing.speed_min           = RTK_ARGB_SPEED_MIN;
-    Breathing.speed_max           = RTK_ARGB_SPEED_MAX;
-    Breathing.speed               = RTK_ARGB_SPEED_NORMAL;
+    Breathing.speed_min           = REALTEK_ARGB_SPEED_MIN;
+    Breathing.speed_max           = REALTEK_ARGB_SPEED_MAX;
+    Breathing.speed               = REALTEK_ARGB_SPEED_NORMAL;
     Breathing.colors_min          = 1;
     Breathing.colors_max          = 2;
     Breathing.color_mode          = MODE_COLORS_MODE_SPECIFIC;
@@ -99,11 +100,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Spectrum;
     Spectrum.name                 = "Spectrum";
-    Spectrum.value                = EFF_SPECTRUM;
+    Spectrum.value                = REALTEK_ARGB_EFF_SPECTRUM;
     Spectrum.flags                = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Spectrum.speed_min            = RTK_ARGB_SPEED_MIN;
-    Spectrum.speed_max            = RTK_ARGB_SPEED_MAX;
-    Spectrum.speed                = RTK_ARGB_SPEED_NORMAL;
+    Spectrum.speed_min            = REALTEK_ARGB_SPEED_MIN;
+    Spectrum.speed_max            = REALTEK_ARGB_SPEED_MAX;
+    Spectrum.speed                = REALTEK_ARGB_SPEED_NORMAL;
     Spectrum.color_mode           = MODE_COLORS_NONE;
     Spectrum.brightness_min       = 0;
     Spectrum.brightness_max       = 255;
@@ -112,11 +113,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Scroll;
     Scroll.name                   = "Scroll";
-    Scroll.value                  = EFF_SCROLL;
+    Scroll.value                  = REALTEK_ARGB_EFF_SCROLL;
     Scroll.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Scroll.speed_min              = RTK_ARGB_SPEED_MIN;
-    Scroll.speed_max              = RTK_ARGB_SPEED_MAX;
-    Scroll.speed                  = RTK_ARGB_SPEED_NORMAL;
+    Scroll.speed_min              = REALTEK_ARGB_SPEED_MIN;
+    Scroll.speed_max              = REALTEK_ARGB_SPEED_MAX;
+    Scroll.speed                  = REALTEK_ARGB_SPEED_NORMAL;
     Scroll.colors_min             = 1;
     Scroll.colors_max             = 2;
     Scroll.color_mode             = MODE_COLORS_MODE_SPECIFIC;
@@ -128,11 +129,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode RainbowScroll;
     RainbowScroll.name            = "RainbowScroll";
-    RainbowScroll.value           = EFF_RAINBOW_SCROLL;
+    RainbowScroll.value           = REALTEK_ARGB_EFF_RAINBOW_SCROLL;
     RainbowScroll.flags           = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    RainbowScroll.speed_min       = RTK_ARGB_SPEED_MIN;
-    RainbowScroll.speed_max       = RTK_ARGB_SPEED_MAX;
-    RainbowScroll.speed           = RTK_ARGB_SPEED_NORMAL;
+    RainbowScroll.speed_min       = REALTEK_ARGB_SPEED_MIN;
+    RainbowScroll.speed_max       = REALTEK_ARGB_SPEED_MAX;
+    RainbowScroll.speed           = REALTEK_ARGB_SPEED_NORMAL;
     RainbowScroll.color_mode      = MODE_COLORS_NONE;
     RainbowScroll.brightness_min  = 0;
     RainbowScroll.brightness_max  = 255;
@@ -141,11 +142,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode RunningWater;
     RunningWater.name             = "RunningWater";
-    RunningWater.value            = EFF_RUNNING_WATER;
+    RunningWater.value            = REALTEK_ARGB_EFF_RUNNING_WATER;
     RunningWater.flags            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    RunningWater.speed_min        = RTK_ARGB_SPEED_MIN;
-    RunningWater.speed_max        = RTK_ARGB_SPEED_MAX;
-    RunningWater.speed            = RTK_ARGB_SPEED_NORMAL;
+    RunningWater.speed_min        = REALTEK_ARGB_SPEED_MIN;
+    RunningWater.speed_max        = REALTEK_ARGB_SPEED_MAX;
+    RunningWater.speed            = REALTEK_ARGB_SPEED_NORMAL;
     RunningWater.colors_min       = 1;
     RunningWater.colors_max       = 2;
     RunningWater.color_mode       = MODE_COLORS_MODE_SPECIFIC;
@@ -157,11 +158,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Sliding;
     Sliding.name                   = "Sliding";
-    Sliding.value                  = EFF_SLIDING;
+    Sliding.value                  = REALTEK_ARGB_EFF_SLIDING;
     Sliding.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Sliding.speed_min              = RTK_ARGB_SPEED_MIN;
-    Sliding.speed_max              = RTK_ARGB_SPEED_MAX;
-    Sliding.speed                  = RTK_ARGB_SPEED_NORMAL;
+    Sliding.speed_min              = REALTEK_ARGB_SPEED_MIN;
+    Sliding.speed_max              = REALTEK_ARGB_SPEED_MAX;
+    Sliding.speed                  = REALTEK_ARGB_SPEED_NORMAL;
     Sliding.colors_min             = 1;
     Sliding.colors_max             = 2;
     Sliding.color_mode             = MODE_COLORS_MODE_SPECIFIC;
@@ -173,11 +174,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode NewtonCradle;
     NewtonCradle.name             = "NewtonCradle";
-    NewtonCradle.value            = EFF_NEWTON_CRADLE;
+    NewtonCradle.value            = REALTEK_ARGB_EFF_NEWTON_CRADLE;
     NewtonCradle.flags            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    NewtonCradle.speed_min        = RTK_ARGB_SPEED_MIN;
-    NewtonCradle.speed_max        = RTK_ARGB_SPEED_MAX;
-    NewtonCradle.speed            = RTK_ARGB_SPEED_NORMAL;
+    NewtonCradle.speed_min        = REALTEK_ARGB_SPEED_MIN;
+    NewtonCradle.speed_max        = REALTEK_ARGB_SPEED_MAX;
+    NewtonCradle.speed            = REALTEK_ARGB_SPEED_NORMAL;
     NewtonCradle.colors_min       = 1;
     NewtonCradle.colors_max       = 2;
     NewtonCradle.color_mode       = MODE_COLORS_MODE_SPECIFIC;
@@ -189,11 +190,11 @@ void RGBController_RtkArgb::SetupStrip()
 
     mode Meteor;
     Meteor.name                   = "Meteor";
-    Meteor.value                  = EFF_METEOR;
+    Meteor.value                  = REALTEK_ARGB_EFF_METEOR;
     Meteor.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Meteor.speed_min              = RTK_ARGB_SPEED_MIN;
-    Meteor.speed_max              = RTK_ARGB_SPEED_MAX;
-    Meteor.speed                  = RTK_ARGB_SPEED_NORMAL;
+    Meteor.speed_min              = REALTEK_ARGB_SPEED_MIN;
+    Meteor.speed_max              = REALTEK_ARGB_SPEED_MAX;
+    Meteor.speed                  = REALTEK_ARGB_SPEED_NORMAL;
     Meteor.colors_min             = 1;
     Meteor.colors_max             = 2;
     Meteor.color_mode             = MODE_COLORS_MODE_SPECIFIC;
@@ -204,46 +205,46 @@ void RGBController_RtkArgb::SetupStrip()
     modes.push_back(Meteor);
 }
 
-RGBController_RtkArgb::~RGBController_RtkArgb()
+RGBController_RealtekARGB::~RGBController_RealtekARGB()
 {
-    delete wrapper;
+    delete controller;
 }
 
-void RGBController_RtkArgb::SetupZones()
+void RGBController_RealtekARGB::SetupZones()
 {
-    uint16_t idx = 0, argb_num = 0;
+    int idx = 0, argb_num = 0;
     int fix_grps = 0, num_fixgrp = 0, argb_num_fixgrp = 0;
 
     leds.clear();
     colors.clear();
     zones.clear();
     valid_grp.clear();
-    fix_grps = wrapper->get_fix_grps();
+    fix_grps = controller->get_fix_grps();
 
-    for (int grp_num = 0; grp_num < NUM_ARGB_GRP; grp_num++)
+    for(int grp_num = 0; grp_num < REALTEK_ARGB_NUM_ARGB_GRP; grp_num++)
     {
-        if (wrapper->get_argb_num(grp_num) > 0)
+        if(controller->get_argb_num(grp_num) > 0)
         {
             valid_grp.push_back(grp_num);
-            if (fix_grps & (0x1 << grp_num))
+            if(fix_grps & (0x1 << grp_num))
             {
                 num_fixgrp++;
-                argb_num_fixgrp += wrapper->get_argb_num(grp_num);
+                argb_num_fixgrp += controller->get_argb_num(grp_num);
             }
         }
     }
 
     zones.resize(valid_grp.size());
-    for (int grp_num : valid_grp)
+    for(int grp_num : valid_grp)
     {
-        argb_num = wrapper->get_argb_num(grp_num);
-        if (argb_num <= 0)
+        argb_num = controller->get_argb_num(grp_num);
+        if(argb_num <= 0)
             continue;
 
         zones[idx].leds_count = argb_num;
         zones[idx].name       = "strip " + std::to_string(idx + 1);
         zones[idx].type       = ZONE_TYPE_LINEAR;
-        if (fix_grps & (0x1 << grp_num))
+        if(fix_grps & (0x1 << grp_num))
         {
             zones[idx].leds_min   = argb_num;
             zones[idx].leds_max   = argb_num;
@@ -251,7 +252,7 @@ void RGBController_RtkArgb::SetupZones()
         else
         {
             zones[idx].leds_min   = 1;
-            zones[idx].leds_max   = (ARGBCTL_ARGB_MAX - argb_num_fixgrp) / (valid_grp.size() - num_fixgrp);
+            zones[idx].leds_max   = (REALTEK_ARGB_MAX - argb_num_fixgrp) / (valid_grp.size() - num_fixgrp);
         }
         zones[idx].matrix_map = NULL;
 
@@ -267,7 +268,7 @@ void RGBController_RtkArgb::SetupZones()
     SetupColors();
 }
 
-void RGBController_RtkArgb::ResizeZone(int zone, int new_size)
+void RGBController_RealtekARGB::ResizeZone(int zone, int new_size)
 {
     if((size_t) zone >= zones.size())
     {
@@ -276,28 +277,28 @@ void RGBController_RtkArgb::ResizeZone(int zone, int new_size)
 
     if(((unsigned int)new_size >= zones[zone].leds_min) && ((unsigned int)new_size <= zones[zone].leds_max))
     {
-        uint16_t orig_num = wrapper->get_argb_num(valid_grp[zone]);
+        int orig_num = controller->get_argb_num(valid_grp[zone]);
+        int total_argb_num = 0;
         std::vector<RGBColor> rtk_colors(orig_num, 0);
-        uint16_t total_argb_num = 0;
-        for (int grp_num = 0; grp_num < NUM_ARGB_GRP; grp_num++)
+        for(int grp_num = 0; grp_num < REALTEK_ARGB_NUM_ARGB_GRP; grp_num++)
         {
-            if (grp_num == valid_grp[zone])
+            if(grp_num == valid_grp[zone])
                 total_argb_num += new_size;
             else
-                total_argb_num += wrapper->get_argb_num(grp_num);
+                total_argb_num += controller->get_argb_num(grp_num);
         }
-        if (total_argb_num > ARGBCTL_ARGB_MAX)
+        if(total_argb_num > REALTEK_ARGB_MAX)
             return;
 
-        wrapper->set_argb_direct(valid_grp[zone], rtk_colors, 0xFF);
-        wrapper->set_argb_num(valid_grp[zone], new_size);
-        wrapper->argb_reinit();
+        controller->set_argb_direct(valid_grp[zone], rtk_colors, 0xFF);
+        controller->set_argb_num(valid_grp[zone], new_size);
+        controller->argb_reinit();
 
         SetupZones();
     }
 }
 
-void RGBController_RtkArgb::DeviceUpdateLEDs()
+void RGBController_RealtekARGB::DeviceUpdateLEDs()
 {
     for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
@@ -308,30 +309,30 @@ void RGBController_RtkArgb::DeviceUpdateLEDs()
     }
 }
 
-void RGBController_RtkArgb::UpdateZoneLEDs(int zone)
+void RGBController_RealtekARGB::UpdateZoneLEDs(int zone)
 {
     unsigned short brightness = 0xFF;
     mode& curr_mode = modes[active_mode];
     std::vector<RGBColor> color_buf;
 
     if(curr_mode.color_mode == MODE_COLORS_PER_LED &&
-       curr_mode.value == EFF_NULL)       //direct mode
+       curr_mode.value == REALTEK_ARGB_EFF_NULL)       //direct mode
     {
-        if (curr_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
+        if(curr_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
             brightness = curr_mode.brightness;
 
         color_buf.resize(zones[zone].leds_count);
-        for (int i = 0; i < zones[zone].leds_count; i++)
+        for(int i = 0; i < zones[zone].leds_count; i++)
             color_buf[i] = zones[zone].colors[i];
-        wrapper->set_argb_direct(valid_grp[zone], color_buf, brightness);
+        controller->set_argb_direct(valid_grp[zone], color_buf, brightness);
     }
     else
         UpdateSingleLED(zone);
 }
 
-void RGBController_RtkArgb::UpdateSingleLED(int zone)
+void RGBController_RealtekARGB::UpdateSingleLED(int zone)
 {
-    unsigned char speed = RTK_ARGB_SPEED_NORMAL;
+    unsigned char speed = REALTEK_ARGB_SPEED_NORMAL;
     unsigned char dir = 0;
     unsigned short brightness = 0xFF;
     mode& curr_mode = modes[active_mode];
@@ -341,7 +342,7 @@ void RGBController_RtkArgb::UpdateSingleLED(int zone)
     {
         speed = curr_mode.speed;
     }
-    if (curr_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
+    if(curr_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
     {
         brightness = curr_mode.brightness;
     }
@@ -353,7 +354,7 @@ void RGBController_RtkArgb::UpdateSingleLED(int zone)
         }
     }
 
-    if (curr_mode.color_mode == MODE_COLORS_PER_LED)
+    if(curr_mode.color_mode == MODE_COLORS_PER_LED)
     {
         rtk_colors = colors;
     }
@@ -362,12 +363,12 @@ void RGBController_RtkArgb::UpdateSingleLED(int zone)
         rtk_colors.clear();
     }
 
-    wrapper->set_argb_effect(valid_grp[zone], curr_mode.value, rtk_colors, speed, brightness);
+    controller->set_argb_effect(valid_grp[zone], curr_mode.value, rtk_colors, speed, brightness);
 }
 
-void RGBController_RtkArgb::DeviceUpdateMode()
+void RGBController_RealtekARGB::DeviceUpdateMode()
 {
-    if(modes[active_mode].value != EFF_NULL)
+    if(modes[active_mode].value != REALTEK_ARGB_EFF_NULL)
     {
         DeviceUpdateLEDs();
     }
