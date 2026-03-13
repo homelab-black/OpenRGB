@@ -273,7 +273,8 @@ LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBControll
         break;
 
     case LEGION_7GEN10:
-        description = "Lenovo Legion 7 Generation 10";
+        keyboard_type = controller->getKeyboardType();
+        description = "Lenovo Legion 7 Generation 10 " + keyboardToString(keyboard_type);
         break;
     }
 
@@ -310,7 +311,13 @@ LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 void LenovoRGBController_Gen7_8::SetupZones()
 {
     vector<lenovo_zone> lenovo_zones;
-    lenovo_zones.push_back(legion7_gen7and8_kbd_ansi);
+
+    if ((controller->getPid() == LEGION_7GEN10) && (keyboard_type == ISO)) {
+        lenovo_zones.push_back(legion7_gen10_kbd_iso);
+    } else {
+        lenovo_zones.push_back(legion7_gen7and8_kbd_ansi);
+    }
+
     lenovo_zones.push_back(legion7_gen7and8_neon);
 
     if (controller->getPid() == LEGION_7GEN7)
@@ -694,4 +701,19 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
     }
 
     return led_groups;
+}
+
+std::string LenovoRGBController_Gen7_8::keyboardToString(LENOVO_KEYBOARD kb)
+{
+    switch(kb)
+    {
+    case LENOVO_KEYBOARD::ANSI:
+        return "ANSI";
+    case LENOVO_KEYBOARD::ISO:
+        return "ISO";
+    case LENOVO_KEYBOARD::JAPAN:
+        return "JAPAN";
+    default:
+        return "Unknown";
+    }
 }
