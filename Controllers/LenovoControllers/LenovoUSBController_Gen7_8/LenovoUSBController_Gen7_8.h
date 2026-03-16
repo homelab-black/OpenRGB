@@ -60,12 +60,14 @@ class LenovoGen7And8USBController
     void setLedsByGroup(uint8_t profile_id, std::vector<led_group> led_groups);
     void setLedsDirect(std::vector<led> &leds, std::vector<RGBColor> &colors);
     void setLedsAllOff(uint8_t profile_id);
+    void setupLedsDirect(uint8_t profile_id);
     void setLedsDirectOn(uint8_t profile_id);
     void setLedsDirectOff(uint8_t profile_id);
     uint16_t getPid();
     std::string getName();
     std::string getLocation();
     uint8_t getCurrentProfileId();
+    uint8_t getDirectModeProfileId();
     uint8_t getCurrentBrightness();
     void setBrightness(uint8_t brightness);
     uint8_t getKeyboardId();
@@ -81,7 +83,6 @@ class LenovoGen7And8USBController
     hid_device *dev;
     std::string location;
     uint16_t pid;
-
     /*--------------*\
     |device functions|
     \*--------------*/

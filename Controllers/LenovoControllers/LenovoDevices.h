@@ -38,6 +38,7 @@
 #define LEGION_7GEN9                            0xC997
 #define LEGION_7GEN9_H                          0xC998
 #define LEGION_7GEN10                           0xC197
+#define LEGION_7GEN10_H                         0xC197
 
 enum LENOVO_KEYBOARD
 {
@@ -1732,6 +1733,17 @@ static const unsigned int legion7_gen7and8_ansi_leds_map[] =
         87,  88,  89,  90,  91,  NA,  NA,  NA,  NA,  NA,  92,  93,  NA,  94,  NA,  NA,  95,  NA,  96,  97,
         NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  98,  99,  NA, 100,  NA,  NA,  NA,  NA};
 
+/*--------------------------------------------------------*\
+| Legion 7 gen10 pro: vents are a matrix                  |
+\*--------------------------------------------------------*/
+
+static const unsigned int legion7_gen10h_vents_leds_map[] = 
+{
+     0,    1,   2,   3,  NA,  NA,   6,   7,   8,   9,
+     NA,  NA,  NA,  NA,   4,   5,  NA,  NA,  NA,  NA,
+     10,  11,  12,  13,  NA,  NA,  14,  15,  16,  17
+ };
+
 /*---------------------*\
 | zone 1, keyboard ANSI |
 \*---------------------*/
@@ -1901,6 +1913,28 @@ const lenovo_led legion_7gen10_vents_leds[]
     {0xFA, "Vent group 18"},//17
 };
 
+const lenovo_led legion_7gen10h_vents_leds[]
+{
+    {0xE9, "Vent top left 1"},//0
+    {0xEA, "Vent top left 2"},//1
+    {0xEB, "Vent top left 3"},//2
+    {0xEC, "Vent top left 4"},//3
+    {0xED, "Vent center 1"},//4
+    {0xEE, "Vent center 2"},//5
+    {0xEF, "Vent top right 1"},//6
+    {0xF0, "Vent top right 2"},//7
+    {0xF1, "Vent top right 3"},//8
+    {0xF2, "Vent top right 4"},//9
+    {0xF3, "Vent bottom left 1"},// bottom row, 1
+    {0xF4, "Vent bottom left 2"},// bottom row, 2
+    {0xF5, "Vent bottom left 3"},// bottom row, 3
+    {0xF6, "Vent bottom left 4"},// bottom row, 4
+    {0xF7, "Vent bottom right 1"},// bottom row, 1
+    {0xF8, "Vent bottom right 2"},// bottom row, 2
+    {0xF9, "Vent bottom right 3"},// bottom row, 3
+    {0xFA, "Vent bottom right 4"},// bottom row, 4
+};
+
 const lenovo_led legion_7gen7_logo_leds[]
 {
     {0xDD, "Logo"},//0
@@ -1963,6 +1997,19 @@ static lenovo_zone lenovo_legion_7gen10_vents
     18,
     NULL,
     legion_7gen10_vents_leds,
+    0,
+    17,
+};
+
+static lenovo_zone lenovo_legion_7gen10h_vents
+{
+    "Vents",
+    ZONE_TYPE_MATRIX,
+    3,
+    3,
+    10,
+    legion7_gen10h_vents_leds_map,
+    legion_7gen10h_vents_leds,
     0,
     17,
 };

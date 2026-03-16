@@ -17,7 +17,7 @@ using namespace std;
 
 static void SetGen10PayloadLength(uint16_t pid, uint8_t* buffer, uint16_t payload_length)
 {
-    if(pid != LEGION_7GEN10)
+    if(pid != LEGION_7GEN10_H)
     {
         return;
     }
@@ -114,7 +114,7 @@ void LenovoGen7And8USBController::setLedsByGroup(uint8_t profile_id, vector<led_
             i+= led_count * sizeof(uint16_t);
         }
 
-        if(pid == LEGION_7GEN10)
+        if(pid == LEGION_7GEN10_H)
         {
             SetGen10PayloadLength(pid, buffer, static_cast<uint16_t>(i - 4));
         }
@@ -124,6 +124,21 @@ void LenovoGen7And8USBController::setLedsByGroup(uint8_t profile_id, vector<led_
         }
         sendFeatureReport(buffer, PACKET_SIZE);
     }
+}
+
+void LenovoGen7And8USBController::setupLedsDirect(uint8_t profile_id)
+{
+    uint8_t buffer[PACKET_SIZE];
+    memset(buffer, 0x00, PACKET_SIZE);
+
+    size_t i = 0;
+    memset(buffer, 0x00, PACKET_SIZE);
+    buffer[i++] = REPORT_ID;
+    buffer[i++] = SAVE_PROFILE;
+    buffer[i++] = 0x00;
+    buffer[i++] = 0x00;
+    buffer[i++] = profile_id;
+    sendFeatureReport(buffer, PACKET_SIZE);
 }
 
 void LenovoGen7And8USBController::setLedsDirectOn(uint8_t profile_id)
@@ -162,7 +177,7 @@ void LenovoGen7And8USBController::setLedsDirectOff(uint8_t profile_id)
 
 void LenovoGen7And8USBController::setLedsDirect(std::vector<led> &leds, std::vector<RGBColor> &colors)
 {
-    if(pid == LEGION_7GEN10)
+    if(pid == LEGION_7GEN10_H)
     {
         /*---------------------------------------------------------*\
         | Gen10 uses 0x07/A1 direct updates, with payload length     |
@@ -225,6 +240,16 @@ void LenovoGen7And8USBController::setLedsAllOff(uint8_t profile_id)
 uint8_t LenovoGen7And8USBController::getCurrentProfileId()
 {
     uint8_t buffer[PACKET_SIZE] = {REPORT_ID, GET_ACTIVE_PROFILE, 0xC0, 0x03};
+
+    SetGen10PayloadLength(pid, buffer, 1);
+    vector<uint8_t> response = getFeatureReport(buffer, PACKET_SIZE);
+
+    return response.size()>4?response[4]:0x01;
+}
+
+uint8_t LenovoGen7And8USBController::getDirectModeProfileId()
+{
+    uint8_t buffer[PACKET_SIZE] = {REPORT_ID, GET_DIRECT_MODE_PROFILE, 0xC0, 0x03};
 
     SetGen10PayloadLength(pid, buffer, 1);
     vector<uint8_t> response = getFeatureReport(buffer, PACKET_SIZE);

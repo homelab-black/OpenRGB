@@ -54,4 +54,5 @@ private:
     bool direct_enabled = false;
     uint8_t brightness = 0x00;
     uint8_t profile_id = 0x01;
+    uint8_t direct_profile_id = 0x00;
 };
