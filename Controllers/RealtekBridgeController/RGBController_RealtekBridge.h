@@ -1,22 +1,24 @@
 /*---------------------------------------------------------*\
-| RGBController_RtkBridge.h                                 |
+| RGBController_RealtekBridge.h                             |
 |                                                           |
-|   RGBController for Realtek Usb Bridge ICs                |
+|   Controller for Realtek USB to SSD Bridge ICs            |
 |                                                           |
+|   Jerry Fan (JerryFan0612)                    13 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-only                   |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
+
 #pragma once
 
 #include "RGBController.h"
-#include "RtkBridgeWrapper.h"
+#include "RealtekBridgeController.h"
 
-class RGBController_RtkBridge : public RGBController
+class RGBController_RealtekBridge : public RGBController
 {
 public:
-    RGBController_RtkBridge(RtkBridgeWrapper *_wrapper);
-    ~RGBController_RtkBridge();
+    RGBController_RealtekBridge(RealtekBridgeController* controller_ptr);
+    ~RGBController_RealtekBridge();
 
     void        SetupStrip();
 
@@ -28,5 +30,5 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    RtkBridgeWrapper *wrapper;
+    RealtekBridgeController* controller;
 };
