@@ -82,6 +82,4 @@ private:
     dHandle fd = NULL_DHANDLE;
     struct led_mem* led_mem_dev = NULL;
     hid_device_info* hidinfo = NULL;
-
-    int interpolate(int vStart, int vEnd, int pos, int pos_num);
 };

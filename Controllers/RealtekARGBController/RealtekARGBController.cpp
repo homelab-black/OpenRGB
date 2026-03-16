@@ -12,6 +12,7 @@
 #ifndef __FreeBSD__
 
 #include "RealtekARGBController.h"
+#include "MathUtils.h"
 #include "StringUtils.h"
 
 static struct usb_id id[] =
@@ -321,7 +322,7 @@ exit:
 int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vector<RGBColor> color_buf, int speed, unsigned short brightness)
 {
     int ret = -1;
-    int cycle = interpolate(REALTEK_ARGB_CYCLE_MAX, REALTEK_ARGB_CYCLE_MIN, speed, REALTEK_ARGB_SPEED_MAX + 1);
+    int cycle = MathUtils::int_interpolate(REALTEK_ARGB_CYCLE_MAX, REALTEK_ARGB_CYCLE_MIN, 0, REALTEK_ARGB_SPEED_MAX, speed);
     std::lock_guard<std::mutex> lock(my_mutex);
 
     if(mode == REALTEK_ARGB_EFF_ALWAYS_ON)
@@ -366,14 +367,6 @@ int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vecto
         goto exit;
 exit:
     return ret;
-}
-
-int RealtekARGBController::interpolate(int vStart, int vEnd, int pos, int pos_num)
-{
-    if (vStart != vEnd)
-        return (int)round((vStart * (pos_num - 1 - pos) + vEnd * pos) / (double)(pos_num - 1));
-    else
-        return vStart;
 }
 
 #endif

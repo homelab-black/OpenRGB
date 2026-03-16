@@ -201,6 +201,7 @@ HEADERS +=                                                                      
     serial_port/serial_port.h                                                                   \
     super_io/super_io.h                                                                         \
     StringUtils.h                                                                               \
+    MathUtils.h                                                                                 \
     SuspendResume/SuspendResume.h                                                               \
     AutoStart/AutoStart.h                                                                       \
     KeyboardLayoutManager/KeyboardLayoutManager.h                                               \
@@ -267,6 +268,7 @@ SOURCES +=                                                                      
     net_port/net_port.cpp                                                                       \
     serial_port/serial_port.cpp                                                                 \
     StringUtils.cpp                                                                             \
+    MathUtils.cpp                                                                               \
     AutoStart/AutoStart.cpp                                                                     \
     KeyboardLayoutManager/KeyboardLayoutManager.cpp                                             \
     RGBController/RGBController.cpp                                                             \

@@ -109,6 +109,4 @@ private:
     std::mutex my_mutex;
     hid_device_info* hidinfo = NULL;
     int appctl[REALTEK_ARGB_NUM_ARGB_GRP] = {REALTEK_ARGB_LED_CTL_FW};
-
-    int interpolate(int vStart, int vEnd, int pos, int pos_num);
 };

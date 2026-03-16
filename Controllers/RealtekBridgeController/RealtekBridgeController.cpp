@@ -13,6 +13,7 @@
 
 #include "RealtekBridgeController.h"
 #include <StringUtils.h>
+#include <MathUtils.h>
 
 
 RealtekBridgeController::RealtekBridgeController(dHandle fd, struct led_mem* led_mem_dev, hid_device_info* info)
@@ -140,7 +141,7 @@ exit:
 int RealtekBridgeController::set_argb_effect(uint8_t mode, std::vector<RGBColor> color_buf, int speed, unsigned short brightness)
 {
     int ret = -1;
-    int cycle = interpolate(REALTEK_BRIDGE_CYCLE_MAX, REALTEK_BRIDGE_CYCLE_MIN, speed, REALTEK_BRIDGE_SPEED_MAX + 1);
+    int cycle = MathUtils::int_interpolate(REALTEK_BRIDGE_CYCLE_MAX, REALTEK_BRIDGE_CYCLE_MIN, 0, REALTEK_BRIDGE_SPEED_MAX, speed);
     RGBQUAD rgb = { 0, 0, 0, 0 };
     static unsigned short prev_bright = 0xFFFF;
 
@@ -196,14 +197,6 @@ int RealtekBridgeController::set_argb_effect(uint8_t mode, std::vector<RGBColor>
     }
 exit:
     return ret;
-}
-
-int RealtekBridgeController::interpolate(int vStart, int vEnd, int pos, int pos_num)
-{
-    if (vStart != vEnd)
-        return (int)round((vStart * (pos_num - 1 - pos) + vEnd * pos) / (double)(pos_num - 1));
-    else
-        return vStart;
 }
 
 #endif
