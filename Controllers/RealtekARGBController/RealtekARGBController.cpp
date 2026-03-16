@@ -12,6 +12,7 @@
 #ifndef __FreeBSD__
 
 #include "RealtekARGBController.h"
+#include "StringUtils.h"
 
 static struct usb_id id[] =
 {
@@ -124,26 +125,19 @@ void RealtekARGBController::argb_reinit()
     return;
 }
 
-static std::string int_to_hex_str(uint32_t value)
-{
-    char hex_str[20] = {0};
-    snprintf(hex_str, sizeof(hex_str), "%X", value);
-    return std::string(hex_str);
-}
-
 std::string RealtekARGBController::get_manu_name()
 {
-    return wcharToString(hidinfo->manufacturer_string);
+    return StringUtils::wchar_to_char(hidinfo->manufacturer_string);
 }
 
 std::string RealtekARGBController::get_product_name()
 {
-    return wcharToString(hidinfo->product_string);
+    return StringUtils::wchar_to_char(hidinfo->product_string);
 }
 
 std::string RealtekARGBController::get_sn()
 {
-    return wcharToString(hidinfo->serial_number);
+    return StringUtils::wchar_to_char(hidinfo->serial_number);
 }
 
 std::string RealtekARGBController::get_dev_loc()
@@ -171,7 +165,7 @@ std::string RealtekARGBController::get_ic_uuid()
     if(bridge_get_uuid(adev, (uint8_t*)&uuid))
         goto exit;
 
-    uuid_str = int_to_hex_str(uuid);
+    uuid_str = StringUtils::u32int_to_hexString(uuid);
 exit:
     return uuid_str;
 }
@@ -380,23 +374,6 @@ int RealtekARGBController::interpolate(int vStart, int vEnd, int pos, int pos_nu
         return (int)round((vStart * (pos_num - 1 - pos) + vEnd * pos) / (double)(pos_num - 1));
     else
         return vStart;
-}
-
-std::string RealtekARGBController::wcharToString(const wchar_t *wstr)
-{
-#ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
-#else
-    int size_needed = wcstombs(nullptr, wstr, 0);
-#endif
-    std::string str(size_needed, 0);
-
-#ifdef _WIN32
-    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, &str[0], size_needed, nullptr, nullptr);
-#else
-    wcstombs(&str[0], wstr, size_needed);
-#endif
-    return str;
 }
 
 #endif

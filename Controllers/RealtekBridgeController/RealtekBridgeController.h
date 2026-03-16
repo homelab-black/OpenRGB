@@ -84,5 +84,4 @@ private:
     hid_device_info* hidinfo = NULL;
 
     int interpolate(int vStart, int vEnd, int pos, int pos_num);
-    std::string wcharToString(const wchar_t *wstr);
 };

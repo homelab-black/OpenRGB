@@ -12,6 +12,7 @@
 #ifndef __FreeBSD__
 
 #include "RealtekBridgeController.h"
+#include <StringUtils.h>
 
 
 RealtekBridgeController::RealtekBridgeController(dHandle fd, struct led_mem* led_mem_dev, hid_device_info* info)
@@ -39,17 +40,17 @@ RealtekBridgeController::~RealtekBridgeController()
 
 std::string RealtekBridgeController::get_manu_name()
 {
-    return wcharToString(hidinfo->manufacturer_string);
+    return StringUtils::wchar_to_char(hidinfo->manufacturer_string);
 }
 
 std::string RealtekBridgeController::get_product_name()
 {
-    return wcharToString(hidinfo->product_string);
+    return StringUtils::wchar_to_char(hidinfo->product_string);
 }
 
 std::string RealtekBridgeController::get_sn()
 {
-    return wcharToString(hidinfo->serial_number);
+    return StringUtils::wchar_to_char(hidinfo->serial_number);
 }
 
 std::string RealtekBridgeController::get_dev_loc()
@@ -203,23 +204,6 @@ int RealtekBridgeController::interpolate(int vStart, int vEnd, int pos, int pos_
         return (int)round((vStart * (pos_num - 1 - pos) + vEnd * pos) / (double)(pos_num - 1));
     else
         return vStart;
-}
-
-std::string RealtekBridgeController::wcharToString(const wchar_t *wstr)
-{
-#ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
-#else
-    int size_needed = wcstombs(nullptr, wstr, 0);
-#endif
-    std::string str(size_needed, 0);
-
-#ifdef _WIN32
-    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, &str[0], size_needed, nullptr, nullptr);
-#else
-    wcstombs(&str[0], wstr, size_needed);
-#endif
-    return str;
 }
 
 #endif
