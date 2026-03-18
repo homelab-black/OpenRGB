@@ -6,6 +6,7 @@
 |   Adam Honse (CalcProgrammer1)                07 Feb 2020 |
 |   Chris M (Dr_No)                             15 Feb 2021 |
 |   Sam B (4rcheria)                            24 Nov 2024 |
+|   Omar Jaber (Bewinxed)                       18 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -15,9 +16,11 @@
 #include "Detector.h"
 #include "ThermaltakeRiingController.h"
 #include "ThermaltakeRiingQuadController.h"
+#include "ThermaltakeRiingToughFanController.h"
 #include "ThermaltakeRiingTrioController.h"
 #include "RGBController_ThermaltakeRiing.h"
 #include "RGBController_ThermaltakeRiingQuad.h"
+#include "RGBController_ThermaltakeRiingToughFan.h"
 #include "RGBController_ThermaltakeRiingTrio.h"
 
 
@@ -53,6 +56,17 @@ void DetectThermaltakeRiingQuadControllers(hid_device_info* info, const std::str
         ThermaltakeRiingQuadController* controller = new ThermaltakeRiingQuadController(dev, info->path);
         RGBController_ThermaltakeRiingQuad* rgb_controller = new RGBController_ThermaltakeRiingQuad(controller);
         // Constructor sets the name
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}
+
+void DetectThermaltakeRiingToughFanControllers(hid_device_info* info, const std::string&)
+{
+    hid_device* dev = hid_open_path(info->path);
+    if(dev)
+    {
+        ThermaltakeRiingToughFanController* controller = new ThermaltakeRiingToughFanController(dev, info->path);
+        RGBController_ThermaltakeRiingToughFan* rgb_controller = new RGBController_ThermaltakeRiingToughFan(controller);
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
 }
@@ -104,7 +118,7 @@ REGISTER_HID_DETECTOR("Thermaltake Riing Quad (PID 0x226D)", DetectThermaltakeRi
 REGISTER_HID_DETECTOR("Thermaltake Riing Quad (PID 0x226E)", DetectThermaltakeRiingQuadControllers, THERMALTAKE_RIING_VID, 0x226E);
 REGISTER_HID_DETECTOR("Thermaltake Riing Quad (PID 0x226F)", DetectThermaltakeRiingQuadControllers, THERMALTAKE_RIING_VID, 0x226F);
 REGISTER_HID_DETECTOR("Thermaltake Riing Quad (PID 0x2270)", DetectThermaltakeRiingQuadControllers, THERMALTAKE_RIING_VID, 0x2270);
-REGISTER_HID_DETECTOR("Thermaltake Riing Quad (PID 0x232B)", DetectThermaltakeRiingQuadControllers, THERMALTAKE_RIING_VID, 0x232B);
+REGISTER_HID_DETECTOR("Thermaltake ToughFan 14 RGB (PID 0x232B)", DetectThermaltakeRiingToughFanControllers, THERMALTAKE_RIING_VID, 0x232B);
 
 REGISTER_HID_DETECTOR("Thermaltake Riing Trio (PID 0x2135)", DetectThermaltakeRiingTrioControllers, THERMALTAKE_RIING_VID, 0x2135);
 REGISTER_HID_DETECTOR("Thermaltake Riing Trio (PID 0x2136)", DetectThermaltakeRiingTrioControllers, THERMALTAKE_RIING_VID, 0x2136);
