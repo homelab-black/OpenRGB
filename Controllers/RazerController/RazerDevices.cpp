@@ -8397,6 +8397,216 @@ static const razer_device kraken_kitty_v3_pro_wireless_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Nari Ultimate (Wireless) 1532:051A                     |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_ultimate_wireless_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_ultimate_wireless_device =
+{
+    "Razer Nari Ultimate (Wireless)",
+    RAZER_NARI_ULTIMATE_WIRELESS_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_ultimate_wireless_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Nari Ultimate (Wired) 1532:051B                        |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_ultimate_wired_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_ultimate_wired_device =
+{
+    "Razer Nari Ultimate (Wired)",
+    RAZER_NARI_ULTIMATE_WIRED_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_ultimate_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Nari (Wireless) 1532:051C                              |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_wireless_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_wireless_device =
+{
+    "Razer Nari (Wireless)",
+    RAZER_NARI_WIRELESS_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_wireless_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Nari (Wired) 1532:051D                                 |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_wired_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_wired_device =
+{
+    "Razer Nari (Wired)",
+    RAZER_NARI_WIRED_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Nari Essential (Wireless) 1532:051E                    |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_essential_wireless_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_essential_wireless_device =
+{
+    "Razer Nari Essential (Wireless)",
+    RAZER_NARI_ESSENTIAL_WIRELESS_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_essential_wireless_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer Nari Essential (Wired) 1532:051F                       |
+|                                                               |
+|  Zone "Headset"                                               |
+|       Single                                                  |
+|       1 LED                                                   |
+\*-------------------------------------------------------------*/
+static const razer_zone nari_essential_wired_zone =
+{
+    "Headset",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_device nari_essential_wired_device =
+{
+    "Razer Nari Essential (Wired)",
+    RAZER_NARI_ESSENTIAL_WIRED_PID,
+    DEVICE_TYPE_HEADSET,
+    RAZER_MATRIX_TYPE_NONE,
+    0,
+    1,
+    1,
+    {
+        &nari_essential_wired_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Tiamat 7.1 V2                                          |
 |                                                               |
 |  Zone "Controller"                                            |
@@ -9589,6 +9799,12 @@ const razer_device* razer_device_list[] =
     &kraken_v4_wireless_device,
     &kraken_kitty_v3_pro_wired_device,
     &kraken_kitty_v3_pro_wireless_device,
+    &nari_ultimate_wireless_device,
+    &nari_ultimate_wired_device,
+    &nari_wireless_device,
+    &nari_wired_device,
+    &nari_essential_wireless_device,
+    &nari_essential_wired_device,
     &tiamat_71_v2_device,
 /*-----------------------------------------------------------------*\
 |  OTHER                                                            |
