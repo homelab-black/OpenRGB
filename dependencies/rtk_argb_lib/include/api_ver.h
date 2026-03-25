@@ -34,8 +34,8 @@
 
 #define UTHSB_API_VER_MAIN1 1
 #define UTHSB_API_VER_MAIN2 2
-#define UTHSB_API_VER_SUB1 9
-#define UTHSB_API_VER_SUB2 60226
+#define UTHSB_API_VER_SUB1 11
+#define UTHSB_API_VER_SUB2 60325
 
 
 // version number (string)

@@ -147,15 +147,16 @@ struct ssd_info {
 	struct ata_sec_info ata_sec;
 };
 
-struct scan_result {
-	char name[NAME_STR_LEN];
-	char br_name[NAME_STR_LEN];
+struct br_dev_info {
+	char *name;
+	char *br_name;
 	struct ssd_info ssdinfo;
 #if defined(__APPLE__)
-	char bsd_name[NAME_STR_LEN];
+	char *bsd_name;
 #endif
 	uint8_t dev_type;
-	struct scan_result *next;
+	uint8_t intf_type;
+	struct br_dev_info *next;
 };
 
 struct br_priv;
@@ -172,10 +173,10 @@ struct bridge_device {
 
 struct bridge_device *bridge_open_handle(char *dev_path);
 int bridge_close_handle(struct bridge_device *fd);
-void bridge_exit();
-struct scan_result *bridge_disk_scan(struct usb_id *id, int id_num);
-struct scan_result *bridge_dev_scan(struct usb_id *id, int id_num);
-void bridge_free_scan(struct scan_result *result);
+void bridge_exit(void);
+struct br_dev_info *bridge_disk_scan(struct usb_id *id, int id_num);
+struct br_dev_info *bridge_dev_scan(struct usb_id *id, int id_num);
+void bridge_free_scan(struct br_dev_info *result);
 void* bridge_dev_get_handle(struct bridge_device *dev);
 void bridge_dev_set_disk_blk_size(struct bridge_device *dev, uint32_t blk_size);
 

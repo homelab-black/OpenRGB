@@ -46,6 +46,12 @@ extern "C" {
 
 #define USBID_ANY           0xFFFF
 
+enum BRIDGE_IC_GEN {
+	BRIDGE_IC_GEN0,
+	BRIDGE_IC_GEN1,
+	NUM_BRIDGE_IC_GEN,
+};
+
 struct bridge_fw_version {
 	uint32_t fw_major_ver;
 	uint32_t fw_minor_ver;
@@ -59,6 +65,8 @@ struct bridge_hid_ch {
 	uint16_t ch_len;
 };
 
+uint8_t bridge_get_rev_sup(dHandle fd, uint8_t *inq);
+uint8_t bridge_get_rtl_sup(dHandle fd, uint8_t *inq);
 int bridge_check_vid_pid(uint16_t vid,
 			 uint16_t pid,
 			 struct usb_id *id,

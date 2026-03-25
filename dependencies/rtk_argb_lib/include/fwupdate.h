@@ -103,6 +103,7 @@ int fwupdate_flash_dump(dHandle fd, char *file_name, uint16_t flash_size);
 
 #ifdef CONFIG_ARGB_DEV
 int fwupdate_write_light_arr(dHandle fd, void *ctl);
+int fwupdate_read_light_arr(dHandle fd, uint8_t *buf);
 #endif
 
 int pg_write(dHandle fd, const char *conf);

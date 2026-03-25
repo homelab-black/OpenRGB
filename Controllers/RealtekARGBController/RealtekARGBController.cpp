@@ -231,12 +231,17 @@ int RealtekARGBController::get_argb_brightness(int grp_num)
 
 int RealtekARGBController::set_argb_num(int grp_num, int new_num)
 {
-    int group, ret = 0;
+    int group, ret = 0, dmat_ret = 0;
     uint16_t i, argb_num = new_num;
     LampPosition* poses = NULL;
     struct LampArrayAttributesReport laar;
     struct LampAttributesResponseReport larr;
+    uint8_t* old_argbctl = (uint8_t*)malloc(argb_ctl->buf_size);
+    uint8_t* dmat_buf = NULL;
     std::lock_guard<std::mutex> lock(my_mutex);
+
+    ret = fwupdate_read_light_arr(adev, old_argbctl);
+    dmat_ret = led_argb_get_dmat(adev, argb_ctl, &dmat_buf);
 
     for(group = 0; group < REALTEK_ARGB_NUM_ARGB_GRP; group++)
     {
@@ -271,10 +276,24 @@ int RealtekARGBController::set_argb_num(int grp_num, int new_num)
         if(led_argb_set_id3(adev, argb_ctl, group, &larr, false))
             continue;
 
-        if(led_argb_set_pos(adev, argb_ctl, group, poses, true))
+        if(led_argb_set_pos(adev, argb_ctl, group, poses, false))
             continue;
     }
 
+    if(!dmat_ret)
+        led_argb_set_dmat(adev, argb_ctl, dmat_buf);
+
+    if(!ret)
+    {
+        uint32_t eff_offset = argb_ctl->header->header_size;
+        uint32_t eff_size = argb_ctl->header->data_size;
+        uint8_t* eff_addr = (uint8_t*)argb_ctl->header + eff_offset;
+        uint8_t* old_eff_addr = (uint8_t*)old_argbctl + eff_offset;
+        memcpy(eff_addr, old_eff_addr, eff_size);
+        fwupdate_write_light_arr(adev, argb_ctl);
+    }
+
+    free(old_argbctl);
     if(poses)
     {
         free(poses);

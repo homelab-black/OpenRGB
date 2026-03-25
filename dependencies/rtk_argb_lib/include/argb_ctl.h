@@ -68,6 +68,9 @@ enum ARGB_EFFECT_ID {
 	EFF_SLIDING = 0x0008,
 	EFF_NEWTON_CRADLE = 0x0009,
 	EFF_METEOR = 0x000A,
+	EFF_RAINBOW_SLIDING = 0x000B,
+	EFF_RAINBOW_FADE_SLIDING = 0x000C,
+	EFF_WIDE_SLIDING = 0x000D,
 };
 
 enum ARGB_GROUP {
@@ -329,6 +332,14 @@ int led_argb_set_pos(dHandle fd,
 		     uint8_t grp,
 		     void *pos,
 		     bool submit);
+
+int led_argb_get_dmat(dHandle fd,
+		      argbCtl *argb_ctl,
+		      uint8_t **dmat_buf);
+
+int led_argb_set_dmat(dHandle fd,
+		      argbCtl *argb_ctl,
+		      uint8_t *dmat_buf);
 
 #ifdef __cplusplus
 }

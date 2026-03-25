@@ -49,7 +49,8 @@ extern "C" {
 struct argb_dev_info {
 	char *name;
 	char *path;
-	int intf_type;
+	uint8_t dev_type;
+	uint8_t intf_type;
 	struct argb_dev_info *next;
 };
 
