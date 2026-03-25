@@ -27,8 +27,9 @@ RealtekARGBController::RealtekARGBController(struct argb_device* dev, argbCtl* a
     this->hidinfo = info;
     for(int i = 0; i < REALTEK_ARGB_NUM_ARGB_GRP; i++)
     {
-        appctl[i] = REALTEK_ARGB_LED_CTL_FW;
-        led_argb_set_appctl(adev, i, appctl[i]);
+        int ret = led_argb_set_appctl(adev, i, REALTEK_ARGB_LED_CTL_FW);
+        if(!ret)
+            appctl[i] = REALTEK_ARGB_LED_CTL_FW;
     }
 }
 
@@ -38,8 +39,9 @@ RealtekARGBController::~RealtekARGBController()
     {
         for(int i = 0; i < REALTEK_ARGB_NUM_ARGB_GRP; i++)
         {
-            appctl[i] = REALTEK_ARGB_LED_CTL_LAMP;
-            led_argb_set_appctl(adev, i, appctl[i]);
+            int ret = led_argb_set_appctl(adev, i, REALTEK_ARGB_LED_CTL_FW);
+            if(!ret)
+                appctl[i] = REALTEK_ARGB_LED_CTL_FW;
         }
         argb_dev_close(adev);
         adev = NULL;
@@ -65,7 +67,10 @@ void RealtekARGBController::argb_reinit()
         for(retry_i = 0; (retry_i < num_retry) && !reinit_done; retry_i++)
         {
             if(devs)
+            {
                 argb_dev_free_scan(devs);
+                devs = NULL;
+            }
 
             if(adev)
             {
@@ -73,7 +78,7 @@ void RealtekARGBController::argb_reinit()
                 argb_dev_close(adev);
                 adev = NULL;
             }
-            QThread::msleep(1000);
+            QThread::msleep(2000);
 
             devs = argb_dev_scan(id, ARRAY_SIZE(id));
             if(!devs)
@@ -112,8 +117,9 @@ void RealtekARGBController::argb_reinit()
                 argb_ctl->sync_method = REALTEK_ARGB_SYNC_METHOD_OPENRGB;
                 for(int i = 0; i < REALTEK_ARGB_NUM_ARGB_GRP; i++)
                 {
-                    appctl[i] = REALTEK_ARGB_LED_CTL_FW;
-                    led_argb_set_appctl(adev, i, appctl[i]);
+                    int ret = led_argb_set_appctl(adev, i, REALTEK_ARGB_LED_CTL_FW);
+                    if(!ret)
+                        appctl[i] = REALTEK_ARGB_LED_CTL_FW;
                 }
 
                 reinit_done = true;
@@ -122,7 +128,10 @@ void RealtekARGBController::argb_reinit()
     }
 
     if(devs)
+    {
         argb_dev_free_scan(devs);
+        devs = NULL;
+    }
     return;
 }
 
@@ -289,10 +298,11 @@ int RealtekARGBController::set_argb_direct(int grp_num, std::vector<RGBColor> co
 
     if(appctl[grp_num] != REALTEK_ARGB_LED_CTL_APP)
     {
-        appctl[grp_num] = REALTEK_ARGB_LED_CTL_APP;
-        ret = led_argb_set_appctl(adev, grp_num, appctl[grp_num]);
+        ret = led_argb_set_appctl(adev, grp_num, REALTEK_ARGB_LED_CTL_APP);
         if(ret)
             goto exit;
+        else
+            appctl[grp_num] = REALTEK_ARGB_LED_CTL_APP;
     }
 
     if(prev_bright != brightness)
@@ -361,10 +371,9 @@ int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vecto
     if(ret)
         goto exit;
 
-    appctl[grp_num] = REALTEK_ARGB_LED_CTL_FW;
-    ret = led_argb_set_appctl(adev, grp_num, appctl[grp_num]);
-    if(ret)
-        goto exit;
+    ret = led_argb_set_appctl(adev, grp_num, REALTEK_ARGB_LED_CTL_FW);
+    if(!ret)
+        appctl[grp_num] = REALTEK_ARGB_LED_CTL_FW;
 exit:
     return ret;
 }
