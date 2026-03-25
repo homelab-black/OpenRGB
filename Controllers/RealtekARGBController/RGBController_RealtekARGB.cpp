@@ -157,20 +157,62 @@ void RGBController_RealtekARGB::SetupStrip()
     modes.push_back(RunningWater);
 
     mode Sliding;
-    Sliding.name                   = "Sliding";
-    Sliding.value                  = REALTEK_ARGB_EFF_SLIDING;
-    Sliding.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Sliding.speed_min              = REALTEK_ARGB_SPEED_MIN;
-    Sliding.speed_max              = REALTEK_ARGB_SPEED_MAX;
-    Sliding.speed                  = REALTEK_ARGB_SPEED_NORMAL;
-    Sliding.colors_min             = 1;
-    Sliding.colors_max             = 2;
-    Sliding.color_mode             = MODE_COLORS_MODE_SPECIFIC;
+    Sliding.name                  = "Sliding";
+    Sliding.value                 = REALTEK_ARGB_EFF_SLIDING;
+    Sliding.flags                 = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_DIRECTION_LR;
+    Sliding.speed_min             = REALTEK_ARGB_SPEED_MIN;
+    Sliding.speed_max             = REALTEK_ARGB_SPEED_MAX;
+    Sliding.speed                 = REALTEK_ARGB_SPEED_NORMAL;
+    Sliding.colors_min            = 1;
+    Sliding.colors_max            = 2;
+    Sliding.color_mode            = MODE_COLORS_MODE_SPECIFIC;
     Sliding.colors.resize(2);
-    Sliding.brightness_min         = 0;
-    Sliding.brightness_max         = 255;
-    Sliding.brightness             = brightness;
+    Sliding.brightness_min        = 0;
+    Sliding.brightness_max        = 255;
+    Sliding.brightness            = brightness;
     modes.push_back(Sliding);
+
+    mode WideSliding;
+    WideSliding.name              = "WideSliding";
+    WideSliding.value             = REALTEK_ARGB_EFF_WIDE_SLIDING;
+    WideSliding.flags             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_DIRECTION_LR;
+    WideSliding.speed_min         = REALTEK_ARGB_SPEED_MIN;
+    WideSliding.speed_max         = REALTEK_ARGB_SPEED_MAX;
+    WideSliding.speed             = REALTEK_ARGB_SPEED_NORMAL;
+    WideSliding.colors_min        = 1;
+    WideSliding.colors_max        = 2;
+    WideSliding.color_mode        = MODE_COLORS_MODE_SPECIFIC;
+    WideSliding.colors.resize(2);
+    WideSliding.brightness_min    = 0;
+    WideSliding.brightness_max    = 255;
+    WideSliding.brightness        = brightness;
+    modes.push_back(WideSliding);
+
+    mode RainbowSliding;
+    RainbowSliding.name           = "RainbowSliding";
+    RainbowSliding.value          = REALTEK_ARGB_EFF_RAINBOW_SLIDING;
+    RainbowSliding.flags          = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_DIRECTION_LR;
+    RainbowSliding.speed_min      = REALTEK_ARGB_SPEED_MIN;
+    RainbowSliding.speed_max      = REALTEK_ARGB_SPEED_MAX;
+    RainbowSliding.speed          = REALTEK_ARGB_SPEED_NORMAL;
+    RainbowSliding.color_mode     = MODE_COLORS_NONE;
+    RainbowSliding.brightness_min = 0;
+    RainbowSliding.brightness_max = 255;
+    RainbowSliding.brightness     = brightness;
+    modes.push_back(RainbowSliding);
+
+    mode RainbowFadeSliding;
+    RainbowFadeSliding.name           = "RainbowFadeSliding";
+    RainbowFadeSliding.value          = REALTEK_ARGB_EFF_RAINBOW_FADE_SLIDING;
+    RainbowFadeSliding.flags          = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    RainbowFadeSliding.speed_min      = REALTEK_ARGB_SPEED_MIN;
+    RainbowFadeSliding.speed_max      = REALTEK_ARGB_SPEED_MAX;
+    RainbowFadeSliding.speed          = REALTEK_ARGB_SPEED_NORMAL;
+    RainbowFadeSliding.color_mode     = MODE_COLORS_NONE;
+    RainbowFadeSliding.brightness_min = 0;
+    RainbowFadeSliding.brightness_max = 255;
+    RainbowFadeSliding.brightness     = brightness;
+    modes.push_back(RainbowFadeSliding);
 
     mode NewtonCradle;
     NewtonCradle.name             = "NewtonCradle";
@@ -203,6 +245,51 @@ void RGBController_RealtekARGB::SetupStrip()
     Meteor.brightness_max         = 255;
     Meteor.brightness             = brightness;
     modes.push_back(Meteor);
+
+    mode ZigZag;
+    ZigZag.name                   = "ZigZag";
+    ZigZag.value                  = REALTEK_ARGB_EFF_ZIGZAG;
+    ZigZag.flags                  = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_RANDOM_COLOR;
+    ZigZag.speed_min              = REALTEK_ARGB_SPEED_MIN;
+    ZigZag.speed_max              = REALTEK_ARGB_SPEED_MAX;
+    ZigZag.speed                  = REALTEK_ARGB_SPEED_NORMAL;
+    ZigZag.colors_min             = 1;
+    ZigZag.colors_max             = 2;
+    ZigZag.color_mode             = MODE_COLORS_MODE_SPECIFIC;
+    ZigZag.colors.resize(2);
+    ZigZag.brightness_min         = 0;
+    ZigZag.brightness_max         = 255;
+    ZigZag.brightness             = brightness;
+    modes.push_back(ZigZag);
+
+    mode StarryNight;
+    StarryNight.name              = "StarryNight";
+    StarryNight.value             = REALTEK_ARGB_EFF_STARRY_NIGHT;
+    StarryNight.flags             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_RANDOM_COLOR;
+    StarryNight.speed_min         = REALTEK_ARGB_SPEED_MIN;
+    StarryNight.speed_max         = REALTEK_ARGB_SPEED_MAX;
+    StarryNight.speed             = REALTEK_ARGB_SPEED_NORMAL;
+    StarryNight.colors_min        = 1;
+    StarryNight.colors_max        = 1;
+    StarryNight.color_mode        = MODE_COLORS_MODE_SPECIFIC;
+    StarryNight.colors.resize(1);
+    StarryNight.brightness_min    = 0;
+    StarryNight.brightness_max    = 255;
+    StarryNight.brightness        = brightness;
+    modes.push_back(StarryNight);
+
+    mode Stack;
+    Stack.name                    = "Stack";
+    Stack.value                   = REALTEK_ARGB_EFF_STACK;
+    Stack.flags                   = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Stack.colors_min              = 1;
+    Stack.colors_max              = 2;
+    Stack.color_mode              = MODE_COLORS_MODE_SPECIFIC;
+    Stack.colors.resize(2);
+    Stack.brightness_min          = 0;
+    Stack.brightness_max          = 255;
+    Stack.brightness              = brightness;
+    modes.push_back(Stack);
 }
 
 RGBController_RealtekARGB::~RGBController_RealtekARGB()
@@ -332,25 +419,35 @@ void RGBController_RealtekARGB::UpdateZoneLEDs(int zone)
 
 void RGBController_RealtekARGB::UpdateSingleLED(int zone)
 {
-    unsigned char speed = REALTEK_ARGB_SPEED_NORMAL;
-    unsigned char dir = 0;
-    unsigned short brightness = 0xFF;
     mode& curr_mode = modes[active_mode];
     std::vector<RGBColor> rtk_colors = curr_mode.colors;
+    struct RealtekARGBControllerSetEffParam param;
+
+    param.speed = REALTEK_ARGB_SPEED_NORMAL;
+    param.brightness = 0xFF;
+    param.dir = 0;
+    param.random_color = 0;
 
     if(curr_mode.flags & MODE_FLAG_HAS_SPEED)
     {
-        speed = curr_mode.speed;
+        param.speed = curr_mode.speed;
     }
     if(curr_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
     {
-        brightness = curr_mode.brightness;
+        param.brightness = curr_mode.brightness;
     }
     if(curr_mode.flags & MODE_FLAG_HAS_DIRECTION_LR)
     {
         if(curr_mode.direction == MODE_DIRECTION_RIGHT)
         {
-            dir = 1;
+            param.dir = 1;
+        }
+    }
+    if(curr_mode.flags & MODE_FLAG_HAS_RANDOM_COLOR)
+    {
+        if(curr_mode.color_mode == MODE_COLORS_RANDOM)
+        {
+            param.random_color = 1;
         }
     }
 
@@ -363,7 +460,7 @@ void RGBController_RealtekARGB::UpdateSingleLED(int zone)
         rtk_colors.clear();
     }
 
-    controller->set_argb_effect(valid_grp[zone], curr_mode.value, rtk_colors, speed, brightness);
+    controller->set_argb_effect(valid_grp[zone], curr_mode.value, rtk_colors, &param);
 }
 
 void RGBController_RealtekARGB::DeviceUpdateMode()

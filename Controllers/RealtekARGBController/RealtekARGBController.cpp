@@ -348,13 +348,13 @@ exit:
     return ret;
 }
 
-int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vector<RGBColor> color_buf, int speed, unsigned short brightness)
+int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vector<RGBColor> color_buf, struct RealtekARGBControllerSetEffParam* param)
 {
     int ret = -1;
-    int cycle = MathUtils::int_interpolate(REALTEK_ARGB_CYCLE_MAX, REALTEK_ARGB_CYCLE_MIN, 0, REALTEK_ARGB_SPEED_MAX, speed);
+    int cycle = MathUtils::int_interpolate(REALTEK_ARGB_CYCLE_MAX, REALTEK_ARGB_CYCLE_MIN, 0, REALTEK_ARGB_SPEED_MAX, param->speed);
     std::lock_guard<std::mutex> lock(my_mutex);
 
-    if(mode == REALTEK_ARGB_EFF_ALWAYS_ON)
+    if(mode == REALTEK_ARGB_EFF_ALWAYS_ON || mode == REALTEK_ARGB_EFF_STACK)
         cycle = 0;
 
     ret = led_argb_set_eff_id(adev, argb_ctl, grp_num, mode, false);
@@ -386,7 +386,11 @@ int RealtekARGBController::set_argb_effect(int grp_num, uint8_t mode, std::vecto
     if(ret)
         goto exit;
 
-    ret = led_argb_set_bright(adev, argb_ctl, grp_num, brightness << 8, true);
+    ret = led_argb_set_subcmd(adev, argb_ctl, grp_num, (param->dir || param->random_color) ? 0x1 : 0x0, false);
+    if(ret)
+        goto exit;
+
+    ret = led_argb_set_bright(adev, argb_ctl, grp_num, param->brightness << 8, true);
     if(ret)
         goto exit;
 

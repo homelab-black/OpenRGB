@@ -59,6 +59,14 @@ enum REALTEK_ARGB_EFFECT_ID {
     REALTEK_ARGB_EFF_SLIDING,
     REALTEK_ARGB_EFF_NEWTON_CRADLE,
     REALTEK_ARGB_EFF_METEOR,
+    REALTEK_ARGB_EFF_RAINBOW_SLIDING,
+    REALTEK_ARGB_EFF_RAINBOW_FADE_SLIDING,
+    REALTEK_ARGB_EFF_WIDE_SLIDING,
+    REALTEK_ARGB_EFF_DOT_MATRIX,                    // reserved: Not supported by OpenRGB
+    REALTEK_ARGB_EFF_DOT_MATRIX_BREATH,             // reserved: Not supported by OpenRGB
+    REALTEK_ARGB_EFF_ZIGZAG,
+    REALTEK_ARGB_EFF_STARRY_NIGHT,
+    REALTEK_ARGB_EFF_STACK,
 };
 
 enum REALTEK_ARGB_SPEED
@@ -81,6 +89,14 @@ enum REALTEK_ARGB_CUST_DEVNAME
     REALTEK_ARGB_CUST_DEVNAME_MANU_UUID        = 0x1,
 };
 
+struct RealtekARGBControllerSetEffParam
+{
+    unsigned int speed;
+    unsigned short brightness;
+    unsigned char dir;
+    unsigned char random_color;
+};
+
 class RealtekARGBController
 {
 public:
@@ -101,7 +117,7 @@ public:
 
     int set_argb_num(int grp_num, int new_num);
     int set_argb_direct(int grp_num, std::vector<RGBColor> color_buf, unsigned short brightness);
-    int set_argb_effect(int grp_num, uint8_t mode, std::vector<RGBColor> color_buf, int speed, unsigned short brightness);
+    int set_argb_effect(int grp_num, uint8_t mode, std::vector<RGBColor> color_buf, struct RealtekARGBControllerSetEffParam* param);
 
     argbCtl* argb_ctl = NULL;
 private:
