@@ -187,7 +187,7 @@ void ThrustmasterSolController::SaveColors(unsigned int* zones,
     BuildAndSendPackets(zones, colors, count, true);
 }
 
-void ThrustmasterSolController::ReadColors(std::vector<unsigned char>& zones,
+void ThrustmasterSolController::ReadColors(std::vector<unsigned int>& zones,
                                            std::vector<RGBColor>& colors)
 {
     if(dev == nullptr)
@@ -201,8 +201,8 @@ void ThrustmasterSolController::ReadColors(std::vector<unsigned char>& zones,
     /*---------------------------------------------------------*\
     | Read base zones (report 0x0002). May require multiple     |
     | queries if more than 14 zones are returned per response.  |
-    | Zone 0x00 (thumbstick) is returned as #000000 placeholder |
-    | by the base read -- we'll get the real value from grip.   |
+    | Zone IDs are returned without the grip flag, so they      |
+    | match the base LED values (including zone 0x00 = logo).   |
     \*---------------------------------------------------------*/
     unsigned char start = 0;
 
@@ -268,8 +268,10 @@ void ThrustmasterSolController::ReadColors(std::vector<unsigned char>& zones,
     }
 
     /*---------------------------------------------------------*\
-    | Read grip zones (report 0x8002) to get the real           |
-    | thumbstick color. Overwrite zone 0x00 if already present. |
+    | Read grip zones (report 0x8002). Grip zone IDs are        |
+    | returned with the GRIP_FLAG set so they match the         |
+    | thumbstick LED value. They are added as new entries,      |
+    | not overwriting base entries (zone 0x00 exists on both).  |
     \*---------------------------------------------------------*/
     unsigned char grip_query[THRUSTMASTER_SOL_PACKET_SIZE];
     memset(grip_query, 0x00, THRUSTMASTER_SOL_PACKET_SIZE);
@@ -306,26 +308,8 @@ void ThrustmasterSolController::ReadColors(std::vector<unsigned char>& zones,
             unsigned char g   = grip_resp[off + 2];
             unsigned char b   = grip_resp[off + 3];
 
-            /*-------------------------------------------------*\
-            | Replace existing entry for this zone if present   |
-            \*-------------------------------------------------*/
-            bool found = false;
-
-            for(unsigned int j = 0; j < zones.size(); j++)
-            {
-                if(zones[j] == zid)
-                {
-                    colors[j] = ToRGBColor(r, g, b);
-                    found = true;
-                    break;
-                }
-            }
-
-            if(!found)
-            {
-                zones.push_back(zid);
-                colors.push_back(ToRGBColor(r, g, b));
-            }
+            zones.push_back(THRUSTMASTER_SOL_GRIP_FLAG | zid);
+            colors.push_back(ToRGBColor(r, g, b));
         }
     }
 }

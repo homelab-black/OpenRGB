@@ -74,7 +74,7 @@ RGBController_ThrustmasterSol::RGBController_ThrustmasterSol(ThrustmasterSolCont
     | Read current EEPROM colors from device so the UI starts   |
     | with the actual hardware state rather than all-black      |
     \*---------------------------------------------------------*/
-    std::vector<unsigned char>  hw_zones;
+    std::vector<unsigned int>   hw_zones;
     std::vector<RGBColor>       hw_colors;
     controller->ReadColors(hw_zones, hw_colors);
 

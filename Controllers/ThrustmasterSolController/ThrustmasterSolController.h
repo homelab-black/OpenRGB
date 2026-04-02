@@ -101,7 +101,7 @@ public:
                                  unsigned int count);
     void            SaveColors(unsigned int* zones, RGBColor* colors,
                                unsigned int count);
-    void            ReadColors(std::vector<unsigned char>& zones,
+    void            ReadColors(std::vector<unsigned int>& zones,
                                std::vector<RGBColor>& colors);
 
 private:
