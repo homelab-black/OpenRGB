@@ -69,14 +69,20 @@
 
 /*-----------------------------------------------------*\
 | Thrustmaster Sol zone constants                       |
+|                                                       |
+| Zone 0x00 is shared: on the base it is a logo LED,   |
+| on the grip it is the thumbstick LED. The grip flag   |
+| (bit 8) selects the grip report type for zone 0x00.   |
 \*-----------------------------------------------------*/
 #define THRUSTMASTER_SOL_ZONE_THUMBSTICK       0x00
+#define THRUSTMASTER_SOL_GRIP_FLAG             0x100
 #define THRUSTMASTER_SOL_MARKER                0xFF
 
 /*-----------------------------------------------------*\
 | Thrustmaster Sol zone count for Sol-R                 |
+| 19 base zones + thumbstick + logo zone 0x00 = 21     |
 \*-----------------------------------------------------*/
-#define THRUSTMASTER_SOL_R_ZONE_COUNT          20
+#define THRUSTMASTER_SOL_R_ZONE_COUNT          21
 
 class ThrustmasterSolController
 {
@@ -90,10 +96,10 @@ public:
     std::string     GetSerialString();
     unsigned short  GetPID();
 
-    void            SetLEDColor(unsigned char zone, RGBColor color);
-    void            SetLEDColors(unsigned char* zones, RGBColor* colors,
+    void            SetLEDColor(unsigned int zone, RGBColor color);
+    void            SetLEDColors(unsigned int* zones, RGBColor* colors,
                                  unsigned int count);
-    void            SaveColors(unsigned char* zones, RGBColor* colors,
+    void            SaveColors(unsigned int* zones, RGBColor* colors,
                                unsigned int count);
     void            ReadColors(std::vector<unsigned char>& zones,
                                std::vector<RGBColor>& colors);
@@ -105,6 +111,6 @@ private:
     unsigned short          pid;
 
     void    SendPacket(unsigned char* packet, unsigned int size);
-    void    BuildAndSendPackets(unsigned char* zones, RGBColor* colors,
+    void    BuildAndSendPackets(unsigned int* zones, RGBColor* colors,
                                 unsigned int count, bool persistent);
 };

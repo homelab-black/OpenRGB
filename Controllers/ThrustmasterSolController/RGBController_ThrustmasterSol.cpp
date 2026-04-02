@@ -26,10 +26,11 @@
 
 #define NA 0xFFFFFFFF
 
-static unsigned int logo_matrix_map[2][3] =
+static unsigned int logo_matrix_map[3][3] =
 {
     { NA,   0,  NA },
     {  2,  NA,   1 },
+    { NA,   3,  NA },
 };
 
 static unsigned int ring_matrix_map[3][5] =
@@ -112,7 +113,7 @@ void RGBController_ThrustmasterSol::SetupZones()
 
     led thumbstick_led;
     thumbstick_led.name  = "Thumbstick";
-    thumbstick_led.value = 0x00;
+    thumbstick_led.value = THRUSTMASTER_SOL_GRIP_FLAG | 0x00;
     leds.push_back(thumbstick_led);
 
     /*---------------------------------------------------------*\
@@ -121,11 +122,11 @@ void RGBController_ThrustmasterSol::SetupZones()
     zone logo_zone;
     logo_zone.name               = "TM Logo";
     logo_zone.type               = ZONE_TYPE_MATRIX;
-    logo_zone.leds_min           = 3;
-    logo_zone.leds_max           = 3;
-    logo_zone.leds_count         = 3;
+    logo_zone.leds_min           = 4;
+    logo_zone.leds_max           = 4;
+    logo_zone.leds_count         = 4;
     logo_zone.matrix_map         = new matrix_map_type;
-    logo_zone.matrix_map->height = 2;
+    logo_zone.matrix_map->height = 3;
     logo_zone.matrix_map->width  = 3;
     logo_zone.matrix_map->map    = (unsigned int *)&logo_matrix_map;
     zones.push_back(logo_zone);
@@ -144,6 +145,11 @@ void RGBController_ThrustmasterSol::SetupZones()
     logo_left.name  = "TM Logo Left";
     logo_left.value = 0x03;
     leds.push_back(logo_left);
+
+    led logo_bottom;
+    logo_bottom.name  = "TM Logo Bottom";
+    logo_bottom.value = 0x00;
+    leds.push_back(logo_bottom);
 
     /*---------------------------------------------------------*\
     | Left Buttons zone (4 LEDs: buttons 5-8)                   |
@@ -282,7 +288,7 @@ void RGBController_ThrustmasterSol::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_ThrustmasterSol::DeviceUpdateLEDs()
 {
-    unsigned char   led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
+    unsigned int    led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
     RGBColor        led_colors[THRUSTMASTER_SOL_R_ZONE_COUNT];
 
     for(unsigned int led_idx = 0; led_idx < leds.size(); led_idx++)
@@ -310,7 +316,7 @@ void RGBController_ThrustmasterSol::UpdateZoneLEDs(int zone)
         start_idx += zones[z_idx].leds_count;
     }
 
-    unsigned char   led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
+    unsigned int    led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
     RGBColor        led_colors[THRUSTMASTER_SOL_R_ZONE_COUNT];
 
     for(unsigned int led_idx = 0; led_idx < zone_size; led_idx++)
@@ -335,7 +341,7 @@ void RGBController_ThrustmasterSol::DeviceUpdateMode()
 
 void RGBController_ThrustmasterSol::DeviceSaveMode()
 {
-    unsigned char   led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
+    unsigned int    led_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
     RGBColor        led_colors[THRUSTMASTER_SOL_R_ZONE_COUNT];
 
     for(unsigned int led_idx = 0; led_idx < leds.size(); led_idx++)

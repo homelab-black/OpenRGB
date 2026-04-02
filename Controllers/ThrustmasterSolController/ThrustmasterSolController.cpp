@@ -85,7 +85,7 @@ void ThrustmasterSolController::SendPacket(unsigned char* packet, unsigned int s
                               1000);
 }
 
-void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
+void ThrustmasterSolController::BuildAndSendPackets(unsigned int* zones,
                                                     RGBColor* colors,
                                                     unsigned int count,
                                                     bool persistent)
@@ -94,9 +94,9 @@ void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
                                            : THRUSTMASTER_SOL_VOLATILE;
 
     /*---------------------------------------------------------*\
-    | Separate grip zone (thumbstick, zone 0x00) from base      |
-    | zones. The thumbstick uses report type 0x8801, all other  |
-    | zones use report type 0x0801.                             |
+    | Separate grip zones from base zones. Zone 0x00 exists on  |
+    | both the base (logo LED) and the grip (thumbstick LED).   |
+    | The GRIP_FLAG bit selects the grip report type.           |
     \*---------------------------------------------------------*/
     unsigned char   base_zones[THRUSTMASTER_SOL_R_ZONE_COUNT];
     RGBColor        base_colors[THRUSTMASTER_SOL_R_ZONE_COUNT];
@@ -104,11 +104,13 @@ void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
 
     for(unsigned int i = 0; i < count; i++)
     {
-        if(zones[i] == THRUSTMASTER_SOL_ZONE_THUMBSTICK)
+        if(zones[i] & THRUSTMASTER_SOL_GRIP_FLAG)
         {
             /*-------------------------------------------------*\
             | Send grip packet for thumbstick immediately       |
             \*-------------------------------------------------*/
+            unsigned char zone_id = zones[i] & 0xFF;
+
             unsigned char packet[THRUSTMASTER_SOL_PACKET_SIZE];
             memset(packet, 0x00, THRUSTMASTER_SOL_PACKET_SIZE);
 
@@ -116,7 +118,7 @@ void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
             packet[1] = THRUSTMASTER_SOL_REPORT_GRIP_HI;
             packet[2] = persist_flag | 0x01;
             packet[3] = THRUSTMASTER_SOL_MARKER;
-            packet[4] = THRUSTMASTER_SOL_ZONE_THUMBSTICK;
+            packet[4] = zone_id;
             packet[5] = RGBGetRValue(colors[i]);
             packet[6] = RGBGetGValue(colors[i]);
             packet[7] = RGBGetBValue(colors[i]);
@@ -126,7 +128,7 @@ void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
         }
         else
         {
-            base_zones[base_count]  = zones[i];
+            base_zones[base_count]  = zones[i] & 0xFF;
             base_colors[base_count] = colors[i];
             base_count++;
         }
@@ -166,19 +168,19 @@ void ThrustmasterSolController::BuildAndSendPackets(unsigned char* zones,
     }
 }
 
-void ThrustmasterSolController::SetLEDColor(unsigned char zone, RGBColor color)
+void ThrustmasterSolController::SetLEDColor(unsigned int zone, RGBColor color)
 {
     BuildAndSendPackets(&zone, &color, 1, false);
 }
 
-void ThrustmasterSolController::SetLEDColors(unsigned char* zones,
+void ThrustmasterSolController::SetLEDColors(unsigned int* zones,
                                               RGBColor* colors,
                                               unsigned int count)
 {
     BuildAndSendPackets(zones, colors, count, false);
 }
 
-void ThrustmasterSolController::SaveColors(unsigned char* zones,
+void ThrustmasterSolController::SaveColors(unsigned int* zones,
                                             RGBColor* colors,
                                             unsigned int count)
 {
