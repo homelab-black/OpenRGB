@@ -26,11 +26,10 @@
 
 #define NA 0xFFFFFFFF
 
-static unsigned int logo_matrix_map[3][3] =
+static unsigned int logo_matrix_map[2][2] =
 {
-    { NA,   0,  NA },
-    {  2,  NA,   1 },
-    { NA,   3,  NA },
+    {  0,   3 },
+    {  1,   2 },
 };
 
 static unsigned int ring_matrix_map[3][5] =
@@ -126,30 +125,30 @@ void RGBController_ThrustmasterSol::SetupZones()
     logo_zone.leds_max           = 4;
     logo_zone.leds_count         = 4;
     logo_zone.matrix_map         = new matrix_map_type;
-    logo_zone.matrix_map->height = 3;
-    logo_zone.matrix_map->width  = 3;
+    logo_zone.matrix_map->height = 2;
+    logo_zone.matrix_map->width  = 2;
     logo_zone.matrix_map->map    = (unsigned int *)&logo_matrix_map;
     zones.push_back(logo_zone);
 
-    led logo_top;
-    logo_top.name  = "TM Logo Top";
-    logo_top.value = 0x01;
-    leds.push_back(logo_top);
+    led logo_top_left;
+    logo_top_left.name  = "TM Logo Top Left";
+    logo_top_left.value = 0x01;
+    leds.push_back(logo_top_left);
 
-    led logo_right;
-    logo_right.name  = "TM Logo Right";
-    logo_right.value = 0x02;
-    leds.push_back(logo_right);
+    led logo_bottom_left;
+    logo_bottom_left.name  = "TM Logo Bottom Left";
+    logo_bottom_left.value = 0x02;
+    leds.push_back(logo_bottom_left);
 
-    led logo_left;
-    logo_left.name  = "TM Logo Left";
-    logo_left.value = 0x03;
-    leds.push_back(logo_left);
+    led logo_bottom_right;
+    logo_bottom_right.name  = "TM Logo Bottom Right";
+    logo_bottom_right.value = 0x03;
+    leds.push_back(logo_bottom_right);
 
-    led logo_bottom;
-    logo_bottom.name  = "TM Logo Bottom";
-    logo_bottom.value = 0x00;
-    leds.push_back(logo_bottom);
+    led logo_top_right;
+    logo_top_right.name  = "TM Logo Top Right";
+    logo_top_right.value = 0x00;
+    leds.push_back(logo_top_right);
 
     /*---------------------------------------------------------*\
     | Left Buttons zone (4 LEDs: buttons 5-8)                   |
