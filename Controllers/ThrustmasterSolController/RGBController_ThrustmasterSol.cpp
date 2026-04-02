@@ -24,6 +24,33 @@
     Uses vendor-specific USB interface 1 (not HID).
 \*-------------------------------------------------------------------*/
 
+#define NA 0xFFFFFFFF
+
+static unsigned int logo_matrix_map[2][3] =
+{
+    { NA,   0,  NA },
+    {  2,  NA,   1 },
+};
+
+static unsigned int ring_matrix_map[3][5] =
+{
+    { NA,   7,   0,   1,  NA },
+    {  6,  NA,  NA,  NA,   2 },
+    { NA,   5,   4,   3,  NA },
+};
+
+static unsigned int right_buttons_matrix_map[2][2] =
+{
+    {  0,   1 },
+    {  2,   3 },
+};
+
+static unsigned int left_buttons_matrix_map[2][2] =
+{
+    {  0,   1 },
+    {  2,   3 },
+};
+
 RGBController_ThrustmasterSol::RGBController_ThrustmasterSol(ThrustmasterSolController* controller_ptr)
 {
     controller  = controller_ptr;
@@ -92,18 +119,21 @@ void RGBController_ThrustmasterSol::SetupZones()
     | TM Logo zone (3 LEDs)                                    |
     \*---------------------------------------------------------*/
     zone logo_zone;
-    logo_zone.name       = "TM Logo";
-    logo_zone.type       = ZONE_TYPE_LINEAR;
-    logo_zone.leds_min   = 3;
-    logo_zone.leds_max   = 3;
-    logo_zone.leds_count = 3;
-    logo_zone.matrix_map = NULL;
+    logo_zone.name               = "TM Logo";
+    logo_zone.type               = ZONE_TYPE_MATRIX;
+    logo_zone.leds_min           = 3;
+    logo_zone.leds_max           = 3;
+    logo_zone.leds_count         = 3;
+    logo_zone.matrix_map         = new matrix_map_type;
+    logo_zone.matrix_map->height = 2;
+    logo_zone.matrix_map->width  = 3;
+    logo_zone.matrix_map->map    = (unsigned int *)&logo_matrix_map;
     zones.push_back(logo_zone);
 
-    led logo_bottom;
-    logo_bottom.name  = "TM Logo Bottom";
-    logo_bottom.value = 0x01;
-    leds.push_back(logo_bottom);
+    led logo_top;
+    logo_top.name  = "TM Logo Top";
+    logo_top.value = 0x01;
+    leds.push_back(logo_top);
 
     led logo_right;
     logo_right.name  = "TM Logo Right";
@@ -116,15 +146,53 @@ void RGBController_ThrustmasterSol::SetupZones()
     leds.push_back(logo_left);
 
     /*---------------------------------------------------------*\
+    | Left Buttons zone (4 LEDs: buttons 5-8)                   |
+    \*---------------------------------------------------------*/
+    zone left_buttons_zone;
+    left_buttons_zone.name               = "Left Buttons";
+    left_buttons_zone.type               = ZONE_TYPE_MATRIX;
+    left_buttons_zone.leds_min           = 4;
+    left_buttons_zone.leds_max           = 4;
+    left_buttons_zone.leds_count         = 4;
+    left_buttons_zone.matrix_map         = new matrix_map_type;
+    left_buttons_zone.matrix_map->height = 2;
+    left_buttons_zone.matrix_map->width  = 2;
+    left_buttons_zone.matrix_map->map    = (unsigned int *)&left_buttons_matrix_map;
+    zones.push_back(left_buttons_zone);
+
+    led btn5;
+    btn5.name  = "Button 5";
+    btn5.value = 0x11;
+    leds.push_back(btn5);
+
+    led btn6;
+    btn6.name  = "Button 6";
+    btn6.value = 0x10;
+    leds.push_back(btn6);
+
+    led btn7;
+    btn7.name  = "Button 7";
+    btn7.value = 0x12;
+    leds.push_back(btn7);
+
+    led btn8;
+    btn8.name  = "Button 8";
+    btn8.value = 0x13;
+    leds.push_back(btn8);
+
+    /*---------------------------------------------------------*\
     | Base Ring zone (8 LEDs, clockwise from top)               |
     \*---------------------------------------------------------*/
     zone ring_zone;
-    ring_zone.name       = "Base Ring";
-    ring_zone.type       = ZONE_TYPE_LINEAR;
-    ring_zone.leds_min   = 8;
-    ring_zone.leds_max   = 8;
-    ring_zone.leds_count = 8;
-    ring_zone.matrix_map = NULL;
+    ring_zone.name               = "Base Ring";
+    ring_zone.type               = ZONE_TYPE_MATRIX;
+    ring_zone.leds_min           = 8;
+    ring_zone.leds_max           = 8;
+    ring_zone.leds_count         = 8;
+    ring_zone.matrix_map         = new matrix_map_type;
+    ring_zone.matrix_map->height = 3;
+    ring_zone.matrix_map->width  = 5;
+    ring_zone.matrix_map->map    = (unsigned int *)&ring_matrix_map;
     zones.push_back(ring_zone);
 
     led ring_upper;
@@ -171,12 +239,15 @@ void RGBController_ThrustmasterSol::SetupZones()
     | Right Buttons zone (4 LEDs: buttons 16-19)                |
     \*---------------------------------------------------------*/
     zone right_buttons_zone;
-    right_buttons_zone.name       = "Right Buttons";
-    right_buttons_zone.type       = ZONE_TYPE_LINEAR;
-    right_buttons_zone.leds_min   = 4;
-    right_buttons_zone.leds_max   = 4;
-    right_buttons_zone.leds_count = 4;
-    right_buttons_zone.matrix_map = NULL;
+    right_buttons_zone.name               = "Right Buttons";
+    right_buttons_zone.type               = ZONE_TYPE_MATRIX;
+    right_buttons_zone.leds_min           = 4;
+    right_buttons_zone.leds_max           = 4;
+    right_buttons_zone.leds_count         = 4;
+    right_buttons_zone.matrix_map         = new matrix_map_type;
+    right_buttons_zone.matrix_map->height = 2;
+    right_buttons_zone.matrix_map->width  = 2;
+    right_buttons_zone.matrix_map->map    = (unsigned int *)&right_buttons_matrix_map;
     zones.push_back(right_buttons_zone);
 
     led btn17;
@@ -189,47 +260,15 @@ void RGBController_ThrustmasterSol::SetupZones()
     btn16.value = 0x08;
     leds.push_back(btn16);
 
-    led btn18;
-    btn18.name  = "Button 18";
-    btn18.value = 0x09;
-    leds.push_back(btn18);
-
     led btn19;
     btn19.name  = "Button 19";
     btn19.value = 0x0A;
     leds.push_back(btn19);
 
-    /*---------------------------------------------------------*\
-    | Left Buttons zone (4 LEDs: buttons 5-8)                   |
-    \*---------------------------------------------------------*/
-    zone left_buttons_zone;
-    left_buttons_zone.name       = "Left Buttons";
-    left_buttons_zone.type       = ZONE_TYPE_LINEAR;
-    left_buttons_zone.leds_min   = 4;
-    left_buttons_zone.leds_max   = 4;
-    left_buttons_zone.leds_count = 4;
-    left_buttons_zone.matrix_map = NULL;
-    zones.push_back(left_buttons_zone);
-
-    led btn6;
-    btn6.name  = "Button 6";
-    btn6.value = 0x10;
-    leds.push_back(btn6);
-
-    led btn5;
-    btn5.name  = "Button 5";
-    btn5.value = 0x11;
-    leds.push_back(btn5);
-
-    led btn7;
-    btn7.name  = "Button 7";
-    btn7.value = 0x12;
-    leds.push_back(btn7);
-
-    led btn8;
-    btn8.name  = "Button 8";
-    btn8.value = 0x13;
-    leds.push_back(btn8);
+    led btn18;
+    btn18.name  = "Button 18";
+    btn18.value = 0x09;
+    leds.push_back(btn18);
 
     SetupColors();
 }
