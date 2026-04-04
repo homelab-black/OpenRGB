@@ -86,6 +86,11 @@ DetectedControllers DetectGigabyteRGBFusion2BlackwellSingleZoneGPUControllers(i2
     return(DetectGigabyteRGBFusion2BlackwellGPUControllers(bus, i2c_addr, name, RGB_FUSION2_BLACKWELL_GPU_SINGLE_ZONE));
 }
 
+DetectedControllers DetectGigabyteRGBFusion2BlackwellRadeon9000GamingLayoutGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const std::string& name)
+{
+    return(DetectGigabyteRGBFusion2BlackwellGPUControllers(bus, i2c_addr, name, RGB_FUSION2_BLACKWELL_GPU_RADEON_9000_GAMING_LAYOUT));
+}
+
 DetectedControllers DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const std::string& name)
 {
     return(DetectGigabyteRGBFusion2BlackwellGPUControllers(bus, i2c_addr, name, RGB_FUSION2_BLACKWELL_GPU_GAMING_LAYOUT));
@@ -146,7 +151,7 @@ REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9060 XT GAMING OC",               
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9060 XT GAMING OC ICE 16G",           DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI44_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9060XT_GAMING_OC_ICE_16G_SUB_DEV,              0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 GRE GAMING OC 12G",              DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070_GRE_GAMING_OC_12G_SUB_DEV,                0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte AORUS Radeon RX 9070 XT Elite",                 DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_AORUS_RX9070XT_ELITE_16G_SUB_DEV,                0x75);
-REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING OC",                   DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV,                  0x75);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING OC",                   DetectGigabyteRGBFusion2BlackwellRadeon9000GamingLayoutGPUControllers,          AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV,                  0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING OC ICE",               DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070XT_GAMING_OC_ICE_16G_SUB_DEV,              0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 XT GAMING",                      DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070XT_GAMING_16G_SUB_DEV,                     0x75);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte Radeon RX 9070 GAMING OC",                      DetectGigabyteRGBFusion2BlackwellGamingLayoutGPUControllers,                    AMD_GPU_VEN,    AMD_NAVI48_DEV,             GIGABYTE_SUB_VEN, GIGABYTE_RX9070_GAMING_OC_16G_SUB_DEV,                    0x75);

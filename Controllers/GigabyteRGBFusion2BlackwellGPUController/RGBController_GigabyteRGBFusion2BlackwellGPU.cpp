@@ -212,7 +212,7 @@ void RGBController_RGBFusion2BlackwellGPU::SetupZones()
     | This device only allows setting the entire zone for all   |
     | LED's in the zone and does not allow per LED control.     |
     \*---------------------------------------------------------*/
-    if(gpu_layout == RGB_FUSION2_BLACKWELL_GPU_SINGLE_ZONE)
+    if(gpu_layout == RGB_FUSION2_BLACKWELL_GPU_SINGLE_ZONE || gpu_layout == RGB_FUSION2_BLACKWELL_GPU_RADEON_9000_GAMING_LAYOUT)
     {
         zone new_zone;
         led  new_led;
@@ -469,6 +469,10 @@ void RGBController_RGBFusion2BlackwellGPU::DeviceUpdateLEDs()
             gpu_zones = 3;
             break;
 
+        case RGB_FUSION2_BLACKWELL_GPU_RADEON_9000_GAMING_LAYOUT:
+            gpu_zones = 1;
+            break;
+
         case RGB_FUSION2_BLACKWELL_GPU_AORUS_WATERFORCE_LAYOUT:
             gpu_zones = 5; // Hardware zones 0-4, but zone 0 is skipped
             break;
@@ -499,7 +503,11 @@ void RGBController_RGBFusion2BlackwellGPU::DeviceUpdateLEDs()
         uint8_t hardware_zone_idx = zone_idx;
         uint8_t ui_zone_idx = zone_idx;
 
-        if(gpu_layout == RGB_FUSION2_BLACKWELL_GPU_AORUS_WATERFORCE_LAYOUT)
+        if(gpu_layout == RGB_FUSION2_BLACKWELL_GPU_RADEON_9000_GAMING_LAYOUT)
+        {
+            hardware_zone_idx = 2; // Single zone at hardware index 2
+        }
+        else if(gpu_layout == RGB_FUSION2_BLACKWELL_GPU_AORUS_WATERFORCE_LAYOUT)
         {
             if(zone_idx == 0)
             {
