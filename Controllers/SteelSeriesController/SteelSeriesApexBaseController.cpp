@@ -35,11 +35,10 @@ std::string SteelSeriesApexBaseController::GetName()
 }
 
 /*---------------------------------------------------------*\
-| Gen 1 Apex Pro stores the unit serial number              |
-| in firmware which can be read back. This is required      |
-| to determine the region of the keyboard specifically      |
-| the the first 5 digits. This is not the case for Gen 3,   |
-| calls to this function will be ignored.                   |
+| Gen 1 Apex Pro stores the unit serial number in firmware. |
+| The first 5 digits determine the region of the keyboard.  |
+| This is not the case for Gen 3, call to this function     |
+| will be ignored.                                          |
 \*---------------------------------------------------------*/
 std::string SteelSeriesApexBaseController::GetSerial()
 {
@@ -99,7 +98,7 @@ std::string SteelSeriesApexBaseController::GetVersion()
     {
         /*-------------------------------------------------*\
         | Gen 1 & 2 Apex Pro report KBD and LED firmware    |
-        | Gen 3 only reports the KBD firmware and ignores   |
+        | Gen 3 only reports the KBD firmware, ignoring     |
         | requests to read the LED version                  |
         \*-------------------------------------------------*/
         unsigned char   obuf[STEELSERIES_PACKET_OUT_SIZE];

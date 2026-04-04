@@ -258,12 +258,13 @@ std::string SteelSeriesApexController::GetSerial()
     | firmware. A region code is instead set by the     |
     | user and subsequently read back. This region code |
     | is used by all 5 on-board configs.                |
-    | For consistency with other Apex keyboards this    |
-    | region code is mapped to an approximate SKU       |
-    | as the region patch logic is identical.           |
-    | The SKU selected may not be an exact match for    |
-    | your keyboard but should reflect the form factor  |
-    | and region.                                       |
+    | For consistency with other Apex keyboards, this   |
+    | region code in combination with the PID is mapped |
+    | to an approximate product number as the region    |
+    | patch logic from that point is identical.         |
+    | The product number used may not be an exact match |
+    | for the keyboard but should reflect the form      |
+    | factor, region and RGB layout                     |
     \*-------------------------------------------------*/
     if(kbd_quirk >= APEX_GEN2)
     {
