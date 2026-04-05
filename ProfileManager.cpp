@@ -501,6 +501,11 @@ void ProfileManager::UpdateProfileList()
             profile_file.close();
         }
     }
+
+    /*---------------------------------------------------------*\
+    | Sort the profiles list                                    |
+    \*---------------------------------------------------------*/
+    std::sort(profile_list.begin(), profile_list.end());
 }
 
 unsigned char * ProfileManager::GetProfileListDescription()
