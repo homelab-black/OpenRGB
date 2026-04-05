@@ -12,8 +12,6 @@
 #include "Detector.h"
 #include "ZotacV2GPUController.h"
 #include "RGBController_ZotacV2GPU.h"
-#include "ZotacBlackwellGPUController.h"
-#include "RGBController_ZotacBlackwellGPU.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 #include "LogManager.h"
@@ -67,28 +65,3 @@ REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 4080 AMP Extreme AIRO",     
 REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 4080 AMP Extreme AIRO",       DetectZotacV2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4080_DEV,         ZOTAC_SUB_VEN, ZOTAC_RTX4080_AMP_ALT_SUB_DEV,         0x49);
 REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 4090 Trinity OC",             DetectZotacV2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4090_DEV,         ZOTAC_SUB_VEN, ZOTAC_RTX4090_TRINITY_SUB_DEV,         0x49);
 REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 4090 AMP Extreme AIRO",       DetectZotacV2GPUControllers, NVIDIA_VEN, NVIDIA_RTX4090_DEV,         ZOTAC_SUB_VEN, ZOTAC_RTX4090_AMP_SUB_DEV,             0x49);
-
-/*---------------------------------------------------------*\
-| ZOTAC Blackwell (RTX 50 series) detection                 |
-|                                                           |
-| NOTE: On distributions with aggressive LTO (e.g. CachyOS |
-| or Arch-based with -flto in CFLAGS), the linker may strip |
-| REGISTER_I2C_PCI_DETECTOR entries as unused.  Build with  |
-| -fno-lto or remove -flto from CXXFLAGS/LDFLAGS if the    |
-| device is not detected at runtime.                        |
-\*---------------------------------------------------------*/
-
-void DetectZotacBlackwellGPUControllersPCI(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name)
-{
-    s32 result = bus->i2c_smbus_read_byte_data(i2c_addr, 0x10);
-
-    if(result >= 0)
-    {
-        ZotacBlackwellGPUController*     controller     = new ZotacBlackwellGPUController(bus, i2c_addr, name);
-        RGBController_ZotacBlackwellGPU* rgb_controller = new RGBController_ZotacBlackwellGPU(controller);
-
-        ResourceManager::get()->RegisterRGBController(rgb_controller);
-    }
-}
-
-REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 5080 AMP Extreme INFINITY",  DetectZotacBlackwellGPUControllersPCI, NVIDIA_VEN, NVIDIA_RTX5080_DEV, ZOTAC_SUB_VEN, ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV, 0x4B);

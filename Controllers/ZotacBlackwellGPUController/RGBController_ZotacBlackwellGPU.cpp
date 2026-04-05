@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for ZOTAC Blackwell (RTX 50 series) GPU   |
 |                                                           |
-|   Eder Sánchez                                  27 Mar 2026 |
+|   Eder Sánchez                                27 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -28,7 +28,7 @@
 
         To add new cards, add PCI ID entries in `pci_ids/pci_ids.h`
         and detection entries in
-        `Controllers/ZotacV2GPUController/ZotacV2GPUControllerDetect.cpp`.
+        `Controllers/ZotacBlackwellGPUController/ZotacBlackwellGPUControllerDetect.cpp`.
 \*-------------------------------------------------------------------*/
 
 RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr)

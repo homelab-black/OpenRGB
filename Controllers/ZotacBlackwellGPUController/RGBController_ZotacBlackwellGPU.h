@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for ZOTAC Blackwell (RTX 50 series) GPU   |
 |                                                           |
-|   Eder Sánchez                                  27 Mar 2026 |
+|   Eder Sánchez                                27 Mar 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
