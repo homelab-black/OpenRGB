@@ -14,12 +14,14 @@
 #include "LogManager.h"
 #include "RGBController.h"
 #include "RGBController_ENESMBus.h"
+#include "SettingsManager.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 #include "dmiinfo.h"
 
 #define DETECTOR_NAME   "ENE (ASUS Aura) SMBus Controller"
 #define VENDOR_NAME     "ASUS"                                  //This should match the Vendor name from DMI
+#define QUIRK_BOARD_KEY "QuirkyMotherboards"
 
 using namespace std::chrono_literals;
 
@@ -60,6 +62,31 @@ static const unsigned char ene_ram_addresses[] =
     0x3B,
     0x3C,
     0x3D
+};
+
+/*----------------------------------------------------------------------------*\
+| Probing some addresses may trip motherboards listed below to freeze or crash |
+| Since those are DDR5 motherboards, let's use limited set of addresses there  |
+\*----------------------------------------------------------------------------*/
+json quirk_ene_smbus_motherboards[] =
+{
+    "X670E Steel Legend",
+    "MPG Z690 CARBON WIFI",
+    "B760 Pro RS"
+};
+
+#define QUIRK_ENE_RAM_ADDRESS_COUNT  8
+
+static const unsigned char quirk_ene_ram_addresses[] =
+{
+    0x70,
+    0x71,
+    0x72,
+    0x73,
+    0x74,
+    0x75,
+    0x76,
+    0x77
 };
 
 /*---------------------------------------------------------------------------------*\
@@ -132,12 +159,7 @@ bool TestForENESMBusController(i2c_smbus_interface* bus, unsigned char address)
 
     LOG_DEBUG("[ENE SMBus] looking for devices at 0x%02X...", address);
 
-    int res = bus->i2c_smbus_read_byte(address);
-
-    if(res < 0)
-    {
-        res = bus->i2c_smbus_read_byte_data(address, 0x00);
-    }
+    int res = bus->i2c_smbus_write_quick(address, 0x00);
 
     if(res >= 0)
     {
@@ -197,9 +219,40 @@ bool TestForENESMBusController(i2c_smbus_interface* bus, unsigned char address)
 
 void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
 {
+    /*---------------------------------------*\
+    | Use limited list on quirky motherboards |
+    \*---------------------------------------*/
+    SettingsManager*                    set_man = ResourceManager::get()->GetSettingsManager();
+    json                                device_settings;
+    DMIInfo                             dmi;
+
+    /*----------------------------------------------------*\
+    | Get the list of quirky boards from settings manager  |
+    \*----------------------------------------------------*/
+    device_settings = set_man->GetSettings(DETECTOR_NAME);
+
+    if(!device_settings.contains(QUIRK_BOARD_KEY))
+    {
+        //If the list is not found then write it to settings
+        device_settings[QUIRK_BOARD_KEY] = quirk_ene_smbus_motherboards;
+        set_man->SetSettings(DETECTOR_NAME, device_settings);
+        set_man->SaveSettings();
+    }
+
+    unsigned int addr_list_count                       = ENE_RAM_ADDRESS_COUNT;
+    const unsigned char *addr_list                     = ene_ram_addresses;
+    nlohmann::detail::iter_impl<nlohmann::json> result = std::find(std::begin(device_settings[QUIRK_BOARD_KEY]), std::end(device_settings[QUIRK_BOARD_KEY]), dmi.getMainboard() );
+
+    if(result != std::end(device_settings[QUIRK_BOARD_KEY]))
+    {
+        LOG_VERBOSE("[ENE SMBus DRAM] Detected quirky motherboard, limiting probed I2C addresses");
+        addr_list = quirk_ene_ram_addresses;
+        addr_list_count = QUIRK_ENE_RAM_ADDRESS_COUNT;
+    }
+
     for (unsigned int bus = 0; bus < busses.size(); bus++)
     {
-        int address_list_idx = -1;
+        unsigned int address_list_idx = 0;
 
         IF_DRAM_SMBUS(busses[bus]->pci_vendor, busses[bus]->pci_device)
         {
@@ -216,38 +269,34 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
                     break;
                 }
 
-                do
+                while (address_list_idx < addr_list_count)
                 {
-                    address_list_idx++;
+                    LOG_DEBUG("[ENE SMBus DRAM] Testing address %02X to see if there is a device there", addr_list[address_list_idx]);
 
-                    if(address_list_idx < ENE_RAM_ADDRESS_COUNT)
-                    {
-                        LOG_DEBUG("[ENE SMBus DRAM] Testing address %02X to see if there is a device there", ene_ram_addresses[address_list_idx]);
-
-                        res = busses[bus]->i2c_smbus_write_quick(ene_ram_addresses[address_list_idx], I2C_SMBUS_WRITE);
-                    }
-                    else
+                    res = busses[bus]->i2c_smbus_write_quick(addr_list[address_list_idx], I2C_SMBUS_WRITE);
+                    if(res < 0)
                     {
                         break;
                     }
-                } while (res >= 0);
+                    address_list_idx++;
+                }
 
-                if(address_list_idx < ENE_RAM_ADDRESS_COUNT)
+                if(address_list_idx < addr_list_count)
                 {
-                    LOG_DEBUG("[ENE SMBus DRAM] Remapping slot %d to address %02X", slot, ene_ram_addresses[address_list_idx]);
+                    LOG_DEBUG("[ENE SMBus DRAM] Remapping slot %d to address %02X", slot, addr_list[address_list_idx]);
 
                     ENERegisterWrite(busses[bus], 0x77, ENE_REG_SLOT_INDEX, slot);
-                    ENERegisterWrite(busses[bus], 0x77, ENE_REG_I2C_ADDRESS, (ene_ram_addresses[address_list_idx] << 1));
+                    ENERegisterWrite(busses[bus], 0x77, ENE_REG_I2C_ADDRESS, (addr_list[address_list_idx] << 1));
                 }
             }
 
             // Add ENE controllers at their remapped addresses
-            for (unsigned int address_list_idx = 0; address_list_idx < ENE_RAM_ADDRESS_COUNT; address_list_idx++)
+            for (unsigned int address_list_idx = 0; address_list_idx < addr_list_count; address_list_idx++)
             {
-                if (TestForENESMBusController(busses[bus], ene_ram_addresses[address_list_idx]))
+                if (TestForENESMBusController(busses[bus], addr_list[address_list_idx]))
                 {
                     ENESMBusInterface_i2c_smbus* interface      = new ENESMBusInterface_i2c_smbus(busses[bus]);
-                    ENESMBusController*          controller     = new ENESMBusController(interface, ene_ram_addresses[address_list_idx], "ENE DRAM", DEVICE_TYPE_DRAM);
+                    ENESMBusController*          controller     = new ENESMBusController(interface, addr_list[address_list_idx], "ENE DRAM", DEVICE_TYPE_DRAM);
                     RGBController_ENESMBus*      rgb_controller = new RGBController_ENESMBus(controller);
 
                     ResourceManager::get()->RegisterRGBController(rgb_controller);
