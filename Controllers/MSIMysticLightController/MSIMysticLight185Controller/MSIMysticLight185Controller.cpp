@@ -718,7 +718,7 @@ bool MSIMysticLight185Controller::Update
     }
     else
     {
-	/*-----------------------------------------------------*\
+        /*-----------------------------------------------------*\
         | Save new state, read current state from board,        |
         | send old state first, then new state.                 |
         | Windows Mystic Light sends two consecutive reports.   |
