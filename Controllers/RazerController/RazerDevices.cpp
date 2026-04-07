@@ -429,7 +429,12 @@ keyboard_keymap_overlay_values razer_blackwidow_v4_tkl_layout
         | Edit Keys                                                                                                                             |
         |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode                              |
         \*-------------------------------------------------------------------------------------------------------------------------------------*/
-        
+        {   0,      0,      10,          0,          KEY_EN_UNUSED,                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move F9 1 right (Shifts row)
+        {   0,      1,      14,          0,          KEY_EN_UNUSED,                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Insert 1 right (Shifts row)
+        {   0,      2,      14,          0,          KEY_EN_UNUSED,                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Del 1 right (Shifts row)
+        {   0,      4,      14,          0,          KEY_EN_UNUSED,                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Up Arrow 1 right (Shifts row)
+        {   0,      5,      5,           0,          KEY_EN_UNUSED,                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Right Alt 1 right (Shifts row)
+
     }
 };
 
