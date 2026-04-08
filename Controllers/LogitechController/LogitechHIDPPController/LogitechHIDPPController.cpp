@@ -222,8 +222,8 @@ int LogitechHIDPPController::ReadResponse
     \*---------------------------------------------------------*/
     if(resp_feat == 0xFF)
     {
-        LOG_DEBUG("%s Error response: feat=0x%02X func=0x%02X err=0x%02X",
-                  LOG_TAG, resp_data[0], resp_data[1], resp_data[2]);
+        LOG_DEBUG("%s HID++ error: feat_idx=0x%02X func|swid=0x%02X error=0x%02X",
+                  LOG_TAG, resp_func, resp_data[0], resp_data[1]);
         return -1;
     }
 
@@ -793,16 +793,16 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
     }
 
     /*---------------------------------------------------------*\
-    | Probe GetInfo with typeOfInfo 0, 1, 2 to build zone       |
-    | bitmask. Each call returns 14 bytes of bitmask covering   |
-    | 112 zone IDs. Combined = 336 addressable zones.           |
+    | Probe GetInfo to build zone bitmask.                      |
+    | Single query returns 14 bytes covering zone IDs 0-111.    |
+    | Testing shows all tested devices return identical data     |
+    | for typeOfInfo 0, 1, 2 — only query once.                 |
     \*---------------------------------------------------------*/
-    uint8_t bitmap[42];
+    uint8_t bitmap[14];
     memset(bitmap, 0, sizeof(bitmap));
 
-    for(int type_id = 0; type_id < 3; type_id++)
     {
-        uint8_t query[3] = { 0x00, 0x00, (uint8_t)type_id };
+        uint8_t query[3] = { 0x00, 0x00, 0x00 };
         SendLong(perkey_idx, FN_8081_GET_INFO, query, 3);
 
         blankFAPmessage response;
@@ -810,36 +810,32 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
 
         if(result > 0)
         {
-            memcpy(bitmap + (type_id * 14), response.data + 2, 14);
+            LOG_DEBUG("%s Per-key GetInfo response: "
+                      "%02X %02X | %02X %02X %02X %02X %02X %02X %02X "
+                      "%02X %02X %02X %02X %02X %02X %02X",
+                      LOG_TAG,
+                      response.data[0], response.data[1],
+                      response.data[2], response.data[3], response.data[4],
+                      response.data[5], response.data[6], response.data[7],
+                      response.data[8], response.data[9], response.data[10],
+                      response.data[11], response.data[12], response.data[13],
+                      response.data[14], response.data[15]);
+
+            memcpy(bitmap, response.data + 2, 14);
         }
     }
 
     /*---------------------------------------------------------*\
-    | Detect echoed responses — some devices (e.g. G502 mouse)  |
-    | return the same bitmask for all typeOfInfo values.         |
-    | If typeOfInfo=1 or 2 matches typeOfInfo=0, discard them.  |
-    \*---------------------------------------------------------*/
-    if(memcmp(bitmap, bitmap + 14, 14) == 0)
-    {
-        memset(bitmap + 14, 0, 14);
-    }
-
-    if(memcmp(bitmap, bitmap + 28, 14) == 0)
-    {
-        memset(bitmap + 28, 0, 14);
-    }
-
-    /*---------------------------------------------------------*\
-    | Parse bitmask to find valid zone IDs                      |
+    | Parse bitmask to find valid zone IDs (0-111)              |
     \*---------------------------------------------------------*/
     caps.perkey_zone_ids.clear();
 
-    for(int zone_id = 1; zone_id < 336; zone_id++)
+    for(int zone_id = 1; zone_id < 112; zone_id++)
     {
         int byte_idx = zone_id / 8;
         int bit_idx  = zone_id % 8;
 
-        if(byte_idx < 42 && (bitmap[byte_idx] & (1 << bit_idx)))
+        if(byte_idx < 14 && (bitmap[byte_idx] & (1 << bit_idx)))
         {
             caps.perkey_zone_ids.push_back((uint16_t)zone_id);
         }
@@ -1190,6 +1186,17 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
     }
 }
 
+void LogitechHIDPPController::SendPerKeyData
+    (
+    uint8_t         perkey_idx,
+    uint8_t         function,
+    const uint8_t*  data,
+    size_t          len
+    )
+{
+    SendLong(perkey_idx, function, data, len);
+}
+
 void LogitechHIDPPController::PerKeyFrameEnd(bool persist)
 {
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
@@ -1201,36 +1208,51 @@ void LogitechHIDPPController::PerKeyFrameEnd(bool persist)
 
     /*---------------------------------------------------------*\
     | Flush queued ACKs from fire-and-forget per-key writes     |
-    | before sending FrameEnd, so ReadResponse finds the right  |
-    | response.                                                 |
     \*---------------------------------------------------------*/
-    blankFAPmessage flush;
-    while(true)
     {
-        flush.init();
-        int result;
+        uint8_t flush_buf[64];
 
-        if(mutex)
+        while(hid_read_timeout(dev, flush_buf, sizeof(flush_buf), 1) > 0)
         {
-            std::lock_guard<std::mutex> lock(*mutex);
-            result = hid_read_timeout(dev, flush.buffer, flush.size(), 1);
-        }
-        else
-        {
-            result = hid_read_timeout(dev, flush.buffer, flush.size(), 1);
-        }
-
-        if(result <= 0)
-        {
-            break;
         }
     }
 
+    /*---------------------------------------------------------*\
+    | Send FrameEnd and wait for ACK.                           |
+    | Retry on BUSY (0x08) — the device is still processing     |
+    | per-key writes and needs a moment before committing.      |
+    \*---------------------------------------------------------*/
     uint8_t data[5] = { (uint8_t)(persist ? 0x01 : 0x00), 0x00, 0x00, 0x00, 0x00 };
-    SendLong(perkey_idx, FN_8081_FRAME_END, data, 5);
 
-    blankFAPmessage response;
-    ReadResponse(response, perkey_idx, FN_8081_FRAME_END);
+    for(int attempt = 0; attempt < 5; attempt++)
+    {
+        SendLong(perkey_idx, FN_8081_FRAME_END, data, 5);
+
+        blankFAPmessage response;
+        int result = ReadResponse(response, perkey_idx, FN_8081_FRAME_END);
+
+        if(result > 0)
+        {
+            return;
+        }
+
+        /*-----------------------------------------------------*\
+        | Check if the error was BUSY (0x08). If so, wait and    |
+        | retry. Otherwise give up.                              |
+        \*-----------------------------------------------------*/
+        if(response.feature_index == 0xFF)
+        {
+            uint8_t error_code = response.data[1];
+
+            if(error_code == 0x08 && attempt < 4)
+            {
+                std::this_thread::sleep_for(5ms);
+                continue;
+            }
+        }
+
+        break;
+    }
 }
 
 /*---------------------------------------------------------*\

@@ -420,10 +420,14 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
         /*-----------------------------------------------------*\
-        | Build all zone-color pairs and send via fn1            |
-        | (SetIndividualRgbZones, 4 entries per packet)          |
+        | Group colors by value for efficient batching.          |
+        | fn6 (SetRgbZonesSingleValue) sends 1 color + up to    |
+        | 13 zone IDs per packet. fn1 (SetIndividualRgbZones)    |
+        | sends 4 zone+color entries per packet.                 |
+        | Matching Solaar's approach: bulk same-color groups      |
+        | via fn6, then remaining via fn1.                       |
         \*-----------------------------------------------------*/
-        std::vector<std::pair<uint16_t, RGBColor>> pairs;
+        std::map<RGBColor, std::vector<uint8_t>> color_to_zones;
 
         for(size_t i = 0; i < colors.size() && i < led_to_zone_id.size(); i++)
         {
@@ -432,10 +436,69 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                 continue;
             }
 
-            pairs.push_back({led_to_zone_id[i], colors[i]});
+            color_to_zones[colors[i]].push_back((uint8_t)led_to_zone_id[i]);
         }
 
-        controller->SetPerKeyColors(pairs);
+        /*-----------------------------------------------------*\
+        | Send bulk groups via fn6, individuals via fn1           |
+        \*-----------------------------------------------------*/
+        std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
+
+        for(auto& entry : color_to_zones)
+        {
+            RGBColor color = entry.first;
+            std::vector<uint8_t>& zone_ids = entry.second;
+
+            if(zone_ids.size() > 3)
+            {
+                /*-------------------------------------------------*\
+                | Bulk: fn6 (SetRgbZonesSingleValue), 13 per packet  |
+                \*-------------------------------------------------*/
+                uint8_t r = RGBGetRValue(color);
+                uint8_t g = RGBGetGValue(color);
+                uint8_t b = RGBGetBValue(color);
+
+                uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
+
+                for(size_t i = 0; i < zone_ids.size(); i += 13)
+                {
+                    uint8_t data[16] = {};
+                    data[0] = r;
+                    data[1] = g;
+                    data[2] = b;
+
+                    size_t batch = zone_ids.size() - i;
+
+                    if(batch > 13)
+                    {
+                        batch = 13;
+                    }
+
+                    for(size_t j = 0; j < batch; j++)
+                    {
+                        data[3 + j] = zone_ids[i + j];
+                    }
+
+                    controller->SendPerKeyData(perkey_idx, 0x60, data, 3 + batch);
+                }
+            }
+            else
+            {
+                /*-------------------------------------------------*\
+                | Individual: accumulate for fn1                     |
+                \*-------------------------------------------------*/
+                for(uint8_t zid : zone_ids)
+                {
+                    individual_pairs.push_back({zid, color});
+                }
+            }
+        }
+
+        if(!individual_pairs.empty())
+        {
+            controller->SetPerKeyColors(individual_pairs);
+        }
+
         controller->PerKeyFrameEnd();
     }
 }
