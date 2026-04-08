@@ -82,13 +82,13 @@ bool i2c_smbus_linux_detect()
     int                     test_fd;
     int                     ret = true;
     char path[PATH_MAX];
-    char buff[100];
+    char buff[64];
     unsigned short pci_device, pci_vendor, pci_subsystem_device, pci_subsystem_vendor;
     unsigned short port_id, bus_id;
     char *ptr;
 
     // Start looking for I2C adapters in /sys/bus/i2c/devices/
-    strncpy(driver_path, "/sys/bus/i2c/devices/", sizeof(driver_path) - 1);
+    strcpy(driver_path, "/sys/bus/i2c/devices/");
     dir = opendir(driver_path);
 
     if(dir == NULL)
@@ -104,14 +104,17 @@ bool i2c_smbus_linux_detect()
             if(strncmp(ent->d_name, "i2c-", 4) == 0)
             {
                 strncpy(device_string, driver_path, sizeof(device_string) - 1);
+                device_string[sizeof(device_string) - 1] = '\0';
                 strncat(device_string, ent->d_name, sizeof(device_string) - strlen(device_string) - 1);
+                device_string[sizeof(device_string) - 1] = '\0';
                 strncat(device_string, "/name", sizeof(device_string) - strlen(device_string) - 1);
+                device_string[sizeof(device_string) - 1] = '\0';
                 test_fd = open(device_string, O_RDONLY);
 
                 if(test_fd)
                 {
                     memset(device_string, 0x00, sizeof(device_string));
-                    memset(device_path, 0x00, sizeof(device_string));
+                    memset(device_path, 0x00, sizeof(device_path));
 
                     if(read(test_fd, device_string, sizeof(device_string)) < 0)
                     {
@@ -141,7 +144,9 @@ bool i2c_smbus_linux_detect()
 
                     // Get device path
                     strncpy(path, driver_path, sizeof(path) - 1);
+                    path[sizeof(path) - 1] = '\0';
                     strncat(path, ent->d_name, sizeof(path) - strlen(path) - 1);
+                    path[sizeof(path) - 1] = '\0';
                     if(ent->d_type == DT_LNK)
                     {
                         ptr = realpath(path, NULL);
@@ -149,12 +154,15 @@ bool i2c_smbus_linux_detect()
                             continue;
 
                         strncpy(path, ptr, sizeof(path) - 1);
+                        path[sizeof(path) - 1] = '\0';
                         strncat(path, "/..", sizeof(path) - strlen(path) - 1);
+                        path[sizeof(path) - 1] = '\0';
                         free(ptr);
                     }
                     else
                     {
                         strncat(path, "/device", sizeof(path) - strlen(path) - 1);
+                        path[sizeof(path) - 1] = '\0';
                     }
                     ptr = path + strlen(path);
 
@@ -239,7 +247,9 @@ bool i2c_smbus_linux_detect()
                     }
 
                     strncpy(device_path, "/dev/", sizeof(device_path) - 1);
+                    device_path[sizeof(device_path) - 1] = '\0';
                     strncat(device_path, ent->d_name, sizeof(device_path) - strlen(device_path) - 1);
+                    device_path[sizeof(device_path) - 1] = '\0';
                     test_fd = open(device_path, O_RDWR);
 
                     if (test_fd < 0)
