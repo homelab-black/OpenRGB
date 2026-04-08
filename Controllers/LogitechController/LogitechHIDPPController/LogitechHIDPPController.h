@@ -178,6 +178,7 @@ public:
     const HIDPPDeviceCapabilities&  GetCapabilities() const;
     std::string     GetDeviceLocation();
     std::string     GetSerialString();
+    uint32_t        GetInitGeneration() const;
 
     /*-------------------------------------------------*\
     | Per-key lighting (0x8081)                          |
@@ -212,6 +213,8 @@ private:
     HIDPPTransport              transport;
     bool                        initialized;
     uint32_t                    frame_counter;
+    uint32_t                    init_generation;
+    std::string                 log_tag;
 
     /*-------------------------------------------------*\
     | Transport-layer I/O                               |

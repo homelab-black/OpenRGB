@@ -37,4 +37,5 @@ private:
     | Last successfully committed colors for delta updates      |
     \*---------------------------------------------------------*/
     std::vector<RGBColor>       sent_colors;
+    uint32_t                    last_init_gen = 0;
 };

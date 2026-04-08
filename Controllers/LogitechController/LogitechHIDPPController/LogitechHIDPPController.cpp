@@ -15,7 +15,7 @@
 
 using namespace std::chrono_literals;
 
-#define LOG_TAG "[LogitechHIDPP]"
+#define LOG_TAG log_tag.c_str()
 
 LogitechHIDPPController::LogitechHIDPPController
     (
@@ -31,8 +31,10 @@ LogitechHIDPPController::LogitechHIDPPController
     this->device_index  = device_index;
     this->wireless      = wireless;
     this->mutex         = mutex_ptr;
-    this->initialized   = false;
-    this->frame_counter = 0;
+    this->initialized      = false;
+    this->frame_counter    = 0;
+    this->init_generation  = 0;
+    this->log_tag          = "[HID++ " + std::string(path) + "]";
 
     caps = {};
 
@@ -984,6 +986,7 @@ bool LogitechHIDPPController::Probe()
     | Discover device identity                                  |
     \*---------------------------------------------------------*/
     DiscoverDeviceName();
+    log_tag = "[HID++ " + caps.device_name + "]";
     DiscoverDeviceType();
 
     /*---------------------------------------------------------*\
@@ -1056,6 +1059,7 @@ void LogitechHIDPPController::Initialize()
         SetRGBPowerMode(1);
     }
 
+    init_generation++;
     initialized = true;
 }
 
@@ -1116,6 +1120,11 @@ std::string LogitechHIDPPController::GetSerialString()
     return "";
 }
 
+uint32_t LogitechHIDPPController::GetInitGeneration() const
+{
+    return init_generation;
+}
+
 /*---------------------------------------------------------*\
 | SW Control and Power                                      |
 \*---------------------------------------------------------*/
@@ -1171,10 +1180,9 @@ void LogitechHIDPPController::SetPerKeyColors
     /*---------------------------------------------------------*\
     | Batch into SetIndividualRgbZones (fn1): 4 entries/packet  |
     | Each entry = [zone_id, R, G, B]                           |
-    | Wait for ACK after each packet to prevent queue overrun.  |
+    | Fire-and-forget: FrameEnd handles draining stale ACKs.    |
     \*---------------------------------------------------------*/
     uint8_t data[16];
-    uint8_t recv[16];
     int count = 0;
 
     for(size_t i = 0; i < zone_colors.size(); i++)
@@ -1188,7 +1196,10 @@ void LogitechHIDPPController::SetPerKeyColors
 
         if(count == 4 || i == zone_colors.size() - 1)
         {
-            SendAndReceive(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4, recv, sizeof(recv));
+            SendLong(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4);
+
+            uint8_t drain[64];
+            hid_read_timeout(dev, drain, sizeof(drain), 1);
 
             memset(data, 0, sizeof(data));
             count = 0;
@@ -1234,8 +1245,10 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
             data[3 + j] = caps.perkey_zone_ids[i + j];
         }
 
-        uint8_t recv[16];
-        SendAndReceive(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch, recv, sizeof(recv));
+        SendLong(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch);
+
+        uint8_t drain[64];
+        hid_read_timeout(dev, drain, sizeof(drain), 1);
     }
 }
 
@@ -1247,8 +1260,16 @@ void LogitechHIDPPController::SendPerKeyData
     size_t          len
     )
 {
-    uint8_t recv[16];
-    SendAndReceive(perkey_idx, function, data, len, recv, sizeof(recv));
+    SendLong(perkey_idx, function, data, len);
+
+    /*---------------------------------------------------------*\
+    | Quick non-blocking drain: read any pending response to     |
+    | prevent the device's response buffer from filling up.      |
+    | Timeout of 1ms keeps writes fast while ensuring the        |
+    | device can keep up with sustained bursts.                  |
+    \*---------------------------------------------------------*/
+    uint8_t drain[64];
+    hid_read_timeout(dev, drain, sizeof(drain), 1);
 }
 
 bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
@@ -1260,18 +1281,6 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
         return false;
     }
 
-    /*---------------------------------------------------------*\
-    | Flush any unsolicited notifications (battery, button      |
-    | events) that arrived during writes.                       |
-    \*---------------------------------------------------------*/
-    {
-        uint8_t flush_buf[64];
-
-        while(hid_read_timeout(dev, flush_buf, sizeof(flush_buf), 5) > 0)
-        {
-        }
-    }
-
     frame_counter++;
     uint16_t fc = (uint16_t)(frame_counter & 0xFFFF);
 
@@ -1280,56 +1289,85 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
                          (uint8_t)(fc & 0xFF) };
 
     /*---------------------------------------------------------*\
-    | Send FrameEnd and retry on BUSY without delay.            |
-    | The G515 consistently returns BUSY once then succeeds     |
-    | immediately — this appears to be normal device behavior,  |
-    | not a timing issue.                                       |
+    | Send FrameEnd, then read responses in a loop.             |
+    | Per-key writes are fire-and-forget, so stale ACKs and     |
+    | unsolicited notifications may be queued. Discard anything |
+    | that doesn't match FrameEnd's function, and retry on      |
+    | BUSY (device still processing previous frame commit).     |
     \*---------------------------------------------------------*/
-    for(int attempt = 0; attempt < 5; attempt++)
+    uint8_t frame_end_func = FN_8081_FRAME_END | HIDPP_SW_ID;
+
+    for(int attempt = 0; attempt < 10; attempt++)
     {
         SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
 
-        uint8_t resp_feat = 0, resp_func = 0;
-        uint8_t resp_data[16] = {};
-
-        int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data));
-
-        if(result <= 0)
+        for(int reads = 0; reads < 20; reads++)
         {
-            LOG_DEBUG("%s FrameEnd: no response (attempt %d)", LOG_TAG, attempt + 1);
-            continue;
-        }
+            uint8_t resp_feat = 0, resp_func = 0;
+            uint8_t resp_data[16] = {};
 
-        if(resp_feat == 0xFF && resp_data[1] == 0x08)
-        {
+            int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data));
+
+            if(result <= 0)
+            {
+                LOG_DEBUG("%s FrameEnd: read timeout (attempt %d, read %d)",
+                          LOG_TAG, attempt + 1, reads + 1);
+                break;
+            }
+
             /*-------------------------------------------------*\
-            | BUSY — device is processing previous frame commit. |
-            | Wait briefly then retry.                           |
+            | HID++ error response                               |
             \*-------------------------------------------------*/
-            LOG_DEBUG("%s FrameEnd BUSY (attempt %d, fc=%u)", LOG_TAG, attempt + 1, frame_counter);
-            std::this_thread::sleep_for(10ms);
-            continue;
-        }
+            if(resp_feat == 0xFF)
+            {
+                /*---------------------------------------------*\
+                | Check if this error is for OUR FrameEnd        |
+                | resp_func = feat_idx, resp_data[0] = func|sw  |
+                \*---------------------------------------------*/
+                if(resp_func == perkey_idx && resp_data[0] == frame_end_func)
+                {
+                    if(resp_data[1] == 0x08)
+                    {
+                        LOG_DEBUG("%s FrameEnd BUSY (attempt %d, fc=%u)",
+                                  LOG_TAG, attempt + 1, frame_counter);
+                        std::this_thread::sleep_for(10ms);
+                        break;
+                    }
 
-        if(resp_feat == 0xFF)
-        {
-            LOG_DEBUG("%s FrameEnd error 0x%02X (attempt %d, fc=%u)",
-                      LOG_TAG, resp_data[1], attempt + 1, frame_counter);
-            continue;
-        }
+                    LOG_DEBUG("%s FrameEnd error 0x%02X (attempt %d, fc=%u)",
+                              LOG_TAG, resp_data[1], attempt + 1, frame_counter);
+                    break;
+                }
 
-        /*-----------------------------------------------------*\
-        | Success                                                |
-        \*-----------------------------------------------------*/
-        if(attempt > 0)
-        {
-            LOG_DEBUG("%s FrameEnd succeeded on attempt %d (fc=%u)",
-                      LOG_TAG, attempt + 1, frame_counter);
+                /*---------------------------------------------*\
+                | Error for a different function (stale per-key  |
+                | write error) — discard and keep reading.       |
+                \*---------------------------------------------*/
+                continue;
+            }
+
+            /*-------------------------------------------------*\
+            | Normal response — check if it matches FrameEnd    |
+            \*-------------------------------------------------*/
+            if(resp_feat == perkey_idx &&
+               (resp_func & 0xF0) == (FN_8081_FRAME_END & 0xF0))
+            {
+                if(attempt > 0)
+                {
+                    LOG_DEBUG("%s FrameEnd succeeded on attempt %d (fc=%u)",
+                              LOG_TAG, attempt + 1, frame_counter);
+                }
+                return true;
+            }
+
+            /*-------------------------------------------------*\
+            | Non-matching response (stale per-key ACK or        |
+            | unsolicited notification) — discard.               |
+            \*-------------------------------------------------*/
         }
-        return true;
     }
 
-    LOG_DEBUG("%s FrameEnd failed after 5 attempts (fc=%u)", LOG_TAG, frame_counter);
+    LOG_DEBUG("%s FrameEnd failed after 10 attempts (fc=%u)", LOG_TAG, frame_counter);
     return false;
 }
 
