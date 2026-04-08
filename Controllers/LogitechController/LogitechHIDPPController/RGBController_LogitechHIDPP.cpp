@@ -151,6 +151,64 @@ static const std::map<std::string, unsigned int> hidpp_key_name_to_zone =
     { KEY_EN_RIGHT_WINDOWS,  111  },
 };
 
+/*---------------------------------------------------------*\
+| Mouse LED layout table                                    |
+| Each entry defines a matrix layout for a known mouse.     |
+| Looked up by substring match on device name.              |
+| To add a new mouse: add an entry with name pattern,       |
+| grid dimensions, LED count, map, and LED names.           |
+\*---------------------------------------------------------*/
+#define ML_NA 0xFFFFFFFF
+
+struct MouseLayout
+{
+    const char*         name_match;
+    unsigned int        rows;
+    unsigned int        cols;
+    unsigned int        led_count;
+    const unsigned int* map;
+    const char* const*  led_names;
+};
+
+static const unsigned int g502x_map[3 * 7] =
+{
+    /*  C . . . . . B  */
+        2, ML_NA, ML_NA, ML_NA, ML_NA, ML_NA, 1,
+    /*  . D H G F E .  */
+        ML_NA, 3, 7, 6, 5, 4, ML_NA,
+    /*  . . . . . . A  */
+        ML_NA, ML_NA, ML_NA, ML_NA, ML_NA, ML_NA, 0,
+};
+
+static const char* g502x_led_names[] =
+{
+    "LED A", "LED B", "LED C", "LED D",
+    "LED E", "LED F", "LED G", "LED H",
+};
+
+static const MouseLayout known_mouse_layouts[] =
+{
+    { "G502 X",  3, 7, 8, g502x_map, g502x_led_names },
+    /*-------------------------------------------------------*\
+    | Add new mice here:                                      |
+    | { "G PRO X", rows, cols, count, map_ptr, names_ptr },  |
+    \*-------------------------------------------------------*/
+    { nullptr, 0, 0, 0, nullptr, nullptr }
+};
+
+static const MouseLayout* FindMouseLayout(const std::string& device_name)
+{
+    for(const MouseLayout* ml = known_mouse_layouts; ml->name_match != nullptr; ml++)
+    {
+        if(device_name.find(ml->name_match) != std::string::npos)
+        {
+            return ml;
+        }
+    }
+
+    return nullptr;
+}
+
 RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController* controller_ptr)
 {
     controller = controller_ptr;
@@ -409,10 +467,40 @@ void RGBController_LogitechHIDPP::SetupZones()
                 led_to_zone_id.push_back((uint16_t)zone_id);
             }
         }
+        else if(const MouseLayout* ml = FindMouseLayout(caps.device_name))
+        {
+            /*-------------------------------------------------*\
+            | Known mouse: use table-defined matrix layout       |
+            \*-------------------------------------------------*/
+            zone perkey_zone;
+            perkey_zone.name       = "Mouse LEDs";
+            perkey_zone.type       = ZONE_TYPE_MATRIX;
+            perkey_zone.leds_min   = ml->led_count;
+            perkey_zone.leds_max   = ml->led_count;
+            perkey_zone.leds_count = ml->led_count;
+
+            matrix_map_type* new_map = new matrix_map_type;
+            new_map->height          = ml->rows;
+            new_map->width           = ml->cols;
+            new_map->map             = new unsigned int[ml->rows * ml->cols];
+            memcpy(new_map->map, ml->map, ml->rows * ml->cols * sizeof(unsigned int));
+            perkey_zone.matrix_map   = new_map;
+            zones.push_back(perkey_zone);
+
+            for(unsigned int i = 0; i < ml->led_count && i < caps.perkey_zone_ids.size(); i++)
+            {
+                led new_led;
+                new_led.name  = ml->led_names[i];
+                new_led.value = caps.perkey_zone_ids[i];
+                leds.push_back(new_led);
+
+                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+            }
+        }
         else
         {
             /*-------------------------------------------------*\
-            | Mouse/other: linear zone with auto-named LEDs     |
+            | Other devices: linear zone with auto-named LEDs   |
             \*-------------------------------------------------*/
             zone perkey_zone;
             perkey_zone.name       = "LEDs";
