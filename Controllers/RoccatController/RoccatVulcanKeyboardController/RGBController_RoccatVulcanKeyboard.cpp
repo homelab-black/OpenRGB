@@ -159,7 +159,7 @@ void RGBController_RoccatVulcanKeyboard::SetupZones()
     | Determine zone sizes                                      |
     | Vulcan II MAX has 108 keyboard keys + 24 secondary LEDs   |
     | (physically under parent keys) + 16 palm rest LEDs.       |
-    | Secondary LEDs are split into labeled linear zones.        |
+    | Secondary LEDs are split into labeled linear zones.       |
     \*---------------------------------------------------------*/
     int keyboard_size = keyboard[layout].size;
 
