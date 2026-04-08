@@ -181,6 +181,8 @@ public:
     \*-------------------------------------------------*/
     void            SetPerKeyColors(const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors);
     void            SetAllPerKeyColor(RGBColor color);
+    void            SendPerKeyData(uint8_t perkey_idx, uint8_t function,
+                                   const uint8_t* data, size_t len);
     void            PerKeyFrameEnd(bool persist = false);
 
     /*-------------------------------------------------*\
