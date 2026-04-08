@@ -381,6 +381,7 @@ void RGBController_LogitechHIDPP::SetupZones()
     const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
 
     led_to_zone_id.clear();
+    sent_colors.clear();
 
     if(caps.has_perkey)
     {
@@ -567,6 +568,18 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
         /*-----------------------------------------------------*\
+        | Detect re-initialization (reconnect, wake from sleep). |
+        | Device state is unknown — force full resend.           |
+        \*-----------------------------------------------------*/
+        uint32_t gen = controller->GetInitGeneration();
+
+        if(gen != last_init_gen)
+        {
+            sent_colors.clear();
+            last_init_gen = gen;
+        }
+
+        /*-----------------------------------------------------*\
         | Snapshot colors to avoid races with effects updating   |
         | the colors array while we're sending.                  |
         \*-----------------------------------------------------*/
@@ -593,6 +606,14 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             }
         }
 
+        size_t changed_count = 0;
+        for(auto& e : color_to_zones) changed_count += e.second.size();
+
+        LOG_DEBUG("[HID++ %s] delta: full=%d sent_sz=%zu snap_sz=%zu changed=%zu colors=%zu",
+                  name.c_str(), full_update,
+                  sent_colors.size(), snapshot.size(),
+                  changed_count, color_to_zones.size());
+
         if(color_to_zones.empty())
         {
             return;
@@ -601,10 +622,15 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         auto t_start = std::chrono::steady_clock::now();
 
         /*-----------------------------------------------------*\
-        | Group changed keys by color for efficient batching.    |
-        | fn6 (SetRgbZonesSingleValue) sends 1 color + up to    |
-        | 13 zone IDs per packet. fn1 (SetIndividualRgbZones)    |
-        | sends 4 zone+color entries per packet.                 |
+        | Batch changed keys for efficient wire encoding.        |
+        |                                                        |
+        | fn6 (SET_SINGLE_VALUE): [R, G, B, zid, zid, ...]       |
+        |   Up to 13 zone IDs per packet, same color.            |
+        |   Used for any same-color group (>= 2 keys).           |
+        |                                                        |
+        | fn1 (SET_INDIVIDUAL): [zid,R,G,B, zid,R,G,B, ...]      |
+        |   Up to 4 zone+color entries per packet.               |
+        |   Used for single-occurrence colors.                   |
         \*-----------------------------------------------------*/
         std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
 
@@ -613,7 +639,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             RGBColor color = entry.first;
             std::vector<uint8_t>& zone_ids = entry.second;
 
-            if(zone_ids.size() > 3)
+            if(zone_ids.size() >= 2)
             {
                 uint8_t r = RGBGetRValue(color);
                 uint8_t g = RGBGetGValue(color);
@@ -638,7 +664,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                         data[3 + j] = zone_ids[i + j];
                     }
 
-                    controller->SendPerKeyData(perkey_idx, 0x60, data, 3 + batch);
+                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch);
                 }
             }
             else
@@ -669,6 +695,10 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         {
             sent_colors = snapshot;
         }
+        /*-----------------------------------------------------*\
+        | On failure, sent_colors is unchanged — the next delta  |
+        | will naturally include the same keys for retry.        |
+        \*-----------------------------------------------------*/
 
         size_t changed = 0;
         for(auto& e : color_to_zones) changed += e.second.size();
@@ -677,8 +707,8 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         auto ms_frame  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_writes).count();
         auto ms_total  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
 
-        LOG_DEBUG("[LogitechHIDPP] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
-                  changed, led_to_zone_id.size(),
+        LOG_DEBUG("[HID++ %s] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
+                  name.c_str(), changed, led_to_zone_id.size(),
                   (long long)ms_writes, (long long)ms_frame, (long long)ms_total);
     }
 }
@@ -704,16 +734,18 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
 
     const mode& current = modes[active_mode];
 
-    LOG_DEBUG("[LogitechHIDPP] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
-              current.name.c_str(), current.value, current.color_mode);
+    LOG_DEBUG("[HID++ %s] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
+              name.c_str(), current.name.c_str(), current.value, current.color_mode);
 
     /*---------------------------------------------------------*\
-    | Direct mode: send per-key colors                           |
+    | Direct mode: invalidate delta tracking so the next         |
+    | DeviceUpdateLEDs sends a full frame with actual colors.    |
+    | Don't send here — colors may still be default black from   |
+    | SetupColors, not the restored profile.                     |
     \*---------------------------------------------------------*/
     if(current.name == "Direct")
     {
         sent_colors.clear();
-        DeviceUpdateLEDs();
         return;
     }
 
