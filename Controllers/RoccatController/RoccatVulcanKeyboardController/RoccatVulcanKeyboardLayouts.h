@@ -880,7 +880,7 @@ static std::map<int, layout_info> RoccatVulcanIIMaxLayouts =
 
                 { KEY_EN_F6,                  0x2F },
                 { KEY_EN_8,                   0x30 },
-                { KEY_EN_U,                   0x2A },
+                { KEY_EN_U,                   0x3D },
                 { KEY_EN_J,                   0x2B },
                 { KEY_EN_M,                   0x2C },
 
@@ -899,7 +899,7 @@ static std::map<int, layout_info> RoccatVulcanIIMaxLayouts =
 
                 { KEY_EN_F9,                  0x41 },
                 { KEY_EN_MINUS,               0x42 },
-                { KEY_EN_P,                   0x3D },
+                { KEY_EN_P,                   0x2A },
                 { KEY_EN_SEMICOLON,           0x3E },
                 { KEY_EN_FORWARD_SLASH,       0x3F },
                 { KEY_EN_RIGHT_FUNCTION,      0x40 },
@@ -939,7 +939,7 @@ static std::map<int, layout_info> RoccatVulcanIIMaxLayouts =
                 { KEY_EN_NUMPAD_LOCK,         0x60 },
                 { KEY_EN_NUMPAD_7,            0x61 },
                 { KEY_EN_NUMPAD_4,            0x62 },
-                { KEY_EN_NUMPAD_1,            0x63 },
+                { KEY_EN_NUMPAD_1,            0x6C },
                 { KEY_EN_NUMPAD_0,            0x64 },
 
                 { KEY_EN_NUMPAD_DIVIDE,       0x65 },
@@ -950,7 +950,7 @@ static std::map<int, layout_info> RoccatVulcanIIMaxLayouts =
                 { KEY_EN_NUMPAD_TIMES,        0x69 },
                 { KEY_EN_NUMPAD_9,            0x6A },
                 { KEY_EN_NUMPAD_6,            0x6B },
-                { KEY_EN_NUMPAD_3,            0x6C },
+                { KEY_EN_NUMPAD_3,            0x63 },
                 { KEY_EN_NUMPAD_PERIOD,       0x6D },
 
                 { KEY_EN_NUMPAD_MINUS,        0x6E },
