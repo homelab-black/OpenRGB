@@ -843,7 +843,48 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
 
     caps.has_perkey = !caps.perkey_zone_ids.empty();
 
-    LOG_VERBOSE("%s Per-key zones discovered: %zu", LOG_TAG, caps.perkey_zone_ids.size());
+    /*---------------------------------------------------------*\
+    | Detect numpad presence from zone bitmask.                  |
+    | Numpad zones are 80-96 in Solaar's KEYCODES numbering.    |
+    \*---------------------------------------------------------*/
+    caps.has_numpad = false;
+
+    for(uint16_t zid : caps.perkey_zone_ids)
+    {
+        if(zid >= 80 && zid <= 96)
+        {
+            caps.has_numpad = true;
+            break;
+        }
+    }
+
+    LOG_VERBOSE("%s Per-key zones discovered: %zu (numpad=%s)",
+                LOG_TAG, caps.perkey_zone_ids.size(),
+                caps.has_numpad ? "yes" : "no");
+}
+
+void LogitechHIDPPController::DiscoverKeyboardLayout()
+{
+    uint8_t idx = GetFeatureIndex(HIDPP_FEAT_KEYBOARD_LAYOUT);
+
+    if(idx == 0)
+    {
+        caps.keyboard_layout_code = 0;
+        return;
+    }
+
+    uint8_t recv_data[16] = {};
+    int result = SendAndReceive(idx, 0x00, nullptr, 0, recv_data, sizeof(recv_data));
+
+    if(result > 0)
+    {
+        caps.keyboard_layout_code = recv_data[0];
+        LOG_DEBUG("%s Keyboard layout code: %d", LOG_TAG, caps.keyboard_layout_code);
+    }
+    else
+    {
+        caps.keyboard_layout_code = 0;
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -947,6 +988,7 @@ bool LogitechHIDPPController::Probe()
     \*---------------------------------------------------------*/
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
+    DiscoverKeyboardLayout();
 
     if(!caps.has_zone_effects && !caps.has_perkey)
     {

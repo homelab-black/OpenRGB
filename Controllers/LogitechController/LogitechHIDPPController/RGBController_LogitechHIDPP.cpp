@@ -10,6 +10,7 @@
 #include <map>
 #include "RGBController_LogitechHIDPP.h"
 #include "RGBControllerKeyNames.h"
+#include "KeyboardLayoutManager.h"
 #include "LogManager.h"
 
 /**------------------------------------------------------------------*\
@@ -55,113 +56,99 @@ static const char* zone_location_name(uint16_t location)
 /*---------------------------------------------------------*\
 | HID++ per-key zone ID to OpenRGB key name mapping         |
 | Zone IDs follow Solaar's KEYCODES (special_keys.py)       |
+| Used to look up zone IDs by key name after KLM builds     |
+| the keymap in its own sorted order.                       |
 \*---------------------------------------------------------*/
-static const std::map<uint16_t, const char*> hidpp_zone_to_key_name =
+static const std::map<std::string, unsigned int> hidpp_key_name_to_zone =
 {
-    {   1, KEY_EN_A              },
-    {   2, KEY_EN_B              },
-    {   3, KEY_EN_C              },
-    {   4, KEY_EN_D              },
-    {   5, KEY_EN_E              },
-    {   6, KEY_EN_F              },
-    {   7, KEY_EN_G              },
-    {   8, KEY_EN_H              },
-    {   9, KEY_EN_I              },
-    {  10, KEY_EN_J              },
-    {  11, KEY_EN_K              },
-    {  12, KEY_EN_L              },
-    {  13, KEY_EN_M              },
-    {  14, KEY_EN_N              },
-    {  15, KEY_EN_O              },
-    {  16, KEY_EN_P              },
-    {  17, KEY_EN_Q              },
-    {  18, KEY_EN_R              },
-    {  19, KEY_EN_S              },
-    {  20, KEY_EN_T              },
-    {  21, KEY_EN_U              },
-    {  22, KEY_EN_V              },
-    {  23, KEY_EN_W              },
-    {  24, KEY_EN_X              },
-    {  25, KEY_EN_Y              },
-    {  26, KEY_EN_Z              },
-    {  27, KEY_EN_1              },
-    {  28, KEY_EN_2              },
-    {  29, KEY_EN_3              },
-    {  30, KEY_EN_4              },
-    {  31, KEY_EN_5              },
-    {  32, KEY_EN_6              },
-    {  33, KEY_EN_7              },
-    {  34, KEY_EN_8              },
-    {  35, KEY_EN_9              },
-    {  36, KEY_EN_0              },
-    {  37, KEY_EN_ANSI_ENTER     },
-    {  38, KEY_EN_ESCAPE         },
-    {  39, KEY_EN_BACKSPACE      },
-    {  40, KEY_EN_TAB            },
-    {  41, KEY_EN_SPACE          },
-    {  42, KEY_EN_MINUS          },
-    {  43, KEY_EN_EQUALS         },
-    {  44, KEY_EN_LEFT_BRACKET   },
-    {  45, KEY_EN_RIGHT_BRACKET  },
-    {  46, KEY_EN_ANSI_BACK_SLASH},
-    {  48, KEY_EN_SEMICOLON      },
-    {  49, KEY_EN_QUOTE          },
-    {  50, KEY_EN_BACK_TICK      },
-    {  51, KEY_EN_COMMA          },
-    {  52, KEY_EN_PERIOD         },
-    {  53, KEY_EN_FORWARD_SLASH  },
-    {  54, KEY_EN_CAPS_LOCK      },
-    {  55, KEY_EN_F1             },
-    {  56, KEY_EN_F2             },
-    {  57, KEY_EN_F3             },
-    {  58, KEY_EN_F4             },
-    {  59, KEY_EN_F5             },
-    {  60, KEY_EN_F6             },
-    {  61, KEY_EN_F7             },
-    {  62, KEY_EN_F8             },
-    {  63, KEY_EN_F9             },
-    {  64, KEY_EN_F10            },
-    {  65, KEY_EN_F11            },
-    {  66, KEY_EN_F12            },
-    {  67, KEY_EN_PRINT_SCREEN   },
-    {  68, KEY_EN_SCROLL_LOCK    },
-    {  69, KEY_EN_PAUSE_BREAK    },
-    {  70, KEY_EN_INSERT         },
-    {  71, KEY_EN_HOME           },
-    {  72, KEY_EN_PAGE_UP        },
-    {  73, KEY_EN_DELETE         },
-    {  74, KEY_EN_END            },
-    {  75, KEY_EN_PAGE_DOWN      },
-    {  76, KEY_EN_RIGHT_ARROW    },
-    {  77, KEY_EN_LEFT_ARROW     },
-    {  78, KEY_EN_DOWN_ARROW     },
-    {  79, KEY_EN_UP_ARROW       },
-    {  80, KEY_EN_NUMPAD_LOCK    },
-    {  81, KEY_EN_NUMPAD_DIVIDE  },
-    {  82, KEY_EN_NUMPAD_TIMES   },
-    {  83, KEY_EN_NUMPAD_MINUS   },
-    {  84, KEY_EN_NUMPAD_PLUS    },
-    {  85, KEY_EN_NUMPAD_ENTER   },
-    {  86, KEY_EN_NUMPAD_1       },
-    {  87, KEY_EN_NUMPAD_2       },
-    {  88, KEY_EN_NUMPAD_3       },
-    {  89, KEY_EN_NUMPAD_4       },
-    {  90, KEY_EN_NUMPAD_5       },
-    {  91, KEY_EN_NUMPAD_6       },
-    {  92, KEY_EN_NUMPAD_7       },
-    {  93, KEY_EN_NUMPAD_8       },
-    {  94, KEY_EN_NUMPAD_9       },
-    {  95, KEY_EN_NUMPAD_0       },
-    {  96, KEY_EN_NUMPAD_PERIOD  },
-    { 100, KEY_EN_MENU           },
-    { 104, KEY_EN_LEFT_CONTROL   },
-    { 105, KEY_EN_LEFT_SHIFT     },
-    { 106, KEY_EN_LEFT_ALT       },
-    { 107, KEY_EN_LEFT_WINDOWS   },
-    { 108, KEY_EN_RIGHT_CONTROL  },
-    { 109, KEY_EN_RIGHT_SHIFT    },
-    { 110, KEY_EN_RIGHT_ALT      },
-    { 111, KEY_EN_RIGHT_WINDOWS  },
+    { KEY_EN_A,                1  },
+    { KEY_EN_B,                2  },
+    { KEY_EN_C,                3  },
+    { KEY_EN_D,                4  },
+    { KEY_EN_E,                5  },
+    { KEY_EN_F,                6  },
+    { KEY_EN_G,                7  },
+    { KEY_EN_H,                8  },
+    { KEY_EN_I,                9  },
+    { KEY_EN_J,               10  },
+    { KEY_EN_K,               11  },
+    { KEY_EN_L,               12  },
+    { KEY_EN_M,               13  },
+    { KEY_EN_N,               14  },
+    { KEY_EN_O,               15  },
+    { KEY_EN_P,               16  },
+    { KEY_EN_Q,               17  },
+    { KEY_EN_R,               18  },
+    { KEY_EN_S,               19  },
+    { KEY_EN_T,               20  },
+    { KEY_EN_U,               21  },
+    { KEY_EN_V,               22  },
+    { KEY_EN_W,               23  },
+    { KEY_EN_X,               24  },
+    { KEY_EN_Y,               25  },
+    { KEY_EN_Z,               26  },
+    { KEY_EN_1,               27  },
+    { KEY_EN_2,               28  },
+    { KEY_EN_3,               29  },
+    { KEY_EN_4,               30  },
+    { KEY_EN_5,               31  },
+    { KEY_EN_6,               32  },
+    { KEY_EN_7,               33  },
+    { KEY_EN_8,               34  },
+    { KEY_EN_9,               35  },
+    { KEY_EN_0,               36  },
+    { KEY_EN_ANSI_ENTER,      37  },
+    { KEY_EN_ESCAPE,          38  },
+    { KEY_EN_BACKSPACE,       39  },
+    { KEY_EN_TAB,             40  },
+    { KEY_EN_SPACE,           41  },
+    { KEY_EN_MINUS,           42  },
+    { KEY_EN_EQUALS,          43  },
+    { KEY_EN_LEFT_BRACKET,    44  },
+    { KEY_EN_RIGHT_BRACKET,   45  },
+    { KEY_EN_ANSI_BACK_SLASH, 46  },
+    { KEY_EN_SEMICOLON,       48  },
+    { KEY_EN_QUOTE,           49  },
+    { KEY_EN_BACK_TICK,       50  },
+    { KEY_EN_COMMA,           51  },
+    { KEY_EN_PERIOD,          52  },
+    { KEY_EN_FORWARD_SLASH,   53  },
+    { KEY_EN_CAPS_LOCK,       54  },
+    { KEY_EN_F1,              55  },
+    { KEY_EN_F2,              56  },
+    { KEY_EN_F3,              57  },
+    { KEY_EN_F4,              58  },
+    { KEY_EN_F5,              59  },
+    { KEY_EN_F6,              60  },
+    { KEY_EN_F7,              61  },
+    { KEY_EN_F8,              62  },
+    { KEY_EN_F9,              63  },
+    { KEY_EN_F10,             64  },
+    { KEY_EN_F11,             65  },
+    { KEY_EN_F12,             66  },
+    { KEY_EN_PRINT_SCREEN,    67  },
+    { KEY_EN_SCROLL_LOCK,     68  },
+    { KEY_EN_PAUSE_BREAK,     69  },
+    { KEY_EN_INSERT,          70  },
+    { KEY_EN_HOME,            71  },
+    { KEY_EN_PAGE_UP,         72  },
+    { KEY_EN_DELETE,          73  },
+    { KEY_EN_END,             74  },
+    { KEY_EN_PAGE_DOWN,       75  },
+    { KEY_EN_RIGHT_ARROW,     76  },
+    { KEY_EN_LEFT_ARROW,      77  },
+    { KEY_EN_DOWN_ARROW,      78  },
+    { KEY_EN_UP_ARROW,        79  },
+    { KEY_EN_RIGHT_FUNCTION, 111  },
+    { KEY_EN_MENU,            98  },
+    { KEY_EN_LEFT_CONTROL,   104  },
+    { KEY_EN_LEFT_SHIFT,     105  },
+    { KEY_EN_LEFT_ALT,       106  },
+    { KEY_EN_LEFT_WINDOWS,   107  },
+    { KEY_EN_RIGHT_CONTROL,  108  },
+    { KEY_EN_RIGHT_SHIFT,    109  },
+    { KEY_EN_RIGHT_ALT,      110  },
+    { KEY_EN_RIGHT_WINDOWS,  111  },
 };
 
 RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController* controller_ptr)
@@ -338,44 +325,113 @@ void RGBController_LogitechHIDPP::SetupZones()
 
     if(caps.has_perkey)
     {
-        /*-----------------------------------------------------*\
-        | Create a zone containing all per-key addressable LEDs  |
-        | For mice: ZONE_TYPE_LINEAR (small number of LEDs)      |
-        | For keyboards: ZONE_TYPE_LINEAR (matrix added later)   |
-        \*-----------------------------------------------------*/
-        zone perkey_zone;
-        perkey_zone.name       = (caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
-                                 ? "Keyboard" : "LEDs";
-        perkey_zone.type       = ZONE_TYPE_LINEAR;
-        perkey_zone.leds_min   = (unsigned int)caps.perkey_zone_ids.size();
-        perkey_zone.leds_max   = (unsigned int)caps.perkey_zone_ids.size();
-        perkey_zone.leds_count = (unsigned int)caps.perkey_zone_ids.size();
-        perkey_zone.matrix_map = nullptr;
-        zones.push_back(perkey_zone);
-
-        for(size_t i = 0; i < caps.perkey_zone_ids.size(); i++)
+        if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
         {
-            led new_led;
+            /*-------------------------------------------------*\
+            | Keyboard: use KeyboardLayoutManager for matrix     |
+            | layout. Derive size from numpad presence, layout   |
+            | from 0x4540 KeyboardLayout feature.                |
+            \*-------------------------------------------------*/
+            KEYBOARD_SIZE kb_size = caps.has_numpad
+                                  ? KEYBOARD_SIZE_FULL
+                                  : KEYBOARD_SIZE_TKL;
 
-            auto it = hidpp_zone_to_key_name.find(caps.perkey_zone_ids[i]);
+            KEYBOARD_LAYOUT kb_layout;
 
-            if(it != hidpp_zone_to_key_name.end())
+            switch(caps.keyboard_layout_code)
             {
-                new_led.name = it->second;
-            }
-            else if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
-            {
-                new_led.name = "Key " + std::to_string(caps.perkey_zone_ids[i]);
-            }
-            else
-            {
-                new_led.name = "LED " + std::to_string(caps.perkey_zone_ids[i]);
+                case 3:     // German
+                case 7:     // Swiss
+                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTZ;
+                    break;
+
+                case 4:     // French
+                    kb_layout = KEYBOARD_LAYOUT_ISO_AZERTY;
+                    break;
+
+                case 2:     // UK
+                case 5:     // Spanish
+                case 0x0B:  // Italian
+                case 0x0D:  // Portuguese
+                case 0x0E:  // Belgian
+                case 0x0F:  // Scandinavian
+                case 8:     // Nordic
+                case 0x16:  // Nordic
+                case 0x1D:  // Nordic
+                case 0x21:  // Nordic
+                case 0x24:  // Belgian
+                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTY;
+                    break;
+
+                case 9:     // Japanese
+                case 0x3E:  // Japanese
+                    kb_layout = KEYBOARD_LAYOUT_JIS;
+                    break;
+
+                case 1:     // US
+                default:
+                    kb_layout = KEYBOARD_LAYOUT_ANSI_QWERTY;
+                    break;
             }
 
-            new_led.value = caps.perkey_zone_ids[i];
-            leds.push_back(new_led);
+            KeyboardLayoutManager klm(kb_layout, kb_size);
 
-            led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+            zone perkey_zone;
+            perkey_zone.name       = ZONE_EN_KEYBOARD;
+            perkey_zone.type       = ZONE_TYPE_MATRIX;
+            perkey_zone.leds_min   = klm.GetKeyCount();
+            perkey_zone.leds_max   = klm.GetKeyCount();
+            perkey_zone.leds_count = klm.GetKeyCount();
+
+            matrix_map_type* new_map = new matrix_map_type;
+            new_map->height          = klm.GetRowCount();
+            new_map->width           = klm.GetColumnCount();
+            new_map->map             = new unsigned int[new_map->height * new_map->width];
+            klm.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT,
+                          new_map->height, new_map->width);
+            perkey_zone.matrix_map = new_map;
+            zones.push_back(perkey_zone);
+
+            for(unsigned int i = 0; i < klm.GetKeyCount(); i++)
+            {
+                led new_led;
+                std::string key_name = klm.GetKeyNameAt(i);
+                new_led.name = key_name;
+
+                /*---------------------------------------------*\
+                | Look up zone ID by key name                   |
+                \*---------------------------------------------*/
+                auto it = hidpp_key_name_to_zone.find(key_name);
+                unsigned int zone_id = (it != hidpp_key_name_to_zone.end()) ? it->second : 0;
+                new_led.value = zone_id;
+                leds.push_back(new_led);
+
+                led_to_zone_id.push_back((uint16_t)zone_id);
+            }
+        }
+        else
+        {
+            /*-------------------------------------------------*\
+            | Mouse/other: linear zone with auto-named LEDs     |
+            \*-------------------------------------------------*/
+            zone perkey_zone;
+            perkey_zone.name       = "LEDs";
+            perkey_zone.type       = ZONE_TYPE_LINEAR;
+            perkey_zone.leds_min   = (unsigned int)caps.perkey_zone_ids.size();
+            perkey_zone.leds_max   = (unsigned int)caps.perkey_zone_ids.size();
+            perkey_zone.leds_count = (unsigned int)caps.perkey_zone_ids.size();
+            perkey_zone.matrix_map = nullptr;
+            zones.push_back(perkey_zone);
+
+            for(size_t i = 0; i < caps.perkey_zone_ids.size(); i++)
+            {
+                led new_led;
+                new_led.name  = "LED " + std::to_string(caps.perkey_zone_ids[i]);
+                new_led.value = caps.perkey_zone_ids[i];
+                leds.push_back(new_led);
+
+                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+            }
         }
     }
     else if(caps.has_zone_effects)

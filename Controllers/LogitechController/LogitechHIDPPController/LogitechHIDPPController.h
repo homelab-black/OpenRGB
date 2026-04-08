@@ -34,6 +34,7 @@
 #define HIDPP_FEAT_RGB_EFFECTS              0x8071
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V1      0x8080
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V2      0x8081
+#define HIDPP_FEAT_KEYBOARD_LAYOUT          0x4540
 
 /*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
@@ -124,6 +125,8 @@ struct HIDPPDeviceCapabilities
     std::vector<uint16_t>           perkey_zone_ids;
     bool                            has_perkey;
     bool                            has_zone_effects;
+    bool                            has_numpad;
+    uint8_t                         keyboard_layout_code;
 };
 
 /*-----------------------------------------------------*\
@@ -269,4 +272,5 @@ private:
     void            DiscoverDeviceType();
     void            DiscoverRGBEffects();
     void            DiscoverPerKeyZones();
+    void            DiscoverKeyboardLayout();
 };
