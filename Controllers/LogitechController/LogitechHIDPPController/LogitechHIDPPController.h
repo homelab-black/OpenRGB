@@ -186,7 +186,7 @@ public:
     void            SetAllPerKeyColor(RGBColor color);
     void            SendPerKeyData(uint8_t perkey_idx, uint8_t function,
                                    const uint8_t* data, size_t len);
-    void            PerKeyFrameEnd(bool persist = false);
+    bool            PerKeyFrameEnd(bool persist = false);
 
     /*-------------------------------------------------*\
     | Zone effects (0x8071 / 0x8070)                    |
@@ -211,6 +211,7 @@ private:
     HIDPPDeviceCapabilities     caps;
     HIDPPTransport              transport;
     bool                        initialized;
+    uint32_t                    frame_counter;
 
     /*-------------------------------------------------*\
     | Transport-layer I/O                               |
