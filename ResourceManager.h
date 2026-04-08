@@ -31,6 +31,7 @@ using json = nlohmann::json;
 #define HID_INTERFACE_ANY   -1
 #define HID_USAGE_ANY       -1
 #define HID_USAGE_PAGE_ANY  -1
+#define HID_PID_ANY         0x0000
 
 struct hid_device_info;
 class NetworkClient;

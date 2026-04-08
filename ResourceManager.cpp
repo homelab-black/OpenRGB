@@ -86,7 +86,8 @@ const hidapi_wrapper default_wrapper =
 bool BasicHIDBlock::compare(hid_device_info* info)
 {
     return ( (vid == info->vendor_id)
-        && (pid == info->product_id)
+        && ( (pid == HID_PID_ANY)
+            || (pid == info->product_id) )
 #ifdef USE_HID_USAGE
         && ( (usage_page == HID_USAGE_PAGE_ANY)
             || (usage_page == info->usage_page) )

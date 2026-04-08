@@ -40,6 +40,8 @@
 #include "RGBController_LogitechLightspeed.h"
 #include "RGBController_LogitechGPowerPlay.h" // Linux-only
 #include "RGBController_LogitechX56.h"
+#include "LogitechHIDPPController.h"
+#include "RGBController_LogitechHIDPP.h"
 
 using namespace std::chrono_literals;
 
@@ -84,6 +86,7 @@ using namespace std::chrono_literals;
 #define LOGITECH_G502_HERO_PID                      0xC08B
 #define LOGITECH_G502_LIGHTSPEED_PID                0xC08D
 #define LOGITECH_G502_X_PLUS_PID                    0xC095
+#define LOGITECH_G515_WIRED_PID                     0xC543
 #define LOGITECH_G600_PID                           0xC24A
 #define LOGITECH_G703_LIGHTSPEED_PID                0xC087
 #define LOGITECH_G703_HERO_LIGHTSPEED_PID           0xC090
@@ -651,6 +654,50 @@ void DetectLogitechX56(hid_device_info* info, const std::string& name)
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| Unified HID++ 2.0 Detection                                                                                                                       |
+|   Probes IRoot (feature 0x0000) to determine if the device speaks HID++ 2.0.                                                                      |
+|   If it does and has RGB features, the unified controller handles it.                                                                              |
+|   If not, the device is released for legacy controllers.                                                                                           |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(!dev)
+    {
+        return;
+    }
+
+    LogitechHIDPPController* controller = new LogitechHIDPPController(
+        dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr);
+
+    if(controller->Probe())
+    {
+        controller->Initialize();
+
+        RGBController_LogitechHIDPP* rgb_controller = new RGBController_LogitechHIDPP(controller);
+
+        LOG_INFO("[%s] Registering RGB controller", controller->GetCapabilities().device_name.c_str());
+
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+    else
+    {
+        delete controller;
+    }
+}
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| Unified HID++ 2.0 Devices                                                                                                                         |
+|   Matches ALL Logitech VID devices on usage page 0xFF00 (standard HID++ interface).                                                                |
+|   The detector probes IRoot — devices that respond and have RGB features are handled here.                                                          |
+|   Devices that don't respond to IRoot are released for legacy controllers.                                                                         |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0",                                    DetectLogitechHIDPP,        LOGITECH_VID, 0xFF00, 2);
+REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43)",                             DetectLogitechHIDPP,        LOGITECH_VID, 0xFF43, 514);
+// TODO: Centurion dongle transport (0xFFA0) needs CentPPBridge (feature 0x0003) sub-device probing
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech G213",                                  DetectLogitechKeyboardG213, LOGITECH_VID, LOGITECH_G213_PID,                    1, 0xFF43, 0x0602);
@@ -913,7 +960,8 @@ REGISTER_HID_DETECTOR_IPU("Logitech Powerplay Mat",                             
 |   G502 changed to PU to accomodate old and new firmware. Other devices may require similar update #4627                                           |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_PU("Logitech G502 Wireless Gaming Mouse (wired)",         DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_LIGHTSPEED_PID,                    0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
+// Handled by unified HID++ controller above
+//REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 Proteus Spectrum Gaming Mouse",        DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_PROTEUS_SPECTRUM_PID,           1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 HERO Gaming Mouse",                    DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_HERO_PID,                       1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G403 Prodigy Gaming Mouse",                 DetectLogitechWired,        LOGITECH_VID, LOGITECH_G403_PID,                            1, 0xFF00, 2);
