@@ -32,4 +32,9 @@ private:
     | Maps OpenRGB LED index -> HID++ per-key zone ID           |
     \*---------------------------------------------------------*/
     std::vector<uint16_t>       led_to_zone_id;
+
+    /*---------------------------------------------------------*\
+    | Last successfully committed colors for delta updates      |
+    \*---------------------------------------------------------*/
+    std::vector<RGBColor>       sent_colors;
 };

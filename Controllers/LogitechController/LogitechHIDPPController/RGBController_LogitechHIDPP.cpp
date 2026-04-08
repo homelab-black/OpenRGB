@@ -8,6 +8,7 @@
 \*---------------------------------------------------------*/
 
 #include <map>
+#include <chrono>
 #include "RGBController_LogitechHIDPP.h"
 #include "RGBControllerKeyNames.h"
 #include "KeyboardLayoutManager.h"
@@ -563,28 +564,47 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
     if(caps.has_perkey && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
+        uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
+
         /*-----------------------------------------------------*\
-        | Group colors by value for efficient batching.          |
-        | fn6 (SetRgbZonesSingleValue) sends 1 color + up to    |
-        | 13 zone IDs per packet. fn1 (SetIndividualRgbZones)    |
-        | sends 4 zone+color entries per packet.                 |
-        | Matching Solaar's approach: bulk same-color groups      |
-        | via fn6, then remaining via fn1.                       |
+        | Snapshot colors to avoid races with effects updating   |
+        | the colors array while we're sending.                  |
         \*-----------------------------------------------------*/
+        std::vector<RGBColor> snapshot(colors.begin(), colors.end());
+
+        /*-----------------------------------------------------*\
+        | Compute delta against last committed state.            |
+        | First call (sent_colors empty) sends everything.       |
+        \*-----------------------------------------------------*/
+        bool full_update = (sent_colors.size() != snapshot.size());
+
         std::map<RGBColor, std::vector<uint8_t>> color_to_zones;
 
-        for(size_t i = 0; i < colors.size() && i < led_to_zone_id.size(); i++)
+        for(size_t i = 0; i < snapshot.size() && i < led_to_zone_id.size(); i++)
         {
-            if(led_to_zone_id[i] > 255)
+            if(led_to_zone_id[i] == 0 || led_to_zone_id[i] > 255)
             {
                 continue;
             }
 
-            color_to_zones[colors[i]].push_back((uint8_t)led_to_zone_id[i]);
+            if(full_update || snapshot[i] != sent_colors[i])
+            {
+                color_to_zones[snapshot[i]].push_back((uint8_t)led_to_zone_id[i]);
+            }
         }
 
+        if(color_to_zones.empty())
+        {
+            return;
+        }
+
+        auto t_start = std::chrono::steady_clock::now();
+
         /*-----------------------------------------------------*\
-        | Send bulk groups via fn6, individuals via fn1           |
+        | Group changed keys by color for efficient batching.    |
+        | fn6 (SetRgbZonesSingleValue) sends 1 color + up to    |
+        | 13 zone IDs per packet. fn1 (SetIndividualRgbZones)    |
+        | sends 4 zone+color entries per packet.                 |
         \*-----------------------------------------------------*/
         std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
 
@@ -595,14 +615,9 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
 
             if(zone_ids.size() > 3)
             {
-                /*-------------------------------------------------*\
-                | Bulk: fn6 (SetRgbZonesSingleValue), 13 per packet  |
-                \*-------------------------------------------------*/
                 uint8_t r = RGBGetRValue(color);
                 uint8_t g = RGBGetGValue(color);
                 uint8_t b = RGBGetBValue(color);
-
-                uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
                 for(size_t i = 0; i < zone_ids.size(); i += 13)
                 {
@@ -628,9 +643,6 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             }
             else
             {
-                /*-------------------------------------------------*\
-                | Individual: accumulate for fn1                     |
-                \*-------------------------------------------------*/
                 for(uint8_t zid : zone_ids)
                 {
                     individual_pairs.push_back({zid, color});
@@ -643,7 +655,31 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             controller->SetPerKeyColors(individual_pairs);
         }
 
-        controller->PerKeyFrameEnd();
+        auto t_writes = std::chrono::steady_clock::now();
+
+        bool committed = controller->PerKeyFrameEnd();
+
+        auto t_end = std::chrono::steady_clock::now();
+
+        /*-----------------------------------------------------*\
+        | Only update tracking on successful commit. On failure  |
+        | the next call will resend these keys.                  |
+        \*-----------------------------------------------------*/
+        if(committed)
+        {
+            sent_colors = snapshot;
+        }
+
+        size_t changed = 0;
+        for(auto& e : color_to_zones) changed += e.second.size();
+
+        auto ms_writes = std::chrono::duration_cast<std::chrono::milliseconds>(t_writes - t_start).count();
+        auto ms_frame  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_writes).count();
+        auto ms_total  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+        LOG_DEBUG("[LogitechHIDPP] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
+                  changed, led_to_zone_id.size(),
+                  (long long)ms_writes, (long long)ms_frame, (long long)ms_total);
     }
 }
 
@@ -668,14 +704,20 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
 
     const mode& current = modes[active_mode];
 
+    LOG_DEBUG("[LogitechHIDPP] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
+              current.name.c_str(), current.value, current.color_mode);
+
     /*---------------------------------------------------------*\
     | Direct mode: send per-key colors                           |
     \*---------------------------------------------------------*/
     if(current.name == "Direct")
     {
+        sent_colors.clear();
         DeviceUpdateLEDs();
         return;
     }
+
+    sent_colors.clear();
 
     /*---------------------------------------------------------*\
     | Per-key completely masks zone effects and the per-key      |
