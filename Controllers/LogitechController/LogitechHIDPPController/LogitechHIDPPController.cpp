@@ -762,18 +762,21 @@ int LogitechHIDPPController::ReadCenturionDirect
 uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
 {
     /*---------------------------------------------------------*\
-    | If feature map has been populated by EnumerateFeatures,    |
-    | use it directly — no wire traffic needed.                  |
+    | Check cache first — both Centurion bulk and HID++ on-demand|
+    | lookups store results here.                                |
     \*---------------------------------------------------------*/
-    if(!caps.feature_map.empty())
+    auto it = caps.feature_map.find(feature_page);
+
+    if(it != caps.feature_map.end())
     {
-        auto it = caps.feature_map.find(feature_page);
-        return (it != caps.feature_map.end()) ? it->second : 0;
+        return it->second;
     }
 
     /*---------------------------------------------------------*\
-    | Fallback: direct IRoot query (used before enumeration,     |
-    | e.g., during the initial IRoot test and bridge discovery). |
+    | Not in cache — do an IRoot query and cache the result.     |
+    | For Centurion with bulk enumeration, this shouldn't happen |
+    | (all features were pre-loaded). For HID++, this is the    |
+    | normal on-demand lookup path.                              |
     \*---------------------------------------------------------*/
     uint8_t send_data[2];
     send_data[0] = (feature_page >> 8) & 0xFF;
@@ -786,11 +789,22 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
     if(result > 0)
     {
         uint8_t index = recv_data[0];
+
+        if(index != 0)
+        {
+            caps.feature_map[feature_page] = index;
+        }
+
         LOG_DEBUG("%s Feature 0x%04X -> index 0x%02X", LOG_TAG, feature_page, index);
         return index;
     }
 
-    LOG_DEBUG("%s Feature 0x%04X lookup failed (result=%d)", LOG_TAG, feature_page, result);
+    /*---------------------------------------------------------*\
+    | Cache the miss too so we don't re-query failed lookups     |
+    \*---------------------------------------------------------*/
+    caps.feature_map[feature_page] = 0;
+
+    LOG_DEBUG("%s Feature 0x%04X not found", LOG_TAG, feature_page);
     return 0;
 }
 
@@ -1119,40 +1133,11 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
     else
     {
         /*-----------------------------------------------------*\
-        | Standard HID++: FeatureSet fn0 GetCount, then          |
-        | fn1 GetFeatureId for each index.                       |
+        | Standard HID++: no bulk query available. Features are  |
+        | looked up on-demand via GetFeatureIndex (IRoot) and    |
+        | cached in the feature map. Nothing to do here.         |
         \*-----------------------------------------------------*/
-        uint8_t recv_data[16] = {};
-        int result = SendAndReceive(feature_set_idx, 0x00,
-                                    nullptr, 0, recv_data, sizeof(recv_data));
-
-        if(result <= 0)
-        {
-            return;
-        }
-
-        uint8_t count = recv_data[0];
-
-        LOG_DEBUG("%s FeatureSet: %d features", LOG_TAG, count);
-
-        for(uint8_t i = 1; i <= count; i++)
-        {
-            uint8_t send[1] = { i };
-            memset(recv_data, 0, sizeof(recv_data));
-
-            result = SendAndReceive(feature_set_idx, 0x10,
-                                    send, 1, recv_data, sizeof(recv_data));
-
-            if(result > 0)
-            {
-                uint16_t feat_id = ((uint16_t)recv_data[0] << 8) | recv_data[1];
-
-                caps.feature_map[feat_id] = i;
-
-                LOG_DEBUG("%s   [%2d] Feature 0x%04X",
-                          LOG_TAG, i, feat_id);
-            }
-        }
+        return;
     }
 }
 
