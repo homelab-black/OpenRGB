@@ -545,7 +545,7 @@ int LogitechHIDPPController::SendCenturion
         else
         {
             buf[0] = transport.report_id;
-            buf[1] = 4 + sub_msg_len;              // cplLen
+            buf[1] = 5 + sub_msg_len;              // cplLen: flags(1) + feat(1) + func(1) + hdr(2) + sub
             buf[2] = 0x00;                          // flags
             buf[3] = transport.bridge_feat_idx;
             buf[4] = 0x10 | HIDPP_SW_ID;            // sendFragment (func 1)
@@ -583,7 +583,7 @@ int LogitechHIDPPController::SendCenturion
         else
         {
             buf[0] = transport.report_id;
-            buf[1] = 2 + (uint8_t)len;             // cplLen
+            buf[1] = 3 + (uint8_t)len;             // cplLen: flags(1) + feat(1) + func(1) + data
             buf[2] = 0x00;                          // flags
             buf[3] = feat_idx;
             buf[4] = function | HIDPP_SW_ID;
