@@ -11,6 +11,7 @@
 \*---------------------------------------------------------*/
 
 #include "i2c_smbus.h"
+#include "LogManager.h"
 #include <string.h>
 
 #ifdef WIN32
@@ -183,4 +184,20 @@ s32 i2c_smbus_interface::i2c_read_block(u8 addr, int* size, u8* data)
 s32 i2c_smbus_interface::i2c_write_block(u8 addr, int size, u8 *data)
 {
     return i2c_xfer_call(addr, I2C_SMBUS_WRITE, &size, data);
+}
+/*-------------------------------------------------------------------------------------*\
+|                                                                                       |
+| Deliberately not returning a value.                                                   |
+|                                                                                       |
+| Controllers should attempt to reduce the speed if it's known to be necessary,         |
+| but shouldn't depend on a success indicator, because some drivers can adjust the      |
+| speed while most of them can neither set nor query it and depend on external means    |
+| (e.g. device tree or module parameters) to do it.                                     |
+|                                                                                       |
+| Ignored unless a driver overrides it.                                                 |
+|                                                                                       |
+\*-------------------------------------------------------------------------------------*/
+void i2c_smbus_interface::i2c_set_max_speed(int hz)
+{
+    LOG_TRACE("Ignored attempt to set the I2C interface speed to %d Hz", hz);
 }
