@@ -368,6 +368,27 @@ void ResourceManager::RegisterHIDDeviceDetector(std::string name,
     hid_device_detectors.push_back(block);
 }
 
+bool ResourceManager::HasHIDDetectorForPID(uint16_t vid, uint16_t pid)
+{
+    for(const auto& det : hid_device_detectors)
+    {
+        if(det.vid == vid && det.pid == pid)
+        {
+            return true;
+        }
+    }
+
+    for(const auto& det : hid_wrapped_device_detectors)
+    {
+        if(det.vid == vid && det.pid == pid)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void ResourceManager::RegisterHIDWrappedDeviceDetector(std::string name,
                                                        HIDWrappedDeviceDetectorFunction  detector,
                                                        uint16_t vid,
