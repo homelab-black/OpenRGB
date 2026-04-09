@@ -135,6 +135,7 @@ struct HIDPPDeviceCapabilities
     | subsequent GetFeatureIndex lookups (no wire).      |
     \*-------------------------------------------------*/
     std::map<uint16_t, uint8_t> feature_map;
+    bool        feature_map_complete;   // true after bulk enumeration
 
     /*-------------------------------------------------*\
     | Feature indices (0 = not supported)               |

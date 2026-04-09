@@ -773,10 +773,16 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
     }
 
     /*---------------------------------------------------------*\
-    | Not in cache — do an IRoot query and cache the result.     |
-    | For Centurion with bulk enumeration, this shouldn't happen |
-    | (all features were pre-loaded). For HID++, this is the    |
-    | normal on-demand lookup path.                              |
+    | Centurion bulk enumeration is complete — if a feature      |
+    | isn't in the map, it doesn't exist. No wire query needed.  |
+    \*---------------------------------------------------------*/
+    if(caps.feature_map_complete)
+    {
+        return 0;
+    }
+
+    /*---------------------------------------------------------*\
+    | Standard HID++: on-demand IRoot query, cache the result.   |
     \*---------------------------------------------------------*/
     uint8_t send_data[2];
     send_data[0] = (feature_page >> 8) & 0xFF;
@@ -814,7 +820,7 @@ void LogitechHIDPPController::DiscoverDeviceName()
     | Centurion sub-devices use 0x0101 (DeviceName).             |
     | Standard HID++ uses 0x0005 (DeviceNameType).               |
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION)
     {
         /*-----------------------------------------------------*\
         | Centurion sub-device: 0x0101 getName returns firmware   |
@@ -917,7 +923,7 @@ void LogitechHIDPPController::DiscoverDeviceType()
     | Default to unknown — don't assume device type from         |
     | transport, as Centurion may be used for future devices.    |
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION)
     {
         caps.device_type = 0;
         return;
@@ -1091,13 +1097,14 @@ void LogitechHIDPPController::DiscoverTransport()
 void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
 {
     caps.feature_map.clear();
+    caps.feature_map_complete = false;
 
     /*---------------------------------------------------------*\
     | Root (0x0000) is always at index 0                         |
     \*---------------------------------------------------------*/
     caps.feature_map[0x0000] = 0;
 
-    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION)
     {
         /*-----------------------------------------------------*\
         | Centurion sub-device: CenturionFeatureSet fn1 returns  |
@@ -1128,6 +1135,8 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
                 LOG_DEBUG("%s   [%2d] Feature 0x%04X type=0x%02X",
                           LOG_TAG, feat_idx, feat_id, feat_type);
             }
+
+            caps.feature_map_complete = true;
         }
     }
     else
@@ -1147,7 +1156,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
     | Centurion sub-devices use 0x0100 (DeviceInfo) for firmware  |
     | version and serial. Standard HID++ uses 0x0003 (FirmwareInfo).|
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION)
     {
         uint8_t dev_info_idx = GetFeatureIndex(HIDPP_FEAT_CENTURION_DEVICE_INFO);
 
@@ -1634,26 +1643,52 @@ bool LogitechHIDPPController::Probe()
     | Retry up to 3 times — wireless devices behind a shared     |
     | receiver can return stale responses.                       |
     \*---------------------------------------------------------*/
-    uint16_t probe_feature = (transport.type == HIDPP_TRANSPORT_CENTURION)
-                           ? HIDPP_FEAT_CENTPPBRIDGE
-                           : HIDPP_FEAT_FEATURE_SET;
-
     uint8_t test_idx = 0;
 
-    for(int attempt = 0; attempt < 3 && test_idx == 0; attempt++)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION)
     {
-        if(attempt > 0)
-        {
-            uint8_t retry_buf[64];
+        /*-----------------------------------------------------*\
+        | Centurion: try CentPPBridge (0x0003) first for dongle. |
+        | If not found, try FeatureSet (0x0001) for wired/direct |
+        | connection where the device IS the endpoint.           |
+        \*-----------------------------------------------------*/
+        test_idx = GetFeatureIndex(HIDPP_FEAT_CENTPPBRIDGE);
 
-            while(hid_read_timeout(dev, retry_buf, sizeof(retry_buf), 10) > 0)
+        if(test_idx != 0)
+        {
+            transport.bridge_feat_idx = test_idx;
+            transport.sub_device_id   = 0;
+
+            LOG_DEBUG("%s CentPPBridge at index %d — routing to sub-device",
+                      LOG_TAG, test_idx);
+        }
+        else
+        {
+            LOG_DEBUG("%s No CentPPBridge — Centurion direct connection", LOG_TAG);
+            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+        }
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | Standard HID++: probe FeatureSet (0x0001).             |
+        | Retry up to 3 times for wireless devices.              |
+        \*-----------------------------------------------------*/
+        for(int attempt = 0; attempt < 3 && test_idx == 0; attempt++)
+        {
+            if(attempt > 0)
             {
+                uint8_t retry_buf[64];
+
+                while(hid_read_timeout(dev, retry_buf, sizeof(retry_buf), 10) > 0)
+                {
+                }
+
+                LOG_DEBUG("%s IRoot retry %d at %s", LOG_TAG, attempt + 1, location.c_str());
             }
 
-            LOG_DEBUG("%s IRoot retry %d at %s", LOG_TAG, attempt + 1, location.c_str());
+            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
         }
-
-        test_idx = GetFeatureIndex(probe_feature);
     }
 
     if(test_idx == 0)
@@ -1661,20 +1696,6 @@ bool LogitechHIDPPController::Probe()
         LOG_DEBUG("%s IRoot probe failed at %s — device does not respond",
                   LOG_TAG, location.c_str());
         return false;
-    }
-
-    /*---------------------------------------------------------*\
-    | For Centurion, the test_idx IS the CentPPBridge index.     |
-    | Set it up immediately so all subsequent queries go through |
-    | the bridge to the actual device.                           |
-    \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION && test_idx != 0)
-    {
-        transport.bridge_feat_idx = test_idx;
-        transport.sub_device_id   = 0;
-
-        LOG_DEBUG("%s CentPPBridge at index %d — routing to sub-device",
-                  LOG_TAG, test_idx);
     }
 
     /*---------------------------------------------------------*\
