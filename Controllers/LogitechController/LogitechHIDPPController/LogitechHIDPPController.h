@@ -44,6 +44,8 @@
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V2      0x8081
 #define HIDPP_FEAT_KEYBOARD_LAYOUT          0x4540
 #define HIDPP_FEAT_CENTURION_RGB            0x0600
+#define HIDPP_FEAT_CENTURION_DEVICE_INFO   0x0100
+#define HIDPP_FEAT_CENTURION_DEVICE_NAME   0x0101
 
 /*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
@@ -126,6 +128,13 @@ struct HIDPPDeviceCapabilities
     uint8_t         device_type;
     std::string     firmware_version;
     std::string     serial_number;
+
+    /*-------------------------------------------------*\
+    | Complete feature map (feature_id → runtime index) |
+    | Built once by EnumerateFeatures, used by all      |
+    | subsequent GetFeatureIndex lookups (no wire).      |
+    \*-------------------------------------------------*/
+    std::map<uint16_t, uint8_t> feature_map;
 
     /*-------------------------------------------------*\
     | Feature indices (0 = not supported)               |
@@ -356,6 +365,7 @@ private:
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();
+    void            EnumerateFeatures(uint8_t feature_set_idx);
     void            DiscoverFirmwareInfo();
     void            DiscoverRGBEffects();
     void            DiscoverPerKeyZones();

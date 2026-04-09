@@ -684,6 +684,15 @@ int LogitechHIDPPController::ReadCenturionDirect
                 return result;
             }
 
+            {
+                static auto t0 = std::chrono::steady_clock::now();
+                auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+                LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
+                          LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                          buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
+                          buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+            }
+
             resp_feat = buf[3 + hdr_offset];
             resp_func = buf[4 + hdr_offset];
 
@@ -752,6 +761,20 @@ int LogitechHIDPPController::ReadCenturionDirect
 
 uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
 {
+    /*---------------------------------------------------------*\
+    | If feature map has been populated by EnumerateFeatures,    |
+    | use it directly — no wire traffic needed.                  |
+    \*---------------------------------------------------------*/
+    if(!caps.feature_map.empty())
+    {
+        auto it = caps.feature_map.find(feature_page);
+        return (it != caps.feature_map.end()) ? it->second : 0;
+    }
+
+    /*---------------------------------------------------------*\
+    | Fallback: direct IRoot query (used before enumeration,     |
+    | e.g., during the initial IRoot test and bridge discovery). |
+    \*---------------------------------------------------------*/
     uint8_t send_data[2];
     send_data[0] = (feature_page >> 8) & 0xFF;
     send_data[1] = feature_page & 0xFF;
@@ -773,6 +796,62 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
 
 void LogitechHIDPPController::DiscoverDeviceName()
 {
+    /*---------------------------------------------------------*\
+    | Centurion sub-devices use 0x0101 (DeviceName).             |
+    | Standard HID++ uses 0x0005 (DeviceNameType).               |
+    \*---------------------------------------------------------*/
+    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    {
+        /*-----------------------------------------------------*\
+        | Centurion sub-device: 0x0101 getName returns firmware   |
+        | data, not a readable name. Read from sysfs HID_NAME    |
+        | instead (same approach as Solaar).                      |
+        \*-----------------------------------------------------*/
+        std::string sysfs_name;
+        std::string hidraw = location;
+        size_t pos = hidraw.rfind("hidraw");
+
+        if(pos != std::string::npos)
+        {
+            std::string uevent_path = "/sys/class/hidraw/" + hidraw.substr(pos) + "/device/uevent";
+            FILE* f = fopen(uevent_path.c_str(), "r");
+
+            if(f)
+            {
+                char line[256];
+
+                while(fgets(line, sizeof(line), f))
+                {
+                    if(strncmp(line, "HID_NAME=", 9) == 0)
+                    {
+                        sysfs_name = line + 9;
+
+                        while(!sysfs_name.empty() && (sysfs_name.back() == '\n' || sysfs_name.back() == '\r'))
+                        {
+                            sysfs_name.pop_back();
+                        }
+
+                        break;
+                    }
+                }
+
+                fclose(f);
+            }
+        }
+
+        if(!sysfs_name.empty())
+        {
+            caps.device_name = sysfs_name;
+        }
+        else
+        {
+            caps.device_name = "Logitech Centurion Device";
+        }
+
+        LOG_VERBOSE("%s Device name (Centurion): %s", LOG_TAG, caps.device_name.c_str());
+        return;
+    }
+
     uint8_t feat_idx = GetFeatureIndex(HIDPP_FEAT_DEVICE_NAME_TYPE);
 
     if(feat_idx == 0)
@@ -819,6 +898,17 @@ void LogitechHIDPPController::DiscoverDeviceName()
 
 void LogitechHIDPPController::DiscoverDeviceType()
 {
+    /*---------------------------------------------------------*\
+    | Centurion sub-devices don't have 0x0005 (DeviceNameType).  |
+    | Default to unknown — don't assume device type from         |
+    | transport, as Centurion may be used for future devices.    |
+    \*---------------------------------------------------------*/
+    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    {
+        caps.device_type = 0;
+        return;
+    }
+
     uint8_t feat_idx = GetFeatureIndex(HIDPP_FEAT_DEVICE_NAME_TYPE);
 
     if(feat_idx == 0)
@@ -984,14 +1074,149 @@ void LogitechHIDPPController::DiscoverTransport()
     }
 }
 
+void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
+{
+    caps.feature_map.clear();
+
+    /*---------------------------------------------------------*\
+    | Root (0x0000) is always at index 0                         |
+    \*---------------------------------------------------------*/
+    caps.feature_map[0x0000] = 0;
+
+    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
+    {
+        /*-----------------------------------------------------*\
+        | Centurion sub-device: CenturionFeatureSet fn1 returns  |
+        | ALL features in a single bulk response.                |
+        | [count, (feat_hi, feat_lo, type, flags) × count]       |
+        \*-----------------------------------------------------*/
+        uint8_t send_data[1] = { 0x00 };
+        uint8_t recv_data[60] = {};
+
+        int result = SendAndReceive(feature_set_idx, 0x10,
+                                    send_data, 1, recv_data, sizeof(recv_data));
+
+        if(result > 0)
+        {
+            uint8_t count = recv_data[0];
+
+            LOG_DEBUG("%s CenturionFeatureSet: %d features", LOG_TAG, count);
+
+            for(uint8_t i = 0; i < count && (1 + i * 4 + 1) < (int)sizeof(recv_data); i++)
+            {
+                int offset = 1 + i * 4;
+                uint16_t feat_id = ((uint16_t)recv_data[offset] << 8) | recv_data[offset + 1];
+                uint8_t  feat_type = recv_data[offset + 2];
+                uint8_t  feat_idx  = i;  // 0-based: bulk includes root at 0
+
+                caps.feature_map[feat_id] = feat_idx;
+
+                LOG_DEBUG("%s   [%2d] Feature 0x%04X type=0x%02X",
+                          LOG_TAG, feat_idx, feat_id, feat_type);
+            }
+        }
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | Standard HID++: FeatureSet fn0 GetCount, then          |
+        | fn1 GetFeatureId for each index.                       |
+        \*-----------------------------------------------------*/
+        uint8_t recv_data[16] = {};
+        int result = SendAndReceive(feature_set_idx, 0x00,
+                                    nullptr, 0, recv_data, sizeof(recv_data));
+
+        if(result <= 0)
+        {
+            return;
+        }
+
+        uint8_t count = recv_data[0];
+
+        LOG_DEBUG("%s FeatureSet: %d features", LOG_TAG, count);
+
+        for(uint8_t i = 1; i <= count; i++)
+        {
+            uint8_t send[1] = { i };
+            memset(recv_data, 0, sizeof(recv_data));
+
+            result = SendAndReceive(feature_set_idx, 0x10,
+                                    send, 1, recv_data, sizeof(recv_data));
+
+            if(result > 0)
+            {
+                uint16_t feat_id = ((uint16_t)recv_data[0] << 8) | recv_data[1];
+
+                caps.feature_map[feat_id] = i;
+
+                LOG_DEBUG("%s   [%2d] Feature 0x%04X",
+                          LOG_TAG, i, feat_id);
+            }
+        }
+    }
+}
+
 void LogitechHIDPPController::DiscoverFirmwareInfo()
 {
     /*---------------------------------------------------------*\
-    | Feature 0x0003 = FirmwareInfo on HID++, CentPPBridge on    |
-    | Centurion. Only probe on standard HID++ transport.         |
+    | Centurion sub-devices use 0x0100 (DeviceInfo) for firmware  |
+    | version and serial. Standard HID++ uses 0x0003 (FirmwareInfo).|
     \*---------------------------------------------------------*/
-    if(transport.type != HIDPP_TRANSPORT_STANDARD)
+    if(transport.type == HIDPP_TRANSPORT_CENTURION && transport.bridge_feat_idx != 0)
     {
+        uint8_t dev_info_idx = GetFeatureIndex(HIDPP_FEAT_CENTURION_DEVICE_INFO);
+
+        if(dev_info_idx == 0)
+        {
+            return;
+        }
+
+        /*-----------------------------------------------------*\
+        | fn1 getFirmwareVersion(entityIndex=0) — main firmware   |
+        | Response: [fwType, additional, version_hi, version_lo]  |
+        \*-----------------------------------------------------*/
+        {
+            uint8_t send_data[1] = { 0x00 };
+            uint8_t recv_data[16] = {};
+
+            int result = SendAndReceive(dev_info_idx, 0x10,
+                                        send_data, 1, recv_data, sizeof(recv_data));
+
+            if(result > 0)
+            {
+                uint16_t version = ((uint16_t)recv_data[2] << 8) | recv_data[3];
+
+                char ver_str[32];
+                snprintf(ver_str, sizeof(ver_str), "%d.%d",
+                         (version >> 8) & 0xFF, version & 0xFF);
+
+                caps.firmware_version = ver_str;
+
+                LOG_DEBUG("%s Firmware (Centurion): %s", LOG_TAG, caps.firmware_version.c_str());
+            }
+        }
+
+        /*-----------------------------------------------------*\
+        | fn2 getSerialNumber on 0x0100 (DeviceInfo)              |
+        | Response: [stringLen, serial...]                        |
+        \*-----------------------------------------------------*/
+        {
+            uint8_t recv_data[16] = {};
+
+            int result = SendAndReceive(dev_info_idx, 0x20,
+                                        nullptr, 0, recv_data, sizeof(recv_data));
+
+            if(result > 0)
+            {
+                uint8_t slen = recv_data[0];
+                if(slen > 15) slen = 15;
+
+                caps.serial_number = std::string((char*)&recv_data[1], slen);
+
+                LOG_DEBUG("%s Serial (Centurion): %s", LOG_TAG, caps.serial_number.c_str());
+            }
+        }
+
         return;
     }
 
@@ -1477,6 +1702,26 @@ bool LogitechHIDPPController::Probe()
         while(hid_read_timeout(dev, post_buf, sizeof(post_buf), 10) > 0)
         {
         }
+    }
+
+    /*---------------------------------------------------------*\
+    | Enumerate all features in bulk. For standard HID++, uses   |
+    | FeatureSet GetCount + GetFeatureId loop. For Centurion     |
+    | sub-devices, uses bulk GetFeatureId (single response).     |
+    | After this, GetFeatureIndex uses the map — no wire traffic.|
+    \*---------------------------------------------------------*/
+    {
+        /*-----------------------------------------------------*\
+        | For Centurion bridged, FeatureSet is at index 1 on the |
+        | sub-device. For standard HID++, test_idx is the        |
+        | FeatureSet index from the IRoot probe.                 |
+        \*-----------------------------------------------------*/
+        uint8_t fs_idx = (transport.type == HIDPP_TRANSPORT_CENTURION &&
+                          transport.bridge_feat_idx != 0)
+                       ? 1    // CenturionFeatureSet always at index 1 on sub-device
+                       : test_idx;
+
+        EnumerateFeatures(fs_idx);
     }
 
     /*---------------------------------------------------------*\
