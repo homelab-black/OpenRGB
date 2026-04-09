@@ -10,6 +10,7 @@
 #include <thread>
 #include <hidapi.h>
 #include "Detector.h"
+#include "ResourceManager.h"
 #include "LogManager.h"
 #include "LogitechProtocolCommon.h"
 #include "LogitechG203LController.h"
@@ -661,6 +662,17 @@ void DetectLogitechX56(hid_device_info* info, const std::string& name)
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
 {
+    /*---------------------------------------------------------*\
+    | Skip devices that have a more specific (PID-based)         |
+    | detector registered. This lets legacy controllers handle   |
+    | their devices, and our unified detector only picks up      |
+    | devices with no existing support.                          |
+    \*---------------------------------------------------------*/
+    if(ResourceManager::get()->HasHIDDetectorForPID(LOGITECH_VID, info->product_id))
+    {
+        return;
+    }
+
     hid_device* dev = hid_open_path(info->path);
 
     if(!dev)
@@ -961,7 +973,7 @@ REGISTER_HID_DETECTOR_IPU("Logitech Powerplay Mat",                             
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_PU("Logitech G502 Wireless Gaming Mouse (wired)",         DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_LIGHTSPEED_PID,                    0xFF00, 2);
 // Handled by unified HID++ controller above
-//REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 Proteus Spectrum Gaming Mouse",        DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_PROTEUS_SPECTRUM_PID,           1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 HERO Gaming Mouse",                    DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_HERO_PID,                       1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G403 Prodigy Gaming Mouse",                 DetectLogitechWired,        LOGITECH_VID, LOGITECH_G403_PID,                            1, 0xFF00, 2);

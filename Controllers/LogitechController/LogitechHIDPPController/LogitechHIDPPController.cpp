@@ -1126,37 +1126,8 @@ void LogitechHIDPPController::Initialize()
     {
         SetSWControl(3, 7);
         SetRGBPowerMode(1);
-
-        /*-----------------------------------------------------*\
-        | Set zone effects to static black with persist=1.       |
-        | This ensures the zone fallback color is black (not     |
-        | the onboard profile's white) if per-key is ever reset. |
-        \*-----------------------------------------------------*/
-        for(size_t i = 0; i < caps.zone_clusters.size(); i++)
-        {
-            for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
-            {
-                if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
-                {
-                    SetZoneEffect(
-                        caps.zone_clusters[i].index,
-                        caps.zone_clusters[i].effects[j].index,
-                        0x0001, 0, 0, 0, 0, true);
-                    break;
-                }
-            }
-        }
     }
 
-    /*---------------------------------------------------------*\
-    | Push initial all-black per-key frame to establish the      |
-    | per-key layer and clear any white default zones.           |
-    \*---------------------------------------------------------*/
-    if(caps.has_perkey)
-    {
-        SetAllPerKeyColor(ToRGBColor(0, 0, 0));
-        PerKeyFrameEnd();
-    }
 
     init_generation++;
     initialized = true;
@@ -1688,8 +1659,6 @@ void LogitechHIDPPController::ReaderThreadFunc()
                (func & 0xF0) == 0x10 &&
                (func & 0x0F) != HIDPP_SW_ID)
             {
-                LOG_DEBUG("%s Reader: onUserActivity type=%d (func=0x%02X)",
-                          LOG_TAG, data[0], func);
                 pending_activity.store((int)data[0]);
                 continue;
             }
@@ -1703,8 +1672,6 @@ void LogitechHIDPPController::ReaderThreadFunc()
             \*-------------------------------------------------*/
             if(feat != 0xFF && (func & 0x0F) != HIDPP_SW_ID)
             {
-                LOG_TRACE("%s Reader: dropping feat=0x%02X func=0x%02X (swid=0x%X, expected 0x%X)",
-                          LOG_TAG, feat, func, func & 0x0F, HIDPP_SW_ID);
                 continue;
             }
             {
@@ -1727,8 +1694,6 @@ void LogitechHIDPPController::PowerThreadFunc()
     | Handles power state machine and sends commands.            |
     | Reads responses from the queue (filled by reader thread).  |
     \*---------------------------------------------------------*/
-    LOG_DEBUG("%s Power thread started", LOG_TAG);
-
     while(power_thread_running.load())
     {
         /*-----------------------------------------------------*\
@@ -1738,7 +1703,6 @@ void LogitechHIDPPController::PowerThreadFunc()
 
         if(activity >= 0)
         {
-            LOG_DEBUG("%s Power thread: got pending_activity=%d", LOG_TAG, activity);
             std::lock_guard<std::mutex> lock(power_mutex);
             OnUserActivity((uint8_t)activity);
         }

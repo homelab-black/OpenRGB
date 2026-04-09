@@ -612,6 +612,15 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         \*-----------------------------------------------------*/
         std::vector<RGBColor> snapshot(colors.begin(), colors.end());
 
+        if(!snapshot.empty())
+        {
+            RGBColor first = snapshot[0];
+            LOG_TRACE("[HID++ %s] DeviceUpdateLEDs snapshot: size=%zu first=R%d G%d B%d sent_sz=%zu",
+                      name.c_str(), snapshot.size(),
+                      RGBGetRValue(first), RGBGetGValue(first), RGBGetBValue(first),
+                      sent_colors.size());
+        }
+
         /*-----------------------------------------------------*\
         | Apply dim brightness scaling if not at full brightness.|
         | This modifies the OUTPUT only — the internal colors[]  |
@@ -653,6 +662,17 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
 
         size_t changed_count = 0;
         for(auto& e : color_to_zones) changed_count += e.second.size();
+
+        if(full_update)
+        {
+            size_t black_count = 0;
+            for(size_t i = 0; i < snapshot.size(); i++)
+            {
+                if(snapshot[i] == 0) black_count++;
+            }
+            LOG_TRACE("[HID++ %s] Full update: %zu keys, %zu black, %zu unique colors",
+                      name.c_str(), changed_count, black_count, color_to_zones.size());
+        }
 
         LOG_DEBUG("[HID++ %s] delta: full=%d sent_sz=%zu snap_sz=%zu changed=%zu colors=%zu",
                   name.c_str(), full_update,
@@ -846,6 +866,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     if(current.name == "Direct")
     {
         sent_colors.clear();
+        DeviceUpdateLEDs();
         return;
     }
 

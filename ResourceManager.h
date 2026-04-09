@@ -196,6 +196,8 @@ public:
     void WaitForInitialization();
     void WaitForDeviceDetection();
 
+    bool HasHIDDetectorForPID(uint16_t vid, uint16_t pid);
+
 private:
     void UpdateDetectorSettings();
     void SetupConfigurationDirectory();
