@@ -708,7 +708,7 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0",                                    DetectLogitechHIDPP,        LOGITECH_VID, 0xFF00, 2);
 REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43)",                             DetectLogitechHIDPP,        LOGITECH_VID, 0xFF43, 514);
-// TODO: Centurion dongle transport (0xFFA0) needs CentPPBridge (feature 0x0003) sub-device probing
+REGISTER_HID_DETECTOR_IPU("Logitech Centurion",                                    DetectLogitechHIDPP,        LOGITECH_VID, HID_PID_ANY, 3, 0xFFA0, 1);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |

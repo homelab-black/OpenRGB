@@ -595,6 +595,15 @@ int LogitechHIDPPController::SendCenturion
         }
     }
 
+    {
+        static auto t0 = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
+                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                  buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
+                  buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+    }
+
     int result;
 
     if(mutex)
@@ -629,6 +638,15 @@ int LogitechHIDPPController::ReadCenturionDirect
         return result;
     }
 
+    {
+        static auto t0 = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
+                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                  buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
+                  buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
+    }
+
     /*---------------------------------------------------------*\
     | Parse based on transport variant                          |
     \*---------------------------------------------------------*/
@@ -642,8 +660,56 @@ int LogitechHIDPPController::ReadCenturionDirect
     if(transport.bridge_feat_idx != 0 && resp_feat == transport.bridge_feat_idx)
     {
         /*-----------------------------------------------------*\
-        | CentPPBridge response — extract sub-device message     |
-        | Skip: bridge header (devId|lenHi, lenLo, subCPL)       |
+        | CentPPBridge response — two-response pattern:          |
+        |                                                        |
+        | Response 1 (ACK): bridge echoes feat+func, short msg.  |
+        |   cpl_len=3, func high nibble matches sendFragment.    |
+        |                                                        |
+        | Response 2 (MessageEvent): bridge func 1 with swid=0,  |
+        |   contains the sub-device's actual response nested.    |
+        |                                                        |
+        | If this is the ACK (swid matches ours), discard and    |
+        | read again for the MessageEvent.                       |
+        \*-----------------------------------------------------*/
+        if((resp_func & 0x0F) == HIDPP_SW_ID)
+        {
+            /*-------------------------------------------------*\
+            | This is the ACK — discard and read the MessageEvent|
+            \*-------------------------------------------------*/
+            memset(buf, 0, sizeof(buf));
+            result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
+
+            if(result <= 0)
+            {
+                return result;
+            }
+
+            resp_feat = buf[3 + hdr_offset];
+            resp_func = buf[4 + hdr_offset];
+
+            if(resp_feat != transport.bridge_feat_idx)
+            {
+                /*---------------------------------------------*\
+                | Not a bridge response — return as-is           |
+                \*---------------------------------------------*/
+                if(feat_idx_out)   *feat_idx_out = resp_feat;
+                if(function_out)   *function_out = resp_func;
+
+                if(data_out && data_max > 0)
+                {
+                    size_t avail = (size_t)(buf[1 + hdr_offset] > 2 ? buf[1 + hdr_offset] - 2 : 0);
+                    size_t copy = (avail < data_max) ? avail : data_max;
+                    memcpy(data_out, buf + 5 + hdr_offset, copy);
+                }
+
+                return result;
+            }
+        }
+
+        /*-----------------------------------------------------*\
+        | MessageEvent — unwrap sub-device response.             |
+        | Bridge params: [devId<<4|lenHi, lenLo, subCPL,         |
+        |                 subFeatIdx, subFunc|swid, subData...]   |
         \*-----------------------------------------------------*/
         int sub_offset = 5 + hdr_offset + 3;        // past bridge header
         resp_feat = buf[sub_offset];
@@ -790,18 +856,244 @@ void LogitechHIDPPController::DiscoverTransport()
     }
 
     /*---------------------------------------------------------*\
-    | Centurion transport — try 0x51 (direct), fall back to 0x50 |
-    | (addressed). The device address is read from the first     |
-    | response if addressed mode is detected.                    |
-    |                                                           |
-    | TODO: Probe report IDs and CentPPBridge once we have a    |
-    | registered detector for 0xFFA0 devices.                   |
+    | Centurion transport — determine variant from the report    |
+    | descriptor. 0x51 = direct (PRO X 2), 0x50 = addressed     |
+    | (G522). Parse the descriptor to find which report IDs      |
+    | are available with 63-byte payload.                        |
     \*---------------------------------------------------------*/
     transport.type = HIDPP_TRANSPORT_CENTURION;
-    transport.report_id = 0x51;
-    transport.addressed = false;
 
-    LOG_DEBUG("%s Centurion transport detected (usage_page=0x%04X)", LOG_TAG, transport.usage_page);
+    /*---------------------------------------------------------*\
+    | Parse report descriptor to find Centurion report IDs       |
+    \*---------------------------------------------------------*/
+    uint8_t desc[4096];
+    int desc_len = hid_get_report_descriptor(dev, desc, sizeof(desc));
+
+    bool has_0x51 = false;
+    bool has_0x50 = false;
+
+    if(desc_len > 0)
+    {
+        for(int i = 0; i < desc_len; i++)
+        {
+            if(desc[i] == 0x85 && i + 1 < desc_len)
+            {
+                if(desc[i + 1] == 0x51) has_0x51 = true;
+                if(desc[i + 1] == 0x50) has_0x50 = true;
+            }
+        }
+    }
+
+    if(has_0x51)
+    {
+        transport.report_id = 0x51;
+        transport.addressed = false;
+        LOG_DEBUG("%s Centurion 0x51 (direct) from descriptor", LOG_TAG);
+    }
+    else if(has_0x50)
+    {
+        transport.report_id = 0x50;
+        transport.addressed = true;
+        transport.device_address = 0x00;
+
+        /*-----------------------------------------------------*\
+        | Read the device address from the first response.       |
+        | Send a CenturionRoot probe and read back.              |
+        \*-----------------------------------------------------*/
+        uint8_t probe_buf[64] = {};
+        probe_buf[0] = 0x50;
+        probe_buf[1] = 0x00;
+        probe_buf[2] = 3;
+        probe_buf[3] = 0x00;
+        probe_buf[4] = 0x00;
+        probe_buf[5] = 0x00 | HIDPP_SW_ID;
+
+        if(hid_write(dev, probe_buf, 64) > 0)
+        {
+            uint8_t resp_buf[64] = {};
+
+            if(hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500) > 0)
+            {
+                transport.device_address = resp_buf[1];
+            }
+        }
+
+        LOG_DEBUG("%s Centurion 0x50 (addressed) from descriptor, device_addr=0x%02X",
+                  LOG_TAG, transport.device_address);
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | Descriptor didn't reveal report IDs — fall back to     |
+        | probing 0x51 then 0x50 by trial.                       |
+        \*-----------------------------------------------------*/
+        transport.report_id = 0x51;
+        transport.addressed = false;
+
+        uint8_t probe_buf[64] = {};
+        probe_buf[0] = 0x51;
+        probe_buf[1] = 3;
+        probe_buf[2] = 0x00;
+        probe_buf[3] = 0x00;
+        probe_buf[4] = 0x00 | HIDPP_SW_ID;
+
+        int wr = hid_write(dev, probe_buf, 64);
+
+        if(wr > 0)
+        {
+            uint8_t resp_buf[64] = {};
+            int rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500);
+
+            if(rd > 0 && resp_buf[0] == 0x51)
+            {
+                LOG_DEBUG("%s Centurion 0x51 (direct) from probe", LOG_TAG);
+                return;
+            }
+        }
+
+        transport.report_id = 0x50;
+        transport.addressed = true;
+        transport.device_address = 0x00;
+
+        memset(probe_buf, 0, sizeof(probe_buf));
+        probe_buf[0] = 0x50;
+        probe_buf[1] = 0x00;
+        probe_buf[2] = 3;
+        probe_buf[3] = 0x00;
+        probe_buf[4] = 0x00;
+        probe_buf[5] = 0x00 | HIDPP_SW_ID;
+
+        wr = hid_write(dev, probe_buf, 64);
+
+        if(wr > 0)
+        {
+            uint8_t resp_buf[64] = {};
+            int rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500);
+
+            if(rd > 0 && resp_buf[0] == 0x50)
+            {
+                transport.device_address = resp_buf[1];
+                LOG_DEBUG("%s Centurion 0x50 (addressed) from probe, device_addr=0x%02X",
+                          LOG_TAG, transport.device_address);
+                return;
+            }
+        }
+
+        LOG_DEBUG("%s Centurion transport: no response (usage_page=0x%04X)",
+                  LOG_TAG, transport.usage_page);
+    }
+}
+
+void LogitechHIDPPController::DiscoverFirmwareInfo()
+{
+    /*---------------------------------------------------------*\
+    | Feature 0x0003 = FirmwareInfo on HID++, CentPPBridge on    |
+    | Centurion. Only probe on standard HID++ transport.         |
+    \*---------------------------------------------------------*/
+    if(transport.type != HIDPP_TRANSPORT_STANDARD)
+    {
+        return;
+    }
+
+    uint8_t fw_idx = GetFeatureIndex(HIDPP_FEAT_FIRMWARE_INFO);
+
+    if(fw_idx == 0)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | fn0 GetEntityCount — how many firmware entities             |
+    \*---------------------------------------------------------*/
+    uint8_t entity_count = 1;
+
+    {
+        uint8_t recv_data[16] = {};
+        int result = SendAndReceive(fw_idx, 0x00,
+                                    nullptr, 0, recv_data, sizeof(recv_data));
+
+        if(result > 0)
+        {
+            entity_count = recv_data[0];
+        }
+    }
+
+    /*---------------------------------------------------------*\
+    | fn1 GetFwInfo — iterate entities to find main FW (type 0)  |
+    | fwType lower nibble: 0=main, 1=bootloader, 2=HW rev       |
+    | Response: fwType(1), prefix(3), bcdVersion(2), bcdBuild(2) |
+    \*---------------------------------------------------------*/
+    for(uint8_t entity = 0; entity < entity_count && entity < 8; entity++)
+    {
+        uint8_t send_data[1] = { entity };
+        uint8_t recv_data[16] = {};
+
+        int result = SendAndReceive(fw_idx, 0x10,
+                                    send_data, 1, recv_data, sizeof(recv_data));
+
+        if(result <= 0)
+        {
+            continue;
+        }
+
+        uint8_t fw_type   = recv_data[0] & 0x0F;
+        char prefix[4]    = { (char)recv_data[1], (char)recv_data[2], (char)recv_data[3], '\0' };
+        uint8_t ver_major = recv_data[4];
+        uint8_t ver_minor = recv_data[5];
+        uint16_t build    = ((uint16_t)recv_data[6] << 8) | recv_data[7];
+
+        char ver_str[64];
+        snprintf(ver_str, sizeof(ver_str), "%s %d.%d.%05u",
+                 prefix, ver_major, ver_minor, build);
+
+        LOG_DEBUG("%s Firmware entity %d: type=%d %s", LOG_TAG, entity, fw_type, ver_str);
+
+        if(fw_type == 0)
+        {
+            caps.firmware_version = ver_str;
+        }
+    }
+
+    if(caps.firmware_version.empty())
+    {
+        LOG_DEBUG("%s No main firmware entity found", LOG_TAG);
+    }
+
+    /*---------------------------------------------------------*\
+    | fn2 GetDeviceSerialNumber — ASCII serial up to 16 bytes    |
+    \*---------------------------------------------------------*/
+    {
+        uint8_t recv_data[16] = {};
+
+        int result = SendAndReceive(fw_idx, 0x20,
+                                    nullptr, 0, recv_data, sizeof(recv_data));
+
+        if(result > 0)
+        {
+            char serial[17] = {};
+            memcpy(serial, recv_data, 16);
+            serial[16] = '\0';
+
+            /*-------------------------------------------------*\
+            | Trim trailing nulls/spaces                        |
+            \*-------------------------------------------------*/
+            for(int i = 15; i >= 0; i--)
+            {
+                if(serial[i] == '\0' || serial[i] == ' ')
+                {
+                    serial[i] = '\0';
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            caps.serial_number = serial;
+
+            LOG_DEBUG("%s Serial: %s", LOG_TAG, caps.serial_number.c_str());
+        }
+    }
 }
 
 void LogitechHIDPPController::DiscoverRGBEffects()
@@ -1089,6 +1381,12 @@ bool LogitechHIDPPController::Probe()
               LOG_TAG, location.c_str(), device_index);
 
     /*---------------------------------------------------------*\
+    | Detect transport type from usage page before anything else.|
+    | Centurion devices need different framing for all commands.  |
+    \*---------------------------------------------------------*/
+    DiscoverTransport();
+
+    /*---------------------------------------------------------*\
     | Flush any queued HID reports before probing.               |
     | The device may have unsolicited notifications (battery,    |
     | button events, etc.) sitting in the read buffer.           |
@@ -1116,22 +1414,26 @@ bool LogitechHIDPPController::Probe()
     }
 
     /*---------------------------------------------------------*\
-    | Test IRoot by looking up FeatureSet (0x0001).              |
+    | Test IRoot by looking up a known feature.                  |
+    |                                                           |
+    | Standard HID++: look up FeatureSet (0x0001) — must exist. |
+    | Centurion dongle: look up CentPPBridge (0x0003) — the     |
+    |   dongle doesn't have FeatureSet, but must have the        |
+    |   bridge to reach the sub-device.                          |
+    |                                                           |
     | Retry up to 3 times — wireless devices behind a shared     |
-    | receiver can return stale responses if a report arrives    |
-    | between our flush and query. FeatureSet MUST exist on      |
-    | any HID++ 2.0 device, so index=0 means a bad read.        |
+    | receiver can return stale responses.                       |
     \*---------------------------------------------------------*/
+    uint16_t probe_feature = (transport.type == HIDPP_TRANSPORT_CENTURION)
+                           ? HIDPP_FEAT_CENTPPBRIDGE
+                           : HIDPP_FEAT_FEATURE_SET;
+
     uint8_t test_idx = 0;
 
     for(int attempt = 0; attempt < 3 && test_idx == 0; attempt++)
     {
         if(attempt > 0)
         {
-            /*-------------------------------------------------*\
-            | Flush again before retry — more reports may have   |
-            | arrived since the last attempt.                    |
-            \*-------------------------------------------------*/
             uint8_t retry_buf[64];
 
             while(hid_read_timeout(dev, retry_buf, sizeof(retry_buf), 10) > 0)
@@ -1141,14 +1443,28 @@ bool LogitechHIDPPController::Probe()
             LOG_DEBUG("%s IRoot retry %d at %s", LOG_TAG, attempt + 1, location.c_str());
         }
 
-        test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+        test_idx = GetFeatureIndex(probe_feature);
     }
 
     if(test_idx == 0)
     {
-        LOG_DEBUG("%s IRoot probe failed at %s — device does not support HID++ 2.0",
+        LOG_DEBUG("%s IRoot probe failed at %s — device does not respond",
                   LOG_TAG, location.c_str());
         return false;
+    }
+
+    /*---------------------------------------------------------*\
+    | For Centurion, the test_idx IS the CentPPBridge index.     |
+    | Set it up immediately so all subsequent queries go through |
+    | the bridge to the actual device.                           |
+    \*---------------------------------------------------------*/
+    if(transport.type == HIDPP_TRANSPORT_CENTURION && test_idx != 0)
+    {
+        transport.bridge_feat_idx = test_idx;
+        transport.sub_device_id   = 0;
+
+        LOG_DEBUG("%s CentPPBridge at index %d — routing to sub-device",
+                  LOG_TAG, test_idx);
     }
 
     /*---------------------------------------------------------*\
@@ -1164,11 +1480,14 @@ bool LogitechHIDPPController::Probe()
     }
 
     /*---------------------------------------------------------*\
-    | Discover device identity                                  |
+    | Discover device identity.                                  |
+    | On Centurion with bridge, this now queries the sub-device  |
+    | (headset) through the bridge, not the dongle.              |
     \*---------------------------------------------------------*/
     DiscoverDeviceName();
     log_tag = "[HID++ " + caps.device_name + "]";
     DiscoverDeviceType();
+    DiscoverFirmwareInfo();
 
     /*---------------------------------------------------------*\
     | Discover profile management features                      |
@@ -1263,7 +1582,7 @@ std::string LogitechHIDPPController::GetDeviceLocation()
 
 std::string LogitechHIDPPController::GetSerialString()
 {
-    return "";
+    return caps.serial_number;
 }
 
 uint32_t LogitechHIDPPController::GetInitGeneration() const

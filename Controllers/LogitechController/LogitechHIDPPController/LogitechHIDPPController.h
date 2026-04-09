@@ -36,6 +36,8 @@
 #define HIDPP_FEAT_DEVICE_NAME_TYPE         0x0005
 #define HIDPP_FEAT_ONBOARD_PROFILES         0x8100
 #define HIDPP_FEAT_PROFILE_MANAGEMENT       0x8101
+#define HIDPP_FEAT_FIRMWARE_INFO            0x0003
+#define HIDPP_FEAT_CENTPPBRIDGE             0x0003  /* same ID, different meaning on Centurion */
 #define HIDPP_FEAT_COLOR_LED_EFFECTS        0x8070
 #define HIDPP_FEAT_RGB_EFFECTS              0x8071
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V1      0x8080
@@ -122,6 +124,8 @@ struct HIDPPDeviceCapabilities
 {
     std::string     device_name;
     uint8_t         device_type;
+    std::string     firmware_version;
+    std::string     serial_number;
 
     /*-------------------------------------------------*\
     | Feature indices (0 = not supported)               |
@@ -352,6 +356,7 @@ private:
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();
+    void            DiscoverFirmwareInfo();
     void            DiscoverRGBEffects();
     void            DiscoverPerKeyZones();
     void            DiscoverKeyboardLayout();
