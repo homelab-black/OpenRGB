@@ -24,7 +24,8 @@ LogitechHIDPPController::LogitechHIDPPController
     const char*                 path,
     uint8_t                     device_index,
     bool                        wireless,
-    std::shared_ptr<std::mutex> mutex_ptr
+    std::shared_ptr<std::mutex> mutex_ptr,
+    uint16_t                    usage_page
     )
 {
     this->dev           = dev;
@@ -55,6 +56,7 @@ LogitechHIDPPController::LogitechHIDPPController
     | may change this during Probe() if Centurion is detected.   |
     \*---------------------------------------------------------*/
     transport.type              = HIDPP_TRANSPORT_STANDARD;
+    transport.usage_page        = usage_page;
     transport.report_id         = LOGITECH_LONG_MESSAGE;
     transport.addressed         = false;
     transport.device_address    = 0x00;
@@ -351,25 +353,66 @@ int LogitechHIDPPController::SendStandard
     size_t          len
     )
 {
-    longFAPrequest request;
-    request.init(device_index, feat_idx, function | HIDPP_SW_ID);
+    /*---------------------------------------------------------*\
+    | Auto-select short (0x10, 7 bytes) vs long (0x11, 20 bytes) |
+    | based on data length. Upper layers just provide data;       |
+    | transport picks the smallest frame that fits.               |
+    \*---------------------------------------------------------*/
+    uint8_t buf[LOGITECH_LONG_MESSAGE_LEN];
+    size_t  msg_len;
 
-    if(data && len > 0)
+    if(len <= 3)
     {
-        size_t copy_len = (len > sizeof(request.data)) ? sizeof(request.data) : len;
-        memcpy(request.data, data, copy_len);
+        memset(buf, 0, LOGITECH_SHORT_MESSAGE_LEN);
+        buf[0] = LOGITECH_SHORT_MESSAGE;
+        buf[1] = device_index;
+        buf[2] = feat_idx;
+        buf[3] = function | HIDPP_SW_ID;
+
+        if(data && len > 0)
+        {
+            memcpy(buf + 4, data, len);
+        }
+
+        msg_len = LOGITECH_SHORT_MESSAGE_LEN;
+    }
+    else
+    {
+        memset(buf, 0, LOGITECH_LONG_MESSAGE_LEN);
+        buf[0] = LOGITECH_LONG_MESSAGE;
+        buf[1] = device_index;
+        buf[2] = feat_idx;
+        buf[3] = function | HIDPP_SW_ID;
+
+        if(data && len > 0)
+        {
+            size_t copy_len = (len > 16) ? 16 : len;
+            memcpy(buf + 4, data, copy_len);
+        }
+
+        msg_len = LOGITECH_LONG_MESSAGE_LEN;
     }
 
     {
         static auto t0 = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
-                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                  request.buffer[0], request.buffer[1], request.buffer[2], request.buffer[3],
-                  request.buffer[4], request.buffer[5], request.buffer[6], request.buffer[7],
-                  request.buffer[8], request.buffer[9], request.buffer[10], request.buffer[11],
-                  request.buffer[12], request.buffer[13], request.buffer[14], request.buffer[15],
-                  request.buffer[16], request.buffer[17], request.buffer[18], request.buffer[19]);
+
+        if(msg_len == LOGITECH_SHORT_MESSAGE_LEN)
+        {
+            LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X]",
+                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                      buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
+        }
+        else
+        {
+            LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
+                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                      buf[0], buf[1], buf[2], buf[3],
+                      buf[4], buf[5], buf[6], buf[7],
+                      buf[8], buf[9], buf[10], buf[11],
+                      buf[12], buf[13], buf[14], buf[15],
+                      buf[16], buf[17], buf[18], buf[19]);
+        }
     }
 
     int result;
@@ -377,11 +420,11 @@ int LogitechHIDPPController::SendStandard
     if(mutex)
     {
         std::lock_guard<std::mutex> lock(*mutex);
-        result = hid_write(dev, request.buffer, request.size());
+        result = hid_write(dev, buf, msg_len);
     }
     else
     {
-        result = hid_write(dev, request.buffer, request.size());
+        result = hid_write(dev, buf, msg_len);
     }
 
     return result;
@@ -736,14 +779,29 @@ void LogitechHIDPPController::DiscoverDeviceType()
 void LogitechHIDPPController::DiscoverTransport()
 {
     /*---------------------------------------------------------*\
-    | Detect Centurion transport by checking usage page.         |
-    | Standard HID++ is the default; if we're on 0xFFA0 we      |
-    | switch to Centurion framing and probe for CentPPBridge.    |
-    |                                                           |
-    | TODO: Implement full Centurion detection. For now we only  |
-    | set the type flag — actual Centurion devices will fail     |
-    | IRoot and be skipped until the transport is complete.      |
+    | Detect transport type from usage page.                     |
+    | 0xFF00/0xFF43: Standard HID++ (0x10/0x11 reports)          |
+    | 0xFFA0+:       Centurion (64-byte CPL framing)             |
     \*---------------------------------------------------------*/
+    if(transport.usage_page == 0xFF00 || transport.usage_page == 0xFF43)
+    {
+        transport.type = HIDPP_TRANSPORT_STANDARD;
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Centurion transport — try 0x51 (direct), fall back to 0x50 |
+    | (addressed). The device address is read from the first     |
+    | response if addressed mode is detected.                    |
+    |                                                           |
+    | TODO: Probe report IDs and CentPPBridge once we have a    |
+    | registered detector for 0xFFA0 devices.                   |
+    \*---------------------------------------------------------*/
+    transport.type = HIDPP_TRANSPORT_CENTURION;
+    transport.report_id = 0x51;
+    transport.addressed = false;
+
+    LOG_DEBUG("%s Centurion transport detected (usage_page=0x%04X)", LOG_TAG, transport.usage_page);
 }
 
 void LogitechHIDPPController::DiscoverRGBEffects()
