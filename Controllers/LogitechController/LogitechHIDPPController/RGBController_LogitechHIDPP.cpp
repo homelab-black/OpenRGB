@@ -383,8 +383,6 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
             DeviceUpdateLEDs();
         }
     );
-
-    controller->StartPowerManager();
 }
 
 RGBController_LogitechHIDPP::~RGBController_LogitechHIDPP()
@@ -845,6 +843,11 @@ void RGBController_LogitechHIDPP::UpdateSingleLED(int /*led*/)
 
 void RGBController_LogitechHIDPP::DeviceUpdateMode()
 {
+    /*---------------------------------------------------------*\
+    | Claim SW control on first mode set (deferred from init).   |
+    \*---------------------------------------------------------*/
+    controller->ClaimSWControlIfNeeded();
+
     const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
 
     if((unsigned int)active_mode >= modes.size())
@@ -865,8 +868,52 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     if(current.name == "Direct")
     {
+        /*-----------------------------------------------------*\
+        | 1. Claim SW control (deferred from Initialize).        |
+        |    Does host mode + SetSWControl(3,5) + power mode.    |
+        |    Device stays in firmware mode until this point.     |
+        \*-----------------------------------------------------*/
+        controller->ClaimSWControlIfNeeded();
+
+        /*-----------------------------------------------------*\
+        | 2. Zone effect — transition device to SW-controlled    |
+        |    state before per-key writes. Matches Solaar's       |
+        |    SetEffectByIndex before per-key.                    |
+        \*-----------------------------------------------------*/
+        if(caps.has_zone_effects)
+        {
+            for(size_t i = 0; i < caps.zone_clusters.size(); i++)
+            {
+                for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
+                {
+                    if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
+                    {
+                        RGBColor c = (colors.size() > 0) ? colors[0] : ToRGBColor(0, 0, 0);
+                        controller->SetZoneEffect(
+                            caps.zone_clusters[i].index,
+                            caps.zone_clusters[i].effects[j].index,
+                            0x0001,
+                            RGBGetRValue(c), RGBGetGValue(c), RGBGetBValue(c),
+                            0, false);
+                        break;
+                    }
+                }
+            }
+        }
+
+        /*-----------------------------------------------------*\
+        | 3. Per-key writes with real colors from buffer          |
+        \*-----------------------------------------------------*/
         sent_colors.clear();
         DeviceUpdateLEDs();
+
+        /*-----------------------------------------------------*\
+        | 4. Start power manager (reader + power threads).       |
+        |    Done AFTER claim+push so reader thread doesn't      |
+        |    interfere with the initial HID command sequence.    |
+        \*-----------------------------------------------------*/
+        controller->StartPowerManager();
+
         return;
     }
 
