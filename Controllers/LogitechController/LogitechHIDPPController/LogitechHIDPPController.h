@@ -18,6 +18,12 @@
 #include <map>
 #include <mutex>
 #include <memory>
+#include <thread>
+#include <atomic>
+#include <functional>
+#include <chrono>
+#include <deque>
+#include <condition_variable>
 #include <hidapi.h>
 #include "RGBController.h"
 #include "LogitechProtocolCommon.h"
@@ -40,7 +46,15 @@
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
 | Function ID is shifted left 4 bits, low nibble = swID |
 \*-----------------------------------------------------*/
-#define HIDPP_SW_ID                         0x0A
+/*-----------------------------------------------------*\
+| HID++ Software ID — identifies our responses.         |
+| Must avoid: 0x00 (firmware), 0x01 (GHUB),             |
+| 0x02-0x0F (Solaar cycles these).                      |
+| There are only 16 values (4-bit field), and all are   |
+| claimed. We pick a fixed value and will coordinate    |
+| with Solaar to exclude it from its cycle.             |
+\*-----------------------------------------------------*/
+#define HIDPP_SW_ID                         0x07
 
 /*-----------------------------------------------------*\
 | Feature 0x8071 functions                              |
@@ -157,6 +171,29 @@ struct HIDPPTransport
     uint8_t             sub_device_id;      // CentPPBridge sub-device ID (typically 0)
 };
 
+/*-----------------------------------------------------*\
+| Power management state machine                        |
+| Matches Solaar's RGBPowerManager states               |
+\*-----------------------------------------------------*/
+enum HIDPPPowerState
+{
+    HIDPP_POWER_ACTIVE   = 0,
+    HIDPP_POWER_DIMMING  = 1,
+    HIDPP_POWER_IDLE     = 2,
+    HIDPP_POWER_SLEEPING = 3,
+};
+
+/*-----------------------------------------------------*\
+| Parsed HID++ message for the response queue           |
+\*-----------------------------------------------------*/
+struct HIDPPRawMessage
+{
+    uint8_t feat;
+    uint8_t func;
+    uint8_t data[60];
+    int     result;
+};
+
 class LogitechHIDPPController
 {
 public:
@@ -203,6 +240,16 @@ public:
     void            SetSWControl(uint8_t mode, uint8_t flags);
     void            SetRGBPowerMode(uint8_t mode);
 
+    /*-------------------------------------------------*\
+    | Power management (idle/dim/sleep/wake)             |
+    \*-------------------------------------------------*/
+    void            StartPowerManager();
+    void            StopPowerManager();
+    void            SetRepaintCallback(std::function<void()> repaint);
+    HIDPPPowerState GetPowerState() const;
+    int             GetDimBrightness() const;
+    void            WakeIfNeeded();
+
 private:
     hid_device*                 dev;
     std::string                 location;
@@ -235,9 +282,9 @@ private:
     \*-------------------------------------------------*/
     int             SendStandard(uint8_t feat_idx, uint8_t function,
                                  const uint8_t* data, size_t len);
-    int             ReadStandard(uint8_t* feat_idx_out, uint8_t* function_out,
-                                 uint8_t* data_out, size_t data_max,
-                                 int timeout_ms);
+    int             ReadStandardDirect(uint8_t* feat_idx_out, uint8_t* function_out,
+                                       uint8_t* data_out, size_t data_max,
+                                       int timeout_ms);
 
     /*-------------------------------------------------*\
     | Centurion transport (0xFFA0)                       |
@@ -246,7 +293,21 @@ private:
     \*-------------------------------------------------*/
     int             SendCenturion(uint8_t feat_idx, uint8_t function,
                                   const uint8_t* data, size_t len);
-    int             ReadCenturion(uint8_t* feat_idx_out, uint8_t* function_out,
+    int             ReadCenturionDirect(uint8_t* feat_idx_out, uint8_t* function_out,
+                                        uint8_t* data_out, size_t data_max,
+                                        int timeout_ms);
+
+    /*-------------------------------------------------*\
+    | Reader thread dispatch layer                       |
+    | ReadHIDDirect: raw HID read (used by reader thread |
+    |   and during Probe before reader starts).          |
+    | ReadFromQueue: waits on response queue filled by   |
+    |   the reader thread.                               |
+    \*-------------------------------------------------*/
+    int             ReadHIDDirect(uint8_t* feat_idx_out, uint8_t* function_out,
+                                  uint8_t* data_out, size_t data_max,
+                                  int timeout_ms);
+    int             ReadFromQueue(uint8_t* feat_idx_out, uint8_t* function_out,
                                   uint8_t* data_out, size_t data_max,
                                   int timeout_ms);
 
@@ -277,4 +338,68 @@ private:
     void            DiscoverRGBEffects();
     void            DiscoverPerKeyZones();
     void            DiscoverKeyboardLayout();
+
+    /*-------------------------------------------------*\
+    | Power management internals                        |
+    \*-------------------------------------------------*/
+    void            ReaderThreadFunc();
+    void            PowerThreadFunc();
+    void            FlushResponseQueue();
+    void            DispatchEvent(uint8_t feat, uint8_t func, const uint8_t* data);
+    void            OnUserActivity(uint8_t activity_type);
+    void            StartDimRamp();
+    void            DimRampStep();
+    void            StartSleep();
+    void            Wake();
+    void            ReadFirmwareTimers();
+
+    /*-------------------------------------------------*\
+    | Reader thread + response queue                    |
+    \*-------------------------------------------------*/
+    std::thread*            reader_thread;
+    std::atomic<bool>       reader_running;
+    std::mutex              response_mutex;
+    std::condition_variable response_cv;
+    std::deque<HIDPPRawMessage> response_queue;
+
+    /*-------------------------------------------------*\
+    | Power thread (state machine + command sender)     |
+    \*-------------------------------------------------*/
+    std::thread*            power_thread;
+    std::atomic<bool>       power_thread_running;
+    std::atomic<int>        pending_activity;       // -1=none, 0=idle, 1+=active
+
+    /*-------------------------------------------------*\
+    | Power management state                            |
+    \*-------------------------------------------------*/
+    HIDPPPowerState         power_state;
+    std::mutex              power_mutex;
+
+    /*-------------------------------------------------*\
+    | Dim ramp state                                    |
+    | dim_brightness_pct is applied by DeviceUpdateLEDs |
+    | to scale colors before pushing to device.         |
+    \*-------------------------------------------------*/
+    static const int DIM_STEPS       = 25;
+    static const int DIM_INTERVAL_MS = 200;
+    static const int DIM_TARGET_PCT  = 50;
+    std::atomic<int> dim_brightness_pct;    // 100=full, 50=dimmed
+    int              dim_step;
+    std::chrono::steady_clock::time_point next_dim_time;
+
+    /*-------------------------------------------------*\
+    | Sleep timer                                       |
+    \*-------------------------------------------------*/
+    std::chrono::steady_clock::time_point sleep_deadline;
+
+    /*-------------------------------------------------*\
+    | Firmware power config (read from device)          |
+    \*-------------------------------------------------*/
+    uint16_t        idle_timeout_s;
+    uint16_t        sleep_timeout_s;
+
+    /*-------------------------------------------------*\
+    | RGBController callbacks                           |
+    \*-------------------------------------------------*/
+    std::function<void()> request_repaint_fn;
 };

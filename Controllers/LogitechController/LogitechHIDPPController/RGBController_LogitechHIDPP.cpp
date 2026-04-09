@@ -8,7 +8,9 @@
 \*---------------------------------------------------------*/
 
 #include <map>
+#include <set>
 #include <chrono>
+#include <algorithm>
 #include "RGBController_LogitechHIDPP.h"
 #include "RGBControllerKeyNames.h"
 #include "KeyboardLayoutManager.h"
@@ -369,10 +371,25 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
     }
 
     SetupZones();
+
+    /*---------------------------------------------------------*\
+    | Register repaint callback and start power manager.         |
+    | The callback triggers DeviceUpdateLEDs from the power      |
+    | thread for dim/wake when no animation is driving updates.  |
+    \*---------------------------------------------------------*/
+    controller->SetRepaintCallback(
+        [this]()
+        {
+            DeviceUpdateLEDs();
+        }
+    );
+
+    controller->StartPowerManager();
 }
 
 RGBController_LogitechHIDPP::~RGBController_LogitechHIDPP()
 {
+    controller->StopPowerManager();
     delete controller;
 }
 
@@ -562,6 +579,16 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
 {
     const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
 
+    /*---------------------------------------------------------*\
+    | If the device is sleeping (powered off), wake it first.    |
+    | DIMMING/IDLE states are handled by brightness scaling —    |
+    | the firmware's onUserActivity handles those transitions.   |
+    \*---------------------------------------------------------*/
+    if(controller->GetPowerState() == HIDPP_POWER_SLEEPING)
+    {
+        controller->WakeIfNeeded();
+    }
+
     if(caps.has_perkey && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
@@ -584,6 +611,24 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         | the colors array while we're sending.                  |
         \*-----------------------------------------------------*/
         std::vector<RGBColor> snapshot(colors.begin(), colors.end());
+
+        /*-----------------------------------------------------*\
+        | Apply dim brightness scaling if not at full brightness.|
+        | This modifies the OUTPUT only — the internal colors[]  |
+        | buffer stays at full brightness for the animation.     |
+        \*-----------------------------------------------------*/
+        int brightness = controller->GetDimBrightness();
+
+        if(brightness < 100)
+        {
+            for(size_t i = 0; i < snapshot.size(); i++)
+            {
+                uint8_t r = RGBGetRValue(snapshot[i]) * brightness / 100;
+                uint8_t g = RGBGetGValue(snapshot[i]) * brightness / 100;
+                uint8_t b = RGBGetBValue(snapshot[i]) * brightness / 100;
+                snapshot[i] = ToRGBColor(r, g, b);
+            }
+        }
 
         /*-----------------------------------------------------*\
         | Compute delta against last committed state.            |
@@ -624,13 +669,15 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         /*-----------------------------------------------------*\
         | Batch changed keys for efficient wire encoding.        |
         |                                                        |
-        | fn6 (SET_SINGLE_VALUE): [R, G, B, zid, zid, ...]       |
-        |   Up to 13 zone IDs per packet, same color.            |
-        |   Used for any same-color group (>= 2 keys).           |
+        | For same-color groups (>= 2 keys):                     |
+        |   Sort zone IDs and find contiguous runs.              |
+        |   fn5 (SET_RANGE) for runs of 3+:                      |
+        |     [start, end, R, G, B] × 3 per packet               |
+        |   fn6 (SET_SINGLE_VALUE) for scattered remainder:      |
+        |     [R, G, B, zid, zid, ...] up to 13 per packet       |
         |                                                        |
-        | fn1 (SET_INDIVIDUAL): [zid,R,G,B, zid,R,G,B, ...]      |
-        |   Up to 4 zone+color entries per packet.               |
-        |   Used for single-occurrence colors.                   |
+        | For single-occurrence colors:                          |
+        |   fn1 (SET_INDIVIDUAL): [zid,R,G,B] × 4 per packet    |
         \*-----------------------------------------------------*/
         std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
 
@@ -645,23 +692,76 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                 uint8_t g = RGBGetGValue(color);
                 uint8_t b = RGBGetBValue(color);
 
-                for(size_t i = 0; i < zone_ids.size(); i += 13)
+                /*-------------------------------------------------*\
+                | Sort zone IDs and extract contiguous runs for fn5  |
+                \*-------------------------------------------------*/
+                std::sort(zone_ids.begin(), zone_ids.end());
+
+                std::vector<std::pair<uint8_t, uint8_t>> ranges;
+                std::vector<uint8_t> scattered;
+                size_t run_start = 0;
+
+                for(size_t i = 1; i <= zone_ids.size(); i++)
+                {
+                    if(i < zone_ids.size() && zone_ids[i] == zone_ids[i - 1] + 1)
+                    {
+                        continue;
+                    }
+
+                    size_t run_len = i - run_start;
+
+                    if(run_len >= 3)
+                    {
+                        ranges.push_back({zone_ids[run_start], zone_ids[i - 1]});
+                    }
+                    else
+                    {
+                        for(size_t j = run_start; j < i; j++)
+                        {
+                            scattered.push_back(zone_ids[j]);
+                        }
+                    }
+
+                    run_start = i;
+                }
+
+                /*-------------------------------------------------*\
+                | fn5 (SET_RANGE): 3 range entries per packet        |
+                \*-------------------------------------------------*/
+                for(size_t i = 0; i < ranges.size(); i += 3)
+                {
+                    uint8_t data[16] = {};
+                    size_t batch = ranges.size() - i;
+                    if(batch > 3) batch = 3;
+
+                    for(size_t j = 0; j < batch; j++)
+                    {
+                        data[j * 5 + 0] = ranges[i + j].first;
+                        data[j * 5 + 1] = ranges[i + j].second;
+                        data[j * 5 + 2] = r;
+                        data[j * 5 + 3] = g;
+                        data[j * 5 + 4] = b;
+                    }
+
+                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_RANGE, data, batch * 5);
+                }
+
+                /*-------------------------------------------------*\
+                | fn6 (SET_SINGLE_VALUE) for remaining scattered     |
+                \*-------------------------------------------------*/
+                for(size_t i = 0; i < scattered.size(); i += 13)
                 {
                     uint8_t data[16] = {};
                     data[0] = r;
                     data[1] = g;
                     data[2] = b;
 
-                    size_t batch = zone_ids.size() - i;
-
-                    if(batch > 13)
-                    {
-                        batch = 13;
-                    }
+                    size_t batch = scattered.size() - i;
+                    if(batch > 13) batch = 13;
 
                     for(size_t j = 0; j < batch; j++)
                     {
-                        data[3 + j] = zone_ids[i + j];
+                        data[3 + j] = scattered[i + j];
                     }
 
                     controller->SendPerKeyData(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch);

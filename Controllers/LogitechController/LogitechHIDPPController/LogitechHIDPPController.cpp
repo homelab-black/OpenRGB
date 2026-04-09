@@ -10,6 +10,7 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
+#include <set>
 #include "LogitechHIDPPController.h"
 #include "LogManager.h"
 
@@ -31,10 +32,20 @@ LogitechHIDPPController::LogitechHIDPPController
     this->device_index  = device_index;
     this->wireless      = wireless;
     this->mutex         = mutex_ptr;
-    this->initialized      = false;
-    this->frame_counter    = 0;
-    this->init_generation  = 0;
-    this->log_tag          = "[HID++ " + std::string(path) + "]";
+    this->initialized          = false;
+    this->frame_counter        = 0;
+    this->init_generation      = 0;
+    this->log_tag              = "[HID++ " + std::string(path) + "]";
+    this->reader_thread        = nullptr;
+    this->reader_running       = false;
+    this->power_thread         = nullptr;
+    this->power_thread_running = false;
+    this->pending_activity     = -1;
+    this->power_state          = HIDPP_POWER_ACTIVE;
+    this->dim_brightness_pct   = 100;
+    this->dim_step             = 0;
+    this->idle_timeout_s       = 60;
+    this->sleep_timeout_s      = 300;
 
     caps = {};
 
@@ -99,15 +110,87 @@ int LogitechHIDPPController::ReadMessage
     int         timeout_ms
     )
 {
+    /*---------------------------------------------------------*\
+    | When the reader thread is running, it is the sole caller  |
+    | of hid_read_timeout. All other reads come from the queue. |
+    | Before the reader starts (during Probe/Initialize), read  |
+    | directly from HID.                                        |
+    \*---------------------------------------------------------*/
+    if(reader_running.load())
+    {
+        return ReadFromQueue(feat_idx_out, function_out, data_out, data_max, timeout_ms);
+    }
+
+    return ReadHIDDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
+}
+
+int LogitechHIDPPController::ReadHIDDirect
+    (
+    uint8_t*    feat_idx_out,
+    uint8_t*    function_out,
+    uint8_t*    data_out,
+    size_t      data_max,
+    int         timeout_ms
+    )
+{
     switch(transport.type)
     {
         case HIDPP_TRANSPORT_CENTURION:
-            return ReadCenturion(feat_idx_out, function_out, data_out, data_max, timeout_ms);
+            return ReadCenturionDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
 
         case HIDPP_TRANSPORT_STANDARD:
         default:
-            return ReadStandard(feat_idx_out, function_out, data_out, data_max, timeout_ms);
+            return ReadStandardDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
     }
+}
+
+int LogitechHIDPPController::ReadFromQueue
+    (
+    uint8_t*    feat_idx_out,
+    uint8_t*    function_out,
+    uint8_t*    data_out,
+    size_t      data_max,
+    int         timeout_ms
+    )
+{
+    std::unique_lock<std::mutex> lock(response_mutex);
+
+    auto deadline = std::chrono::steady_clock::now()
+                  + std::chrono::milliseconds(timeout_ms);
+
+    while(response_queue.empty())
+    {
+        if(response_cv.wait_until(lock, deadline) == std::cv_status::timeout)
+        {
+            return 0;
+        }
+
+        if(!reader_running.load())
+        {
+            return 0;
+        }
+    }
+
+    HIDPPRawMessage msg = response_queue.front();
+    response_queue.pop_front();
+
+    if(feat_idx_out)
+    {
+        *feat_idx_out = msg.feat;
+    }
+
+    if(function_out)
+    {
+        *function_out = msg.func;
+    }
+
+    if(data_out && data_max > 0)
+    {
+        size_t copy_len = (data_max > sizeof(msg.data)) ? sizeof(msg.data) : data_max;
+        memcpy(data_out, msg.data, copy_len);
+    }
+
+    return msg.result;
 }
 
 int LogitechHIDPPController::SendAndReceive
@@ -174,7 +257,7 @@ int LogitechHIDPPController::SendAndReceive
             return result;
         }
 
-        /* Silently discard unsolicited notifications */
+        /* Discard non-matching message and retry */
     }
 
     LOG_DEBUG("%s SendAndReceive: gave up after 10 attempts", LOG_TAG);
@@ -250,7 +333,7 @@ int LogitechHIDPPController::ReadResponse
         return -1;
     }
 
-    /* Silently discard and retry */
+    /* Discard non-matching message and retry */
     return ReadResponse(response, expected_feat_idx, expected_function, timeout_ms, retries_left - 1);
 }
 
@@ -291,7 +374,7 @@ int LogitechHIDPPController::SendStandard
     return result;
 }
 
-int LogitechHIDPPController::ReadStandard
+int LogitechHIDPPController::ReadStandardDirect
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -303,17 +386,12 @@ int LogitechHIDPPController::ReadStandard
     blankFAPmessage response;
     response.init();
 
-    int result;
-
-    if(mutex)
-    {
-        std::lock_guard<std::mutex> lock(*mutex);
-        result = hid_read_timeout(dev, response.buffer, response.size(), timeout_ms);
-    }
-    else
-    {
-        result = hid_read_timeout(dev, response.buffer, response.size(), timeout_ms);
-    }
+    /*---------------------------------------------------------*\
+    | No mutex needed for reads — when the reader thread is      |
+    | running, it is the sole caller. Before the reader starts,  |
+    | all access is single-threaded.                             |
+    \*---------------------------------------------------------*/
+    int result = hid_read_timeout(dev, response.buffer, response.size(), timeout_ms);
 
     if(result <= 0)
     {
@@ -464,7 +542,7 @@ int LogitechHIDPPController::SendCenturion
     return result;
 }
 
-int LogitechHIDPPController::ReadCenturion
+int LogitechHIDPPController::ReadCenturionDirect
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -476,17 +554,7 @@ int LogitechHIDPPController::ReadCenturion
     uint8_t buf[64];
     memset(buf, 0, sizeof(buf));
 
-    int result;
-
-    if(mutex)
-    {
-        std::lock_guard<std::mutex> lock(*mutex);
-        result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
-    }
-    else
-    {
-        result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
-    }
+    int result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
 
     if(result <= 0)
     {
@@ -1049,14 +1117,45 @@ void LogitechHIDPPController::Initialize()
     }
 
     /*---------------------------------------------------------*\
-    | Claim SW control on RGB effects feature                    |
-    | flags=5 (ZONE|EFFECT): firmware keeps POWER control,       |
-    | monitors for idle, sends onUserActivity events.            |
+    | Claim full SW control: flags=7 (ZONE|POWER|EFFECT).        |
+    | Suppresses all firmware autonomous behavior and events.    |
+    | StartPowerManager() will transition to flags=5 for idle    |
+    | monitoring after the RGBController is ready.               |
     \*---------------------------------------------------------*/
     if(caps.idx_rgb_effects != 0)
     {
-        SetSWControl(3, 5);
+        SetSWControl(3, 7);
         SetRGBPowerMode(1);
+
+        /*-----------------------------------------------------*\
+        | Set zone effects to static black with persist=1.       |
+        | This ensures the zone fallback color is black (not     |
+        | the onboard profile's white) if per-key is ever reset. |
+        \*-----------------------------------------------------*/
+        for(size_t i = 0; i < caps.zone_clusters.size(); i++)
+        {
+            for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
+            {
+                if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
+                {
+                    SetZoneEffect(
+                        caps.zone_clusters[i].index,
+                        caps.zone_clusters[i].effects[j].index,
+                        0x0001, 0, 0, 0, 0, true);
+                    break;
+                }
+            }
+        }
+    }
+
+    /*---------------------------------------------------------*\
+    | Push initial all-black per-key frame to establish the      |
+    | per-key layer and clear any white default zones.           |
+    \*---------------------------------------------------------*/
+    if(caps.has_perkey)
+    {
+        SetAllPerKeyColor(ToRGBColor(0, 0, 0));
+        PerKeyFrameEnd();
     }
 
     init_generation++;
@@ -1069,6 +1168,8 @@ void LogitechHIDPPController::Shutdown()
     {
         return;
     }
+
+    StopPowerManager();
 
     /*---------------------------------------------------------*\
     | Release SW control                                        |
@@ -1197,10 +1298,7 @@ void LogitechHIDPPController::SetPerKeyColors
         if(count == 4 || i == zone_colors.size() - 1)
         {
             SendLong(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4);
-
-            uint8_t drain[64];
-            hid_read_timeout(dev, drain, sizeof(drain), 1);
-
+            std::this_thread::sleep_for(1ms);
             memset(data, 0, sizeof(data));
             count = 0;
         }
@@ -1220,35 +1318,33 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
               LOG_TAG, RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color),
               caps.perkey_zone_ids.size());
 
-    /*---------------------------------------------------------*\
-    | Use SetRgbZonesSingleValue (fn6): R,G,B + up to 13 zones |
-    \*---------------------------------------------------------*/
     uint8_t r = RGBGetRValue(color);
     uint8_t g = RGBGetGValue(color);
     uint8_t b = RGBGetBValue(color);
 
-    for(size_t i = 0; i < caps.perkey_zone_ids.size(); i += 13)
+    /*---------------------------------------------------------*\
+    | Use SetRangeRgbZones (fn5): [start, end, R, G, B] × 3     |
+    | per packet. Sets all zones in a contiguous range to one   |
+    | color. Gaps in zone IDs are silently ignored by firmware.  |
+    | For uniform color this is far more efficient than fn6:     |
+    | 1-2 packets vs 8 packets for 94 zones.                    |
+    \*---------------------------------------------------------*/
+    uint8_t min_zone = 255, max_zone = 0;
+
+    for(uint16_t zid : caps.perkey_zone_ids)
     {
-        uint8_t data[16];
-        data[0] = r;
-        data[1] = g;
-        data[2] = b;
-
-        size_t batch = caps.perkey_zone_ids.size() - i;
-        if(batch > 13)
+        if(zid > 0 && zid <= 255)
         {
-            batch = 13;
+            if((uint8_t)zid < min_zone) min_zone = (uint8_t)zid;
+            if((uint8_t)zid > max_zone) max_zone = (uint8_t)zid;
         }
+    }
 
-        for(size_t j = 0; j < batch; j++)
-        {
-            data[3 + j] = caps.perkey_zone_ids[i + j];
-        }
-
-        SendLong(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch);
-
-        uint8_t drain[64];
-        hid_read_timeout(dev, drain, sizeof(drain), 1);
+    if(min_zone <= max_zone)
+    {
+        uint8_t data[5] = { min_zone, max_zone, r, g, b };
+        SendLong(perkey_idx, FN_8081_SET_RANGE, data, 5);
+        std::this_thread::sleep_for(1ms);
     }
 }
 
@@ -1263,13 +1359,12 @@ void LogitechHIDPPController::SendPerKeyData
     SendLong(perkey_idx, function, data, len);
 
     /*---------------------------------------------------------*\
-    | Quick non-blocking drain: read any pending response to     |
-    | prevent the device's response buffer from filling up.      |
-    | Timeout of 1ms keeps writes fast while ensuring the        |
-    | device can keep up with sustained bursts.                  |
+    | Pace writes so the device can keep up. The old code used  |
+    | a 1ms hid_read drain; now the reader thread handles       |
+    | reading, so we sleep instead. The ACKs are queued by the  |
+    | reader thread and consumed by PerKeyFrameEnd's read loop. |
     \*---------------------------------------------------------*/
-    uint8_t drain[64];
-    hid_read_timeout(dev, drain, sizeof(drain), 1);
+    std::this_thread::sleep_for(1ms);
 }
 
 bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
@@ -1290,10 +1385,9 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
 
     /*---------------------------------------------------------*\
     | Send FrameEnd, then read responses in a loop.             |
-    | Per-key writes are fire-and-forget, so stale ACKs and     |
-    | unsolicited notifications may be queued. Discard anything |
-    | that doesn't match FrameEnd's function, and retry on      |
-    | BUSY (device still processing previous frame commit).     |
+    | Per-key write ACKs may be queued — PerKeyFrameEnd reads   |
+    | and discards them while looking for the FrameEnd response.|
+    | Retry on BUSY (device still processing previous commit).  |
     \*---------------------------------------------------------*/
     uint8_t frame_end_func = FN_8081_FRAME_END | HIDPP_SW_ID;
 
@@ -1360,10 +1454,7 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
                 return true;
             }
 
-            /*-------------------------------------------------*\
-            | Non-matching response (stale per-key ACK or        |
-            | unsolicited notification) — discard.               |
-            \*-------------------------------------------------*/
+            /* Discard non-matching response (stale ACK etc.) */
         }
     }
 
@@ -1467,4 +1558,566 @@ void LogitechHIDPPController::SetZoneEffect
     blankFAPmessage response;
     ReadResponse(response, caps.idx_rgb_effects,
                  (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? FN_8071_SET_EFFECT : LOGITECH_FP8070_SET_EFFECT);
+}
+
+/*---------------------------------------------------------*\
+| Power management (idle/dim/sleep/wake)                    |
+|                                                           |
+| Matches Solaar's RGBPowerManager state machine:           |
+|   ACTIVE → DIMMING → IDLE → SLEEPING                     |
+|                                                           |
+| Uses firmware onUserActivity events from 0x8071 for       |
+| idle/active detection. SW control flags cycle:            |
+|   7 (init) → 5 (active, monitor idle) →                  |
+|   3 (idle, monitor active) → 5 (wake)                    |
+\*---------------------------------------------------------*/
+
+void LogitechHIDPPController::SetRepaintCallback(std::function<void()> repaint)
+{
+    request_repaint_fn = repaint;
+}
+
+HIDPPPowerState LogitechHIDPPController::GetPowerState() const
+{
+    return power_state;
+}
+
+int LogitechHIDPPController::GetDimBrightness() const
+{
+    return dim_brightness_pct.load();
+}
+
+void LogitechHIDPPController::StartPowerManager()
+{
+    if(caps.idx_rgb_effects == 0)
+    {
+        return;
+    }
+
+    ReadFirmwareTimers();
+
+    /*---------------------------------------------------------*\
+    | Transition from flags=7 (full control) to flags=5          |
+    | (ZONE|EFFECT) to enable firmware idle monitoring.          |
+    | The reader thread will catch onUserActivity events.        |
+    \*---------------------------------------------------------*/
+    SetSWControl(3, 5);
+
+    power_state = HIDPP_POWER_ACTIVE;
+    pending_activity = -1;
+
+    reader_running = true;
+    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+
+    power_thread_running = true;
+    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+
+    LOG_DEBUG("%s Power manager started (idle=%us sleep=%us)",
+              LOG_TAG, idle_timeout_s, sleep_timeout_s);
+}
+
+void LogitechHIDPPController::StopPowerManager()
+{
+    if(!reader_running && !power_thread_running)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Stop power thread first (it may be waiting on the queue)   |
+    \*---------------------------------------------------------*/
+    power_thread_running = false;
+    response_cv.notify_all();
+
+    if(power_thread && power_thread->joinable())
+    {
+        power_thread->join();
+    }
+
+    delete power_thread;
+    power_thread = nullptr;
+
+    /*---------------------------------------------------------*\
+    | Then stop reader thread                                    |
+    \*---------------------------------------------------------*/
+    reader_running = false;
+
+    if(reader_thread && reader_thread->joinable())
+    {
+        reader_thread->join();
+    }
+
+    delete reader_thread;
+    reader_thread = nullptr;
+
+    /*---------------------------------------------------------*\
+    | Wake if we were dimmed/sleeping so Shutdown() can          |
+    | cleanly release SW control.                                |
+    \*---------------------------------------------------------*/
+    if(power_state != HIDPP_POWER_ACTIVE)
+    {
+        Wake();
+    }
+
+    LOG_DEBUG("%s Power manager stopped", LOG_TAG);
+}
+
+void LogitechHIDPPController::ReaderThreadFunc()
+{
+    /*---------------------------------------------------------*\
+    | Sole HID reader. NEVER sends commands — that would         |
+    | deadlock (we'd wait on our own queue for the response).    |
+    | Events are flagged via atomic for the power thread.        |
+    \*---------------------------------------------------------*/
+    while(reader_running.load())
+    {
+        uint8_t feat = 0, func = 0;
+        uint8_t data[60] = {};
+        int result = ReadHIDDirect(&feat, &func, data, sizeof(data), 50);
+
+        if(result > 0)
+        {
+            /*-------------------------------------------------*\
+            | Check for firmware events first.                   |
+            | Events are flagged for the power thread and NOT    |
+            | added to the response queue — they aren't command  |
+            | responses and would pollute the queue.             |
+            \*-------------------------------------------------*/
+            if(caps.idx_rgb_effects != 0 &&
+               feat == caps.idx_rgb_effects &&
+               (func & 0xF0) == 0x10 &&
+               (func & 0x0F) != HIDPP_SW_ID)
+            {
+                LOG_DEBUG("%s Reader: onUserActivity type=%d (func=0x%02X)",
+                          LOG_TAG, data[0], func);
+                pending_activity.store((int)data[0]);
+                continue;
+            }
+
+            /*-------------------------------------------------*\
+            | Only queue responses to OUR commands.              |
+            | Our commands use HIDPP_SW_ID (0x0A) in the low     |
+            | nibble. Firmware-generated messages (battery,       |
+            | sync, etc.) use SW_ID 0 — drop those silently.    |
+            | Error responses (feat=0xFF) are always queued.     |
+            \*-------------------------------------------------*/
+            if(feat != 0xFF && (func & 0x0F) != HIDPP_SW_ID)
+            {
+                LOG_TRACE("%s Reader: dropping feat=0x%02X func=0x%02X (swid=0x%X, expected 0x%X)",
+                          LOG_TAG, feat, func, func & 0x0F, HIDPP_SW_ID);
+                continue;
+            }
+            {
+                std::lock_guard<std::mutex> lock(response_mutex);
+                HIDPPRawMessage msg;
+                msg.feat   = feat;
+                msg.func   = func;
+                msg.result = result;
+                memcpy(msg.data, data, sizeof(msg.data));
+                response_queue.push_back(msg);
+            }
+            response_cv.notify_all();
+        }
+    }
+}
+
+void LogitechHIDPPController::PowerThreadFunc()
+{
+    /*---------------------------------------------------------*\
+    | Handles power state machine and sends commands.            |
+    | Reads responses from the queue (filled by reader thread).  |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Power thread started", LOG_TAG);
+
+    while(power_thread_running.load())
+    {
+        /*-----------------------------------------------------*\
+        | 1. Check for pending firmware events                   |
+        \*-----------------------------------------------------*/
+        int activity = pending_activity.exchange(-1);
+
+        if(activity >= 0)
+        {
+            LOG_DEBUG("%s Power thread: got pending_activity=%d", LOG_TAG, activity);
+            std::lock_guard<std::mutex> lock(power_mutex);
+            OnUserActivity((uint8_t)activity);
+        }
+
+        /*-----------------------------------------------------*\
+        | 2. Power management timing                             |
+        \*-----------------------------------------------------*/
+        {
+            std::lock_guard<std::mutex> lock(power_mutex);
+
+            switch(power_state)
+            {
+                case HIDPP_POWER_DIMMING:
+                {
+                    auto now = std::chrono::steady_clock::now();
+                    if(now >= next_dim_time)
+                    {
+                        DimRampStep();
+                        next_dim_time = now + std::chrono::milliseconds(DIM_INTERVAL_MS);
+                    }
+                    break;
+                }
+
+                case HIDPP_POWER_IDLE:
+                    if(sleep_timeout_s > 0 &&
+                       std::chrono::steady_clock::now() >= sleep_deadline)
+                    {
+                        StartSleep();
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        std::this_thread::sleep_for(50ms);
+    }
+}
+
+void LogitechHIDPPController::FlushResponseQueue()
+{
+    std::lock_guard<std::mutex> lock(response_mutex);
+    size_t flushed = response_queue.size();
+    response_queue.clear();
+
+    if(flushed > 0)
+    {
+        LOG_DEBUG("%s Flushed %zu stale messages from response queue", LOG_TAG, flushed);
+    }
+}
+
+void LogitechHIDPPController::DispatchEvent
+    (
+    uint8_t         feat,
+    uint8_t         func,
+    const uint8_t*  data
+    )
+{
+    if(caps.idx_rgb_effects == 0 || data == nullptr)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | onUserActivity = event 1 on RGB Effects (0x8071)           |
+    | Event function byte: (1 << 4) | fw_swid                   |
+    | Our commands use HIDPP_SW_ID (0x0A); firmware events use   |
+    | a different sw_id (typically 0).                           |
+    \*---------------------------------------------------------*/
+    if(feat == caps.idx_rgb_effects &&
+       (func & 0xF0) == 0x10 &&
+       (func & 0x0F) != HIDPP_SW_ID)
+    {
+        OnUserActivity(data[0]);
+    }
+}
+
+void LogitechHIDPPController::OnUserActivity(uint8_t activity_type)
+{
+    /*---------------------------------------------------------*\
+    | power_mutex must already be held by the caller.            |
+    \*---------------------------------------------------------*/
+
+    if(activity_type == 0)
+    {
+        /*-----------------------------------------------------*\
+        | IDLE event — firmware detected inactivity.             |
+        | Only act if we're currently ACTIVE.                    |
+        | Firmware sends a burst of ~8 events; ignore repeats.  |
+        \*-----------------------------------------------------*/
+        if(power_state != HIDPP_POWER_ACTIVE)
+        {
+            return;
+        }
+
+        LOG_DEBUG("%s onUserActivity: IDLE — starting dim", LOG_TAG);
+
+        /*-----------------------------------------------------*\
+        | Flush stale per-key ACKs before sending commands       |
+        \*-----------------------------------------------------*/
+        FlushResponseQueue();
+
+        /*-----------------------------------------------------*\
+        | Switch to flags=3 (ZONE|POWER): release EFFECT to|
+        | firmware, monitor for user activity (keypress).        |
+        \*-----------------------------------------------------*/
+        SetSWControl(3, 3);
+        StartDimRamp();
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | ACTIVE event — user resumed typing.                    |
+        | Only act if we're NOT already active.                  |
+        \*-----------------------------------------------------*/
+        if(power_state == HIDPP_POWER_ACTIVE)
+        {
+            return;
+        }
+
+        LOG_DEBUG("%s onUserActivity: ACTIVE — waking", LOG_TAG);
+        Wake();
+    }
+}
+
+void LogitechHIDPPController::WakeIfNeeded()
+{
+    std::lock_guard<std::mutex> lock(power_mutex);
+
+    if(power_state == HIDPP_POWER_ACTIVE)
+    {
+        return;
+    }
+
+    LOG_DEBUG("%s WakeIfNeeded: waking from state %d", LOG_TAG, power_state);
+    Wake();
+}
+
+void LogitechHIDPPController::StartDimRamp()
+{
+    /*---------------------------------------------------------*\
+    | Start the brightness ramp from 100% to DIM_TARGET_PCT.    |
+    | The actual dimming happens in DeviceUpdateLEDs — it reads  |
+    | dim_brightness_pct and scales the color buffer output.    |
+    | The power thread adjusts brightness and requests repaints. |
+    \*---------------------------------------------------------*/
+    dim_step      = 0;
+    next_dim_time = std::chrono::steady_clock::now();
+    power_state   = HIDPP_POWER_DIMMING;
+
+    LOG_DEBUG("%s Dim ramp started (brightness 100%% -> %d%%)", LOG_TAG, DIM_TARGET_PCT);
+}
+
+void LogitechHIDPPController::DimRampStep()
+{
+    /*---------------------------------------------------------*\
+    | power_mutex must already be held by the caller.            |
+    | Adjusts brightness and requests a repaint so              |
+    | DeviceUpdateLEDs pushes the dimmed colors.                |
+    \*---------------------------------------------------------*/
+    if(power_state != HIDPP_POWER_DIMMING)
+    {
+        return;
+    }
+
+    dim_step++;
+
+    int brightness = 100 - ((100 - DIM_TARGET_PCT) * dim_step / DIM_STEPS);
+
+    if(brightness < DIM_TARGET_PCT)
+    {
+        brightness = DIM_TARGET_PCT;
+    }
+
+    dim_brightness_pct.store(brightness);
+
+    /*---------------------------------------------------------*\
+    | Request repaint so DeviceUpdateLEDs applies the new        |
+    | brightness. For animations this is redundant (the          |
+    | animation loop already calls it), but for static colors   |
+    | this is the only way to push the dimmed output.           |
+    \*---------------------------------------------------------*/
+    init_generation++;
+
+    if(request_repaint_fn)
+    {
+        request_repaint_fn();
+    }
+
+    /*---------------------------------------------------------*\
+    | Check if dim ramp is complete                              |
+    \*---------------------------------------------------------*/
+    if(dim_step >= DIM_STEPS)
+    {
+        power_state = HIDPP_POWER_IDLE;
+
+        uint16_t sleep_delay = (sleep_timeout_s > idle_timeout_s)
+                             ? (sleep_timeout_s - idle_timeout_s) : 0;
+
+        sleep_deadline = std::chrono::steady_clock::now()
+                       + std::chrono::seconds(sleep_delay);
+
+        LOG_DEBUG("%s Dim complete — IDLE (sleep in %us)", LOG_TAG, sleep_delay);
+    }
+}
+
+void LogitechHIDPPController::StartSleep()
+{
+    /*---------------------------------------------------------*\
+    | SetRgbPowerMode(3) = firmware-managed fade to off.         |
+    | The firmware handles the fade internally.                  |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Entering sleep (SetRgbPowerMode 3)", LOG_TAG);
+
+    uint8_t data[3] = { 0x01, 0x03, 0x00 };
+    SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 3);
+
+    blankFAPmessage response;
+    ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE);
+
+    power_state = HIDPP_POWER_SLEEPING;
+}
+
+void LogitechHIDPPController::Wake()
+{
+    /*---------------------------------------------------------*\
+    | Restore from any non-ACTIVE state.                         |
+    | power_mutex must already be held by the caller.            |
+    \*---------------------------------------------------------*/
+    HIDPPPowerState prev = power_state;
+
+    /*---------------------------------------------------------*\
+    | Flush stale per-key ACKs from the dim ramp so subsequent   |
+    | commands can find their responses.                          |
+    \*---------------------------------------------------------*/
+    FlushResponseQueue();
+
+    if(prev == HIDPP_POWER_SLEEPING)
+    {
+        /*-----------------------------------------------------*\
+        | The sleep command starts a firmware fade-to-off that   |
+        | takes ~30s. During that window, the device is still    |
+        | responsive — just cancel with SetRGBPowerMode(1).      |
+        |                                                        |
+        | If the device has fully gone offline and reconnected,  |
+        | it will have reset to onboard profile mode and the     |
+        | first command may get no response. In that case we     |
+        | need a full re-init (host mode, zone effects, etc.).   |
+        \*-----------------------------------------------------*/
+        bool quick_wake = false;
+
+        {
+            uint8_t data[2] = { 0x01, 0x01 };
+            SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 2);
+
+            blankFAPmessage response;
+            int result = ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE, 500);
+
+            if(result > 0)
+            {
+                quick_wake = true;
+                LOG_DEBUG("%s Wake: device still responsive (fade window)", LOG_TAG);
+            }
+        }
+
+        if(!quick_wake)
+        {
+            /*-------------------------------------------------*\
+            | Device went fully offline. Retry with delays,      |
+            | then do full re-init.                              |
+            \*-------------------------------------------------*/
+            for(int attempt = 0; attempt < 5; attempt++)
+            {
+                LOG_DEBUG("%s Wake: device offline, retry %d", LOG_TAG, attempt + 1);
+                std::this_thread::sleep_for(200ms);
+
+                uint8_t data[2] = { 0x01, 0x01 };
+                SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 2);
+
+                blankFAPmessage response;
+                int result = ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE, 500);
+
+                if(result > 0)
+                {
+                    break;
+                }
+            }
+
+            /*-------------------------------------------------*\
+            | Full re-init: host mode (device reset to onboard)  |
+            \*-------------------------------------------------*/
+            if(caps.idx_profile_management != 0)
+            {
+                uint8_t data[1] = { 0x05 };
+                SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
+
+                blankFAPmessage response;
+                ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
+
+                LOG_DEBUG("%s Wake: ProfileManagement set to host mode", LOG_TAG);
+            }
+            else if(caps.idx_onboard_profiles != 0)
+            {
+                uint8_t data[1] = { 0x02 };
+                SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
+
+                blankFAPmessage response;
+                ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
+
+                LOG_DEBUG("%s Wake: OnboardProfiles set to host mode", LOG_TAG);
+            }
+        }
+    }
+
+    /*---------------------------------------------------------*\
+    | Re-claim SW control with flags=5 (ZONE|EFFECT).            |
+    | Firmware monitors for idle, sends events when idle.        |
+    \*---------------------------------------------------------*/
+    SetSWControl(3, 5);
+    SetRGBPowerMode(1);
+
+    /*---------------------------------------------------------*\
+    | Restore full brightness and force a full resend.           |
+    | DeviceUpdateLEDs will push current colors at 100%.         |
+    \*---------------------------------------------------------*/
+    dim_brightness_pct.store(100);
+    init_generation++;
+
+    power_state = HIDPP_POWER_ACTIVE;
+
+    LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
+
+    /*---------------------------------------------------------*\
+    | Request repaint to push full-brightness colors now.        |
+    \*---------------------------------------------------------*/
+    if(request_repaint_fn)
+    {
+        request_repaint_fn();
+    }
+}
+
+void LogitechHIDPPController::ReadFirmwareTimers()
+{
+    if(caps.idx_rgb_effects == 0)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | GetRgbPowerModeConfig (fn7, sub-function 0x00 = get)       |
+    | Response: [echo], idle_hi, idle_lo, sleep_hi, sleep_lo     |
+    \*---------------------------------------------------------*/
+    uint8_t send_data[1] = { 0x00 };
+    uint8_t recv_data[16] = {};
+
+    int result = SendAndReceive(caps.idx_rgb_effects, FN_8071_PWR_CONFIG,
+                                send_data, 1, recv_data, sizeof(recv_data));
+
+    if(result > 0)
+    {
+        uint16_t idle  = ((uint16_t)recv_data[3] << 8) | recv_data[4];
+        uint16_t sleep = ((uint16_t)recv_data[5] << 8) | recv_data[6];
+
+        if(idle > 0)
+        {
+            idle_timeout_s = idle;
+        }
+
+        if(sleep > 0)
+        {
+            sleep_timeout_s = sleep;
+        }
+
+        LOG_DEBUG("%s Firmware timers: idle=%us sleep=%us", LOG_TAG, idle_timeout_s, sleep_timeout_s);
+    }
+    else
+    {
+        LOG_DEBUG("%s Failed to read firmware timers, using defaults (idle=%us sleep=%us)",
+                  LOG_TAG, idle_timeout_s, sleep_timeout_s);
+    }
 }
