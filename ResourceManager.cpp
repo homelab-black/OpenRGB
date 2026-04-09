@@ -1806,22 +1806,6 @@ void ResourceManager::InitCoroutine()
     }
 
     /*-----------------------------------------------------*\
-    | Start server if requested                             |
-    \*-----------------------------------------------------*/
-    if(start_server)
-    {
-        detection_percent = 0;
-        detection_string = "Starting server";
-        DetectionProgressChanged();
-
-        GetServer()->StartServer();
-        if(!GetServer()->GetOnline())
-        {
-            LOG_DEBUG("[ResourceManager] Server failed to start");
-        }
-    }
-
-    /*-----------------------------------------------------*\
     | Perform actual detection if enabled                   |
     | Done in the same thread (InitThread), as we need to   |
     | wait for completion anyway                            |
@@ -1841,6 +1825,22 @@ void ResourceManager::InitCoroutine()
     else
     {
         ProcessPostDetection();
+    }
+
+    /*-----------------------------------------------------*\
+    | Start server if requested                             |
+    \*-----------------------------------------------------*/
+    if(start_server)
+    {
+        detection_percent = 100;
+        detection_string = "Starting server";
+        DetectionProgressChanged();
+
+        GetServer()->StartServer();
+        if(!GetServer()->GetOnline())
+        {
+            LOG_DEBUG("[ResourceManager] Server failed to start");
+        }
     }
 
     /*-----------------------------------------------------*\

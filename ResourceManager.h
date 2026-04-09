@@ -188,7 +188,7 @@ public:
 
     void DisableDetection();
 
-    void RescanDevices();
+    void RescanDevices() override;
 
     void StopDeviceDetection();
 

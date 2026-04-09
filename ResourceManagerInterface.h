@@ -61,6 +61,7 @@ public:
     virtual SettingsManager*                    GetSettingsManager()                                                                                = 0;
 
     virtual void                                UpdateDeviceList()                                                                                  = 0;
+    virtual void                                RescanDevices()                                                                                     = 0;
     virtual void                                WaitForDeviceDetection()                                                                            = 0;
 
 protected:
