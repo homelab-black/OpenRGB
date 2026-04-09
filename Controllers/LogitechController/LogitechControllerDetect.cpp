@@ -681,7 +681,8 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
     }
 
     LogitechHIDPPController* controller = new LogitechHIDPPController(
-        dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr);
+        dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr,
+        info->usage_page);
 
     if(controller->Probe())
     {

@@ -176,7 +176,8 @@ enum HIDPPTransportType
 struct HIDPPTransport
 {
     HIDPPTransportType  type;
-    uint8_t             report_id;          // 0x11 for standard, 0x51/0x50 for Centurion
+    uint16_t            usage_page;         // 0xFF00, 0xFF43, or 0xFFA0
+    uint8_t             report_id;          // 0x10/0x11 for standard, 0x51/0x50 for Centurion
     bool                addressed;          // Centurion 0x50 has device address byte
     uint8_t             device_address;     // Centurion 0x50: device address (e.g., 0x23)
     uint8_t             bridge_feat_idx;    // CentPPBridge feature index on parent (0 if N/A)
@@ -211,7 +212,8 @@ class LogitechHIDPPController
 public:
     LogitechHIDPPController(hid_device* dev, const char* path,
                             uint8_t device_index, bool wireless,
-                            std::shared_ptr<std::mutex> mutex_ptr);
+                            std::shared_ptr<std::mutex> mutex_ptr,
+                            uint16_t usage_page = 0xFF00);
     ~LogitechHIDPPController();
 
     /*-------------------------------------------------*\
