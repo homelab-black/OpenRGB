@@ -41,6 +41,7 @@
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V1      0x8080
 #define HIDPP_FEAT_PER_KEY_LIGHTING_V2      0x8081
 #define HIDPP_FEAT_KEYBOARD_LAYOUT          0x4540
+#define HIDPP_FEAT_CENTURION_RGB            0x0600
 
 /*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
@@ -131,6 +132,17 @@ struct HIDPPDeviceCapabilities
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
     uint16_t        rgb_feature_page;
+
+    /*-------------------------------------------------*\
+    | Resolved function IDs for the RGB effects feature  |
+    | Varies between 0x8070, 0x8071, 0x0600              |
+    \*-------------------------------------------------*/
+    uint8_t         fn_set_effect;
+    uint8_t         fn_sw_control;
+    uint8_t         fn_pwr_config;
+    uint8_t         fn_pwr_mode;
+    bool            has_power_mgmt;
+    bool            sw_control_simple;
 
     /*-------------------------------------------------*\
     | Discovered zone and LED data                      |
@@ -239,6 +251,8 @@ public:
     \*-------------------------------------------------*/
     void            SetSWControl(uint8_t mode, uint8_t flags);
     void            SetRGBPowerMode(uint8_t mode);
+    void            SetHostMode();
+    void            ClaimSWControlIfNeeded();
 
     /*-------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
@@ -259,6 +273,7 @@ private:
     HIDPPDeviceCapabilities     caps;
     HIDPPTransport              transport;
     bool                        initialized;
+    bool                        sw_control_claimed;
     uint32_t                    frame_counter;
     uint32_t                    init_generation;
     std::string                 log_tag;

@@ -33,6 +33,7 @@ LogitechHIDPPController::LogitechHIDPPController
     this->wireless      = wireless;
     this->mutex         = mutex_ptr;
     this->initialized          = false;
+    this->sw_control_claimed   = false;
     this->frame_counter        = 0;
     this->init_generation      = 0;
     this->log_tag              = "[HID++ " + std::string(path) + "]";
@@ -359,6 +360,18 @@ int LogitechHIDPPController::SendStandard
         memcpy(request.data, data, copy_len);
     }
 
+    {
+        static auto t0 = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
+                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                  request.buffer[0], request.buffer[1], request.buffer[2], request.buffer[3],
+                  request.buffer[4], request.buffer[5], request.buffer[6], request.buffer[7],
+                  request.buffer[8], request.buffer[9], request.buffer[10], request.buffer[11],
+                  request.buffer[12], request.buffer[13], request.buffer[14], request.buffer[15],
+                  request.buffer[16], request.buffer[17], request.buffer[18], request.buffer[19]);
+    }
+
     int result;
 
     if(mutex)
@@ -396,6 +409,18 @@ int LogitechHIDPPController::ReadStandardDirect
     if(result <= 0)
     {
         return result;
+    }
+
+    {
+        static auto t0 = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
+                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                  response.buffer[0], response.buffer[1], response.buffer[2], response.buffer[3],
+                  response.buffer[4], response.buffer[5], response.buffer[6], response.buffer[7],
+                  response.buffer[8], response.buffer[9], response.buffer[10], response.buffer[11],
+                  response.buffer[12], response.buffer[13], response.buffer[14], response.buffer[15],
+                  response.buffer[16], response.buffer[17], response.buffer[18], response.buffer[19]);
     }
 
     if(feat_idx_out)
@@ -724,10 +749,16 @@ void LogitechHIDPPController::DiscoverTransport()
 void LogitechHIDPPController::DiscoverRGBEffects()
 {
     /*---------------------------------------------------------*\
-    | Try 0x8071 first, fall back to 0x8070                     |
+    | Try 0x8071 first, then 0x0600 (Centurion), then 0x8070    |
     \*---------------------------------------------------------*/
     caps.idx_rgb_effects = GetFeatureIndex(HIDPP_FEAT_RGB_EFFECTS);
     caps.rgb_feature_page = HIDPP_FEAT_RGB_EFFECTS;
+
+    if(caps.idx_rgb_effects == 0)
+    {
+        caps.idx_rgb_effects = GetFeatureIndex(HIDPP_FEAT_CENTURION_RGB);
+        caps.rgb_feature_page = HIDPP_FEAT_CENTURION_RGB;
+    }
 
     if(caps.idx_rgb_effects == 0)
     {
@@ -739,6 +770,30 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     {
         caps.has_zone_effects = false;
         return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Resolve function IDs based on which feature was found.     |
+    | 0x8071 and 0x0600 share the same function layout.          |
+    | 0x8070 has different function numbers and SW control format.|
+    \*---------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP_FEAT_COLOR_LED_EFFECTS)
+    {
+        caps.fn_set_effect      = 0x30;
+        caps.fn_sw_control      = 0x80;
+        caps.fn_pwr_config      = 0;
+        caps.fn_pwr_mode        = 0;
+        caps.has_power_mgmt     = false;
+        caps.sw_control_simple  = true;
+    }
+    else
+    {
+        caps.fn_set_effect      = 0x10;
+        caps.fn_sw_control      = 0x50;
+        caps.fn_pwr_config      = 0x70;
+        caps.fn_pwr_mode        = 0x80;
+        caps.has_power_mgmt     = true;
+        caps.sw_control_simple  = false;
     }
 
     /*---------------------------------------------------------*\
@@ -1086,49 +1141,10 @@ bool LogitechHIDPPController::Probe()
 void LogitechHIDPPController::Initialize()
 {
     /*---------------------------------------------------------*\
-    | Switch to host mode via ProfileManagement (0x8101) or      |
-    | OnboardProfiles (0x8100).                                  |
-    |                                                           |
-    | ProfileManagement: fn6(0x05) = set_onboard=1, onboard=0   |
-    |   (host), set_power=1, power=0 (disable FW power mgmt).   |
-    |   Prevents firmware 10s idle timer from reasserting        |
-    |   profile lighting.                                        |
-    | OnboardProfiles: fn1(0x02) = host mode.                   |
+    | No device state changes here — let firmware effects keep   |
+    | running until DeviceUpdateMode claims control with real    |
+    | colors ready via ClaimSWControlIfNeeded().                  |
     \*---------------------------------------------------------*/
-    if(caps.idx_profile_management != 0)
-    {
-        uint8_t data[1] = { 0x05 };
-        SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
-
-        blankFAPmessage response;
-        ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
-
-        LOG_VERBOSE("%s ProfileManagement set to host mode", LOG_TAG);
-    }
-    else if(caps.idx_onboard_profiles != 0)
-    {
-        uint8_t data[1] = { 0x02 };
-        SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
-
-        blankFAPmessage response;
-        ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
-
-        LOG_VERBOSE("%s OnboardProfiles set to host mode", LOG_TAG);
-    }
-
-    /*---------------------------------------------------------*\
-    | Claim full SW control: flags=7 (ZONE|POWER|EFFECT).        |
-    | Suppresses all firmware autonomous behavior and events.    |
-    | StartPowerManager() will transition to flags=5 for idle    |
-    | monitoring after the RGBController is ready.               |
-    \*---------------------------------------------------------*/
-    if(caps.idx_rgb_effects != 0)
-    {
-        SetSWControl(3, 7);
-        SetRGBPowerMode(1);
-    }
-
-
     init_generation++;
     initialized = true;
 }
@@ -1208,29 +1224,89 @@ void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
         return;
     }
 
-    uint8_t data[3] = { 0x01, mode, flags };
-    SendLong(caps.idx_rgb_effects, FN_8071_SW_CONTROL, data, 3);
+    if(caps.sw_control_simple)
+    {
+        /*-----------------------------------------------------*\
+        | 0x8070: simple [enabled(bool), persist(bool)]          |
+        \*-----------------------------------------------------*/
+        uint8_t data[2] = { (uint8_t)(mode > 0 ? 0x01 : 0x00), 0x00 };
+        SendLong(caps.idx_rgb_effects, caps.fn_sw_control, data, 2);
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | 0x8071/0x0600: [0x01(set), mode, flags]                |
+        \*-----------------------------------------------------*/
+        uint8_t data[3] = { 0x01, mode, flags };
+        SendLong(caps.idx_rgb_effects, caps.fn_sw_control, data, 3);
+    }
 
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, FN_8071_SW_CONTROL);
+    ReadResponse(response, caps.idx_rgb_effects, caps.fn_sw_control);
 
     LOG_DEBUG("%s SetSWControl mode=%d flags=0x%02X", LOG_TAG, mode, flags);
 }
 
 void LogitechHIDPPController::SetRGBPowerMode(uint8_t mode)
 {
-    if(caps.idx_rgb_effects == 0)
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
         return;
     }
 
     uint8_t data[2] = { 0x01, mode };
-    SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 2);
+    SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
 
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE);
+    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode);
 
     LOG_DEBUG("%s SetRGBPowerMode mode=%d", LOG_TAG, mode);
+}
+
+void LogitechHIDPPController::SetHostMode()
+{
+    if(caps.idx_profile_management != 0)
+    {
+        uint8_t data[1] = { 0x05 };
+        SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
+
+        blankFAPmessage response;
+        ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
+
+        LOG_DEBUG("%s ProfileManagement set to host mode", LOG_TAG);
+    }
+    else if(caps.idx_onboard_profiles != 0)
+    {
+        uint8_t data[1] = { 0x02 };
+        SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
+
+        blankFAPmessage response;
+        ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
+
+        LOG_DEBUG("%s OnboardProfiles set to host mode", LOG_TAG);
+    }
+}
+
+void LogitechHIDPPController::ClaimSWControlIfNeeded()
+{
+    if(sw_control_claimed || caps.idx_rgb_effects == 0)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Full takeover in documented order (matches Solaar):         |
+    | 1. Host mode                                               |
+    | 2. SW control — flags=5 directly for idle monitoring       |
+    | 3. Power mode active                                       |
+    \*---------------------------------------------------------*/
+    SetHostMode();
+    SetSWControl(3, 5);
+    SetRGBPowerMode(1);
+
+    sw_control_claimed = true;
+
+    LOG_DEBUG("%s Claimed SW control (deferred from init)", LOG_TAG);
 }
 
 /*---------------------------------------------------------*\
@@ -1446,7 +1522,7 @@ void LogitechHIDPPController::SetZoneEffect
     unsigned char   g,
     unsigned char   b,
     uint16_t        period,
-    bool            /*persist*/
+    bool            persist
     )
 {
     if(caps.idx_rgb_effects == 0)
@@ -1516,19 +1592,24 @@ void LogitechHIDPPController::SetZoneEffect
             break;
     }
 
-    if(caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+    if(caps.rgb_feature_page == HIDPP_FEAT_COLOR_LED_EFFECTS)
     {
-        data[12] = 0x01;
-        SendLong(caps.idx_rgb_effects, FN_8071_SET_EFFECT, data, 16);
+        /*-----------------------------------------------------*\
+        | 0x8070: 13-byte payload, no persist byte               |
+        \*-----------------------------------------------------*/
+        SendLong(caps.idx_rgb_effects, caps.fn_set_effect, data, 13);
     }
     else
     {
-        SendLong(caps.idx_rgb_effects, LOGITECH_FP8070_SET_EFFECT, data, 13);
+        /*-----------------------------------------------------*\
+        | 0x8071/0x0600: 16-byte payload with persist at [12]    |
+        \*-----------------------------------------------------*/
+        data[12] = persist ? 0x01 : 0x00;
+        SendLong(caps.idx_rgb_effects, caps.fn_set_effect, data, 16);
     }
 
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects,
-                 (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? FN_8071_SET_EFFECT : LOGITECH_FP8070_SET_EFFECT);
+    ReadResponse(response, caps.idx_rgb_effects, caps.fn_set_effect);
 }
 
 /*---------------------------------------------------------*\
@@ -1560,19 +1641,12 @@ int LogitechHIDPPController::GetDimBrightness() const
 
 void LogitechHIDPPController::StartPowerManager()
 {
-    if(caps.idx_rgb_effects == 0)
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
         return;
     }
 
     ReadFirmwareTimers();
-
-    /*---------------------------------------------------------*\
-    | Transition from flags=7 (full control) to flags=5          |
-    | (ZONE|EFFECT) to enable firmware idle monitoring.          |
-    | The reader thread will catch onUserActivity events.        |
-    \*---------------------------------------------------------*/
-    SetSWControl(3, 5);
 
     power_state = HIDPP_POWER_ACTIVE;
     pending_activity = -1;
@@ -1919,10 +1993,10 @@ void LogitechHIDPPController::StartSleep()
     LOG_DEBUG("%s Entering sleep (SetRgbPowerMode 3)", LOG_TAG);
 
     uint8_t data[3] = { 0x01, 0x03, 0x00 };
-    SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 3);
+    SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 3);
 
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE);
+    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode);
 
     power_state = HIDPP_POWER_SLEEPING;
 }
@@ -1957,10 +2031,10 @@ void LogitechHIDPPController::Wake()
 
         {
             uint8_t data[2] = { 0x01, 0x01 };
-            SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 2);
+            SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
 
             blankFAPmessage response;
-            int result = ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE, 500);
+            int result = ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode, 500);
 
             if(result > 0)
             {
@@ -1981,10 +2055,10 @@ void LogitechHIDPPController::Wake()
                 std::this_thread::sleep_for(200ms);
 
                 uint8_t data[2] = { 0x01, 0x01 };
-                SendLong(caps.idx_rgb_effects, FN_8071_PWR_MODE, data, 2);
+                SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
 
                 blankFAPmessage response;
-                int result = ReadResponse(response, caps.idx_rgb_effects, FN_8071_PWR_MODE, 500);
+                int result = ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode, 500);
 
                 if(result > 0)
                 {
@@ -2026,6 +2100,25 @@ void LogitechHIDPPController::Wake()
     SetRGBPowerMode(1);
 
     /*---------------------------------------------------------*\
+    | Zone effect before per-key writes (same as initial claim). |
+    | Device needs this to re-establish SW-controlled state.     |
+    \*---------------------------------------------------------*/
+    for(size_t i = 0; i < caps.zone_clusters.size(); i++)
+    {
+        for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
+        {
+            if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
+            {
+                SetZoneEffect(
+                    caps.zone_clusters[i].index,
+                    caps.zone_clusters[i].effects[j].index,
+                    0x0001, 0, 0, 0, 0, false);
+                break;
+            }
+        }
+    }
+
+    /*---------------------------------------------------------*\
     | Restore full brightness and force a full resend.           |
     | DeviceUpdateLEDs will push current colors at 100%.         |
     \*---------------------------------------------------------*/
@@ -2047,7 +2140,7 @@ void LogitechHIDPPController::Wake()
 
 void LogitechHIDPPController::ReadFirmwareTimers()
 {
-    if(caps.idx_rgb_effects == 0)
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
         return;
     }
@@ -2059,7 +2152,7 @@ void LogitechHIDPPController::ReadFirmwareTimers()
     uint8_t send_data[1] = { 0x00 };
     uint8_t recv_data[16] = {};
 
-    int result = SendAndReceive(caps.idx_rgb_effects, FN_8071_PWR_CONFIG,
+    int result = SendAndReceive(caps.idx_rgb_effects, caps.fn_pwr_config,
                                 send_data, 1, recv_data, sizeof(recv_data));
 
     if(result > 0)
