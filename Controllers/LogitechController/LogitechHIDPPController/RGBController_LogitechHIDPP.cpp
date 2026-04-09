@@ -221,6 +221,7 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
     name        = caps.device_name;
     vendor      = "Logitech";
     description = "Logitech HID++ 2.0 Device";
+    version     = caps.firmware_version;
     location    = controller->GetDeviceLocation();
     serial      = controller->GetSerialString();
 
