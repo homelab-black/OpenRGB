@@ -1728,6 +1728,20 @@ bool LogitechHIDPPController::Probe()
                        : test_idx;
 
         EnumerateFeatures(fs_idx);
+
+        /*-----------------------------------------------------*\
+        | If bridged and bulk enumeration failed, the sub-device |
+        | isn't reachable (e.g., headset off or on USB cable).   |
+        | Mark map as complete so lookups don't hit the wire.    |
+        | The device will be discovered with no features — it    |
+        | can be re-probed when the sub-device comes online.     |
+        \*-----------------------------------------------------*/
+        if(transport.bridge_feat_idx != 0 && !caps.feature_map_complete)
+        {
+            LOG_DEBUG("%s Sub-device not reachable through bridge — dongle only",
+                      LOG_TAG);
+            caps.feature_map_complete = true;
+        }
     }
 
     /*---------------------------------------------------------*\
