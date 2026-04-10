@@ -404,6 +404,7 @@ private:
     std::thread*            power_thread;
     std::atomic<bool>       power_thread_running;
     std::atomic<int>        pending_activity;       // -1=none, 0=idle, 1+=active
+    std::atomic<int>        pending_connection;     // 0=none, 1=connection state changed
 
     /*-------------------------------------------------*\
     | Power management state                            |
