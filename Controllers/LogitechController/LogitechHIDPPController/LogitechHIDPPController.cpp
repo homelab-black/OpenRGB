@@ -43,6 +43,7 @@ LogitechHIDPPController::LogitechHIDPPController
     this->power_thread         = nullptr;
     this->power_thread_running = false;
     this->pending_activity     = -1;
+    this->pending_connection   = 0;
     this->power_state          = HIDPP_POWER_ACTIVE;
     this->dim_brightness_pct   = 100;
     this->dim_step             = 0;
@@ -2407,6 +2408,49 @@ void LogitechHIDPPController::ReaderThreadFunc()
             }
 
             /*-------------------------------------------------*\
+            | CentPPBridge event 0: ConnectionStateChangedEvent  |
+            | Sub-device connected or disconnected from dongle.  |
+            \*-------------------------------------------------*/
+            if(transport.bridge_feat_idx != 0 &&
+               feat == transport.bridge_feat_idx &&
+               (func & 0xF0) == 0x00 &&
+               (func & 0x0F) != HIDPP_SW_ID)
+            {
+                LOG_DEBUG("%s Bridge ConnectionStateChanged event", LOG_TAG);
+                pending_connection.store(1);
+                continue;
+            }
+
+            /*-------------------------------------------------*\
+            | Feature 0x1D4B event 0: WirelessStatus             |
+            | Device reconnected after power cycle.              |
+            | Use cached map lookup only — reader thread must     |
+            | never send commands (deadlock risk).                |
+            \*-------------------------------------------------*/
+            {
+                auto it = caps.feature_map.find(0x1D4B);
+                uint8_t ws_idx = (it != caps.feature_map.end()) ? it->second : 0;
+
+                if(ws_idx != 0 && feat == ws_idx &&
+                   (func & 0xF0) == 0x00 &&
+                   (func & 0x0F) != HIDPP_SW_ID)
+                {
+                    uint8_t reconnect    = data[0];
+                    uint8_t config_needed = data[1];
+
+                    LOG_DEBUG("%s WirelessStatus event: reconnect=%d config_needed=%d",
+                              LOG_TAG, reconnect, config_needed);
+
+                    if(reconnect || config_needed)
+                    {
+                        pending_connection.store(1);
+                    }
+
+                    continue;
+                }
+            }
+
+            /*-------------------------------------------------*\
             | Only queue responses to OUR commands.              |
             | Our commands use HIDPP_SW_ID (0x0A) in the low     |
             | nibble. Firmware-generated messages (battery,       |
@@ -2448,6 +2492,22 @@ void LogitechHIDPPController::PowerThreadFunc()
         {
             std::lock_guard<std::mutex> lock(power_mutex);
             OnUserActivity((uint8_t)activity);
+        }
+
+        /*-----------------------------------------------------*\
+        | 1b. Check for connection state changes                 |
+        \*-----------------------------------------------------*/
+        int connection = pending_connection.exchange(0);
+
+        if(connection > 0)
+        {
+            LOG_DEBUG("%s Connection state changed — device appeared or reconnected", LOG_TAG);
+
+            /*-------------------------------------------------*\
+            | TODO Phase 3: Re-probe sub-device, update registry,|
+            | create/update RGBController, restore colors.       |
+            | For now, just log the event so we know it works.   |
+            \*-------------------------------------------------*/
         }
 
         /*-----------------------------------------------------*\
