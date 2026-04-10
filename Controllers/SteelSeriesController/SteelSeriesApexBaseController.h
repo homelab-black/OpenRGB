@@ -33,6 +33,12 @@ typedef enum
 
 } protocol_quirk;
 
+enum
+{
+    APEX_MODE_DIRECT,
+    APEX_MODE_ONBOARD,
+};
+
 class SteelSeriesApexBaseController
 {
 public:
@@ -56,4 +62,5 @@ protected:
     std::string         location;
     std::string         name;
     protocol_quirk      kbd_quirk;
+    unsigned char       reset_cmd;
 };

@@ -55,10 +55,17 @@ RGBController_SteelSeriesApex::RGBController_SteelSeriesApex(SteelSeriesApexBase
 
     mode Direct;
     Direct.name         = "Direct";
-    Direct.value        = 0x00;
+    Direct.value        = APEX_MODE_DIRECT;
     Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
     Direct.color_mode   = MODE_COLORS_PER_LED;
     modes.push_back(Direct);
+
+    mode Onboard;
+    Onboard.name        = "Onboard";
+    Onboard.value       = APEX_MODE_ONBOARD;
+    Onboard.flags       = 0;
+    Onboard.color_mode  = MODE_COLORS_NONE;
+    modes.push_back(Onboard);
 
     SetupZones();
 }

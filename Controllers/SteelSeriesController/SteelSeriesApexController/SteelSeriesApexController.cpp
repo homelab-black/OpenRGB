@@ -45,20 +45,24 @@ SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, ste
 
 SteelSeriesApexController::~SteelSeriesApexController()
 {
-    /*-----------------------------------------------------*\
-    | Gen 3 models must be explicitly cleared for on-board  |
-    | config selection to apply without power cycling after |
-    | OpenRGB shuts down.                                   |
-    \*-----------------------------------------------------*/
-    if(kbd_quirk == APEX_GEN3)
-    {
-        unsigned char obuf[STEELSERIES_PACKET_OUT_SIZE];
-        memset(obuf, 0x00, sizeof(obuf));
-        obuf[0x00] = 0;
-        obuf[0x01] = APEX_GEN3_PACKET_CLEAR_LIGHTING;
-        hid_write(dev, obuf, STEELSERIES_PACKET_OUT_SIZE);
-    }
+    SendDeinitialization();
     hid_close(dev);
+}
+
+/*---------------------------------------------------*\
+| OpenRGB must clear initialized keyboards during     |
+| shutdown as hardware lighting profiles won't apply  |
+| otherwise. Keyboards not needing initialization are |
+| also cleared, though selecting a hardware profile   |
+| will override the leds unlike the former.           |
+\*---------------------------------------------------*/
+void SteelSeriesApexController::SendDeinitialization()
+{
+    unsigned char obuf[STEELSERIES_PACKET_OUT_SIZE];
+    memset(obuf, 0x00, sizeof(obuf));
+    obuf[0x00] = 0;
+    obuf[0x01] = reset_cmd;
+    hid_write(dev, obuf, STEELSERIES_PACKET_OUT_SIZE);
 }
 
 void SteelSeriesApexController::SetMode
@@ -67,11 +71,19 @@ void SteelSeriesApexController::SetMode
     std::vector<RGBColor> /*colors*/
     )
 {
-    unsigned char mode_colors[9];
+    if(active_mode != mode)
+    {
+        if(active_mode == APEX_MODE_ONBOARD && kbd_quirk != APEX_GEN1)
+        {
+            SendInitialization();
+        }
+        if(mode == APEX_MODE_ONBOARD)
+        {
+            SendDeinitialization();
+        }
+    }
 
     active_mode = mode;
-
-    memset(mode_colors, 0x00, sizeof(mode_colors));
 }
 
 void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
@@ -242,12 +254,14 @@ void SteelSeriesApexController::SendInitialization()
         buf[0x00]   = 0x00;
         buf[0x01]   = APEX_2023_PACKET_ID_INIT;
         hid_send_feature_report(dev, buf, APEX_2023_PACKET_LENGTH);
+        reset_cmd   =  APEX_GEN3_PACKET_ID_ONBOARD;
 
         LOG_DEBUG("[%s] Using Apex 2023 protocol. FW: %s", name.c_str(), version_str);
     }
     else
     {
         LOG_DEBUG("[%s] Using Apex Legacy protocol. FW: %s", name.c_str(), version_str);
+        reset_cmd   =  APEX_PACKET_ID_ONBOARD;
     }
 }
 
