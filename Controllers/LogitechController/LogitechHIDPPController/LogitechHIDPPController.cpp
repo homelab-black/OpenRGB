@@ -1222,7 +1222,8 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
     }
 
     /*---------------------------------------------------------*\
-    | fn0 GetEntityCount — how many firmware entities             |
+    | fn0 GetEntityCount — entity count, unitId, transport PIDs  |
+    | Response: [count, unitId(4), transport(2), PID1(2), PID2(2)]|
     \*---------------------------------------------------------*/
     uint8_t entity_count = 1;
 
@@ -1234,6 +1235,29 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         if(result > 0)
         {
             entity_count = recv_data[0];
+
+            /*-------------------------------------------------*\
+            | Extract unitId — stable hardware identity across   |
+            | all connection paths (USB, wireless, dongle).      |
+            \*-------------------------------------------------*/
+            char uid[16];
+            snprintf(uid, sizeof(uid), "%02X%02X%02X%02X",
+                     recv_data[1], recv_data[2], recv_data[3], recv_data[4]);
+            caps.unit_id = uid;
+
+            caps.pid_wireless = ((uint16_t)recv_data[7] << 8) | recv_data[8];
+            caps.pid_wired    = ((uint16_t)recv_data[9] << 8) | recv_data[10];
+
+            /*-------------------------------------------------*\
+            | Use unitId as serial if device doesn't report one  |
+            \*-------------------------------------------------*/
+            if(caps.serial_number.empty() && caps.unit_id != "00000000")
+            {
+                caps.serial_number = caps.unit_id;
+            }
+
+            LOG_DEBUG("%s unitId=%s PID1=0x%04X PID2=0x%04X",
+                      LOG_TAG, caps.unit_id.c_str(), caps.pid_wireless, caps.pid_wired);
         }
     }
 
@@ -1308,7 +1332,10 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
                 }
             }
 
-            caps.serial_number = serial;
+            if(serial[0] != '\0')
+            {
+                caps.serial_number = serial;
+            }
 
             LOG_DEBUG("%s Serial: %s", LOG_TAG, caps.serial_number.c_str());
         }
