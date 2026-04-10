@@ -128,6 +128,9 @@ struct HIDPPDeviceCapabilities
     uint8_t         device_type;
     std::string     firmware_version;
     std::string     serial_number;
+    std::string     unit_id;            // stable hardware ID (from FirmwareInfo fn0)
+    uint16_t        pid_wireless;       // wireless virtual PID (from FirmwareInfo fn0)
+    uint16_t        pid_wired;          // wired USB PID (from FirmwareInfo fn0)
 
     /*-------------------------------------------------*\
     | Complete feature map (feature_id → runtime index) |
