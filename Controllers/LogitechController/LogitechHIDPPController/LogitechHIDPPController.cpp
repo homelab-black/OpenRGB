@@ -11,6 +11,7 @@
 #include <thread>
 #include <chrono>
 #include <set>
+#include <vector>
 #include <fstream>
 #include <dirent.h>
 #include "LogitechHIDPPController.h"
@@ -56,7 +57,7 @@ LogitechHIDPPController::LogitechHIDPPController
     this->power_thread_running = false;
     this->pending_activity     = -1;
     this->pending_connection   = 0;
-    this->pending_path_check   = false;
+    this->pending_path_check   = 0;
     this->device_online        = true;
     this->consecutive_timeouts = 0;
     this->watcher_mode         = false;
@@ -3145,17 +3146,28 @@ void LogitechHIDPPController::ReconnectDevice()
     }
 }
 
-void LogitechHIDPPController::FullReprobe()
+void LogitechHIDPPController::RediscoverFeatures()
 {
     /*---------------------------------------------------------*\
-    | Called by power thread when a failed-probe device becomes  |
-    | reachable. Like ReprobeSubDevice but for non-bridge        |
-    | standard HID++ devices. Reader thread is running.         |
+    | Clear the cached HID++ feature map and all index/         |
+    | function-byte derivations, then re-run the standard       |
+    | discovery sequence on the current hid_device handle.      |
+    |                                                           |
+    | Used in two situations:                                   |
+    |   - FullReprobe (a previously-unreachable device just     |
+    |     became reachable; reader thread is already running)   |
+    |   - SwapHIDHandle (USB/wireless path migration; the new  |
+    |     path's HID++ feature map may have completely         |
+    |     different feature indices than the old one — observed|
+    |     on the G515 LS TKL where wireless RGBEffects sits at  |
+    |     idx 0x09 but the USB path puts it elsewhere, causing  |
+    |     INVALID_FEATURE_INDEX (0x07) errors on every cached   |
+    |     idx_rgb_effects/fn_set_effect/etc. lookup).           |
+    |                                                           |
+    | Caller is responsible for state that lives outside the    |
+    | feature map (sw_control_claimed, frame counters, online   |
+    | flag, threads).                                           |
     \*---------------------------------------------------------*/
-    LOG_DEBUG("%s Full re-probe of previously unreachable device", LOG_TAG);
-
-    FlushResponseQueue();
-
     caps.feature_map.clear();
     caps.feature_map_complete = false;
     caps.has_zone_effects      = false;
@@ -3194,6 +3206,19 @@ void LogitechHIDPPController::FullReprobe()
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
+}
+
+void LogitechHIDPPController::FullReprobe()
+{
+    /*---------------------------------------------------------*\
+    | Called by power thread when a failed-probe device becomes  |
+    | reachable. Like ReprobeSubDevice but for non-bridge        |
+    | standard HID++ devices. Reader thread is running.         |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Full re-probe of previously unreachable device", LOG_TAG);
+
+    FlushResponseQueue();
+    RediscoverFeatures();
 
     if(!caps.has_zone_effects && !caps.has_perkey)
     {
@@ -3347,6 +3372,23 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
         }
     }
 
+    /*---------------------------------------------------------*\
+    | Collect ALL sysfs hidraws with matching unit_id + Logitech |
+    | VID + different PID. With multiple Lightspeed dongles in   |
+    | the system, several hidraws can share the same HID_UNIQ:   |
+    | one is the live virt-slot on the connected dongle, others  |
+    | are stale virt-slots on dongles where our device is not    |
+    | actually present. We have to probe each one to find out    |
+    | which slot is real — sysfs alone can't tell them apart.    |
+    \*---------------------------------------------------------*/
+    struct Candidate
+    {
+        std::string  dev_path;
+        unsigned int pid;
+    };
+
+    std::vector<Candidate> candidates;
+
     DIR* dir = opendir("/sys/class/hidraw");
 
     if(!dir)
@@ -3355,7 +3397,6 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
     }
 
     struct dirent* entry;
-    std::string found_path;
 
     while((entry = readdir(dir)) != nullptr)
     {
@@ -3389,9 +3430,6 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
             }
         }
 
-        /*-----------------------------------------------------*\
-        | Normalize sysfs HID_UNIQ: strip dashes, lowercase     |
-        \*-----------------------------------------------------*/
         std::string uniq_norm;
 
         for(char c : hid_uniq)
@@ -3407,20 +3445,12 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
             continue;
         }
 
-        /*-----------------------------------------------------*\
-        | Verify Logitech VID (046D) in HID_ID field             |
-        | Format: "0003:0000046D:0000C355"                       |
-        \*-----------------------------------------------------*/
         if(hid_id.find("0000046D") == std::string::npos &&
            hid_id.find("0000046d") == std::string::npos)
         {
             continue;
         }
 
-        /*-----------------------------------------------------*\
-        | Found a hidraw with our unitId. Skip if it's our       |
-        | current path — device hasn't moved.                    |
-        \*-----------------------------------------------------*/
         std::string dev_path = "/dev/" + std::string(entry->d_name);
 
         if(dev_path == location)
@@ -3428,10 +3458,6 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
             continue;
         }
 
-        /*-----------------------------------------------------*\
-        | Extract PID from HID_ID to enumerate the right device. |
-        | Format: "0003:0000046D:0000XXXX"                       |
-        \*-----------------------------------------------------*/
         size_t last_colon = hid_id.rfind(':');
 
         if(last_colon == std::string::npos)
@@ -3442,81 +3468,162 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
         unsigned int pid = 0;
         sscanf(hid_id.c_str() + last_colon + 1, "%x", &pid);
 
-        /*-----------------------------------------------------*\
-        | Skip if same PID as current path — same receiver,      |
-        | just a different pairing slot (stale pairing).         |
-        | Genuine connection changes always involve a PID change |
-        | (e.g., wireless 0x40B4 → wired 0xC355).               |
-        \*-----------------------------------------------------*/
         if(pid == current_pid)
         {
             continue;
         }
 
-        /*-----------------------------------------------------*\
-        | This is a real migration candidate: matching unitId,   |
-        | different path, different PID. Worth logging.          |
-        \*-----------------------------------------------------*/
-        LOG_DEBUG("%s Scan: migration candidate at %s (pid=0x%04X, current=%s pid=0x%04X)",
-                  LOG_TAG, dev_path.c_str(), pid,
-                  location.c_str(), current_pid);
-
-        /*-----------------------------------------------------*\
-        | Enumerate HID devices with this PID to find the one    |
-        | with usage_page 0xFF00 (HID++ interface).              |
-        \*-----------------------------------------------------*/
-        hid_device_info* devs = hid_enumerate(0x046D, (uint16_t)pid);
-        int enum_count = 0;
-
-        for(hid_device_info* d = devs; d != nullptr; d = d->next)
-        {
-            enum_count++;
-            LOG_TRACE("%s Scan: enumerate PID=0x%04X path=%s page=0x%04X usage=%d",
-                      LOG_TAG, pid, d->path, d->usage_page, d->usage);
-
-            if(d->usage_page == 0xFF00 && d->usage == 2 &&
-               std::string(d->path) != location)
-            {
-                found_path = d->path;
-                break;
-            }
-        }
-
-        if(enum_count == 0)
-        {
-            LOG_DEBUG("%s Scan: hid_enumerate(0x046D, 0x%04X) returned no devices", LOG_TAG, pid);
-        }
-
-        hid_free_enumeration(devs);
-
-        if(!found_path.empty())
-        {
-            break;
-        }
+        candidates.push_back({dev_path, pid});
     }
 
     closedir(dir);
 
-    if(found_path.empty())
+    if(candidates.empty())
     {
         return false;
     }
 
     /*---------------------------------------------------------*\
-    | Found the device on a new path with a different PID.      |
-    | This is a genuine connection change. Open and migrate.    |
+    | Probe each candidate before committing. Two-dongle systems |
+    | can expose multiple sysfs hidraws with the same HID_UNIQ:  |
+    | one is the live slot, others are stale pairings that       |
+    | respond with short-format UNKNOWN_DEVICE errors. Issue a   |
+    | cheap IRoot GetFeature (feat 0x0001) to distinguish them.  |
+    | A live slot returns a long-form response with feat_idx=0   |
+    | and feat_byte matching the sub-index we asked for. A stale |
+    | slot returns r[10 xx 8F 00 00 08 ...] (short error, code   |
+    | 0x08 UNKNOWN_DEVICE). We accept the first candidate that   |
+    | passes; the overall pending_path_check retry loop will     |
+    | naturally re-probe all candidates on subsequent scans if   |
+    | none pass on the current pass (e.g., mid-transition).      |
     \*---------------------------------------------------------*/
-    hid_device* new_dev = hid_open_path(found_path.c_str());
+    std::string found_path;
+    hid_device* found_dev  = nullptr;
 
-    if(!new_dev)
+    for(const Candidate& cand : candidates)
     {
-        LOG_DEBUG("%s Scan: found %s but failed to open", LOG_TAG, found_path.c_str());
+        LOG_DEBUG("%s Scan: migration candidate at %s (pid=0x%04X, current=%s pid=0x%04X)",
+                  LOG_TAG, cand.dev_path.c_str(), cand.pid,
+                  location.c_str(), current_pid);
+
+        /*-----------------------------------------------------*\
+        | Multi-dongle caveat: hid_enumerate returns entries    |
+        | for ALL dongles with this PID (046D:4099 Lightspeed   |
+        | can appear several times in a single machine). Match |
+        | strictly on the sysfs candidate's dev_path so each    |
+        | candidate resolves to its OWN dongle's HID++          |
+        | interface — not the first match we stumble across.    |
+        \*-----------------------------------------------------*/
+        hid_device_info* devs      = hid_enumerate(0x046D, (uint16_t)cand.pid);
+        std::string      hidpp_path;
+
+        for(hid_device_info* d = devs; d != nullptr; d = d->next)
+        {
+            LOG_TRACE("%s Scan: enumerate PID=0x%04X path=%s page=0x%04X usage=%d",
+                      LOG_TAG, cand.pid, d->path, d->usage_page, d->usage);
+
+            if(std::string(d->path) == cand.dev_path &&
+               d->usage_page == 0xFF00 && d->usage == 2 &&
+               std::string(d->path) != location)
+            {
+                hidpp_path = d->path;
+                break;
+            }
+        }
+
+        hid_free_enumeration(devs);
+
+        if(hidpp_path.empty())
+        {
+            LOG_DEBUG("%s Scan: %s no matching HID++ interface in enum",
+                      LOG_TAG, cand.dev_path.c_str());
+            continue;
+        }
+
+        hid_device* test_dev = hid_open_path(hidpp_path.c_str());
+
+        if(!test_dev)
+        {
+            LOG_DEBUG("%s Scan: %s failed to open", LOG_TAG, hidpp_path.c_str());
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Probe: HID++2.0 IRoot GetFeature for feat 0x0001       |
+        | (IFeatureSet). Wire: w[10 FF 0000 000100]              |
+        |   - report_id 0x10 (short)                              |
+        |   - device_index 0xFF                                   |
+        |   - feat_idx 0x00 (IRoot)                               |
+        |   - address 0x00 (func 0 GetFeature, sw_id 0)          |
+        |   - payload 00 01 00 (feat_id 0x0001)                  |
+        |                                                         |
+        | A live device returns r[11 xx 00 0X ...] — long form,  |
+        | feat_idx 0x00, the address byte we sent back, and the  |
+        | feature index in the payload.                           |
+        | A stale slot returns r[10 xx 8F 00 00 08 ...] — short  |
+        | error form. Reject anything that starts with 0x10.     |
+        \*-----------------------------------------------------*/
+        uint8_t  probe[7]    = {0x10, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00};
+        uint8_t  reply[20]   = {};
+        int      write_rc    = hid_write(test_dev, probe, sizeof(probe));
+        bool     probe_ok    = false;
+
+        if(write_rc >= 0)
+        {
+            /*-----------------------------------------------------*\
+            | Drain up to ~100ms, looking for a long-form response |
+            | matching our probe. Skip stray reports from unrelated |
+            | firmware events that might be queued on the hidraw.  |
+            \*-----------------------------------------------------*/
+            auto deadline = std::chrono::steady_clock::now() +
+                            std::chrono::milliseconds(100);
+
+            while(std::chrono::steady_clock::now() < deadline)
+            {
+                int read_rc = hid_read_timeout(test_dev, reply, sizeof(reply), 50);
+
+                if(read_rc <= 0)
+                {
+                    continue;
+                }
+
+                if(reply[0] == 0x11 && reply[2] == 0x00 && reply[3] == 0x00)
+                {
+                    probe_ok = true;
+                    break;
+                }
+
+                if(reply[0] == 0x10 && reply[2] == 0x8F)
+                {
+                    LOG_DEBUG("%s Scan: %s probe rejected — err=0x%02X (stale slot)",
+                              LOG_TAG, hidpp_path.c_str(), reply[5]);
+                    break;
+                }
+            }
+        }
+
+        if(!probe_ok)
+        {
+            hid_close(test_dev);
+            continue;
+        }
+
+        LOG_DEBUG("%s Scan: %s probe accepted (feat_idx=0x%02X)",
+                  LOG_TAG, hidpp_path.c_str(), reply[4]);
+
+        found_path = hidpp_path;
+        found_dev  = test_dev;
+        break;
+    }
+
+    if(!found_dev)
+    {
         return false;
     }
 
     LOG_INFO("%s Device migrated: %s -> %s", LOG_TAG, location.c_str(), found_path.c_str());
 
-    SwapHIDHandle(new_dev, found_path);
+    SwapHIDHandle(found_dev, found_path);
     return true;
 }
 
@@ -3587,6 +3694,24 @@ void LogitechHIDPPController::SwapHIDHandle
     \*---------------------------------------------------------*/
     reader_running = true;
     reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+
+    /*---------------------------------------------------------*\
+    | Re-discover the HID++ feature map on the new path. The    |
+    | wireless dongle path and the USB-direct path expose       |
+    | DIFFERENT feature index assignments for the same logical |
+    | features — observed on the G515 LS TKL where wireless     |
+    | RGBEffects sits at idx 0x09 but the USB path puts it      |
+    | elsewhere. Without this rediscovery, the cached idx_*     |
+    | values from the old path point at the wrong features on  |
+    | the new one and every reclaim call returns HID++ error    |
+    | 0x07 INVALID_FEATURE_INDEX.                               |
+    |                                                           |
+    | Must run after the reader thread is restarted (the       |
+    | discovery uses queue-backed reads) and before the         |
+    | reinit_direct_fn callback (so the SW control claim sees  |
+    | correct indices).                                         |
+    \*---------------------------------------------------------*/
+    RediscoverFeatures();
 
     /*---------------------------------------------------------*\
     | Reinit device with colors                                 |
@@ -3859,10 +3984,26 @@ void LogitechHIDPPController::ReaderThreadFunc()
             \*-------------------------------------------------*/
             if(feat == 0x40 || feat == 0x41)
             {
+                /*-------------------------------------------------*\
+                | Set 75 retries × 200ms = ~15 second window. The    |
+                | keyboard's USB HID++ interface (page 0xFF00) can   |
+                | take 10+ seconds to appear after the boot HID     |
+                | interface — the first DJ notification fires when  |
+                | the boot interface comes up, but hid_enumerate    |
+                | won't return the HID++ interface until the kernel |
+                | finishes setting up all three interfaces. Until    |
+                | the path-check clears, the device is dark/         |
+                | uncontrolled, so we poll at the same fast cadence  |
+                | as offline recovery (200ms) to minimize how long   |
+                | the user sees default firmware behavior.           |
+                |                                                    |
+                | A subsequent DJ notification before timeout resets |
+                | the counter to 75, extending the retry window.    |
+                \*-------------------------------------------------*/
                 LOG_DEBUG("%s HID++1.0 connection notification sub_id=0x%02X "
-                          "flags=0x%02X (path change — forcing scan)",
+                          "flags=0x%02X (path change — forcing scan retries)",
                           LOG_TAG, feat, func);
-                pending_path_check.store(true);
+                pending_path_check.store(75);
                 continue;
             }
 
@@ -3960,41 +4101,54 @@ void LogitechHIDPPController::PowerThreadFunc()
         }
 
         /*-----------------------------------------------------*\
-        | 1b'. Force path-check from HID++1.0 DJ notification.   |
-        | Flagged by the reader thread when the Lightspeed       |
-        | receiver fires a Device Connection Status or           |
-        | Disconnection sub_id (0x40/0x41). The force-scan       |
-        | bypasses the device_online gate so we can migrate to  |
-        | the USB path before the firmware fully stops routing  |
-        | data over wireless. No-op if the scan finds no        |
-        | different-PID migration candidate.                     |
-        \*-----------------------------------------------------*/
-        if(pending_path_check.exchange(false))
-        {
-            ScanForDevice(true);
-        }
-
-        /*-----------------------------------------------------*\
         | 1c. Reactive scan for connection migration.            |
-        | ScanForDevice is a no-op when device_online==true, so |
-        | this loop only does work when the device has actually |
-        | gone offline. Poll fast (200ms) in that state so      |
-        | USB-cable/wireless transitions recover in under a     |
-        | second end-to-end; back off to 2s while online since  |
-        | the scan is a no-op anyway and we want to keep the    |
-        | power thread idle most of the time.                    |
+        |                                                        |
+        | Three modes feed this loop:                            |
+        |   a) device_online == true, no path-check pending      |
+        |        -> 2s idle interval, scan is a no-op            |
+        |   b) device_online == false                            |
+        |        -> 200ms fast interval, scan tries to reclaim   |
+        |   c) pending_path_check > 0 (DJ notification fired)    |
+        |        -> 200ms fast interval, force-scan bypasses     |
+        |           the online gate to find a different-PID      |
+        |           migration candidate; counter decrements per  |
+        |           failed attempt and clears on success         |
+        |                                                        |
+        | The retry counter exists because the keyboard's USB    |
+        | HID++ interface can take 10+ seconds to enumerate      |
+        | after the boot HID interface comes up — the first DJ   |
+        | notification fires too early to find anything. 75 *    |
+        | 200ms = ~15s window, plenty for the slowest observed   |
+        | enumeration.                                            |
         \*-----------------------------------------------------*/
         if(!caps.unit_id.empty())
         {
-            auto now = std::chrono::steady_clock::now();
-            auto interval = device_online.load()
+            auto now          = std::chrono::steady_clock::now();
+            int  path_retries = pending_path_check.load();
+            bool online       = device_online.load();
+
+            auto interval = (online && path_retries == 0)
                           ? std::chrono::milliseconds(2000)
                           : std::chrono::milliseconds(200);
 
             if(now - last_probe_time >= interval)
             {
                 last_probe_time = now;
-                ScanForDevice();
+
+                bool force   = (path_retries > 0) || !online;
+                bool success = ScanForDevice(force);
+
+                if(path_retries > 0)
+                {
+                    if(success)
+                    {
+                        pending_path_check.store(0);
+                    }
+                    else
+                    {
+                        pending_path_check.fetch_sub(1);
+                    }
+                }
             }
         }
 

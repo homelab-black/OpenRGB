@@ -558,6 +558,7 @@ private:
     void            ReprobeSubDevice();
     void            ReconnectDevice();
     void            FullReprobe();
+    void            RediscoverFeatures();
     bool            ScanForDevice(bool force = false);
     void            SwapHIDHandle(hid_device* new_dev, const std::string& new_path);
 
@@ -577,7 +578,7 @@ private:
     std::atomic<bool>       power_thread_running;
     std::atomic<int>        pending_activity;       // -1=none, 0=idle, 1+=active
     std::atomic<int>        pending_connection;     // 0=none, +1=connected, -1=disconnected
-    std::atomic<bool>       pending_path_check;     // HID++1.0 DJ notification → force-scan for path change
+    std::atomic<int>        pending_path_check;     // HID++1.0 DJ notification → force-scan retries remaining (0=idle)
     std::atomic<bool>       device_online;          // false when device is unreachable
     std::atomic<int>        consecutive_timeouts;   // reset on successful response
     std::atomic<bool>       watcher_mode;           // true when retrying failed probe
