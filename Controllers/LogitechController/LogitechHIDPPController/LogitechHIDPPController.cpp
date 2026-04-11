@@ -3009,9 +3009,6 @@ bool LogitechHIDPPController::ScanForDevice()
         return false;
     }
 
-    LOG_DEBUG("%s Scanning for device (unitId=%s, current=%s)",
-              LOG_TAG, caps.unit_id.c_str(), location.c_str());
-
     /*---------------------------------------------------------*\
     | Normalize our unitId to lowercase hex without dashes for   |
     | comparison. Sysfs HID_UNIQ varies between drivers:         |
@@ -3128,22 +3125,13 @@ bool LogitechHIDPPController::ScanForDevice()
         }
 
         /*-----------------------------------------------------*\
-        | Found a matching hidraw. Use hid_enumerate to find     |
-        | the HID++ interface (usage_page 0xFF00) on this PID.  |
+        | Found a hidraw with our unitId. Skip if it's our       |
+        | current path — device hasn't moved.                    |
         \*-----------------------------------------------------*/
         std::string dev_path = "/dev/" + std::string(entry->d_name);
 
-        LOG_DEBUG("%s Scan: unitId match at %s (pid=0x%s, current=%s)",
-                  LOG_TAG, dev_path.c_str(),
-                  hid_id.substr(hid_id.rfind(':') + 1).c_str(),
-                  location.c_str());
-
-        /*-----------------------------------------------------*\
-        | Skip if this is our current path — device hasn't moved |
-        \*-----------------------------------------------------*/
         if(dev_path == location)
         {
-            LOG_DEBUG("%s Scan: skipping (same path)", LOG_TAG);
             continue;
         }
 
@@ -3171,6 +3159,14 @@ bool LogitechHIDPPController::ScanForDevice()
         {
             continue;
         }
+
+        /*-----------------------------------------------------*\
+        | This is a real migration candidate: matching unitId,   |
+        | different path, different PID. Worth logging.          |
+        \*-----------------------------------------------------*/
+        LOG_DEBUG("%s Scan: migration candidate at %s (pid=0x%04X, current=%s pid=0x%04X)",
+                  LOG_TAG, dev_path.c_str(), pid,
+                  location.c_str(), current_pid);
 
         /*-----------------------------------------------------*\
         | Enumerate HID devices with this PID to find the one    |
@@ -3210,7 +3206,6 @@ bool LogitechHIDPPController::ScanForDevice()
 
     if(found_path.empty())
     {
-        LOG_DEBUG("%s Scan: no matching device found on alternate path", LOG_TAG);
         return false;
     }
 
