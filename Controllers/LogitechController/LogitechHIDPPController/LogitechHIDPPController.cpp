@@ -21,6 +21,15 @@ using namespace std::chrono_literals;
 
 #define LOG_TAG log_tag.c_str()
 
+/*-----------------------------------------------------------*\
+| Hard cap on per-call non-HID++ drains in the read loop.    |
+| A high-polling-rate mouse can put 50+ input reports in the |
+| buffer between our reads; this cap prevents pathological   |
+| input-flood scenarios from locking up a single read call.  |
+| 64 is enough headroom for normal congestion at 1 kHz.     |
+\*-----------------------------------------------------------*/
+static const int HIDPP_READ_DRAIN_BUDGET = 64;
+
 LogitechHIDPPController::LogitechHIDPPController
     (
     hid_device*                 dev,
@@ -462,63 +471,108 @@ int LogitechHIDPPController::ReadStandardDirect
     int         timeout_ms
     )
 {
-    blankFAPmessage response;
-    response.init();
-
     /*---------------------------------------------------------*\
     | No mutex needed for reads — when the reader thread is      |
     | running, it is the sole caller. Before the reader starts,  |
     | all access is single-threaded.                             |
+    |                                                           |
+    | Loop within the timeout window draining non-HID++ reports |
+    | (mouse motion, keystrokes, media keys, DJ events) until    |
+    | we either find a HID++ short/long frame or actually time   |
+    | out. A high-polling-rate device can put 50+ input reports  |
+    | in the hidraw buffer between our calls; without the drain  |
+    | loop the synchronous probe path can never get past them    |
+    | to find its response.                                      |
     \*---------------------------------------------------------*/
-    int result = hid_read_timeout(dev, response.buffer, response.size(), timeout_ms);
+    auto deadline = std::chrono::steady_clock::now()
+                  + std::chrono::milliseconds(timeout_ms);
+    int  drained  = 0;
 
-    if(result <= 0)
+    while(true)
     {
+        auto now = std::chrono::steady_clock::now();
+
+        if(now >= deadline)
+        {
+            return 0;
+        }
+
+        int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                                deadline - now).count();
+
+        if(remaining_ms <= 0)
+        {
+            return 0;
+        }
+
+        blankFAPmessage response;
+        response.init();
+
+        int result = hid_read_timeout(dev, response.buffer, response.size(), remaining_ms);
+
+        if(result < 0)
+        {
+            /* Real wire error (e.g. device removed). */
+            return result;
+        }
+
+        if(result == 0)
+        {
+            /* hidapi timeout — window expired with nothing pending. */
+            return 0;
+        }
+
+        /*-----------------------------------------------------*\
+        | Validate report ID. The hidraw can carry HID input    |
+        | reports (keyboard, mouse, media keys) in addition to  |
+        | HID++. Drop anything that isn't a HID++ short (0x10)  |
+        | or long (0x11) message and keep draining within the   |
+        | remaining window — otherwise the parser would read    |
+        | buf[2]/buf[3] as feat/func and misinterpret           |
+        | keystrokes/motion as HID++ events.                    |
+        \*-----------------------------------------------------*/
+        if(response.buffer[0] != LOGITECH_SHORT_MESSAGE &&
+           response.buffer[0] != LOGITECH_LONG_MESSAGE)
+        {
+            if(++drained > HIDPP_READ_DRAIN_BUDGET)
+            {
+                LOG_DEBUG("%s ReadStandardDirect: drain budget (%d) exceeded",
+                          LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+                return 0;
+            }
+            continue;
+        }
+
+        {
+            static auto t0 = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+            LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
+                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
+                      response.buffer[0], response.buffer[1], response.buffer[2], response.buffer[3],
+                      response.buffer[4], response.buffer[5], response.buffer[6], response.buffer[7],
+                      response.buffer[8], response.buffer[9], response.buffer[10], response.buffer[11],
+                      response.buffer[12], response.buffer[13], response.buffer[14], response.buffer[15],
+                      response.buffer[16], response.buffer[17], response.buffer[18], response.buffer[19]);
+        }
+
+        if(feat_idx_out)
+        {
+            *feat_idx_out = response.feature_index;
+        }
+
+        if(function_out)
+        {
+            *function_out = response.feature_command;
+        }
+
+        if(data_out && data_max > 0)
+        {
+            size_t copy_len = (data_max > sizeof(response.data)) ? sizeof(response.data) : data_max;
+            memcpy(data_out, response.data, copy_len);
+        }
+
         return result;
     }
-
-    /*---------------------------------------------------------*\
-    | Validate report ID. The hidraw can carry HID input reports |
-    | (keyboard, media keys, etc.) in addition to HID++. Drop    |
-    | anything that isn't a HID++ short (0x10) or long (0x11)    |
-    | message — otherwise the parser would read buf[2]/buf[3]    |
-    | as feat/func and misinterpret keystrokes as events.        |
-    \*---------------------------------------------------------*/
-    if(response.buffer[0] != LOGITECH_SHORT_MESSAGE &&
-       response.buffer[0] != LOGITECH_LONG_MESSAGE)
-    {
-        return 0;
-    }
-
-    {
-        static auto t0 = std::chrono::steady_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
-                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                  response.buffer[0], response.buffer[1], response.buffer[2], response.buffer[3],
-                  response.buffer[4], response.buffer[5], response.buffer[6], response.buffer[7],
-                  response.buffer[8], response.buffer[9], response.buffer[10], response.buffer[11],
-                  response.buffer[12], response.buffer[13], response.buffer[14], response.buffer[15],
-                  response.buffer[16], response.buffer[17], response.buffer[18], response.buffer[19]);
-    }
-
-    if(feat_idx_out)
-    {
-        *feat_idx_out = response.feature_index;
-    }
-
-    if(function_out)
-    {
-        *function_out = response.feature_command;
-    }
-
-    if(data_out && data_max > 0)
-    {
-        size_t copy_len = (data_max > sizeof(response.data)) ? sizeof(response.data) : data_max;
-        memcpy(data_out, response.data, copy_len);
-    }
-
-    return result;
 }
 
 /*---------------------------------------------------------*\
@@ -667,21 +721,58 @@ int LogitechHIDPPController::ReadCenturionDirect
     uint8_t buf[64];
     memset(buf, 0, sizeof(buf));
 
-    int result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
-
-    if(result <= 0)
-    {
-        return result;
-    }
-
     /*---------------------------------------------------------*\
-    | Validate report ID — must match the Centurion variant we   |
-    | discovered (0x50 addressed or 0x51 direct). Anything else  |
-    | is a non-Centurion report and would be misparsed.          |
+    | Track an overall deadline so the bridge ACK + MessageEvent |
+    | two-read sequence stays within timeout_ms total — without  |
+    | this each read could eat the full budget independently.    |
+    | Drain non-Centurion report IDs within the remaining window |
+    | rather than bailing on the first non-matching frame.       |
     \*---------------------------------------------------------*/
-    if(buf[0] != transport.report_id)
+    auto deadline = std::chrono::steady_clock::now()
+                  + std::chrono::milliseconds(timeout_ms);
+    int  drained  = 0;
+    int  result   = 0;
+
+    while(true)
     {
-        return 0;
+        auto now = std::chrono::steady_clock::now();
+
+        if(now >= deadline)
+        {
+            return 0;
+        }
+
+        int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                                deadline - now).count();
+
+        if(remaining_ms <= 0)
+        {
+            return 0;
+        }
+
+        result = hid_read_timeout(dev, buf, sizeof(buf), remaining_ms);
+
+        if(result < 0)
+        {
+            return result;
+        }
+
+        if(result == 0)
+        {
+            return 0;
+        }
+
+        if(buf[0] == transport.report_id)
+        {
+            break;
+        }
+
+        if(++drained > HIDPP_READ_DRAIN_BUDGET)
+        {
+            LOG_DEBUG("%s ReadCenturionDirect: drain budget (%d) exceeded",
+                      LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+            return 0;
+        }
     }
 
     {
@@ -740,13 +831,51 @@ int LogitechHIDPPController::ReadCenturionDirect
         {
             /*-------------------------------------------------*\
             | This is the ACK — discard and read the MessageEvent|
+            | Use the *remaining* window from the overall        |
+            | deadline so the two-read sequence stays bounded,   |
+            | and drain non-Centurion frames within that window. |
             \*-------------------------------------------------*/
-            memset(buf, 0, sizeof(buf));
-            result = hid_read_timeout(dev, buf, sizeof(buf), timeout_ms);
-
-            if(result <= 0)
+            while(true)
             {
-                return result;
+                auto now = std::chrono::steady_clock::now();
+
+                if(now >= deadline)
+                {
+                    return 0;
+                }
+
+                int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        deadline - now).count();
+
+                if(remaining_ms <= 0)
+                {
+                    return 0;
+                }
+
+                memset(buf, 0, sizeof(buf));
+                result = hid_read_timeout(dev, buf, sizeof(buf), remaining_ms);
+
+                if(result < 0)
+                {
+                    return result;
+                }
+
+                if(result == 0)
+                {
+                    return 0;
+                }
+
+                if(buf[0] == transport.report_id)
+                {
+                    break;
+                }
+
+                if(++drained > HIDPP_READ_DRAIN_BUDGET)
+                {
+                    LOG_DEBUG("%s ReadCenturionDirect: drain budget (%d) exceeded on bridge MessageEvent",
+                              LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+                    return 0;
+                }
             }
 
             {
