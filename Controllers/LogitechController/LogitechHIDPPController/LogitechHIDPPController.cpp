@@ -1865,50 +1865,91 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
     }
 
     /*---------------------------------------------------------*\
-    | Probe GetInfo to build zone bitmask.                      |
-    | Single query returns 14 bytes covering zone IDs 0-111.    |
-    | Testing shows all tested devices return identical data     |
-    | for typeOfInfo 0, 1, 2 — only query once.                 |
+    | Paginated GetInfo enumeration.                             |
+    |                                                            |
+    | typeOfInfo is a page index, not a redundant probe. Per     |
+    | the 0x8081 spec the device's zone space is up to 336 IDs  |
+    | organized as three pages of 112 bits each:                |
+    |                                                            |
+    |     zone_id = (page * 112) + (byte * 8) + bit              |
+    |                                                            |
+    | An earlier version of this code only queried page 0 on    |
+    | the assumption that all pages echoed the same data. That  |
+    | was wrong — G515 TKL happened to concentrate its zones    |
+    | in page 0 so the bug was invisible, but devices with      |
+    | G-keys, lightbars, media, or logo LEDs report those       |
+    | zones in pages 1 and 2 and were being silently dropped.   |
     \*---------------------------------------------------------*/
-    uint8_t bitmap[14];
-    memset(bitmap, 0, sizeof(bitmap));
+    caps.perkey_zone_ids.clear();
 
+    size_t page_counts[3] = { 0, 0, 0 };
+
+    for(uint8_t page = 0; page < 3; page++)
     {
-        uint8_t query[3] = { 0x00, 0x00, 0x00 };
+        /*-----------------------------------------------------*\
+        | Request body: uint16 BE typeOfInfo + 1 pad byte.       |
+        | Short report carries the 3 bytes at buf[4..6], so      |
+        | { 0x00, page, 0x00 } places page in the low byte of    |
+        | the BE field.                                          |
+        \*-----------------------------------------------------*/
+        uint8_t query[3] = { 0x00, page, 0x00 };
         blankFAPmessage response;
         int result = SendAckedIntoFAP(perkey_idx, FN_8081_GET_INFO,
                                       query, 3, response);
 
-        if(result > 0)
+        if(result <= 0)
         {
-            LOG_DEBUG("%s Per-key GetInfo response: "
-                      "%02X %02X | %02X %02X %02X %02X %02X %02X %02X "
-                      "%02X %02X %02X %02X %02X %02X %02X",
-                      LOG_TAG,
-                      response.data[0], response.data[1],
-                      response.data[2], response.data[3], response.data[4],
-                      response.data[5], response.data[6], response.data[7],
-                      response.data[8], response.data[9], response.data[10],
-                      response.data[11], response.data[12], response.data[13],
-                      response.data[14], response.data[15]);
-
-            memcpy(bitmap, response.data + 2, 14);
+            LOG_DEBUG("%s Per-key GetInfo page %u: no response",
+                      LOG_TAG, page);
+            continue;
         }
-    }
 
-    /*---------------------------------------------------------*\
-    | Parse bitmask to find valid zone IDs (0-111)              |
-    \*---------------------------------------------------------*/
-    caps.perkey_zone_ids.clear();
+        LOG_DEBUG("%s Per-key GetInfo page %u: "
+                  "%02X %02X | %02X %02X %02X %02X %02X %02X %02X "
+                  "%02X %02X %02X %02X %02X %02X %02X",
+                  LOG_TAG, page,
+                  response.data[0], response.data[1],
+                  response.data[2], response.data[3], response.data[4],
+                  response.data[5], response.data[6], response.data[7],
+                  response.data[8], response.data[9], response.data[10],
+                  response.data[11], response.data[12], response.data[13],
+                  response.data[14], response.data[15]);
 
-    for(int zone_id = 1; zone_id < 112; zone_id++)
-    {
-        int byte_idx = zone_id / 8;
-        int bit_idx  = zone_id % 8;
+        /*-----------------------------------------------------*\
+        | Parse 14-byte bitmap (bytes 2..15 of the response).    |
+        | LSB-first bit order within each byte. Skip zone 0 on   |
+        | page 0 (matches prior behavior; zone 0 is not used).   |
+        \*-----------------------------------------------------*/
+        const uint8_t* bitmap = response.data + 2;
+        int start_bit = (page == 0) ? 1 : 0;
 
-        if(byte_idx < 14 && (bitmap[byte_idx] & (1 << bit_idx)))
+        for(int bit_in_page = start_bit; bit_in_page < 112; bit_in_page++)
         {
-            caps.perkey_zone_ids.push_back((uint16_t)zone_id);
+            int byte_idx = bit_in_page / 8;
+            int bit_idx  = bit_in_page % 8;
+
+            if(bitmap[byte_idx] & (1 << bit_idx))
+            {
+                uint16_t zone_id = (uint16_t)(page * 112 + bit_in_page);
+
+                /*---------------------------------------------*\
+                | Wire protocol 0x8081 Set* functions take a     |
+                | uint8_t zone ID. Zones >255 from the bitmap    |
+                | formula can't actually be addressed — drop     |
+                | them so we don't expose phantom LEDs.          |
+                \*---------------------------------------------*/
+                if(zone_id > 255)
+                {
+                    LOG_WARNING("%s Per-key GetInfo page %u reported "
+                                "unreachable zone %u (wire protocol "
+                                "caps zones at 255); ignoring",
+                                LOG_TAG, page, zone_id);
+                    continue;
+                }
+
+                caps.perkey_zone_ids.push_back(zone_id);
+                page_counts[page]++;
+            }
         }
     }
 
@@ -1929,8 +1970,10 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
         }
     }
 
-    LOG_VERBOSE("%s Per-key zones discovered: %zu (numpad=%s)",
+    LOG_VERBOSE("%s Per-key zones discovered: %zu total "
+                "(page0=%zu, page1=%zu, page2=%zu, numpad=%s)",
                 LOG_TAG, caps.perkey_zone_ids.size(),
+                page_counts[0], page_counts[1], page_counts[2],
                 caps.has_numpad ? "yes" : "no");
 }
 
