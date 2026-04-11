@@ -478,10 +478,18 @@ int LogitechHIDPPController::ReadStandardDirect
     }
 
     /*---------------------------------------------------------*\
-    | Only trace HID++ messages (report ID 0x10 short, 0x11     |
-    | long). Skip HID input reports (mouse/keyboard data).      |
+    | Validate report ID. The hidraw can carry HID input reports |
+    | (keyboard, media keys, etc.) in addition to HID++. Drop    |
+    | anything that isn't a HID++ short (0x10) or long (0x11)    |
+    | message — otherwise the parser would read buf[2]/buf[3]    |
+    | as feat/func and misinterpret keystrokes as events.        |
     \*---------------------------------------------------------*/
-    if(response.buffer[0] == 0x10 || response.buffer[0] == 0x11)
+    if(response.buffer[0] != LOGITECH_SHORT_MESSAGE &&
+       response.buffer[0] != LOGITECH_LONG_MESSAGE)
+    {
+        return 0;
+    }
+
     {
         static auto t0 = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
@@ -664,6 +672,16 @@ int LogitechHIDPPController::ReadCenturionDirect
     if(result <= 0)
     {
         return result;
+    }
+
+    /*---------------------------------------------------------*\
+    | Validate report ID — must match the Centurion variant we   |
+    | discovered (0x50 addressed or 0x51 direct). Anything else  |
+    | is a non-Centurion report and would be misparsed.          |
+    \*---------------------------------------------------------*/
+    if(buf[0] != transport.report_id)
+    {
+        return 0;
     }
 
     {
