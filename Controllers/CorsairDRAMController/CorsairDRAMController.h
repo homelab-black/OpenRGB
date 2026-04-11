@@ -117,6 +117,7 @@ public:
                                       unsigned char red2,
                                       unsigned char grn2,
                                       unsigned char blu2);
+    void                    SaveMode(RGBColor* colors);
 
     bool                    WaitReady();
 

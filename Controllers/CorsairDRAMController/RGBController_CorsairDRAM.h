@@ -30,6 +30,7 @@ public:
     void UpdateSingleLED(int led);
 
     void DeviceUpdateMode();
+    void DeviceSaveMode();
 
 private:
     CorsairDRAMController* controller;
