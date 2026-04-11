@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_LogitechHIDPP.h                             |
+| RGBController_LogitechHIDPP20.h                             |
 |                                                           |
 |   RGBController for unified Logitech HID++ 2.0 devices   |
 |                                                           |
@@ -10,13 +10,13 @@
 #pragma once
 
 #include "RGBController.h"
-#include "LogitechHIDPPController.h"
+#include "LogitechHIDPP20Controller.h"
 
-class RGBController_LogitechHIDPP : public RGBController
+class RGBController_LogitechHIDPP20 : public RGBController
 {
 public:
-    RGBController_LogitechHIDPP(LogitechHIDPPController* controller_ptr);
-    ~RGBController_LogitechHIDPP();
+    RGBController_LogitechHIDPP20(LogitechHIDPP20Controller* controller_ptr);
+    ~RGBController_LogitechHIDPP20();
 
     void        SetupZones();
     void        ResizeZone(int zone, int new_size);
@@ -27,7 +27,7 @@ public:
     bool        ReinitDirectMode();
 
 private:
-    LogitechHIDPPController*    controller;
+    LogitechHIDPP20Controller*    controller;
 
     /*---------------------------------------------------------*\
     | Maps OpenRGB LED index -> HID++ per-key zone ID           |
@@ -44,7 +44,7 @@ private:
 
     /*---------------------------------------------------------*\
     | Last successfully committed colors for delta updates.     |
-    | An entry of HIDPP_UNCOMMITTED (0xFF000000) marks an LED   |
+    | An entry of HIDPP20_UNCOMMITTED (0xFF000000) marks an LED   |
     | whose last write didn't ACK and which therefore needs to  |
     | be re-pushed in the next frame regardless of color delta. |
     | The high byte (0xFF) is impossible for any value produced |

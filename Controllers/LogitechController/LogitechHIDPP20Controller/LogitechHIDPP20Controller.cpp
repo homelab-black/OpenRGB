@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| LogitechHIDPPController.cpp                               |
+| LogitechHIDPP20Controller.cpp                               |
 |                                                           |
 |   Unified Logitech HID++ 2.0 controller implementation   |
 |                                                           |
@@ -14,8 +14,8 @@
 #include <vector>
 #include <fstream>
 #include <dirent.h>
-#include "LogitechHIDPPController.h"
-#include "RGBController_LogitechHIDPP.h"
+#include "LogitechHIDPP20Controller.h"
+#include "RGBController_LogitechHIDPP20.h"
 #include "LogManager.h"
 
 using namespace std::chrono_literals;
@@ -29,9 +29,9 @@ using namespace std::chrono_literals;
 | input-flood scenarios from locking up a single read call.  |
 | 64 is enough headroom for normal congestion at 1 kHz.     |
 \*-----------------------------------------------------------*/
-static const int HIDPP_READ_DRAIN_BUDGET = 64;
+static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 
-LogitechHIDPPController::LogitechHIDPPController
+LogitechHIDPP20Controller::LogitechHIDPP20Controller
     (
     hid_device*                 dev,
     const char*                 path,
@@ -61,7 +61,7 @@ LogitechHIDPPController::LogitechHIDPPController
     this->device_online        = true;
     this->consecutive_timeouts = 0;
     this->watcher_mode         = false;
-    this->power_state          = HIDPP_POWER_ACTIVE;
+    this->power_state          = HIDPP20_POWER_ACTIVE;
     this->dim_brightness_pct   = 100;
     this->dim_step             = 0;
     this->idle_timeout_s       = 60;
@@ -73,7 +73,7 @@ LogitechHIDPPController::LogitechHIDPPController
     | Default to standard HID++ transport; DiscoverTransport()   |
     | may change this during Probe() if Centurion is detected.   |
     \*---------------------------------------------------------*/
-    transport.type              = HIDPP_TRANSPORT_STANDARD;
+    transport.type              = HIDPP20_TRANSPORT_STANDARD;
     transport.usage_page        = usage_page;
     transport.report_id         = LOGITECH_LONG_MESSAGE;
     transport.addressed         = false;
@@ -83,7 +83,7 @@ LogitechHIDPPController::LogitechHIDPPController
     transport.bridge_mtu        = 0;
 }
 
-LogitechHIDPPController::~LogitechHIDPPController()
+LogitechHIDPP20Controller::~LogitechHIDPP20Controller()
 {
     if(initialized)
     {
@@ -104,7 +104,7 @@ LogitechHIDPPController::~LogitechHIDPPController()
 | SendAndReceive is a convenience wrapper.                  |
 \*---------------------------------------------------------*/
 
-int LogitechHIDPPController::SendMessage
+int LogitechHIDPP20Controller::SendMessage
     (
     uint8_t         feat_idx,
     uint8_t         function,
@@ -114,16 +114,16 @@ int LogitechHIDPPController::SendMessage
 {
     switch(transport.type)
     {
-        case HIDPP_TRANSPORT_CENTURION:
+        case HIDPP20_TRANSPORT_CENTURION:
             return SendCenturion(feat_idx, function, data, len);
 
-        case HIDPP_TRANSPORT_STANDARD:
+        case HIDPP20_TRANSPORT_STANDARD:
         default:
             return SendStandard(feat_idx, function, data, len);
     }
 }
 
-int LogitechHIDPPController::ReadMessage
+int LogitechHIDPP20Controller::ReadMessage
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -146,7 +146,7 @@ int LogitechHIDPPController::ReadMessage
     return ReadHIDDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
 }
 
-int LogitechHIDPPController::ReadHIDDirect
+int LogitechHIDPP20Controller::ReadHIDDirect
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -157,16 +157,16 @@ int LogitechHIDPPController::ReadHIDDirect
 {
     switch(transport.type)
     {
-        case HIDPP_TRANSPORT_CENTURION:
+        case HIDPP20_TRANSPORT_CENTURION:
             return ReadCenturionDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
 
-        case HIDPP_TRANSPORT_STANDARD:
+        case HIDPP20_TRANSPORT_STANDARD:
         default:
             return ReadStandardDirect(feat_idx_out, function_out, data_out, data_max, timeout_ms);
     }
 }
 
-int LogitechHIDPPController::ReadFromQueue
+int LogitechHIDPP20Controller::ReadFromQueue
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -200,7 +200,7 @@ int LogitechHIDPPController::ReadFromQueue
         }
     }
 
-    HIDPPRawMessage msg = response_queue.front();
+    HIDPP20RawMessage msg = response_queue.front();
     response_queue.pop_front();
 
     if(feat_idx_out)
@@ -222,7 +222,7 @@ int LogitechHIDPPController::ReadFromQueue
     return msg.result;
 }
 
-int LogitechHIDPPController::SendAndReceive
+int LogitechHIDPP20Controller::SendAndReceive
     (
     uint8_t         feat_idx,
     uint8_t         function,
@@ -240,10 +240,10 @@ int LogitechHIDPPController::SendAndReceive
     return SendAcked(feat_idx, function,
                      send_data, send_len,
                      recv_data, recv_max,
-                     HIDPP_POLICY_RELIABLE);
+                     HIDPP20_POLICY_RELIABLE);
 }
 
-int LogitechHIDPPController::SendAcked
+int LogitechHIDPP20Controller::SendAcked
     (
     uint8_t                 feat_idx,
     uint8_t                 function,
@@ -251,8 +251,8 @@ int LogitechHIDPPController::SendAcked
     size_t                  send_len,
     uint8_t*                recv_data,
     size_t                  recv_max,
-    const HIDPPRetryPolicy& policy,
-    uint8_t*                hidpp_error_out
+    const HIDPP20RetryPolicy& policy,
+    uint8_t*                hidpp20_error_out
     )
 {
     /*---------------------------------------------------------*\
@@ -274,9 +274,9 @@ int LogitechHIDPPController::SendAcked
     |      - non-matching, non-error frame    -> discard        |
     |      - read timeout (0)                  -> retry the send|
     \*---------------------------------------------------------*/
-    if(hidpp_error_out)
+    if(hidpp20_error_out)
     {
-        *hidpp_error_out = 0;
+        *hidpp20_error_out = 0;
     }
 
     if(policy.flush_before)
@@ -414,9 +414,9 @@ int LogitechHIDPPController::SendAcked
                               "feat=0x%02X func=0x%02X",
                               LOG_TAG, policy.name, err_code, feat_idx, function);
 
-                    if(hidpp_error_out)
+                    if(hidpp20_error_out)
                     {
-                        *hidpp_error_out = err_code;
+                        *hidpp20_error_out = err_code;
                     }
 
                     return -1;
@@ -459,9 +459,9 @@ int LogitechHIDPPController::SendAcked
               LOG_TAG, policy.name, (int)policy.attempts,
               feat_idx, function, last_error);
 
-    if(hidpp_error_out)
+    if(hidpp20_error_out)
     {
-        *hidpp_error_out = last_error;
+        *hidpp20_error_out = last_error;
     }
 
     /*---------------------------------------------------------*\
@@ -486,14 +486,14 @@ int LogitechHIDPPController::SendAcked
     return last_result;
 }
 
-int LogitechHIDPPController::SendAckedIntoFAP
+int LogitechHIDPP20Controller::SendAckedIntoFAP
     (
     uint8_t                 feat_idx,
     uint8_t                 function,
     const uint8_t*          send_data,
     size_t                  send_len,
     blankFAPmessage&        response,
-    const HIDPPRetryPolicy& policy
+    const HIDPP20RetryPolicy& policy
     )
 {
     /*---------------------------------------------------------*\
@@ -527,7 +527,7 @@ int LogitechHIDPPController::SendAckedIntoFAP
 | Report IDs 0x10 (7 bytes) / 0x11 (20 bytes)              |
 \*---------------------------------------------------------*/
 
-int LogitechHIDPPController::SendStandard
+int LogitechHIDPP20Controller::SendStandard
     (
     uint8_t         feat_idx,
     uint8_t         function,
@@ -549,7 +549,7 @@ int LogitechHIDPPController::SendStandard
         buf[0] = LOGITECH_SHORT_MESSAGE;
         buf[1] = device_index;
         buf[2] = feat_idx;
-        buf[3] = function | HIDPP_SW_ID;
+        buf[3] = function | HIDPP20_SW_ID;
 
         if(data && len > 0)
         {
@@ -564,7 +564,7 @@ int LogitechHIDPPController::SendStandard
         buf[0] = LOGITECH_LONG_MESSAGE;
         buf[1] = device_index;
         buf[2] = feat_idx;
-        buf[3] = function | HIDPP_SW_ID;
+        buf[3] = function | HIDPP20_SW_ID;
 
         if(data && len > 0)
         {
@@ -612,7 +612,7 @@ int LogitechHIDPPController::SendStandard
     return result;
 }
 
-int LogitechHIDPPController::ReadStandardDirect
+int LogitechHIDPP20Controller::ReadStandardDirect
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -684,10 +684,10 @@ int LogitechHIDPPController::ReadStandardDirect
         if(response.buffer[0] != LOGITECH_SHORT_MESSAGE &&
            response.buffer[0] != LOGITECH_LONG_MESSAGE)
         {
-            if(++drained > HIDPP_READ_DRAIN_BUDGET)
+            if(++drained > HIDPP20_READ_DRAIN_BUDGET)
             {
                 LOG_DEBUG("%s ReadStandardDirect: drain budget (%d) exceeded",
-                          LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+                          LOG_TAG, HIDPP20_READ_DRAIN_BUDGET);
                 return 0;
             }
             continue;
@@ -742,7 +742,7 @@ int LogitechHIDPPController::ReadStandardDirect
 | TODO: Full implementation — currently stubbed.            |
 \*---------------------------------------------------------*/
 
-int LogitechHIDPPController::SendCenturion
+int LogitechHIDPP20Controller::SendCenturion
     (
     uint8_t         feat_idx,
     uint8_t         function,
@@ -770,12 +770,12 @@ int LogitechHIDPPController::SendCenturion
             buf[2] = 5 + sub_msg_len;              // cplLen
             buf[3] = 0x00;                          // flags (single fragment)
             buf[4] = transport.bridge_feat_idx;
-            buf[5] = 0x10 | HIDPP_SW_ID;            // sendFragment (func 1)
+            buf[5] = 0x10 | HIDPP20_SW_ID;            // sendFragment (func 1)
             buf[6] = (transport.sub_device_id << 4) | ((sub_msg_len >> 8) & 0x0F);
             buf[7] = sub_msg_len & 0xFF;
             buf[8] = 0x00;                          // sub-CPL (single fragment)
             buf[9] = feat_idx;
-            buf[10] = function | HIDPP_SW_ID;
+            buf[10] = function | HIDPP20_SW_ID;
 
             if(data && len > 0)
             {
@@ -788,12 +788,12 @@ int LogitechHIDPPController::SendCenturion
             buf[1] = 5 + sub_msg_len;              // cplLen: flags(1) + feat(1) + func(1) + hdr(2) + sub
             buf[2] = 0x00;                          // flags
             buf[3] = transport.bridge_feat_idx;
-            buf[4] = 0x10 | HIDPP_SW_ID;            // sendFragment (func 1)
+            buf[4] = 0x10 | HIDPP20_SW_ID;            // sendFragment (func 1)
             buf[5] = (transport.sub_device_id << 4) | ((sub_msg_len >> 8) & 0x0F);
             buf[6] = sub_msg_len & 0xFF;
             buf[7] = 0x00;                          // sub-CPL
             buf[8] = feat_idx;
-            buf[9] = function | HIDPP_SW_ID;
+            buf[9] = function | HIDPP20_SW_ID;
 
             if(data && len > 0)
             {
@@ -813,7 +813,7 @@ int LogitechHIDPPController::SendCenturion
             buf[2] = 3 + (uint8_t)len;             // cplLen
             buf[3] = 0x00;                          // flags
             buf[4] = feat_idx;
-            buf[5] = function | HIDPP_SW_ID;
+            buf[5] = function | HIDPP20_SW_ID;
 
             if(data && len > 0)
             {
@@ -826,7 +826,7 @@ int LogitechHIDPPController::SendCenturion
             buf[1] = 3 + (uint8_t)len;             // cplLen: flags(1) + feat(1) + func(1) + data
             buf[2] = 0x00;                          // flags
             buf[3] = feat_idx;
-            buf[4] = function | HIDPP_SW_ID;
+            buf[4] = function | HIDPP20_SW_ID;
 
             if(data && len > 0)
             {
@@ -859,7 +859,7 @@ int LogitechHIDPPController::SendCenturion
     return result;
 }
 
-int LogitechHIDPPController::ReadCenturionDirect
+int LogitechHIDPP20Controller::ReadCenturionDirect
     (
     uint8_t*    feat_idx_out,
     uint8_t*    function_out,
@@ -917,10 +917,10 @@ int LogitechHIDPPController::ReadCenturionDirect
             break;
         }
 
-        if(++drained > HIDPP_READ_DRAIN_BUDGET)
+        if(++drained > HIDPP20_READ_DRAIN_BUDGET)
         {
             LOG_DEBUG("%s ReadCenturionDirect: drain budget (%d) exceeded",
-                      LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+                      LOG_TAG, HIDPP20_READ_DRAIN_BUDGET);
             return 0;
         }
     }
@@ -959,7 +959,7 @@ int LogitechHIDPPController::ReadCenturionDirect
         | 1. ACK: bridge echoes feat+func with our swid          |
         | 2. MessageEvent: func=1x, swid=0, wrapped sub-device   |
         \*-----------------------------------------------------*/
-        if((resp_func & 0xF0) == 0x00 && (resp_func & 0x0F) != HIDPP_SW_ID)
+        if((resp_func & 0xF0) == 0x00 && (resp_func & 0x0F) != HIDPP20_SW_ID)
         {
             /*-------------------------------------------------*\
             | Bridge event — return feat/func/data as-is         |
@@ -977,7 +977,7 @@ int LogitechHIDPPController::ReadCenturionDirect
             return result;
         }
 
-        if((resp_func & 0x0F) == HIDPP_SW_ID)
+        if((resp_func & 0x0F) == HIDPP20_SW_ID)
         {
             /*-------------------------------------------------*\
             | This is the ACK — discard and read the MessageEvent|
@@ -1020,10 +1020,10 @@ int LogitechHIDPPController::ReadCenturionDirect
                     break;
                 }
 
-                if(++drained > HIDPP_READ_DRAIN_BUDGET)
+                if(++drained > HIDPP20_READ_DRAIN_BUDGET)
                 {
                     LOG_DEBUG("%s ReadCenturionDirect: drain budget (%d) exceeded on bridge MessageEvent",
-                              LOG_TAG, HIDPP_READ_DRAIN_BUDGET);
+                              LOG_TAG, HIDPP20_READ_DRAIN_BUDGET);
                     return 0;
                 }
             }
@@ -1103,8 +1103,8 @@ int LogitechHIDPPController::ReadCenturionDirect
 | Feature Discovery                                         |
 \*---------------------------------------------------------*/
 
-uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page,
-                                                 const HIDPPRetryPolicy& policy)
+uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
+                                                 const HIDPP20RetryPolicy& policy)
 {
     /*---------------------------------------------------------*\
     | Check cache first — both Centurion bulk and HID++ on-demand|
@@ -1160,13 +1160,13 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page,
     return 0;
 }
 
-void LogitechHIDPPController::DiscoverDeviceName()
+void LogitechHIDPP20Controller::DiscoverDeviceName()
 {
     /*---------------------------------------------------------*\
     | Centurion sub-devices use 0x0101 (DeviceName).             |
     | Standard HID++ uses 0x0005 (DeviceNameType).               |
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION)
+    if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         /*-----------------------------------------------------*\
         | Centurion sub-device: 0x0101 getName returns firmware   |
@@ -1218,7 +1218,7 @@ void LogitechHIDPPController::DiscoverDeviceName()
         return;
     }
 
-    uint8_t feat_idx = GetFeatureIndex(HIDPP_FEAT_DEVICE_NAME_TYPE);
+    uint8_t feat_idx = GetFeatureIndex(HIDPP20_FEAT_DEVICE_NAME_TYPE);
 
     if(feat_idx == 0)
     {
@@ -1262,20 +1262,20 @@ void LogitechHIDPPController::DiscoverDeviceName()
     LOG_VERBOSE("%s Device name: %s", LOG_TAG, caps.device_name.c_str());
 }
 
-void LogitechHIDPPController::DiscoverDeviceType()
+void LogitechHIDPP20Controller::DiscoverDeviceType()
 {
     /*---------------------------------------------------------*\
     | Centurion sub-devices don't have 0x0005 (DeviceNameType).  |
     | Default to unknown — don't assume device type from         |
     | transport, as Centurion may be used for future devices.    |
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION)
+    if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         caps.device_type = 0;
         return;
     }
 
-    uint8_t feat_idx = GetFeatureIndex(HIDPP_FEAT_DEVICE_NAME_TYPE);
+    uint8_t feat_idx = GetFeatureIndex(HIDPP20_FEAT_DEVICE_NAME_TYPE);
 
     if(feat_idx == 0)
     {
@@ -1298,7 +1298,7 @@ void LogitechHIDPPController::DiscoverDeviceType()
     }
 }
 
-void LogitechHIDPPController::DiscoverTransport()
+void LogitechHIDPP20Controller::DiscoverTransport()
 {
     /*---------------------------------------------------------*\
     | Detect transport type from usage page.                     |
@@ -1307,7 +1307,7 @@ void LogitechHIDPPController::DiscoverTransport()
     \*---------------------------------------------------------*/
     if(transport.usage_page == 0xFF00 || transport.usage_page == 0xFF43)
     {
-        transport.type = HIDPP_TRANSPORT_STANDARD;
+        transport.type = HIDPP20_TRANSPORT_STANDARD;
         return;
     }
 
@@ -1317,7 +1317,7 @@ void LogitechHIDPPController::DiscoverTransport()
     | (G522). Parse the descriptor to find which report IDs      |
     | are available with 63-byte payload.                        |
     \*---------------------------------------------------------*/
-    transport.type = HIDPP_TRANSPORT_CENTURION;
+    transport.type = HIDPP20_TRANSPORT_CENTURION;
 
     /*---------------------------------------------------------*\
     | Parse report descriptor to find Centurion report IDs       |
@@ -1362,7 +1362,7 @@ void LogitechHIDPPController::DiscoverTransport()
         probe_buf[2] = 3;
         probe_buf[3] = 0x00;
         probe_buf[4] = 0x00;
-        probe_buf[5] = 0x00 | HIDPP_SW_ID;
+        probe_buf[5] = 0x00 | HIDPP20_SW_ID;
 
         if(hid_write(dev, probe_buf, 64) > 0)
         {
@@ -1391,7 +1391,7 @@ void LogitechHIDPPController::DiscoverTransport()
         probe_buf[1] = 3;
         probe_buf[2] = 0x00;
         probe_buf[3] = 0x00;
-        probe_buf[4] = 0x00 | HIDPP_SW_ID;
+        probe_buf[4] = 0x00 | HIDPP20_SW_ID;
 
         int wr = hid_write(dev, probe_buf, 64);
 
@@ -1417,7 +1417,7 @@ void LogitechHIDPPController::DiscoverTransport()
         probe_buf[2] = 3;
         probe_buf[3] = 0x00;
         probe_buf[4] = 0x00;
-        probe_buf[5] = 0x00 | HIDPP_SW_ID;
+        probe_buf[5] = 0x00 | HIDPP20_SW_ID;
 
         wr = hid_write(dev, probe_buf, 64);
 
@@ -1440,7 +1440,7 @@ void LogitechHIDPPController::DiscoverTransport()
     }
 }
 
-void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
+void LogitechHIDPP20Controller::EnumerateFeatures(uint8_t feature_set_idx)
 {
     caps.feature_map.clear();
     caps.feature_map_complete = false;
@@ -1450,7 +1450,7 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
     \*---------------------------------------------------------*/
     caps.feature_map[0x0000] = 0;
 
-    if(transport.type == HIDPP_TRANSPORT_CENTURION)
+    if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         /*-----------------------------------------------------*\
         | Centurion sub-device: CenturionFeatureSet fn1 returns  |
@@ -1496,15 +1496,15 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
     }
 }
 
-void LogitechHIDPPController::DiscoverFirmwareInfo()
+void LogitechHIDPP20Controller::DiscoverFirmwareInfo()
 {
     /*---------------------------------------------------------*\
     | Centurion sub-devices use 0x0100 (DeviceInfo) for firmware  |
     | version and serial. Standard HID++ uses 0x0003 (FirmwareInfo).|
     \*---------------------------------------------------------*/
-    if(transport.type == HIDPP_TRANSPORT_CENTURION)
+    if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
-        uint8_t dev_info_idx = GetFeatureIndex(HIDPP_FEAT_CENTURION_DEVICE_INFO);
+        uint8_t dev_info_idx = GetFeatureIndex(HIDPP20_FEAT_CENTURION_DEVICE_INFO);
 
         if(dev_info_idx == 0)
         {
@@ -1560,7 +1560,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         return;
     }
 
-    uint8_t fw_idx = GetFeatureIndex(HIDPP_FEAT_FIRMWARE_INFO);
+    uint8_t fw_idx = GetFeatureIndex(HIDPP20_FEAT_FIRMWARE_INFO);
 
     if(fw_idx == 0)
     {
@@ -1688,24 +1688,24 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
     }
 }
 
-void LogitechHIDPPController::DiscoverRGBEffects()
+void LogitechHIDPP20Controller::DiscoverRGBEffects()
 {
     /*---------------------------------------------------------*\
     | Try 0x8071 first, then 0x0600 (Centurion), then 0x8070    |
     \*---------------------------------------------------------*/
-    caps.idx_rgb_effects = GetFeatureIndex(HIDPP_FEAT_RGB_EFFECTS);
-    caps.rgb_feature_page = HIDPP_FEAT_RGB_EFFECTS;
+    caps.idx_rgb_effects = GetFeatureIndex(HIDPP20_FEAT_RGB_EFFECTS);
+    caps.rgb_feature_page = HIDPP20_FEAT_RGB_EFFECTS;
 
     if(caps.idx_rgb_effects == 0)
     {
-        caps.idx_rgb_effects = GetFeatureIndex(HIDPP_FEAT_CENTURION_RGB);
-        caps.rgb_feature_page = HIDPP_FEAT_CENTURION_RGB;
+        caps.idx_rgb_effects = GetFeatureIndex(HIDPP20_FEAT_CENTURION_RGB);
+        caps.rgb_feature_page = HIDPP20_FEAT_CENTURION_RGB;
     }
 
     if(caps.idx_rgb_effects == 0)
     {
-        caps.idx_rgb_effects = GetFeatureIndex(HIDPP_FEAT_COLOR_LED_EFFECTS);
-        caps.rgb_feature_page = HIDPP_FEAT_COLOR_LED_EFFECTS;
+        caps.idx_rgb_effects = GetFeatureIndex(HIDPP20_FEAT_COLOR_LED_EFFECTS);
+        caps.rgb_feature_page = HIDPP20_FEAT_COLOR_LED_EFFECTS;
     }
 
     if(caps.idx_rgb_effects == 0)
@@ -1719,7 +1719,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     | 0x8071 and 0x0600 share the same function layout.          |
     | 0x8070 has different function numbers and SW control format.|
     \*---------------------------------------------------------*/
-    if(caps.rgb_feature_page == HIDPP_FEAT_COLOR_LED_EFFECTS)
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
         caps.fn_set_effect      = 0x30;
         caps.fn_sw_control      = 0x80;
@@ -1744,7 +1744,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     | 0x8070: data = [] (empty)                                 |
     \*---------------------------------------------------------*/
     uint8_t data[3] = { 0xFF, 0xFF, 0x00 };
-    size_t data_len = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? 3 : 0;
+    size_t data_len = (caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS) ? 3 : 0;
 
     blankFAPmessage response;
     int result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
@@ -1758,7 +1758,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
 
     unsigned int cluster_count;
 
-    if(caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+    if(caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS)
     {
         cluster_count = response.data[2];
     }
@@ -1774,10 +1774,10 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     \*---------------------------------------------------------*/
     for(unsigned int i = 0; i < cluster_count; i++)
     {
-        HIDPPZoneCluster cluster;
+        HIDPP20ZoneCluster cluster;
         cluster.index = i;
 
-        if(caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+        if(caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS)
         {
             uint8_t query[2] = { (uint8_t)i, 0xFF };
             result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
@@ -1795,7 +1795,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
             continue;
         }
 
-        if(caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+        if(caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS)
         {
             cluster.location     = (response.data[2] << 8) | response.data[3];
             cluster.effect_count = response.data[4];
@@ -1814,11 +1814,11 @@ void LogitechHIDPPController::DiscoverRGBEffects()
         \*-----------------------------------------------------*/
         for(unsigned int j = 0; j < cluster.effect_count; j++)
         {
-            HIDPPEffect effect;
+            HIDPP20Effect effect;
             effect.index = j;
 
             uint8_t eff_query[4] = { (uint8_t)i, (uint8_t)j, 0x00, 0x00 };
-            uint8_t eff_fn = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+            uint8_t eff_fn = (caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS)
                            ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO;
             result = SendAckedIntoFAP(caps.idx_rgb_effects, eff_fn,
                                       eff_query, 4, response);
@@ -1844,16 +1844,16 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     caps.has_zone_effects = !caps.zone_clusters.empty();
 }
 
-void LogitechHIDPPController::DiscoverPerKeyZones()
+void LogitechHIDPP20Controller::DiscoverPerKeyZones()
 {
     /*---------------------------------------------------------*\
     | Try 0x8081 first, fall back to 0x8080                     |
     \*---------------------------------------------------------*/
-    caps.idx_perkey_v2 = GetFeatureIndex(HIDPP_FEAT_PER_KEY_LIGHTING_V2);
+    caps.idx_perkey_v2 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V2);
 
     if(caps.idx_perkey_v2 == 0)
     {
-        caps.idx_perkey_v1 = GetFeatureIndex(HIDPP_FEAT_PER_KEY_LIGHTING_V1);
+        caps.idx_perkey_v1 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V1);
     }
 
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
@@ -1977,9 +1977,9 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
                 caps.has_numpad ? "yes" : "no");
 }
 
-void LogitechHIDPPController::DiscoverKeyboardLayout()
+void LogitechHIDPP20Controller::DiscoverKeyboardLayout()
 {
-    uint8_t idx = GetFeatureIndex(HIDPP_FEAT_KEYBOARD_LAYOUT);
+    uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_KEYBOARD_LAYOUT);
 
     if(idx == 0)
     {
@@ -2005,7 +2005,7 @@ void LogitechHIDPPController::DiscoverKeyboardLayout()
 | Probe / Initialize / Shutdown                             |
 \*---------------------------------------------------------*/
 
-bool LogitechHIDPPController::Probe()
+bool LogitechHIDPP20Controller::Probe()
 {
     LOG_DEBUG("%s Probing device at %s (index=0x%02X)",
               LOG_TAG, location.c_str(), device_index);
@@ -2056,7 +2056,7 @@ bool LogitechHIDPPController::Probe()
     \*---------------------------------------------------------*/
     uint8_t test_idx = 0;
 
-    if(transport.type == HIDPP_TRANSPORT_CENTURION)
+    if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         /*-----------------------------------------------------*\
         | Centurion: try CentPPBridge (0x0003) first for dongle. |
@@ -2068,7 +2068,7 @@ bool LogitechHIDPPController::Probe()
         | devices bail in ~500ms instead of ~6s. Once we have a  |
         | positive response, subsequent discovery uses reliable. |
         \*-----------------------------------------------------*/
-        test_idx = GetFeatureIndex(HIDPP_FEAT_CENTPPBRIDGE, HIDPP_POLICY_PROBE);
+        test_idx = GetFeatureIndex(HIDPP20_FEAT_CENTPPBRIDGE, HIDPP20_POLICY_PROBE);
 
         if(test_idx != 0)
         {
@@ -2137,7 +2137,7 @@ bool LogitechHIDPPController::Probe()
         else
         {
             LOG_DEBUG("%s No CentPPBridge — Centurion direct connection", LOG_TAG);
-            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET, HIDPP_POLICY_PROBE);
+            test_idx = GetFeatureIndex(HIDPP20_FEAT_FEATURE_SET, HIDPP20_POLICY_PROBE);
         }
     }
     else
@@ -2161,7 +2161,7 @@ bool LogitechHIDPPController::Probe()
                 LOG_DEBUG("%s IRoot retry %d at %s", LOG_TAG, attempt + 1, location.c_str());
             }
 
-            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET, HIDPP_POLICY_PROBE);
+            test_idx = GetFeatureIndex(HIDPP20_FEAT_FEATURE_SET, HIDPP20_POLICY_PROBE);
         }
     }
 
@@ -2196,7 +2196,7 @@ bool LogitechHIDPPController::Probe()
         | sub-device. For standard HID++, test_idx is the        |
         | FeatureSet index from the IRoot probe.                 |
         \*-----------------------------------------------------*/
-        uint8_t fs_idx = (transport.type == HIDPP_TRANSPORT_CENTURION &&
+        uint8_t fs_idx = (transport.type == HIDPP20_TRANSPORT_CENTURION &&
                           transport.bridge_feat_idx != 0)
                        ? 1    // CenturionFeatureSet always at index 1 on sub-device
                        : test_idx;
@@ -2231,8 +2231,8 @@ bool LogitechHIDPPController::Probe()
     /*---------------------------------------------------------*\
     | Discover profile management features                      |
     \*---------------------------------------------------------*/
-    caps.idx_profile_management = GetFeatureIndex(HIDPP_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP_FEAT_ONBOARD_PROFILES);
+    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
 
     /*---------------------------------------------------------*\
     | Discover RGB capabilities                                 |
@@ -2248,7 +2248,7 @@ bool LogitechHIDPPController::Probe()
     | cycle. Cache the feature index so the reader thread can   |
     | detect these events without sending commands.             |
     \*---------------------------------------------------------*/
-    caps.idx_wireless_status = GetFeatureIndex(HIDPP_FEAT_WIRELESS_STATUS);
+    caps.idx_wireless_status = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
 
     if(!caps.has_zone_effects && !caps.has_perkey)
     {
@@ -2273,7 +2273,7 @@ bool LogitechHIDPPController::Probe()
     return true;
 }
 
-void LogitechHIDPPController::Initialize()
+void LogitechHIDPP20Controller::Initialize()
 {
     /*---------------------------------------------------------*\
     | No device state changes here — let firmware effects keep   |
@@ -2284,7 +2284,7 @@ void LogitechHIDPPController::Initialize()
     initialized = true;
 }
 
-void LogitechHIDPPController::Shutdown()
+void LogitechHIDPP20Controller::Shutdown()
 {
     if(!initialized)
     {
@@ -2326,22 +2326,22 @@ void LogitechHIDPPController::Shutdown()
 | Accessors                                                 |
 \*---------------------------------------------------------*/
 
-const HIDPPDeviceCapabilities& LogitechHIDPPController::GetCapabilities() const
+const HIDPP20DeviceCapabilities& LogitechHIDPP20Controller::GetCapabilities() const
 {
     return caps;
 }
 
-std::string LogitechHIDPPController::GetDeviceLocation()
+std::string LogitechHIDPP20Controller::GetDeviceLocation()
 {
     return "HID: " + location;
 }
 
-std::string LogitechHIDPPController::GetSerialString()
+std::string LogitechHIDPP20Controller::GetSerialString()
 {
     return caps.serial_number;
 }
 
-uint32_t LogitechHIDPPController::GetInitGeneration() const
+uint32_t LogitechHIDPP20Controller::GetInitGeneration() const
 {
     return init_generation;
 }
@@ -2350,7 +2350,7 @@ uint32_t LogitechHIDPPController::GetInitGeneration() const
 | SW Control and Power                                      |
 \*---------------------------------------------------------*/
 
-int LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
+int LogitechHIDPP20Controller::SetSWControl(uint8_t mode, uint8_t flags)
 {
     if(caps.idx_rgb_effects == 0)
     {
@@ -2385,7 +2385,7 @@ int LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
     return result;
 }
 
-void LogitechHIDPPController::SetRGBPowerMode(uint8_t mode)
+void LogitechHIDPP20Controller::SetRGBPowerMode(uint8_t mode)
 {
     if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
@@ -2400,7 +2400,7 @@ void LogitechHIDPPController::SetRGBPowerMode(uint8_t mode)
     LOG_DEBUG("%s SetRGBPowerMode mode=%d", LOG_TAG, mode);
 }
 
-void LogitechHIDPPController::SetHostMode()
+void LogitechHIDPP20Controller::SetHostMode()
 {
     if(caps.idx_profile_management != 0)
     {
@@ -2422,7 +2422,7 @@ void LogitechHIDPPController::SetHostMode()
     }
 }
 
-bool LogitechHIDPPController::ClaimSWControlIfNeeded()
+bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
 {
     if(sw_control_claimed)
     {
@@ -2494,7 +2494,7 @@ bool LogitechHIDPPController::ClaimSWControlIfNeeded()
 | Per-key lighting (0x8081)                                 |
 \*---------------------------------------------------------*/
 
-void LogitechHIDPPController::SetPerKeyColors
+void LogitechHIDPP20Controller::SetPerKeyColors
     (
     const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors
     )
@@ -2538,7 +2538,7 @@ void LogitechHIDPPController::SetPerKeyColors
     }
 }
 
-void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
+void LogitechHIDPP20Controller::SetAllPerKeyColor(RGBColor color)
 {
     if(!device_online.load()) return;
 
@@ -2592,7 +2592,7 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
     }
 }
 
-void LogitechHIDPPController::SendPerKeyData
+void LogitechHIDPP20Controller::SendPerKeyData
     (
     uint8_t                     perkey_idx,
     uint8_t                     function,
@@ -2611,7 +2611,7 @@ void LogitechHIDPPController::SendPerKeyData
     | The retry/backoff machinery is intentionally NOT used    |
     | here — when a streaming frame fails, we don't want to    |
     | delay the next frame retrying old data. The carry-over   |
-    | of uncommitted zones via sent_colors[i]=HIDPP_UNCOMMITTED|
+    | of uncommitted zones via sent_colors[i]=HIDPP20_UNCOMMITTED|
     | naturally ensures missed keys land in the next frame.    |
     \*---------------------------------------------------------*/
     int send_result = SendMessage(perkey_idx, function, data, len);
@@ -2630,7 +2630,7 @@ void LogitechHIDPPController::SendPerKeyData
     outstanding_writes.push_back(std::move(entry));
 }
 
-PerKeyFrameResult LogitechHIDPPController::PerKeyFrameEnd()
+PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
 {
     PerKeyFrameResult result;
     result.frame_end_acked = false;
@@ -2765,11 +2765,11 @@ PerKeyFrameResult LogitechHIDPPController::PerKeyFrameEnd()
             if(is_our_frame_end)
             {
                 size_t max_busy_retries =
-                    sizeof(HIDPP_FRAME_END_BUSY_BACKOFF_MS) / sizeof(uint16_t);
+                    sizeof(HIDPP20_FRAME_END_BUSY_BACKOFF_MS) / sizeof(uint16_t);
 
                 if(err_code == 0x08 && (size_t)busy_retries < max_busy_retries)
                 {
-                    uint16_t delay_ms = HIDPP_FRAME_END_BUSY_BACKOFF_MS[busy_retries];
+                    uint16_t delay_ms = HIDPP20_FRAME_END_BUSY_BACKOFF_MS[busy_retries];
                     busy_retries++;
                     LOG_TRACE("%s FrameEnd BUSY, re-sending (retry %d, delay %ums)",
                               LOG_TAG, busy_retries, delay_ms);
@@ -2842,7 +2842,7 @@ PerKeyFrameResult LogitechHIDPPController::PerKeyFrameEnd()
 | Zone effects (0x8071 / 0x8070)                            |
 \*---------------------------------------------------------*/
 
-void LogitechHIDPPController::SetZoneEffect
+void LogitechHIDPP20Controller::SetZoneEffect
     (
     uint8_t         cluster_idx,
     uint8_t         effect_idx,
@@ -2930,7 +2930,7 @@ void LogitechHIDPPController::SetZoneEffect
             break;
     }
 
-    if(caps.rgb_feature_page == HIDPP_FEAT_COLOR_LED_EFFECTS)
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
         /*-----------------------------------------------------*\
         | 0x8070: 13-byte payload, no persist byte               |
@@ -2963,42 +2963,42 @@ void LogitechHIDPPController::SetZoneEffect
 |   3 (idle, monitor active) → 5 (wake)                    |
 \*---------------------------------------------------------*/
 
-void LogitechHIDPPController::SetRepaintCallback(std::function<void()> repaint)
+void LogitechHIDPP20Controller::SetRepaintCallback(std::function<void()> repaint)
 {
     request_repaint_fn = repaint;
 }
 
-void LogitechHIDPPController::SetReinitCallback(std::function<bool()> cb)
+void LogitechHIDPP20Controller::SetReinitCallback(std::function<bool()> cb)
 {
     reinit_direct_fn = cb;
 }
 
-void LogitechHIDPPController::SetRegisterCallback(std::function<void(RGBController*)> cb)
+void LogitechHIDPP20Controller::SetRegisterCallback(std::function<void(RGBController*)> cb)
 {
     register_controller_fn = cb;
 }
 
-HIDPPPowerState LogitechHIDPPController::GetPowerState() const
+HIDPP20PowerState LogitechHIDPP20Controller::GetPowerState() const
 {
     return power_state;
 }
 
-int LogitechHIDPPController::GetDimBrightness() const
+int LogitechHIDPP20Controller::GetDimBrightness() const
 {
     return dim_brightness_pct.load();
 }
 
-bool LogitechHIDPPController::HasBridge() const
+bool LogitechHIDPP20Controller::HasBridge() const
 {
     return transport.bridge_feat_idx != 0;
 }
 
-bool LogitechHIDPPController::IsOnline() const
+bool LogitechHIDPP20Controller::IsOnline() const
 {
     return device_online.load();
 }
 
-void LogitechHIDPPController::ReprobeSubDevice()
+void LogitechHIDPP20Controller::ReprobeSubDevice()
 {
     /*---------------------------------------------------------*\
     | Called by power thread when a sub-device connects through  |
@@ -3080,8 +3080,8 @@ void LogitechHIDPPController::ReprobeSubDevice()
     /*---------------------------------------------------------*\
     | Discover RGB features                                     |
     \*---------------------------------------------------------*/
-    caps.idx_profile_management = GetFeatureIndex(HIDPP_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP_FEAT_ONBOARD_PROFILES);
+    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
 
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
@@ -3103,14 +3103,14 @@ void LogitechHIDPPController::ReprobeSubDevice()
 
     if(register_controller_fn)
     {
-        RGBController_LogitechHIDPP* rgb = new RGBController_LogitechHIDPP(this);
+        RGBController_LogitechHIDPP20* rgb = new RGBController_LogitechHIDPP20(this);
         register_controller_fn(rgb);
 
         LOG_INFO("%s Registered RGB controller for sub-device", LOG_TAG);
     }
 }
 
-void LogitechHIDPPController::ReconnectDevice()
+void LogitechHIDPP20Controller::ReconnectDevice()
 {
     /*---------------------------------------------------------*\
     | Called by power thread when a WirelessStatus reconnect     |
@@ -3141,7 +3141,7 @@ void LogitechHIDPPController::ReconnectDevice()
         {
             std::lock_guard<std::mutex> lock(power_mutex);
             dim_brightness_pct.store(100);
-            power_state = HIDPP_POWER_ACTIVE;
+            power_state = HIDPP20_POWER_ACTIVE;
         }
     }
 
@@ -3152,14 +3152,14 @@ void LogitechHIDPPController::ReconnectDevice()
     sw_control_claimed = false;
 
     bool   claimed       = false;
-    size_t attempt_count = sizeof(HIDPP_RECLAIM_BACKOFF_MS) / sizeof(uint16_t);
+    size_t attempt_count = sizeof(HIDPP20_RECLAIM_BACKOFF_MS) / sizeof(uint16_t);
 
     for(size_t i = 0; i < attempt_count; i++)
     {
-        if(HIDPP_RECLAIM_BACKOFF_MS[i] > 0)
+        if(HIDPP20_RECLAIM_BACKOFF_MS[i] > 0)
         {
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(HIDPP_RECLAIM_BACKOFF_MS[i]));
+                std::chrono::milliseconds(HIDPP20_RECLAIM_BACKOFF_MS[i]));
         }
 
         if(!device_online.load())
@@ -3189,7 +3189,7 @@ void LogitechHIDPPController::ReconnectDevice()
     }
 }
 
-void LogitechHIDPPController::RediscoverFeatures()
+void LogitechHIDPP20Controller::RediscoverFeatures()
 {
     /*---------------------------------------------------------*\
     | Clear the cached HID++ feature map and all index/         |
@@ -3242,16 +3242,16 @@ void LogitechHIDPPController::RediscoverFeatures()
     DiscoverDeviceType();
     DiscoverFirmwareInfo();
 
-    caps.idx_profile_management = GetFeatureIndex(HIDPP_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP_FEAT_ONBOARD_PROFILES);
-    caps.idx_wireless_status    = GetFeatureIndex(HIDPP_FEAT_WIRELESS_STATUS);
+    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_wireless_status    = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
 
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
 }
 
-void LogitechHIDPPController::FullReprobe()
+void LogitechHIDPP20Controller::FullReprobe()
 {
     /*---------------------------------------------------------*\
     | Called by power thread when a failed-probe device becomes  |
@@ -3279,13 +3279,13 @@ void LogitechHIDPPController::FullReprobe()
 
     if(register_controller_fn)
     {
-        RGBController_LogitechHIDPP* rgb = new RGBController_LogitechHIDPP(this);
+        RGBController_LogitechHIDPP20* rgb = new RGBController_LogitechHIDPP20(this);
         register_controller_fn(rgb);
         LOG_INFO("%s Registered RGB controller after re-probe", LOG_TAG);
     }
 }
 
-void LogitechHIDPPController::StartProbeWatcher()
+void LogitechHIDPP20Controller::StartProbeWatcher()
 {
     /*---------------------------------------------------------*\
     | Start reader + power threads in watcher mode for a device |
@@ -3302,15 +3302,15 @@ void LogitechHIDPPController::StartProbeWatcher()
 
     pending_connection = 0;
     reader_running = true;
-    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+    reader_thread = new std::thread(&LogitechHIDPP20Controller::ReaderThreadFunc, this);
 
     power_thread_running = true;
-    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+    power_thread = new std::thread(&LogitechHIDPP20Controller::PowerThreadFunc, this);
 
     LOG_DEBUG("%s Probe watcher started (retrying every 5s)", LOG_TAG);
 }
 
-bool LogitechHIDPPController::ScanForDevice(bool force)
+bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 {
     /*---------------------------------------------------------*\
     | Scan sysfs for a hidraw with matching unitId. Called by    |
@@ -3558,7 +3558,7 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
         | interface — not the first match we stumble across.    |
         \*-----------------------------------------------------*/
         hid_device_info* devs      = hid_enumerate(0x046D, (uint16_t)cand.pid);
-        std::string      hidpp_path;
+        std::string      hidpp20_path;
 
         for(hid_device_info* d = devs; d != nullptr; d = d->next)
         {
@@ -3569,25 +3569,25 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
                d->usage_page == 0xFF00 && d->usage == 2 &&
                std::string(d->path) != location)
             {
-                hidpp_path = d->path;
+                hidpp20_path = d->path;
                 break;
             }
         }
 
         hid_free_enumeration(devs);
 
-        if(hidpp_path.empty())
+        if(hidpp20_path.empty())
         {
             LOG_DEBUG("%s Scan: %s no matching HID++ interface in enum",
                       LOG_TAG, cand.dev_path.c_str());
             continue;
         }
 
-        hid_device* test_dev = hid_open_path(hidpp_path.c_str());
+        hid_device* test_dev = hid_open_path(hidpp20_path.c_str());
 
         if(!test_dev)
         {
-            LOG_DEBUG("%s Scan: %s failed to open", LOG_TAG, hidpp_path.c_str());
+            LOG_DEBUG("%s Scan: %s failed to open", LOG_TAG, hidpp20_path.c_str());
             continue;
         }
 
@@ -3639,7 +3639,7 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
                 if(reply[0] == 0x10 && reply[2] == 0x8F)
                 {
                     LOG_DEBUG("%s Scan: %s probe rejected — err=0x%02X (stale slot)",
-                              LOG_TAG, hidpp_path.c_str(), reply[5]);
+                              LOG_TAG, hidpp20_path.c_str(), reply[5]);
                     break;
                 }
             }
@@ -3652,9 +3652,9 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
         }
 
         LOG_DEBUG("%s Scan: %s probe accepted (feat_idx=0x%02X)",
-                  LOG_TAG, hidpp_path.c_str(), reply[4]);
+                  LOG_TAG, hidpp20_path.c_str(), reply[4]);
 
-        found_path = hidpp_path;
+        found_path = hidpp20_path;
         found_dev  = test_dev;
         break;
     }
@@ -3670,7 +3670,7 @@ bool LogitechHIDPPController::ScanForDevice(bool force)
     return true;
 }
 
-void LogitechHIDPPController::SwapHIDHandle
+void LogitechHIDPP20Controller::SwapHIDHandle
     (
     hid_device*         new_dev,
     const std::string&  new_path
@@ -3729,14 +3729,14 @@ void LogitechHIDPPController::SwapHIDHandle
     {
         std::lock_guard<std::mutex> lock(power_mutex);
         dim_brightness_pct.store(100);
-        power_state = HIDPP_POWER_ACTIVE;
+        power_state = HIDPP20_POWER_ACTIVE;
     }
 
     /*---------------------------------------------------------*\
     | Restart reader thread on new handle                        |
     \*---------------------------------------------------------*/
     reader_running = true;
-    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+    reader_thread = new std::thread(&LogitechHIDPP20Controller::ReaderThreadFunc, this);
 
     /*---------------------------------------------------------*\
     | Re-discover the HID++ feature map on the new path. The    |
@@ -3773,7 +3773,7 @@ void LogitechHIDPPController::SwapHIDHandle
     LOG_INFO("%s Device reconnected on new path — colors restored", LOG_TAG);
 }
 
-void LogitechHIDPPController::StartEventWatcher()
+void LogitechHIDPP20Controller::StartEventWatcher()
 {
     /*---------------------------------------------------------*\
     | Start reader thread only (no power thread) to watch for    |
@@ -3789,7 +3789,7 @@ void LogitechHIDPPController::StartEventWatcher()
 
     pending_connection = 0;
     reader_running = true;
-    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+    reader_thread = new std::thread(&LogitechHIDPP20Controller::ReaderThreadFunc, this);
 
     /*---------------------------------------------------------*\
     | Start power thread to process connection events.           |
@@ -3797,12 +3797,12 @@ void LogitechHIDPPController::StartEventWatcher()
     | pending_connection for sub-device re-probe.                |
     \*---------------------------------------------------------*/
     power_thread_running = true;
-    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+    power_thread = new std::thread(&LogitechHIDPP20Controller::PowerThreadFunc, this);
 
     LOG_DEBUG("%s Event watcher started (watching for sub-device)", LOG_TAG);
 }
 
-void LogitechHIDPPController::StartPowerManager()
+void LogitechHIDPP20Controller::StartPowerManager()
 {
     if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
@@ -3828,20 +3828,20 @@ void LogitechHIDPPController::StartPowerManager()
     | migration events (USB plug-in) and process activity events |
     | once SW control is eventually claimed.                     |
     \*---------------------------------------------------------*/
-    power_state = HIDPP_POWER_ACTIVE;
+    power_state = HIDPP20_POWER_ACTIVE;
     pending_activity = -1;
 
     reader_running = true;
-    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+    reader_thread = new std::thread(&LogitechHIDPP20Controller::ReaderThreadFunc, this);
 
     power_thread_running = true;
-    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+    power_thread = new std::thread(&LogitechHIDPP20Controller::PowerThreadFunc, this);
 
     LOG_DEBUG("%s Power manager started (idle=%us sleep=%us)",
               LOG_TAG, idle_timeout_s, sleep_timeout_s);
 }
 
-void LogitechHIDPPController::StopPowerManager()
+void LogitechHIDPP20Controller::StopPowerManager()
 {
     if(!reader_running && !power_thread_running)
     {
@@ -3879,7 +3879,7 @@ void LogitechHIDPPController::StopPowerManager()
     | Wake if we were dimmed/sleeping so Shutdown() can          |
     | cleanly release SW control.                                |
     \*---------------------------------------------------------*/
-    if(power_state != HIDPP_POWER_ACTIVE)
+    if(power_state != HIDPP20_POWER_ACTIVE)
     {
         Wake();
     }
@@ -3887,7 +3887,7 @@ void LogitechHIDPPController::StopPowerManager()
     LOG_DEBUG("%s Power manager stopped", LOG_TAG);
 }
 
-void LogitechHIDPPController::ReaderThreadFunc()
+void LogitechHIDPP20Controller::ReaderThreadFunc()
 {
     /*---------------------------------------------------------*\
     | Sole HID reader. NEVER sends commands — that would         |
@@ -3928,7 +3928,7 @@ void LogitechHIDPPController::ReaderThreadFunc()
             if(caps.idx_rgb_effects != 0 &&
                feat == caps.idx_rgb_effects &&
                (func & 0xF0) == 0x10 &&
-               (func & 0x0F) != HIDPP_SW_ID)
+               (func & 0x0F) != HIDPP20_SW_ID)
             {
                 pending_activity.store((int)data[0]);
                 continue;
@@ -3941,7 +3941,7 @@ void LogitechHIDPPController::ReaderThreadFunc()
             if(transport.bridge_feat_idx != 0 &&
                feat == transport.bridge_feat_idx &&
                (func & 0xF0) == 0x00 &&
-               (func & 0x0F) != HIDPP_SW_ID)
+               (func & 0x0F) != HIDPP20_SW_ID)
             {
                 /*-------------------------------------------------*\
                 | ConnectionStateChangedEvent payload:               |
@@ -3973,7 +3973,7 @@ void LogitechHIDPPController::ReaderThreadFunc()
 
                 if(ws_idx != 0 && feat == ws_idx &&
                    (func & 0xF0) == 0x00 &&
-                   (func & 0x0F) != HIDPP_SW_ID)
+                   (func & 0x0F) != HIDPP20_SW_ID)
                 {
                     uint8_t reconnect    = data[0];
                     uint8_t config_needed = data[1];
@@ -4052,18 +4052,18 @@ void LogitechHIDPPController::ReaderThreadFunc()
 
             /*-------------------------------------------------*\
             | Only queue responses to OUR commands.              |
-            | Our commands use HIDPP_SW_ID (0x0A) in the low     |
+            | Our commands use HIDPP20_SW_ID (0x0A) in the low     |
             | nibble. Firmware-generated messages (battery,       |
             | sync, etc.) use SW_ID 0 — drop those silently.    |
             | Error responses (feat=0xFF) are always queued.     |
             \*-------------------------------------------------*/
-            if(feat != 0xFF && (func & 0x0F) != HIDPP_SW_ID)
+            if(feat != 0xFF && (func & 0x0F) != HIDPP20_SW_ID)
             {
                 continue;
             }
             {
                 std::lock_guard<std::mutex> lock(response_mutex);
-                HIDPPRawMessage msg;
+                HIDPP20RawMessage msg;
                 msg.feat   = feat;
                 msg.func   = func;
                 msg.result = result;
@@ -4075,7 +4075,7 @@ void LogitechHIDPPController::ReaderThreadFunc()
     }
 }
 
-void LogitechHIDPPController::PowerThreadFunc()
+void LogitechHIDPP20Controller::PowerThreadFunc()
 {
     /*---------------------------------------------------------*\
     | Handles power state machine and sends commands.            |
@@ -4097,7 +4097,7 @@ void LogitechHIDPPController::PowerThreadFunc()
             {
                 last_probe_time = now;
 
-                uint8_t test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+                uint8_t test_idx = GetFeatureIndex(HIDPP20_FEAT_FEATURE_SET);
 
                 if(test_idx != 0)
                 {
@@ -4203,7 +4203,7 @@ void LogitechHIDPPController::PowerThreadFunc()
 
             switch(power_state)
             {
-                case HIDPP_POWER_DIMMING:
+                case HIDPP20_POWER_DIMMING:
                 {
                     auto now = std::chrono::steady_clock::now();
                     if(now >= next_dim_time)
@@ -4214,7 +4214,7 @@ void LogitechHIDPPController::PowerThreadFunc()
                     break;
                 }
 
-                case HIDPP_POWER_IDLE:
+                case HIDPP20_POWER_IDLE:
                     if(sleep_timeout_s > 0 &&
                        std::chrono::steady_clock::now() >= sleep_deadline)
                     {
@@ -4231,7 +4231,7 @@ void LogitechHIDPPController::PowerThreadFunc()
     }
 }
 
-void LogitechHIDPPController::FlushResponseQueue()
+void LogitechHIDPP20Controller::FlushResponseQueue()
 {
     std::lock_guard<std::mutex> lock(response_mutex);
     size_t flushed = response_queue.size();
@@ -4243,7 +4243,7 @@ void LogitechHIDPPController::FlushResponseQueue()
     }
 }
 
-void LogitechHIDPPController::DispatchEvent
+void LogitechHIDPP20Controller::DispatchEvent
     (
     uint8_t         feat,
     uint8_t         func,
@@ -4258,18 +4258,18 @@ void LogitechHIDPPController::DispatchEvent
     /*---------------------------------------------------------*\
     | onUserActivity = event 1 on RGB Effects (0x8071)           |
     | Event function byte: (1 << 4) | fw_swid                   |
-    | Our commands use HIDPP_SW_ID (0x0A); firmware events use   |
+    | Our commands use HIDPP20_SW_ID (0x0A); firmware events use   |
     | a different sw_id (typically 0).                           |
     \*---------------------------------------------------------*/
     if(feat == caps.idx_rgb_effects &&
        (func & 0xF0) == 0x10 &&
-       (func & 0x0F) != HIDPP_SW_ID)
+       (func & 0x0F) != HIDPP20_SW_ID)
     {
         OnUserActivity(data[0]);
     }
 }
 
-void LogitechHIDPPController::OnUserActivity(uint8_t activity_type)
+void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
 {
     /*---------------------------------------------------------*\
     | power_mutex must already be held by the caller.            |
@@ -4282,7 +4282,7 @@ void LogitechHIDPPController::OnUserActivity(uint8_t activity_type)
         | Only act if we're currently ACTIVE.                    |
         | Firmware sends a burst of ~8 events; ignore repeats.  |
         \*-----------------------------------------------------*/
-        if(power_state != HIDPP_POWER_ACTIVE)
+        if(power_state != HIDPP20_POWER_ACTIVE)
         {
             return;
         }
@@ -4307,7 +4307,7 @@ void LogitechHIDPPController::OnUserActivity(uint8_t activity_type)
         | ACTIVE event — user resumed typing.                    |
         | Only act if we're NOT already active.                  |
         \*-----------------------------------------------------*/
-        if(power_state == HIDPP_POWER_ACTIVE)
+        if(power_state == HIDPP20_POWER_ACTIVE)
         {
             return;
         }
@@ -4317,11 +4317,11 @@ void LogitechHIDPPController::OnUserActivity(uint8_t activity_type)
     }
 }
 
-void LogitechHIDPPController::WakeIfNeeded()
+void LogitechHIDPP20Controller::WakeIfNeeded()
 {
     std::lock_guard<std::mutex> lock(power_mutex);
 
-    if(power_state == HIDPP_POWER_ACTIVE)
+    if(power_state == HIDPP20_POWER_ACTIVE)
     {
         return;
     }
@@ -4330,7 +4330,7 @@ void LogitechHIDPPController::WakeIfNeeded()
     Wake();
 }
 
-void LogitechHIDPPController::StartDimRamp()
+void LogitechHIDPP20Controller::StartDimRamp()
 {
     /*---------------------------------------------------------*\
     | Start the brightness ramp from 100% to DIM_TARGET_PCT.    |
@@ -4341,19 +4341,19 @@ void LogitechHIDPPController::StartDimRamp()
     \*---------------------------------------------------------*/
     dim_step      = 0;
     next_dim_time = std::chrono::steady_clock::now();
-    power_state   = HIDPP_POWER_DIMMING;
+    power_state   = HIDPP20_POWER_DIMMING;
 
     LOG_DEBUG("%s Dim ramp started (100%% -> %d%%)", LOG_TAG, DIM_TARGET_PCT);
 }
 
-void LogitechHIDPPController::DimRampStep()
+void LogitechHIDPP20Controller::DimRampStep()
 {
     /*---------------------------------------------------------*\
     | power_mutex must already be held by the caller.            |
     | Adjusts brightness and requests a repaint so              |
     | DeviceUpdateLEDs pushes the dimmed colors.                |
     \*---------------------------------------------------------*/
-    if(power_state != HIDPP_POWER_DIMMING)
+    if(power_state != HIDPP20_POWER_DIMMING)
     {
         return;
     }
@@ -4394,7 +4394,7 @@ void LogitechHIDPPController::DimRampStep()
     \*---------------------------------------------------------*/
     if(dim_step >= DIM_STEPS)
     {
-        power_state = HIDPP_POWER_IDLE;
+        power_state = HIDPP20_POWER_IDLE;
 
         /*-----------------------------------------------------*\
         | Pull the sleep deadline forward by the firmware's      |
@@ -4421,7 +4421,7 @@ void LogitechHIDPPController::DimRampStep()
     }
 }
 
-void LogitechHIDPPController::StartSleep()
+void LogitechHIDPP20Controller::StartSleep()
 {
     /*---------------------------------------------------------*\
     | SetRgbPowerMode(3) = firmware-managed fade to off.         |
@@ -4434,16 +4434,16 @@ void LogitechHIDPPController::StartSleep()
     SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
                      data, 3, response);
 
-    power_state = HIDPP_POWER_SLEEPING;
+    power_state = HIDPP20_POWER_SLEEPING;
 }
 
-void LogitechHIDPPController::Wake()
+void LogitechHIDPP20Controller::Wake()
 {
     /*---------------------------------------------------------*\
     | Restore from any non-ACTIVE state.                         |
     | power_mutex must already be held by the caller.            |
     \*---------------------------------------------------------*/
-    HIDPPPowerState prev = power_state;
+    HIDPP20PowerState prev = power_state;
 
     /*---------------------------------------------------------*\
     | Flush stale per-key ACKs from the dim ramp so subsequent   |
@@ -4462,11 +4462,11 @@ void LogitechHIDPPController::Wake()
     | generation bump (which would clear sent_colors and re-fire |
     | the SetZoneEffect prep call), no full reinit.              |
     \*---------------------------------------------------------*/
-    if(prev == HIDPP_POWER_DIMMING || prev == HIDPP_POWER_IDLE)
+    if(prev == HIDPP20_POWER_DIMMING || prev == HIDPP20_POWER_IDLE)
     {
         SetSWControl(3, 5);
         dim_brightness_pct.store(100);
-        power_state = HIDPP_POWER_ACTIVE;
+        power_state = HIDPP20_POWER_ACTIVE;
 
         LOG_DEBUG("%s Woke from state %d (lightweight)", LOG_TAG, prev);
 
@@ -4478,7 +4478,7 @@ void LogitechHIDPPController::Wake()
         return;
     }
 
-    if(prev == HIDPP_POWER_SLEEPING)
+    if(prev == HIDPP20_POWER_SLEEPING)
     {
         /*-----------------------------------------------------*\
         | The sleep command starts a firmware fade-to-off that   |
@@ -4543,7 +4543,7 @@ void LogitechHIDPPController::Wake()
     dim_brightness_pct.store(100);
     init_generation++;
 
-    power_state = HIDPP_POWER_ACTIVE;
+    power_state = HIDPP20_POWER_ACTIVE;
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 
@@ -4553,7 +4553,7 @@ void LogitechHIDPPController::Wake()
     }
 }
 
-void LogitechHIDPPController::ReadFirmwareTimers()
+void LogitechHIDPP20Controller::ReadFirmwareTimers()
 {
     if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
@@ -4594,7 +4594,7 @@ void LogitechHIDPPController::ReadFirmwareTimers()
     }
 }
 
-void LogitechHIDPPController::ReadNvSleepRampConfig()
+void LogitechHIDPP20Controller::ReadNvSleepRampConfig()
 {
     /*---------------------------------------------------------*\
     | RGBEffects fn3 NV_CONFIG (0x30) read of capability 0x0020 |
@@ -4647,7 +4647,7 @@ void LogitechHIDPPController::ReadNvSleepRampConfig()
               recv_data[7], recv_data[8], recv_data[9], recv_data[10]);
 }
 
-void LogitechHIDPPController::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s)
+void LogitechHIDPP20Controller::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s)
 {
     /*---------------------------------------------------------*\
     | SetRgbPowerModeConfig (fn7, sub-function 0x01 = set)       |
@@ -4680,7 +4680,7 @@ void LogitechHIDPPController::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s
     LOG_DEBUG("%s WritePowerConfig: idle=%us sleep=%us", LOG_TAG, idle_s, sleep_s);
 }
 
-void LogitechHIDPPController::ReadActiveProfileSector()
+void LogitechHIDPP20Controller::ReadActiveProfileSector()
 {
     /*---------------------------------------------------------*\
     | Diagnostic-only read of the active profile sector via     |
