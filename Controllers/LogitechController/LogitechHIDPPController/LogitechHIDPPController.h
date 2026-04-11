@@ -432,12 +432,10 @@ private:
 
     /*-------------------------------------------------*\
     | High-level helpers                                 |
-    | SendLong/ReadResponse are transport-aware wrappers |
-    | that dispatch through the transport layer above.   |
-    | All existing feature code calls these.             |
+    | SendAndReceive is retained as a thin wrapper       |
+    | around SendAcked with the reliable policy, for     |
+    | call-site stability.                                |
     \*-------------------------------------------------*/
-    int             SendLong(uint8_t feat_idx, uint8_t function,
-                             const uint8_t* data, size_t len);
     int             SendAndReceive(uint8_t feat_idx, uint8_t function,
                                    const uint8_t* send_data, size_t send_len,
                                    uint8_t* recv_data, size_t recv_max);

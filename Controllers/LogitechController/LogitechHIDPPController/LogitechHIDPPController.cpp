@@ -496,23 +496,6 @@ int LogitechHIDPPController::SendAckedIntoFAP
 }
 
 /*---------------------------------------------------------*\
-| SendLong / ReadResponse — backward-compatible wrappers    |
-| These dispatch through SendMessage/ReadMessage which      |
-| handle transport framing (standard vs Centurion).         |
-\*---------------------------------------------------------*/
-
-int LogitechHIDPPController::SendLong
-    (
-    uint8_t         feat_idx,
-    uint8_t         function,
-    const uint8_t*  data,
-    size_t          len
-    )
-{
-    return SendMessage(feat_idx, function, data, len);
-}
-
-/*---------------------------------------------------------*\
 | Standard HID++ transport (0xFF00 / 0xFF43)                |
 | Report IDs 0x10 (7 bytes) / 0x11 (20 bytes)              |
 \*---------------------------------------------------------*/
@@ -2444,38 +2427,17 @@ void LogitechHIDPPController::SendPerKeyData
     size_t          len
     )
 {
-    SendLong(perkey_idx, function, data, len);
-
     /*---------------------------------------------------------*\
-    | Wait for the ACK before sending the next write. This      |
-    | matches GHUB's behavior — without it, the device gets     |
-    | overrun and FrameEnd returns BUSY. Discard any            |
-    | non-matching messages (events, stale acks) until we see   |
-    | the matching ACK or time out.                             |
+    | Per-key write through SendAcked with the streaming policy |
+    | (1 retry, 30ms gap, 50ms read window per attempt). Fire-  |
+    | and-forget — return value intentionally ignored, since    |
+    | PerKeyFrameEnd is the commit gate that determines whether |
+    | the frame actually landed.                                |
     \*---------------------------------------------------------*/
-    for(int i = 0; i < 10; i++)
-    {
-        uint8_t resp_feat = 0;
-        uint8_t resp_func = 0;
-        uint8_t resp_data[16] = {};
-        int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data), 50);
-
-        if(result <= 0)
-        {
-            return;
-        }
-
-        if(resp_feat == perkey_idx && (resp_func & 0xF0) == (function & 0xF0))
-        {
-            return;
-        }
-
-        if(resp_feat == 0xFF)
-        {
-            /* HID++ error response — give up */
-            return;
-        }
-    }
+    uint8_t recv[20] = {};
+    SendAcked(perkey_idx, function, data, len,
+              recv, sizeof(recv),
+              HIDPP_POLICY_STREAMING);
 }
 
 bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
@@ -2501,83 +2463,26 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
     (void)persist;  // ignored — GHUB doesn't use this
 
     /*---------------------------------------------------------*\
-    | Send FrameEnd, then read responses in a loop.             |
-    | Per-key write ACKs may be queued — PerKeyFrameEnd reads   |
-    | and discards them while looking for the FrameEnd response.|
-    | Retry on BUSY (device still processing previous commit).  |
+    | Use the FRAME_END policy: 5 attempts with 0/10/30/63/125  |
+    | ms backoff, 100ms read window per attempt, no flush      |
+    | (preceding per-key write ACKs may still be draining).    |
+    | ~230ms worst case fits inside a typical animation frame   |
+    | budget × a few frames of slack. SendAcked handles the     |
+    | BUSY-retry and stale-ACK draining internally.             |
     \*---------------------------------------------------------*/
-    uint8_t frame_end_func = FN_8081_FRAME_END | HIDPP_SW_ID;
+    uint8_t recv[20] = {};
+    int result = SendAcked(perkey_idx, FN_8081_FRAME_END,
+                           data, sizeof(data),
+                           recv, sizeof(recv),
+                           HIDPP_POLICY_FRAME_END);
 
-    for(int attempt = 0; attempt < 10; attempt++)
+    if(result > 0)
     {
-        if(!device_online.load()) return false;
-
-        SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
-
-        for(int reads = 0; reads < 20; reads++)
-        {
-            uint8_t resp_feat = 0, resp_func = 0;
-            uint8_t resp_data[16] = {};
-
-            int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data));
-
-            if(result <= 0)
-            {
-                LOG_DEBUG("%s FrameEnd: read timeout (attempt %d, read %d)",
-                          LOG_TAG, attempt + 1, reads + 1);
-                break;
-            }
-
-            /*-------------------------------------------------*\
-            | HID++ error response                               |
-            \*-------------------------------------------------*/
-            if(resp_feat == 0xFF)
-            {
-                /*---------------------------------------------*\
-                | Check if this error is for OUR FrameEnd        |
-                | resp_func = feat_idx, resp_data[0] = func|sw  |
-                \*---------------------------------------------*/
-                if(resp_func == perkey_idx && resp_data[0] == frame_end_func)
-                {
-                    if(resp_data[1] == 0x08)
-                    {
-                        LOG_DEBUG("%s FrameEnd BUSY (attempt %d, fc=%u)",
-                                  LOG_TAG, attempt + 1, frame_counter);
-                        std::this_thread::sleep_for(10ms);
-                        break;
-                    }
-
-                    LOG_DEBUG("%s FrameEnd error 0x%02X (attempt %d, fc=%u)",
-                              LOG_TAG, resp_data[1], attempt + 1, frame_counter);
-                    break;
-                }
-
-                /*---------------------------------------------*\
-                | Error for a different function (stale per-key  |
-                | write error) — discard and keep reading.       |
-                \*---------------------------------------------*/
-                continue;
-            }
-
-            /*-------------------------------------------------*\
-            | Normal response — check if it matches FrameEnd    |
-            \*-------------------------------------------------*/
-            if(resp_feat == perkey_idx &&
-               (resp_func & 0xF0) == (FN_8081_FRAME_END & 0xF0))
-            {
-                if(attempt > 0)
-                {
-                    LOG_DEBUG("%s FrameEnd succeeded on attempt %d (fc=%u)",
-                              LOG_TAG, attempt + 1, frame_counter);
-                }
-                return true;
-            }
-
-            /* Discard non-matching response (stale ACK etc.) */
-        }
+        return true;
     }
 
-    LOG_DEBUG("%s FrameEnd failed after 10 attempts (fc=%u)", LOG_TAG, frame_counter);
+    LOG_DEBUG("%s FrameEnd failed (result=%d, fc=%u)",
+              LOG_TAG, result, frame_counter);
     return false;
 }
 
