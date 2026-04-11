@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_LogitechHIDPP.cpp                           |
+| RGBController_LogitechHIDPP20.cpp                           |
 |                                                           |
 |   RGBController for unified Logitech HID++ 2.0 devices   |
 |                                                           |
@@ -11,7 +11,7 @@
 #include <set>
 #include <chrono>
 #include <algorithm>
-#include "RGBController_LogitechHIDPP.h"
+#include "RGBController_LogitechHIDPP20.h"
 #include "RGBControllerKeyNames.h"
 #include "KeyboardLayoutManager.h"
 #include "LogManager.h"
@@ -25,7 +25,7 @@
 | with a real color including black (0x00000000) or         |
 | white (0x00FFFFFF).                                        |
 \*---------------------------------------------------------*/
-static constexpr RGBColor HIDPP_UNCOMMITTED = 0xFF000000;
+static constexpr RGBColor HIDPP20_UNCOMMITTED = 0xFF000000;
 
 /**------------------------------------------------------------------*\
     @name Logitech HID++ 2.0
@@ -34,7 +34,7 @@ static constexpr RGBColor HIDPP_UNCOMMITTED = 0xFF000000;
     @save :x:
     @direct :white_check_mark:
     @effects :white_check_mark:
-    @detectors DetectLogitechHIDPP
+    @detectors DetectLogitechHIDPP20
     @comment
         Unified HID++ 2.0 controller that dynamically discovers device
         capabilities via feature probing. Supports per-key lighting
@@ -73,7 +73,7 @@ static const char* zone_location_name(uint16_t location)
 | Used to look up zone IDs by key name after KLM builds     |
 | the keymap in its own sorted order.                       |
 \*---------------------------------------------------------*/
-static const std::map<std::string, unsigned int> hidpp_key_name_to_zone =
+static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
 {
     { KEY_EN_A,                1  },
     { KEY_EN_B,                2  },
@@ -264,11 +264,11 @@ static const MouseLayout* FindMouseLayout(const std::string& device_name)
     return nullptr;
 }
 
-RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController* controller_ptr)
+RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Controller* controller_ptr)
 {
     controller = controller_ptr;
 
-    const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     name        = caps.device_name;
     vendor      = "Logitech";
@@ -333,11 +333,11 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
     \*---------------------------------------------------------*/
     if(caps.has_zone_effects && !caps.zone_clusters.empty())
     {
-        const HIDPPZoneCluster& cluster = caps.zone_clusters[0];
+        const HIDPP20ZoneCluster& cluster = caps.zone_clusters[0];
 
         for(size_t i = 0; i < cluster.effects.size(); i++)
         {
-            const HIDPPEffect& fx = cluster.effects[i];
+            const HIDPP20Effect& fx = cluster.effects[i];
 
             switch(fx.effect_id)
             {
@@ -445,15 +445,15 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
     );
 }
 
-RGBController_LogitechHIDPP::~RGBController_LogitechHIDPP()
+RGBController_LogitechHIDPP20::~RGBController_LogitechHIDPP20()
 {
     controller->StopPowerManager();
     delete controller;
 }
 
-void RGBController_LogitechHIDPP::SetupZones()
+void RGBController_LogitechHIDPP20::SetupZones()
 {
-    const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     led_to_zone_id.clear();
     sent_colors.clear();
@@ -536,8 +536,8 @@ void RGBController_LogitechHIDPP::SetupZones()
                 /*---------------------------------------------*\
                 | Look up zone ID by key name                   |
                 \*---------------------------------------------*/
-                auto it = hidpp_key_name_to_zone.find(key_name);
-                unsigned int zone_id = (it != hidpp_key_name_to_zone.end()) ? it->second : 0;
+                auto it = hidpp20_key_name_to_zone.find(key_name);
+                unsigned int zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
                 new_led.value = zone_id;
                 leds.push_back(new_led);
 
@@ -563,13 +563,13 @@ void RGBController_LogitechHIDPP::SetupZones()
             /*-------------------------------------------------*\
             | Extras candidates: zones reported by the device   |
             | that aren't claimed by KLM AND have a known name  |
-            | in hidpp_key_name_to_zone. We deliberately DROP   |
+            | in hidpp20_key_name_to_zone. We deliberately DROP   |
             | unnamed zones — firmware-side GetInfo bitmaps     |
             | enumerate phantom/reserved slots (G515 reports    |
             | 47, 97, 99-103, 254 among others) that aren't    |
             | wired to physical LEDs. Exposing them as "LED N"  |
             | created ghost entries in the GUI. Treat           |
-            | hidpp_key_name_to_zone as the curated allowlist.  |
+            | hidpp20_key_name_to_zone as the curated allowlist.  |
             \*-------------------------------------------------*/
             std::vector<std::pair<uint16_t, std::string>> extras;
             for(uint16_t zid : caps.perkey_zone_ids)
@@ -580,7 +580,7 @@ void RGBController_LogitechHIDPP::SetupZones()
                 }
 
                 std::string label;
-                for(const auto& kv : hidpp_key_name_to_zone)
+                for(const auto& kv : hidpp20_key_name_to_zone)
                 {
                     if(kv.second == zid)
                     {
@@ -591,8 +591,8 @@ void RGBController_LogitechHIDPP::SetupZones()
 
                 if(label.empty())
                 {
-                    LOG_DEBUG("[HID++ %s] Dropping unnamed per-key zone %u "
-                              "(not in hidpp_key_name_to_zone)",
+                    LOG_DEBUG("[HID++2.0 %s] Dropping unnamed per-key zone %u "
+                              "(not in hidpp20_key_name_to_zone)",
                               name.c_str(), (unsigned)zid);
                     continue;
                 }
@@ -683,7 +683,7 @@ void RGBController_LogitechHIDPP::SetupZones()
         \*-----------------------------------------------------*/
         for(size_t i = 0; i < caps.zone_clusters.size(); i++)
         {
-            const HIDPPZoneCluster& cluster = caps.zone_clusters[i];
+            const HIDPP20ZoneCluster& cluster = caps.zone_clusters[i];
 
             zone new_zone;
             new_zone.name       = zone_location_name(cluster.location);
@@ -723,11 +723,11 @@ void RGBController_LogitechHIDPP::SetupZones()
     SetupColors();
 }
 
-void RGBController_LogitechHIDPP::ResizeZone(int /*zone*/, int /*new_size*/)
+void RGBController_LogitechHIDPP20::ResizeZone(int /*zone*/, int /*new_size*/)
 {
 }
 
-void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
+void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
 {
     if(!controller->IsOnline())
     {
@@ -740,14 +740,14 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
     \*---------------------------------------------------------*/
     controller->ClaimSWControlIfNeeded();
 
-    const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     /*---------------------------------------------------------*\
     | If the device is sleeping (powered off), wake it first.    |
     | DIMMING/IDLE states are handled by brightness scaling —    |
     | the firmware's onUserActivity handles those transitions.   |
     \*---------------------------------------------------------*/
-    if(controller->GetPowerState() == HIDPP_POWER_SLEEPING)
+    if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
     {
         controller->WakeIfNeeded();
     }
@@ -811,7 +811,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         if(!snapshot.empty())
         {
             RGBColor first = snapshot[0];
-            LOG_TRACE("[HID++ %s] DeviceUpdateLEDs snapshot: size=%zu first=R%d G%d B%d sent_sz=%zu",
+            LOG_TRACE("[HID++2.0 %s] DeviceUpdateLEDs snapshot: size=%zu first=R%d G%d B%d sent_sz=%zu",
                       name.c_str(), snapshot.size(),
                       RGBGetRValue(first), RGBGetGValue(first), RGBGetBValue(first),
                       sent_colors.size());
@@ -866,11 +866,11 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             {
                 if(snapshot[i] == 0) black_count++;
             }
-            LOG_TRACE("[HID++ %s] Full update: %zu keys, %zu black, %zu unique colors",
+            LOG_TRACE("[HID++2.0 %s] Full update: %zu keys, %zu black, %zu unique colors",
                       name.c_str(), changed_count, black_count, color_to_zones.size());
         }
 
-        LOG_DEBUG("[HID++ %s] delta: full=%d sent_sz=%zu snap_sz=%zu changed=%zu colors=%zu",
+        LOG_DEBUG("[HID++2.0 %s] delta: full=%d sent_sz=%zu snap_sz=%zu changed=%zu colors=%zu",
                   name.c_str(), full_update,
                   sent_colors.size(), snapshot.size(),
                   changed_count, color_to_zones.size());
@@ -1033,13 +1033,13 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         | leaving sent_colors empty and re-firing the prep call |
         | on every subsequent frame.                            |
         |                                                       |
-        | Initial fill is HIDPP_UNCOMMITTED so any LED that we  |
+        | Initial fill is HIDPP20_UNCOMMITTED so any LED that we  |
         | did not touch this frame stays "uncommitted" and gets |
         | scheduled for the next delta.                         |
         \*-----------------------------------------------------*/
         if(sent_colors.size() != snapshot.size())
         {
-            sent_colors.assign(snapshot.size(), HIDPP_UNCOMMITTED);
+            sent_colors.assign(snapshot.size(), HIDPP20_UNCOMMITTED);
         }
 
         /*-----------------------------------------------------*\
@@ -1054,7 +1054,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
             | Frame end ACKed: any zone whose write packet also  |
             | ACKed is now committed — advance sent_colors for   |
             | that LED. Any zone we attempted but never saw an   |
-            | ACK for goes to HIDPP_UNCOMMITTED so the next      |
+            | ACK for goes to HIDPP20_UNCOMMITTED so the next      |
             | frame's delta picks it up.                         |
             \*-------------------------------------------------*/
             for(uint8_t zid : commit.attempted_zones)
@@ -1071,7 +1071,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                 }
                 else
                 {
-                    sent_colors[led_idx] = HIDPP_UNCOMMITTED;
+                    sent_colors[led_idx] = HIDPP20_UNCOMMITTED;
                 }
             }
         }
@@ -1090,7 +1090,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                 int led_idx = zone_id_to_led_idx[zid];
                 if(led_idx >= 0 && (size_t)led_idx < sent_colors.size())
                 {
-                    sent_colors[led_idx] = HIDPP_UNCOMMITTED;
+                    sent_colors[led_idx] = HIDPP20_UNCOMMITTED;
                 }
             }
         }
@@ -1102,23 +1102,23 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         auto ms_frame  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_writes).count();
         auto ms_total  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
 
-        LOG_DEBUG("[HID++ %s] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
+        LOG_DEBUG("[HID++2.0 %s] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
                   name.c_str(), changed, led_to_zone_id.size(),
                   (long long)ms_writes, (long long)ms_frame, (long long)ms_total);
     }
 }
 
-void RGBController_LogitechHIDPP::UpdateZoneLEDs(int /*zone*/)
+void RGBController_LogitechHIDPP20::UpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_LogitechHIDPP::UpdateSingleLED(int /*led*/)
+void RGBController_LogitechHIDPP20::UpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_LogitechHIDPP::DeviceUpdateMode()
+void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 {
     if(!controller->IsOnline())
     {
@@ -1130,7 +1130,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     controller->ClaimSWControlIfNeeded();
 
-    const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     if((unsigned int)active_mode >= modes.size())
     {
@@ -1139,7 +1139,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
 
     const mode& current = modes[active_mode];
 
-    LOG_DEBUG("[HID++ %s] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
+    LOG_DEBUG("[HID++2.0 %s] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
               name.c_str(), current.name.c_str(), current.value, current.color_mode);
 
     /*---------------------------------------------------------*\
@@ -1266,7 +1266,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     }
 }
 
-bool RGBController_LogitechHIDPP::ReinitDirectMode()
+bool RGBController_LogitechHIDPP20::ReinitDirectMode()
 {
     /*---------------------------------------------------------*\
     | Full Direct mode initialization sequence. Replays the      |

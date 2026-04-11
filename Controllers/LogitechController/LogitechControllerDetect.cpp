@@ -41,8 +41,8 @@
 #include "RGBController_LogitechLightspeed.h"
 #include "RGBController_LogitechGPowerPlay.h" // Linux-only
 #include "RGBController_LogitechX56.h"
-#include "LogitechHIDPPController.h"
-#include "RGBController_LogitechHIDPP.h"
+#include "LogitechHIDPP20Controller.h"
+#include "RGBController_LogitechHIDPP20.h"
 
 using namespace std::chrono_literals;
 
@@ -660,7 +660,7 @@ void DetectLogitechX56(hid_device_info* info, const std::string& name)
 |   If it does and has RGB features, the unified controller handles it.                                                                              |
 |   If not, the device is released for legacy controllers.                                                                                           |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
+void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
 {
     /*---------------------------------------------------------*\
     | Skip devices that have a more specific (PID-based)         |
@@ -680,7 +680,7 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
         return;
     }
 
-    LogitechHIDPPController* controller = new LogitechHIDPPController(
+    LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(
         dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr,
         info->usage_page);
 
@@ -688,7 +688,7 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
     {
         controller->Initialize();
 
-        const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
+        const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
         if(caps.has_zone_effects || caps.has_perkey)
         {
@@ -696,7 +696,7 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
             | Device has RGB features — create and register       |
             | RGBController for the UI.                          |
             \*-------------------------------------------------*/
-            RGBController_LogitechHIDPP* rgb_controller = new RGBController_LogitechHIDPP(controller);
+            RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller);
 
             LOG_INFO("[%s] Registering RGB controller", caps.device_name.c_str());
 
@@ -769,7 +769,7 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
         }
         else
         {
-            LOG_INFO("[HID++ %s] Probe failed — watching for device (name='%s')",
+            LOG_INFO("[HID++2.0 %s] Probe failed — watching for device (name='%s')",
                      info->path, hid_name.c_str());
 
             controller->SetRegisterCallback([](RGBController* rgb)
@@ -788,9 +788,9 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
 |   The detector probes IRoot — devices that respond and have RGB features are handled here.                                                          |
 |   Devices that don't respond to IRoot are released for legacy controllers.                                                                         |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0",                                    DetectLogitechHIDPP,        LOGITECH_VID, 0xFF00, 2);
-REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43)",                             DetectLogitechHIDPP,        LOGITECH_VID, 0xFF43, 514);
-REGISTER_HID_DETECTOR_PU("Logitech Centurion",                                     DetectLogitechHIDPP,        LOGITECH_VID, HID_PID_ANY, 0xFFA0, 1);
+REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0",                                    DetectLogitechHIDPP20,        LOGITECH_VID, 0xFF00, 2);
+REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43)",                             DetectLogitechHIDPP20,        LOGITECH_VID, 0xFF43, 514);
+REGISTER_HID_DETECTOR_PU("Logitech Centurion",                                     DetectLogitechHIDPP20,        LOGITECH_VID, HID_PID_ANY, 0xFFA0, 1);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |

@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| LogitechHIDPPController.h                                 |
+| LogitechHIDPP20Controller.h                                 |
 |                                                           |
 |   Unified Logitech HID++ 2.0 controller                  |
 |                                                           |
@@ -31,22 +31,22 @@
 /*-----------------------------------------------------*\
 | HID++ 2.0 Feature Page IDs                            |
 \*-----------------------------------------------------*/
-#define HIDPP_FEAT_IROOT                    0x0000
-#define HIDPP_FEAT_FEATURE_SET              0x0001
-#define HIDPP_FEAT_DEVICE_NAME_TYPE         0x0005
-#define HIDPP_FEAT_ONBOARD_PROFILES         0x8100
-#define HIDPP_FEAT_PROFILE_MANAGEMENT       0x8101
-#define HIDPP_FEAT_FIRMWARE_INFO            0x0003
-#define HIDPP_FEAT_CENTPPBRIDGE             0x0003  /* same ID, different meaning on Centurion */
-#define HIDPP_FEAT_COLOR_LED_EFFECTS        0x8070
-#define HIDPP_FEAT_RGB_EFFECTS              0x8071
-#define HIDPP_FEAT_PER_KEY_LIGHTING_V1      0x8080
-#define HIDPP_FEAT_PER_KEY_LIGHTING_V2      0x8081
-#define HIDPP_FEAT_KEYBOARD_LAYOUT          0x4540
-#define HIDPP_FEAT_CENTURION_RGB            0x0600
-#define HIDPP_FEAT_CENTURION_DEVICE_INFO   0x0100
-#define HIDPP_FEAT_CENTURION_DEVICE_NAME   0x0101
-#define HIDPP_FEAT_WIRELESS_STATUS          0x1D4B
+#define HIDPP20_FEAT_IROOT                    0x0000
+#define HIDPP20_FEAT_FEATURE_SET              0x0001
+#define HIDPP20_FEAT_DEVICE_NAME_TYPE         0x0005
+#define HIDPP20_FEAT_ONBOARD_PROFILES         0x8100
+#define HIDPP20_FEAT_PROFILE_MANAGEMENT       0x8101
+#define HIDPP20_FEAT_FIRMWARE_INFO            0x0003
+#define HIDPP20_FEAT_CENTPPBRIDGE             0x0003  /* same ID, different meaning on Centurion */
+#define HIDPP20_FEAT_COLOR_LED_EFFECTS        0x8070
+#define HIDPP20_FEAT_RGB_EFFECTS              0x8071
+#define HIDPP20_FEAT_PER_KEY_LIGHTING_V1      0x8080
+#define HIDPP20_FEAT_PER_KEY_LIGHTING_V2      0x8081
+#define HIDPP20_FEAT_KEYBOARD_LAYOUT          0x4540
+#define HIDPP20_FEAT_CENTURION_RGB            0x0600
+#define HIDPP20_FEAT_CENTURION_DEVICE_INFO   0x0100
+#define HIDPP20_FEAT_CENTURION_DEVICE_NAME   0x0101
+#define HIDPP20_FEAT_WIRELESS_STATUS          0x1D4B
 
 /*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
@@ -60,7 +60,7 @@
 | claimed. We pick a fixed value and will coordinate    |
 | with Solaar to exclude it from its cycle.             |
 \*-----------------------------------------------------*/
-#define HIDPP_SW_ID                         0x07
+#define HIDPP20_SW_ID                         0x07
 
 /*-----------------------------------------------------*\
 | Feature 0x8071 functions                              |
@@ -103,7 +103,7 @@
 /*-----------------------------------------------------*\
 | Zone cluster effect entry                             |
 \*-----------------------------------------------------*/
-struct HIDPPEffect
+struct HIDPP20Effect
 {
     uint8_t     index;
     uint16_t    effect_id;
@@ -114,18 +114,18 @@ struct HIDPPEffect
 /*-----------------------------------------------------*\
 | Zone cluster info from 0x8071 GetRgbClusterInfo       |
 \*-----------------------------------------------------*/
-struct HIDPPZoneCluster
+struct HIDPP20ZoneCluster
 {
     uint8_t                     index;
     uint16_t                    location;
     uint8_t                     effect_count;
-    std::vector<HIDPPEffect>    effects;
+    std::vector<HIDPP20Effect>    effects;
 };
 
 /*-----------------------------------------------------*\
 | Device capabilities discovered via feature probing    |
 \*-----------------------------------------------------*/
-struct HIDPPDeviceCapabilities
+struct HIDPP20DeviceCapabilities
 {
     std::string     device_name;
     uint8_t         device_type;
@@ -178,7 +178,7 @@ struct HIDPPDeviceCapabilities
     /*-------------------------------------------------*\
     | Discovered zone and LED data                      |
     \*-------------------------------------------------*/
-    std::vector<HIDPPZoneCluster>   zone_clusters;
+    std::vector<HIDPP20ZoneCluster>   zone_clusters;
     std::vector<uint16_t>           perkey_zone_ids;
     bool                            has_perkey;
     bool                            has_zone_effects;
@@ -189,10 +189,10 @@ struct HIDPPDeviceCapabilities
 /*-----------------------------------------------------*\
 | Transport type — determines wire framing               |
 \*-----------------------------------------------------*/
-enum HIDPPTransportType
+enum HIDPP20TransportType
 {
-    HIDPP_TRANSPORT_STANDARD,       // 0xFF00/0xFF43: report IDs 0x10/0x11, 7/20 bytes
-    HIDPP_TRANSPORT_CENTURION       // 0xFFA0: report ID 0x51 or 0x50, 64 bytes,
+    HIDPP20_TRANSPORT_STANDARD,       // 0xFF00/0xFF43: report IDs 0x10/0x11, 7/20 bytes
+    HIDPP20_TRANSPORT_CENTURION       // 0xFFA0: report ID 0x51 or 0x50, 64 bytes,
                                     // with CPL framing and CentPPBridge sub-device routing
 };
 
@@ -204,9 +204,9 @@ enum HIDPPTransportType
 | report framing. This struct holds transport state      |
 | so SendMessage/ReadMessage can adapt.                  |
 \*-----------------------------------------------------*/
-struct HIDPPTransport
+struct HIDPP20Transport
 {
-    HIDPPTransportType  type;
+    HIDPP20TransportType  type;
     uint16_t            usage_page;         // 0xFF00, 0xFF43, or 0xFFA0
     uint8_t             report_id;          // 0x10/0x11 for standard, 0x51/0x50 for Centurion
     bool                addressed;          // Centurion 0x50 has device address byte
@@ -222,18 +222,18 @@ struct HIDPPTransport
 | Power management state machine                        |
 | Matches Solaar's RGBPowerManager states               |
 \*-----------------------------------------------------*/
-enum HIDPPPowerState
+enum HIDPP20PowerState
 {
-    HIDPP_POWER_ACTIVE   = 0,
-    HIDPP_POWER_DIMMING  = 1,
-    HIDPP_POWER_IDLE     = 2,
-    HIDPP_POWER_SLEEPING = 3,
+    HIDPP20_POWER_ACTIVE   = 0,
+    HIDPP20_POWER_DIMMING  = 1,
+    HIDPP20_POWER_IDLE     = 2,
+    HIDPP20_POWER_SLEEPING = 3,
 };
 
 /*-----------------------------------------------------*\
 | Parsed HID++ message for the response queue           |
 \*-----------------------------------------------------*/
-struct HIDPPRawMessage
+struct HIDPP20RawMessage
 {
     uint8_t feat;
     uint8_t func;
@@ -285,7 +285,7 @@ struct PerKeyFrameResult
 | own event burst pattern (63→125→250→500→1000→2000ms,   |
 | "catch at least one of N").                            |
 \*-----------------------------------------------------*/
-struct HIDPPRetryPolicy
+struct HIDPP20RetryPolicy
 {
     const uint16_t* backoff_ms;     // schedule[i] = delay before attempt i
     uint8_t         attempts;       // length of backoff_ms (>=1)
@@ -298,9 +298,9 @@ struct HIDPPRetryPolicy
 /*-----------------------------------------------------*\
 | Canned backoff schedules.                              |
 \*-----------------------------------------------------*/
-static constexpr uint16_t HIDPP_BACKOFF_RELIABLE[] =
+static constexpr uint16_t HIDPP20_BACKOFF_RELIABLE[] =
     { 0, 63, 125, 250, 500, 1000, 2000 };
-static constexpr uint16_t HIDPP_BACKOFF_PROBE[] =
+static constexpr uint16_t HIDPP20_BACKOFF_PROBE[] =
     { 0, 100 };
 
 /*-----------------------------------------------------*\
@@ -311,7 +311,7 @@ static constexpr uint16_t HIDPP_BACKOFF_PROBE[] =
 | 6 attempts inside ~620ms so the animation never gets   |
 | a chance to become visible.                            |
 \*-----------------------------------------------------*/
-static constexpr uint16_t HIDPP_RECLAIM_BACKOFF_MS[] =
+static constexpr uint16_t HIDPP20_RECLAIM_BACKOFF_MS[] =
     { 0, 20, 40, 80, 160, 320 };
 
 /*-----------------------------------------------------*\
@@ -324,12 +324,12 @@ static constexpr uint16_t HIDPP_RECLAIM_BACKOFF_MS[] =
 | ~180ms, fits inside the PerKeyFrameEnd 300ms deadline |
 | with margin for the eventual ACK to land.             |
 \*-----------------------------------------------------*/
-static constexpr uint16_t HIDPP_FRAME_END_BUSY_BACKOFF_MS[] =
+static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
     { 5, 15, 30, 50, 80 };
 
-static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
-    HIDPP_BACKOFF_RELIABLE,
-    sizeof(HIDPP_BACKOFF_RELIABLE) / sizeof(uint16_t),
+static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_RELIABLE = {
+    HIDPP20_BACKOFF_RELIABLE,
+    sizeof(HIDPP20_BACKOFF_RELIABLE) / sizeof(uint16_t),
     300,    // read window
     true,   // flush_before
     true,   // retry_on_busy
@@ -344,23 +344,23 @@ static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
 | busy mouse), but we bail fast on truly non-responsive  |
 | or non-HID++ hidraws so probe latency stays bounded.   |
 \*-----------------------------------------------------*/
-static constexpr HIDPPRetryPolicy HIDPP_POLICY_PROBE = {
-    HIDPP_BACKOFF_PROBE,
-    sizeof(HIDPP_BACKOFF_PROBE) / sizeof(uint16_t),
+static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_PROBE = {
+    HIDPP20_BACKOFF_PROBE,
+    sizeof(HIDPP20_BACKOFF_PROBE) / sizeof(uint16_t),
     200,    // read window
     true,   // flush_before
     true,   // retry_on_busy
     "probe"
 };
 
-class LogitechHIDPPController
+class LogitechHIDPP20Controller
 {
 public:
-    LogitechHIDPPController(hid_device* dev, const char* path,
+    LogitechHIDPP20Controller(hid_device* dev, const char* path,
                             uint8_t device_index, bool wireless,
                             std::shared_ptr<std::mutex> mutex_ptr,
                             uint16_t usage_page = 0xFF00);
-    ~LogitechHIDPPController();
+    ~LogitechHIDPP20Controller();
 
     /*-------------------------------------------------*\
     | Lifecycle                                         |
@@ -372,7 +372,7 @@ public:
     /*-------------------------------------------------*\
     | Accessors                                         |
     \*-------------------------------------------------*/
-    const HIDPPDeviceCapabilities&  GetCapabilities() const;
+    const HIDPP20DeviceCapabilities&  GetCapabilities() const;
     std::string     GetDeviceLocation();
     std::string     GetSerialString();
     uint32_t        GetInitGeneration() const;
@@ -421,7 +421,7 @@ public:
     void            SetRepaintCallback(std::function<void()> repaint);
     void            SetReinitCallback(std::function<bool()> cb);
     void            SetRegisterCallback(std::function<void(RGBController*)> cb);
-    HIDPPPowerState GetPowerState() const;
+    HIDPP20PowerState GetPowerState() const;
     int             GetDimBrightness() const;
     void            WakeIfNeeded();
     bool            IsOnline() const;
@@ -433,8 +433,8 @@ private:
     uint8_t                     device_index;
     bool                        wireless;
     std::shared_ptr<std::mutex> mutex;
-    HIDPPDeviceCapabilities     caps;
-    HIDPPTransport              transport;
+    HIDPP20DeviceCapabilities     caps;
+    HIDPP20Transport              transport;
     bool                        initialized;
     bool                        sw_control_claimed;
     uint32_t                    frame_counter;
@@ -506,14 +506,14 @@ private:
     |    0 : timeout / BUSY exhaustion                   |
     |   -1 : non-BUSY HID++ error                        |
     |   -2 : wire error (SendMessage failed)             |
-    | If hidpp_error_out is non-null and return is -1,  |
+    | If hidpp20_error_out is non-null and return is -1,  |
     | the HID++ error code is stored there.             |
     \*-------------------------------------------------*/
     int             SendAcked(uint8_t feat_idx, uint8_t function,
                               const uint8_t* send_data, size_t send_len,
                               uint8_t* recv_data, size_t recv_max,
-                              const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE,
-                              uint8_t* hidpp_error_out = nullptr);
+                              const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE,
+                              uint8_t* hidpp20_error_out = nullptr);
 
     /*-------------------------------------------------*\
     | Compatibility shim: same as SendAcked but writes  |
@@ -524,13 +524,13 @@ private:
     int             SendAckedIntoFAP(uint8_t feat_idx, uint8_t function,
                                      const uint8_t* send_data, size_t send_len,
                                      blankFAPmessage& response,
-                                     const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE);
+                                     const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE);
 
     /*-------------------------------------------------*\
     | Feature discovery                                 |
     \*-------------------------------------------------*/
     uint8_t         GetFeatureIndex(uint16_t feature_page,
-                                    const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE);
+                                    const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE);
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();
@@ -569,7 +569,7 @@ private:
     std::atomic<bool>       reader_running;
     std::mutex              response_mutex;
     std::condition_variable response_cv;
-    std::deque<HIDPPRawMessage> response_queue;
+    std::deque<HIDPP20RawMessage> response_queue;
 
     /*-------------------------------------------------*\
     | Power thread (state machine + command sender)     |
@@ -586,7 +586,7 @@ private:
     /*-------------------------------------------------*\
     | Power management state                            |
     \*-------------------------------------------------*/
-    HIDPPPowerState         power_state;
+    HIDPP20PowerState         power_state;
     std::mutex              power_mutex;
 
     /*-------------------------------------------------*\
