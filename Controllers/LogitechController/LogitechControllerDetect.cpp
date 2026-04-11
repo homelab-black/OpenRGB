@@ -688,15 +688,97 @@ void DetectLogitechHIDPP(hid_device_info* info, const std::string& /*name*/)
     {
         controller->Initialize();
 
-        RGBController_LogitechHIDPP* rgb_controller = new RGBController_LogitechHIDPP(controller);
+        const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
 
-        LOG_INFO("[%s] Registering RGB controller", controller->GetCapabilities().device_name.c_str());
+        if(caps.has_zone_effects || caps.has_perkey)
+        {
+            /*-------------------------------------------------*\
+            | Device has RGB features — create and register       |
+            | RGBController for the UI.                          |
+            \*-------------------------------------------------*/
+            RGBController_LogitechHIDPP* rgb_controller = new RGBController_LogitechHIDPP(controller);
 
-        ResourceManager::get()->RegisterRGBController(rgb_controller);
+            LOG_INFO("[%s] Registering RGB controller", caps.device_name.c_str());
+
+            ResourceManager::get()->RegisterRGBController(rgb_controller);
+
+            /*-------------------------------------------------*\
+            | Start reader + power threads immediately so we     |
+            | detect connection events and handle power mgmt     |
+            | from the start — not deferred to DeviceUpdateMode. |
+            \*-------------------------------------------------*/
+            if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
+            {
+                controller->StartPowerManager();
+
+                if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
+                {
+                    controller->StartEventWatcher();
+                }
+            }
+        }
+        else if(controller->HasBridge())
+        {
+            /*-------------------------------------------------*\
+            | Centurion dongle with no sub-device — keep the     |
+            | controller alive and start reader thread to watch  |
+            | for sub-device connection events.                  |
+            \*-------------------------------------------------*/
+            LOG_INFO("[%s] Dongle registered, watching for sub-device",
+                     caps.device_name.c_str());
+
+            controller->SetRegisterCallback([](RGBController* rgb)
+            {
+                ResourceManager::get()->RegisterRGBController(rgb);
+            });
+
+            controller->StartEventWatcher();
+        }
+        else
+        {
+            /*-------------------------------------------------*\
+            | Device probed successfully but has no RGB and no   |
+            | bridge — nothing to do (e.g., headset without RGB) |
+            \*-------------------------------------------------*/
+            LOG_INFO("[%s] No RGB features, skipping", caps.device_name.c_str());
+            delete controller;
+        }
     }
     else
     {
-        delete controller;
+        /*-------------------------------------------------*\
+        | Probe failed. Could be an offline paired device,   |
+        | a stale pairing slot, or a receiver itself.        |
+        |                                                    |
+        | Only skip if the name explicitly says "Receiver".  |
+        | Everything else gets a watcher — devices can come  |
+        | back at any time (power cycle, dongle swap, etc.)  |
+        \*-------------------------------------------------*/
+        std::string hid_name;
+
+        if(info->product_string)
+        {
+            std::wstring ws(info->product_string);
+            hid_name = std::string(ws.begin(), ws.end());
+        }
+
+        if(hid_name.find("Receiver") != std::string::npos ||
+           hid_name.find("receiver") != std::string::npos)
+        {
+            delete controller;
+        }
+        else
+        {
+            LOG_INFO("[HID++ %s] Probe failed — watching for device (name='%s')",
+                     info->path, hid_name.c_str());
+
+            controller->SetRegisterCallback([](RGBController* rgb)
+            {
+                ResourceManager::get()->RegisterRGBController(rgb);
+            });
+
+            controller->StartProbeWatcher();
+        }
     }
 }
 

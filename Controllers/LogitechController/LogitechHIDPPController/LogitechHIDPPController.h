@@ -46,6 +46,7 @@
 #define HIDPP_FEAT_CENTURION_RGB            0x0600
 #define HIDPP_FEAT_CENTURION_DEVICE_INFO   0x0100
 #define HIDPP_FEAT_CENTURION_DEVICE_NAME   0x0101
+#define HIDPP_FEAT_WIRELESS_STATUS          0x1D4B
 
 /*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
@@ -148,6 +149,7 @@ struct HIDPPDeviceCapabilities
     uint8_t         idx_rgb_effects;
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
+    uint8_t         idx_wireless_status;
     uint16_t        rgb_feature_page;
 
     /*-------------------------------------------------*\
@@ -278,10 +280,17 @@ public:
     \*-------------------------------------------------*/
     void            StartPowerManager();
     void            StopPowerManager();
+    void            StartEventWatcher();
+    void            StartProbeWatcher();
+    bool            HasBridge() const;
     void            SetRepaintCallback(std::function<void()> repaint);
+    void            SetReinitCallback(std::function<void()> cb);
+    void            SetRegisterCallback(std::function<void(RGBController*)> cb);
     HIDPPPowerState GetPowerState() const;
     int             GetDimBrightness() const;
     void            WakeIfNeeded();
+    bool            IsOnline() const;
+    void            FlushResponseQueue();
 
 private:
     hid_device*                 dev;
@@ -380,7 +389,6 @@ private:
     \*-------------------------------------------------*/
     void            ReaderThreadFunc();
     void            PowerThreadFunc();
-    void            FlushResponseQueue();
     void            DispatchEvent(uint8_t feat, uint8_t func, const uint8_t* data);
     void            OnUserActivity(uint8_t activity_type);
     void            StartDimRamp();
@@ -388,6 +396,11 @@ private:
     void            StartSleep();
     void            Wake();
     void            ReadFirmwareTimers();
+    void            ReprobeSubDevice();
+    void            ReconnectDevice();
+    void            FullReprobe();
+    bool            ScanForDevice();
+    void            SwapHIDHandle(hid_device* new_dev, const std::string& new_path);
 
     /*-------------------------------------------------*\
     | Reader thread + response queue                    |
@@ -404,7 +417,10 @@ private:
     std::thread*            power_thread;
     std::atomic<bool>       power_thread_running;
     std::atomic<int>        pending_activity;       // -1=none, 0=idle, 1+=active
-    std::atomic<int>        pending_connection;     // 0=none, 1=connection state changed
+    std::atomic<int>        pending_connection;     // 0=none, +1=connected, -1=disconnected
+    std::atomic<bool>       device_online;          // false when device is unreachable
+    std::atomic<int>        consecutive_timeouts;   // reset on successful response
+    std::atomic<bool>       watcher_mode;           // true when retrying failed probe
 
     /*-------------------------------------------------*\
     | Power management state                            |
@@ -416,6 +432,8 @@ private:
     | Dim ramp state                                    |
     | dim_brightness_pct is applied by DeviceUpdateLEDs |
     | to scale colors before pushing to device.         |
+    | This is our own host-side animation, independent  |
+    | of any firmware dim/sleep timers.                 |
     \*-------------------------------------------------*/
     static const int DIM_STEPS       = 25;
     static const int DIM_INTERVAL_MS = 200;
@@ -436,7 +454,9 @@ private:
     uint16_t        sleep_timeout_s;
 
     /*-------------------------------------------------*\
-    | RGBController callbacks                           |
+    | Callbacks                                         |
     \*-------------------------------------------------*/
     std::function<void()> request_repaint_fn;
+    std::function<void()> reinit_direct_fn;
+    std::function<void(RGBController*)> register_controller_fn;
 };

@@ -384,6 +384,13 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
             DeviceUpdateLEDs();
         }
     );
+
+    controller->SetReinitCallback(
+        [this]()
+        {
+            ReinitDirectMode();
+        }
+    );
 }
 
 RGBController_LogitechHIDPP::~RGBController_LogitechHIDPP()
@@ -576,6 +583,17 @@ void RGBController_LogitechHIDPP::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
 {
+    if(!controller->IsOnline())
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Ensure SW control is claimed on first actual color push.   |
+    | Safe here because we have real colors in the buffer.       |
+    \*---------------------------------------------------------*/
+    controller->ClaimSWControlIfNeeded();
+
     const HIDPPDeviceCapabilities& caps = controller->GetCapabilities();
 
     /*---------------------------------------------------------*\
@@ -603,6 +621,39 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         {
             sent_colors.clear();
             last_init_gen = gen;
+        }
+
+        /*-----------------------------------------------------*\
+        | Per-key prep call (matches GHUB capture):              |
+        |   SetEffect cluster=0xFF, effect=static, RGB=(0,0,0),  |
+        |   persist=true                                         |
+        |                                                       |
+        | This is the formal "transition to per-key mode" call. |
+        | Setting all clusters to static black with persist     |
+        | tells the firmware we're taking over per-key writes.  |
+        | Per-key writes then override individual zones; any    |
+        | unwritten zones remain off (which is correct).        |
+        \*-----------------------------------------------------*/
+        if(sent_colors.empty() && caps.has_zone_effects)
+        {
+            uint8_t static_effect_idx = 0;
+
+            for(size_t j = 0; j < caps.zone_clusters[0].effects.size(); j++)
+            {
+                if(caps.zone_clusters[0].effects[j].effect_id == 0x0001)
+                {
+                    static_effect_idx = caps.zone_clusters[0].effects[j].index;
+                    break;
+                }
+            }
+
+            controller->SetZoneEffect(
+                0xFF,                /* all clusters */
+                static_effect_idx,
+                0x0001,              /* static effect */
+                0, 0, 0,             /* black — no fixed-color marker, becomes "Off" */
+                0,
+                true                 /* persist=true to match GHUB's prep call */);
         }
 
         /*-----------------------------------------------------*\
@@ -684,6 +735,14 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
         }
 
         auto t_start = std::chrono::steady_clock::now();
+
+        /*-----------------------------------------------------*\
+        | Drain stale ACKs from previous frames before sending. |
+        | Without this, SendPerKeyData reads a stale ACK,       |
+        | mistakes it for the current write's ACK, returns      |
+        | early, and FrameEnd then races with the actual ACK.   |
+        \*-----------------------------------------------------*/
+        controller->FlushResponseQueue();
 
         /*-----------------------------------------------------*\
         | Batch changed keys for efficient wire encoding.        |
@@ -844,6 +903,11 @@ void RGBController_LogitechHIDPP::UpdateSingleLED(int /*led*/)
 
 void RGBController_LogitechHIDPP::DeviceUpdateMode()
 {
+    if(!controller->IsOnline())
+    {
+        return;
+    }
+
     /*---------------------------------------------------------*\
     | Claim SW control on first mode set (deferred from init).   |
     \*---------------------------------------------------------*/
@@ -869,51 +933,18 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     \*---------------------------------------------------------*/
     if(current.name == "Direct")
     {
-        /*-----------------------------------------------------*\
-        | 1. Claim SW control (deferred from Initialize).        |
-        |    Does host mode + SetSWControl(3,5) + power mode.    |
-        |    Device stays in firmware mode until this point.     |
-        \*-----------------------------------------------------*/
-        controller->ClaimSWControlIfNeeded();
+        ReinitDirectMode();
 
         /*-----------------------------------------------------*\
-        | 2. Zone effect — transition device to SW-controlled    |
-        |    state before per-key writes. Matches Solaar's       |
-        |    SetEffectByIndex before per-key.                    |
-        \*-----------------------------------------------------*/
-        if(caps.has_zone_effects)
-        {
-            for(size_t i = 0; i < caps.zone_clusters.size(); i++)
-            {
-                for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
-                {
-                    if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
-                    {
-                        RGBColor c = (colors.size() > 0) ? colors[0] : ToRGBColor(0, 0, 0);
-                        controller->SetZoneEffect(
-                            caps.zone_clusters[i].index,
-                            caps.zone_clusters[i].effects[j].index,
-                            0x0001,
-                            RGBGetRValue(c), RGBGetGValue(c), RGBGetBValue(c),
-                            0, false);
-                        break;
-                    }
-                }
-            }
-        }
-
-        /*-----------------------------------------------------*\
-        | 3. Per-key writes with real colors from buffer          |
-        \*-----------------------------------------------------*/
-        sent_colors.clear();
-        DeviceUpdateLEDs();
-
-        /*-----------------------------------------------------*\
-        | 4. Start power manager (reader + power threads).       |
-        |    Done AFTER claim+push so reader thread doesn't      |
-        |    interfere with the initial HID command sequence.    |
+        | Start power manager (reader + power threads) if not    |
+        | already running.                                       |
         \*-----------------------------------------------------*/
         controller->StartPowerManager();
+
+        if(caps.idx_wireless_status != 0 && !caps.has_power_mgmt)
+        {
+            controller->StartEventWatcher();
+        }
 
         return;
     }
@@ -1016,4 +1047,20 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
             current.value,
             eff_id, r, g, b, period, false);
     }
+}
+
+void RGBController_LogitechHIDPP::ReinitDirectMode()
+{
+    /*---------------------------------------------------------*\
+    | Full Direct mode initialization sequence. Replays the      |
+    | exact startup sequence after a power cycle or reconnect:   |
+    |   1. Claim SW control (host mode + flags + power mode)     |
+    |   2. Zone effect + per-key push (handled by DeviceUpdate)  |
+    |                                                           |
+    | DeviceUpdateLEDs sets the zone effect automatically when   |
+    | sent_colors is empty (first push or after clear).          |
+    \*---------------------------------------------------------*/
+    controller->ClaimSWControlIfNeeded();
+    sent_colors.clear();
+    DeviceUpdateLEDs();
 }
