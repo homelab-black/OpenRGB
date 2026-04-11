@@ -155,6 +155,29 @@ static const std::map<std::string, unsigned int> hidpp_key_name_to_zone =
     { KEY_EN_UP_ARROW,        79  },
     { KEY_EN_RIGHT_FUNCTION, 111  },
     { KEY_EN_MENU,            98  },
+
+    /*-----------------------------------------------------*\
+    | Numpad zones (Solaar KEYCODES 80-96).                  |
+    | Required for any full-size HID++ keyboard.             |
+    \*-----------------------------------------------------*/
+    { KEY_EN_NUMPAD_LOCK,     80  },
+    { KEY_EN_NUMPAD_DIVIDE,   81  },
+    { KEY_EN_NUMPAD_TIMES,    82  },
+    { KEY_EN_NUMPAD_MINUS,    83  },
+    { KEY_EN_NUMPAD_PLUS,     84  },
+    { KEY_EN_NUMPAD_ENTER,    85  },
+    { KEY_EN_NUMPAD_1,        86  },
+    { KEY_EN_NUMPAD_2,        87  },
+    { KEY_EN_NUMPAD_3,        88  },
+    { KEY_EN_NUMPAD_4,        89  },
+    { KEY_EN_NUMPAD_5,        90  },
+    { KEY_EN_NUMPAD_6,        91  },
+    { KEY_EN_NUMPAD_7,        92  },
+    { KEY_EN_NUMPAD_8,        93  },
+    { KEY_EN_NUMPAD_9,        94  },
+    { KEY_EN_NUMPAD_0,        95  },
+    { KEY_EN_NUMPAD_PERIOD,   96  },
+
     { KEY_EN_LEFT_CONTROL,   104  },
     { KEY_EN_LEFT_SHIFT,     105  },
     { KEY_EN_LEFT_ALT,       106  },
@@ -163,6 +186,24 @@ static const std::map<std::string, unsigned int> hidpp_key_name_to_zone =
     { KEY_EN_RIGHT_SHIFT,    109  },
     { KEY_EN_RIGHT_ALT,      110  },
     { KEY_EN_RIGHT_WINDOWS,  111  },
+
+    /*-----------------------------------------------------*\
+    | G915 (and similar) out-of-KLM LEDs.                    |
+    | Zone IDs from Solaar KEYCODES. Names match the legacy  |
+    | G915 controller so existing users don't see their LED  |
+    | labels change when they move onto the unified driver.  |
+    \*-----------------------------------------------------*/
+    { "Key: Brightness",            153 },
+    { KEY_EN_MEDIA_PLAY_PAUSE,      155 },
+    { KEY_EN_MEDIA_MUTE,            156 },
+    { KEY_EN_MEDIA_NEXT,            157 },
+    { KEY_EN_MEDIA_PREVIOUS,        158 },
+    { "Key: G1",                    180 },
+    { "Key: G2",                    181 },
+    { "Key: G3",                    182 },
+    { "Key: G4",                    183 },
+    { "Key: G5",                    184 },
+    { "Logo",                       210 },
 };
 
 /*---------------------------------------------------------*\
@@ -501,6 +542,83 @@ void RGBController_LogitechHIDPP::SetupZones()
                 leds.push_back(new_led);
 
                 led_to_zone_id.push_back((uint16_t)zone_id);
+            }
+
+            /*-------------------------------------------------*\
+            | Extras: zones the device reported via paginated   |
+            | 0x8081 GetInfo that aren't covered by KLM. On a   |
+            | G915 this is media keys, G1-G5, brightness, and   |
+            | logo. Append them as a separate linear zone so    |
+            | users can still address them.                     |
+            \*-------------------------------------------------*/
+            std::set<uint16_t> klm_claimed_zones;
+            for(uint16_t zid : led_to_zone_id)
+            {
+                if(zid != 0)
+                {
+                    klm_claimed_zones.insert(zid);
+                }
+            }
+
+            /*-------------------------------------------------*\
+            | Extras candidates: zones reported by the device   |
+            | that aren't claimed by KLM AND have a known name  |
+            | in hidpp_key_name_to_zone. We deliberately DROP   |
+            | unnamed zones — firmware-side GetInfo bitmaps     |
+            | enumerate phantom/reserved slots (G515 reports    |
+            | 47, 97, 99-103, 254 among others) that aren't    |
+            | wired to physical LEDs. Exposing them as "LED N"  |
+            | created ghost entries in the GUI. Treat           |
+            | hidpp_key_name_to_zone as the curated allowlist.  |
+            \*-------------------------------------------------*/
+            std::vector<std::pair<uint16_t, std::string>> extras;
+            for(uint16_t zid : caps.perkey_zone_ids)
+            {
+                if(klm_claimed_zones.count(zid) != 0)
+                {
+                    continue;
+                }
+
+                std::string label;
+                for(const auto& kv : hidpp_key_name_to_zone)
+                {
+                    if(kv.second == zid)
+                    {
+                        label = kv.first;
+                        break;
+                    }
+                }
+
+                if(label.empty())
+                {
+                    LOG_DEBUG("[HID++ %s] Dropping unnamed per-key zone %u "
+                              "(not in hidpp_key_name_to_zone)",
+                              name.c_str(), (unsigned)zid);
+                    continue;
+                }
+
+                extras.emplace_back(zid, label);
+            }
+
+            if(!extras.empty())
+            {
+                zone extras_zone;
+                extras_zone.name       = "Extras";
+                extras_zone.type       = ZONE_TYPE_LINEAR;
+                extras_zone.leds_min   = (unsigned int)extras.size();
+                extras_zone.leds_max   = (unsigned int)extras.size();
+                extras_zone.leds_count = (unsigned int)extras.size();
+                extras_zone.matrix_map = nullptr;
+                zones.push_back(extras_zone);
+
+                for(const auto& e : extras)
+                {
+                    led new_led;
+                    new_led.name  = e.second;
+                    new_led.value = e.first;
+                    leds.push_back(new_led);
+                    led_to_zone_id.push_back(e.first);
+                }
             }
         }
         else if(const MouseLayout* ml = FindMouseLayout(caps.device_name))
