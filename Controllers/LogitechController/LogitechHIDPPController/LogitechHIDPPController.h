@@ -492,7 +492,8 @@ private:
     /*-------------------------------------------------*\
     | Feature discovery                                 |
     \*-------------------------------------------------*/
-    uint8_t         GetFeatureIndex(uint16_t feature_page);
+    uint8_t         GetFeatureIndex(uint16_t feature_page,
+                                    const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE);
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();

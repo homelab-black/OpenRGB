@@ -1090,7 +1090,8 @@ int LogitechHIDPPController::ReadCenturionDirect
 | Feature Discovery                                         |
 \*---------------------------------------------------------*/
 
-uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
+uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page,
+                                                 const HIDPPRetryPolicy& policy)
 {
     /*---------------------------------------------------------*\
     | Check cache first — both Centurion bulk and HID++ on-demand|
@@ -1122,7 +1123,7 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
     uint8_t recv_data[16] = {};
     int result = SendAcked(LOGITECH_HIDPP_PAGE_ROOT_IDX, FN_8071_GET_INFO,
                            send_data, 2, recv_data, sizeof(recv_data),
-                           HIDPP_POLICY_PROBE);
+                           policy);
 
     if(result > 0)
     {
@@ -1214,8 +1215,7 @@ void LogitechHIDPPController::DiscoverDeviceName()
 
     uint8_t recv[16] = {};
     int result = SendAcked(feat_idx, LOTITECH_CMD_DEVICE_NAME_TYPE_GET_COUNT,
-                           nullptr, 0, recv, sizeof(recv),
-                           HIDPP_POLICY_PROBE);
+                           nullptr, 0, recv, sizeof(recv));
 
     if(result <= 0)
     {
@@ -1230,8 +1230,7 @@ void LogitechHIDPPController::DiscoverDeviceName()
     {
         uint8_t send_data[1] = { (uint8_t)offset };
         result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_DEVICE_NAME,
-                           send_data, 1, recv, sizeof(recv),
-                           HIDPP_POLICY_PROBE);
+                           send_data, 1, recv, sizeof(recv));
 
         if(result <= 0)
         {
@@ -1273,8 +1272,7 @@ void LogitechHIDPPController::DiscoverDeviceType()
 
     uint8_t recv[16] = {};
     int result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_TYPE,
-                           nullptr, 0, recv, sizeof(recv),
-                           HIDPP_POLICY_PROBE);
+                           nullptr, 0, recv, sizeof(recv));
 
     if(result > 0)
     {
@@ -1450,8 +1448,7 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
         uint8_t recv_data[60] = {};
 
         int result = SendAcked(feature_set_idx, 0x10,
-                               send_data, 1, recv_data, sizeof(recv_data),
-                               HIDPP_POLICY_PROBE);
+                               send_data, 1, recv_data, sizeof(recv_data));
 
         if(result > 0)
         {
@@ -1510,8 +1507,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
             uint8_t recv_data[16] = {};
 
             int result = SendAcked(dev_info_idx, 0x10,
-                                   send_data, 1, recv_data, sizeof(recv_data),
-                                   HIDPP_POLICY_PROBE);
+                                   send_data, 1, recv_data, sizeof(recv_data));
 
             if(result > 0)
             {
@@ -1535,8 +1531,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
             uint8_t recv_data[16] = {};
 
             int result = SendAcked(dev_info_idx, 0x20,
-                                   nullptr, 0, recv_data, sizeof(recv_data),
-                                   HIDPP_POLICY_PROBE);
+                                   nullptr, 0, recv_data, sizeof(recv_data));
 
             if(result > 0)
             {
@@ -1568,8 +1563,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
     {
         uint8_t recv_data[16] = {};
         int result = SendAcked(fw_idx, 0x00,
-                               nullptr, 0, recv_data, sizeof(recv_data),
-                               HIDPP_POLICY_PROBE);
+                               nullptr, 0, recv_data, sizeof(recv_data));
 
         if(result > 0)
         {
@@ -1611,8 +1605,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         uint8_t recv_data[16] = {};
 
         int result = SendAcked(fw_idx, 0x10,
-                               send_data, 1, recv_data, sizeof(recv_data),
-                               HIDPP_POLICY_PROBE);
+                               send_data, 1, recv_data, sizeof(recv_data));
 
         if(result <= 0)
         {
@@ -1649,8 +1642,7 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         uint8_t recv_data[16] = {};
 
         int result = SendAcked(fw_idx, 0x20,
-                               nullptr, 0, recv_data, sizeof(recv_data),
-                               HIDPP_POLICY_PROBE);
+                               nullptr, 0, recv_data, sizeof(recv_data));
 
         if(result > 0)
         {
@@ -1743,8 +1735,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
 
     blankFAPmessage response;
     int result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
-                                  data, data_len, response,
-                                  HIDPP_POLICY_PROBE);
+                                  data, data_len, response);
 
     if(result <= 0)
     {
@@ -1777,15 +1768,13 @@ void LogitechHIDPPController::DiscoverRGBEffects()
         {
             uint8_t query[2] = { (uint8_t)i, 0xFF };
             result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
-                                      query, 2, response,
-                                      HIDPP_POLICY_PROBE);
+                                      query, 2, response);
         }
         else
         {
             uint8_t query[2] = { (uint8_t)i, 0x00 };
             result = SendAckedIntoFAP(caps.idx_rgb_effects, LOGITECH_CMD_RGB_EFFECTS_GET_INFO,
-                                      query, 2, response,
-                                      HIDPP_POLICY_PROBE);
+                                      query, 2, response);
         }
 
         if(result <= 0)
@@ -1819,8 +1808,7 @@ void LogitechHIDPPController::DiscoverRGBEffects()
             uint8_t eff_fn = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
                            ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO;
             result = SendAckedIntoFAP(caps.idx_rgb_effects, eff_fn,
-                                      eff_query, 4, response,
-                                      HIDPP_POLICY_PROBE);
+                                      eff_query, 4, response);
 
             if(result <= 0)
             {
@@ -1876,8 +1864,7 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
         uint8_t query[3] = { 0x00, 0x00, 0x00 };
         blankFAPmessage response;
         int result = SendAckedIntoFAP(perkey_idx, FN_8081_GET_INFO,
-                                      query, 3, response,
-                                      HIDPP_POLICY_PROBE);
+                                      query, 3, response);
 
         if(result > 0)
         {
@@ -1945,8 +1932,7 @@ void LogitechHIDPPController::DiscoverKeyboardLayout()
     }
 
     uint8_t recv_data[16] = {};
-    int result = SendAcked(idx, 0x00, nullptr, 0, recv_data, sizeof(recv_data),
-                           HIDPP_POLICY_PROBE);
+    int result = SendAcked(idx, 0x00, nullptr, 0, recv_data, sizeof(recv_data));
 
     if(result > 0)
     {
@@ -2020,8 +2006,13 @@ bool LogitechHIDPPController::Probe()
         | Centurion: try CentPPBridge (0x0003) first for dongle. |
         | If not found, try FeatureSet (0x0001) for wired/direct |
         | connection where the device IS the endpoint.           |
+        |                                                       |
+        | This is the "is anyone there?" check — use the fast-  |
+        | fail probe policy so non-Centurion or unreachable      |
+        | devices bail in ~500ms instead of ~6s. Once we have a  |
+        | positive response, subsequent discovery uses reliable. |
         \*-----------------------------------------------------*/
-        test_idx = GetFeatureIndex(HIDPP_FEAT_CENTPPBRIDGE);
+        test_idx = GetFeatureIndex(HIDPP_FEAT_CENTPPBRIDGE, HIDPP_POLICY_PROBE);
 
         if(test_idx != 0)
         {
@@ -2047,12 +2038,14 @@ bool LogitechHIDPPController::Probe()
             | error code 0x0B and wastes the full retry budget.  |
             | Skip enumeration and let the dongle-watcher path   |
             | take over until ConnectionStateChangedEvent fires. |
+            |                                                    |
+            | Bridge is confirmed responsive at this point —     |
+            | use reliable policy for the MTU check.             |
             \*-------------------------------------------------*/
             uint8_t mtu_recv[16] = {};
             int mtu_result = SendAcked(test_idx, 0x00,
                                        nullptr, 0,
-                                       mtu_recv, sizeof(mtu_recv),
-                                       HIDPP_POLICY_PROBE);
+                                       mtu_recv, sizeof(mtu_recv));
 
             if(mtu_result > 0)
             {
@@ -2088,14 +2081,16 @@ bool LogitechHIDPPController::Probe()
         else
         {
             LOG_DEBUG("%s No CentPPBridge — Centurion direct connection", LOG_TAG);
-            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET, HIDPP_POLICY_PROBE);
         }
     }
     else
     {
         /*-----------------------------------------------------*\
-        | Standard HID++: probe FeatureSet (0x0001).             |
-        | Retry up to 3 times for wireless devices.              |
+        | Standard HID++: probe FeatureSet (0x0001) — fast-fail. |
+        | The probe policy already includes its own retry; the   |
+        | outer loop is preserved for buffer-flushing behavior   |
+        | between attempts.                                       |
         \*-----------------------------------------------------*/
         for(int attempt = 0; attempt < 3 && test_idx == 0; attempt++)
         {
@@ -2110,7 +2105,7 @@ bool LogitechHIDPPController::Probe()
                 LOG_DEBUG("%s IRoot retry %d at %s", LOG_TAG, attempt + 1, location.c_str());
             }
 
-            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+            test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET, HIDPP_POLICY_PROBE);
         }
     }
 
