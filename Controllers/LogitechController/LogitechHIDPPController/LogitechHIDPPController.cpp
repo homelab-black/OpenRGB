@@ -459,6 +459,42 @@ int LogitechHIDPPController::SendAcked
     return last_result;
 }
 
+int LogitechHIDPPController::SendAckedIntoFAP
+    (
+    uint8_t                 feat_idx,
+    uint8_t                 function,
+    const uint8_t*          send_data,
+    size_t                  send_len,
+    blankFAPmessage&        response,
+    const HIDPPRetryPolicy& policy
+    )
+{
+    /*---------------------------------------------------------*\
+    | Compatibility shim for callers that inherited the          |
+    | SendLong+ReadResponse interface and inspect                |
+    | response.data[] downstream. Calls SendAcked into a local   |
+    | buffer, then reconstructs a blankFAPmessage on success.    |
+    \*---------------------------------------------------------*/
+    response.init();
+
+    uint8_t recv[60] = {};
+    int     result   = SendAcked(feat_idx, function,
+                                 send_data, send_len,
+                                 recv, sizeof(recv),
+                                 policy);
+
+    if(result > 0)
+    {
+        response.report_id       = LOGITECH_LONG_MESSAGE;
+        response.device_index    = device_index;
+        response.feature_index   = feat_idx;
+        response.feature_command = function;
+        memcpy(response.data, recv, sizeof(response.data));
+    }
+
+    return result;
+}
+
 /*---------------------------------------------------------*\
 | SendLong / ReadResponse — backward-compatible wrappers    |
 | These dispatch through SendMessage/ReadMessage which      |
@@ -474,62 +510,6 @@ int LogitechHIDPPController::SendLong
     )
 {
     return SendMessage(feat_idx, function, data, len);
-}
-
-int LogitechHIDPPController::ReadResponse
-    (
-    blankFAPmessage&    response,
-    uint8_t             expected_feat_idx,
-    uint8_t             expected_function,
-    int                 timeout_ms,
-    int                 retries_left
-    )
-{
-    uint8_t resp_feat = 0;
-    uint8_t resp_func = 0;
-    uint8_t resp_data[60] = {};
-
-    int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data), timeout_ms);
-
-    if(result <= 0)
-    {
-        return result;
-    }
-
-    /*---------------------------------------------------------*\
-    | Reconstitute into blankFAPmessage for callers that use it |
-    \*---------------------------------------------------------*/
-    response.init();
-    response.report_id       = LOGITECH_LONG_MESSAGE;
-    response.device_index    = device_index;
-    response.feature_index   = resp_feat;
-    response.feature_command = resp_func;
-    memcpy(response.data, resp_data, sizeof(response.data));
-
-    /*---------------------------------------------------------*\
-    | Check for error and matching — same as old ReadResponse    |
-    \*---------------------------------------------------------*/
-    if(resp_feat == 0xFF)
-    {
-        LOG_DEBUG("%s HID++ error: feat_idx=0x%02X func|swid=0x%02X error=0x%02X",
-                  LOG_TAG, resp_func, resp_data[0], resp_data[1]);
-        return -1;
-    }
-
-    if(resp_feat == expected_feat_idx &&
-       (resp_func & 0xF0) == (expected_function & 0xF0))
-    {
-        return result;
-    }
-
-    if(retries_left <= 0)
-    {
-        LOG_DEBUG("%s ReadResponse: gave up after max retries", LOG_TAG);
-        return -1;
-    }
-
-    /* Discard non-matching message and retry */
-    return ReadResponse(response, expected_feat_idx, expected_function, timeout_ms, retries_left - 1);
 }
 
 /*---------------------------------------------------------*\
@@ -1754,10 +1734,9 @@ void LogitechHIDPPController::DiscoverRGBEffects()
     uint8_t data[3] = { 0xFF, 0xFF, 0x00 };
     size_t data_len = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? 3 : 0;
 
-    SendLong(caps.idx_rgb_effects, FN_8071_GET_INFO, data, data_len);
-
     blankFAPmessage response;
-    int result = ReadResponse(response, caps.idx_rgb_effects, FN_8071_GET_INFO);
+    int result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
+                                  data, data_len, response);
 
     if(result <= 0)
     {
@@ -1789,16 +1768,15 @@ void LogitechHIDPPController::DiscoverRGBEffects()
         if(caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
         {
             uint8_t query[2] = { (uint8_t)i, 0xFF };
-            SendLong(caps.idx_rgb_effects, FN_8071_GET_INFO, query, 2);
+            result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
+                                      query, 2, response);
         }
         else
         {
             uint8_t query[2] = { (uint8_t)i, 0x00 };
-            SendLong(caps.idx_rgb_effects, LOGITECH_CMD_RGB_EFFECTS_GET_INFO, query, 2);
+            result = SendAckedIntoFAP(caps.idx_rgb_effects, LOGITECH_CMD_RGB_EFFECTS_GET_INFO,
+                                      query, 2, response);
         }
-
-        result = ReadResponse(response, caps.idx_rgb_effects,
-                              (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? FN_8071_GET_INFO : LOGITECH_CMD_RGB_EFFECTS_GET_INFO);
 
         if(result <= 0)
         {
@@ -1828,12 +1806,10 @@ void LogitechHIDPPController::DiscoverRGBEffects()
             effect.index = j;
 
             uint8_t eff_query[4] = { (uint8_t)i, (uint8_t)j, 0x00, 0x00 };
-            SendLong(caps.idx_rgb_effects,
-                     (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO,
-                     eff_query, 4);
-
-            result = ReadResponse(response, caps.idx_rgb_effects,
-                                  (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS) ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO);
+            uint8_t eff_fn = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
+                           ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO;
+            result = SendAckedIntoFAP(caps.idx_rgb_effects, eff_fn,
+                                      eff_query, 4, response);
 
             if(result <= 0)
             {
@@ -1887,10 +1863,9 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
 
     {
         uint8_t query[3] = { 0x00, 0x00, 0x00 };
-        SendLong(perkey_idx, FN_8081_GET_INFO, query, 3);
-
         blankFAPmessage response;
-        int result = ReadResponse(response, perkey_idx, FN_8081_GET_INFO);
+        int result = SendAckedIntoFAP(perkey_idx, FN_8081_GET_INFO,
+                                      query, 3, response);
 
         if(result > 0)
         {
@@ -2214,18 +2189,16 @@ void LogitechHIDPPController::Shutdown()
     if(caps.idx_profile_management != 0)
     {
         uint8_t data[1] = { 0x03 };
-        SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
-
         blankFAPmessage response;
-        ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
+        SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
+                         data, 1, response);
     }
     else if(caps.idx_onboard_profiles != 0)
     {
         uint8_t data[1] = { 0x01 };
-        SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
-
         blankFAPmessage response;
-        ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
+        SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
+                         data, 1, response);
     }
 
     initialized = false;
@@ -2266,13 +2239,16 @@ void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
         return;
     }
 
+    blankFAPmessage response;
+
     if(caps.sw_control_simple)
     {
         /*-----------------------------------------------------*\
         | 0x8070: simple [enabled(bool), persist(bool)]          |
         \*-----------------------------------------------------*/
         uint8_t data[2] = { (uint8_t)(mode > 0 ? 0x01 : 0x00), 0x00 };
-        SendLong(caps.idx_rgb_effects, caps.fn_sw_control, data, 2);
+        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
+                         data, 2, response);
     }
     else
     {
@@ -2280,11 +2256,9 @@ void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
         | 0x8071/0x0600: [0x01(set), mode, flags]                |
         \*-----------------------------------------------------*/
         uint8_t data[3] = { 0x01, mode, flags };
-        SendLong(caps.idx_rgb_effects, caps.fn_sw_control, data, 3);
+        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
+                         data, 3, response);
     }
-
-    blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, caps.fn_sw_control);
 
     LOG_DEBUG("%s SetSWControl mode=%d flags=0x%02X", LOG_TAG, mode, flags);
 }
@@ -2297,10 +2271,9 @@ void LogitechHIDPPController::SetRGBPowerMode(uint8_t mode)
     }
 
     uint8_t data[2] = { 0x01, mode };
-    SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
-
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode);
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
+                     data, 2, response);
 
     LOG_DEBUG("%s SetRGBPowerMode mode=%d", LOG_TAG, mode);
 }
@@ -2310,20 +2283,18 @@ void LogitechHIDPPController::SetHostMode()
     if(caps.idx_profile_management != 0)
     {
         uint8_t data[1] = { 0x05 };
-        SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
-
         blankFAPmessage response;
-        ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
+        SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
+                         data, 1, response);
 
         LOG_DEBUG("%s ProfileManagement set to host mode", LOG_TAG);
     }
     else if(caps.idx_onboard_profiles != 0)
     {
         uint8_t data[1] = { 0x02 };
-        SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
-
         blankFAPmessage response;
-        ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
+        SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
+                         data, 1, response);
 
         LOG_DEBUG("%s OnboardProfiles set to host mode", LOG_TAG);
     }
@@ -2707,7 +2678,9 @@ void LogitechHIDPPController::SetZoneEffect
         /*-----------------------------------------------------*\
         | 0x8070: 13-byte payload, no persist byte               |
         \*-----------------------------------------------------*/
-        SendLong(caps.idx_rgb_effects, caps.fn_set_effect, data, 13);
+        blankFAPmessage response;
+        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                         data, 13, response);
     }
     else
     {
@@ -2715,11 +2688,10 @@ void LogitechHIDPPController::SetZoneEffect
         | 0x8071/0x0600: 16-byte payload with persist at [12]    |
         \*-----------------------------------------------------*/
         data[12] = persist ? 0x01 : 0x00;
-        SendLong(caps.idx_rgb_effects, caps.fn_set_effect, data, 16);
+        blankFAPmessage response;
+        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                         data, 16, response);
     }
-
-    blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, caps.fn_set_effect);
 }
 
 /*---------------------------------------------------------*\
@@ -3922,10 +3894,9 @@ void LogitechHIDPPController::StartSleep()
     LOG_DEBUG("%s Entering sleep (SetRgbPowerMode 3)", LOG_TAG);
 
     uint8_t data[3] = { 0x01, 0x03, 0x00 };
-    SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 3);
-
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode);
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
+                     data, 3, response);
 
     power_state = HIDPP_POWER_SLEEPING;
 }
@@ -3952,72 +3923,48 @@ void LogitechHIDPPController::Wake()
         | responsive — just cancel with SetRGBPowerMode(1).      |
         |                                                        |
         | If the device has fully gone offline and reconnected,  |
-        | it will have reset to onboard profile mode and the     |
-        | first command may get no response. In that case we     |
-        | need a full re-init (host mode, zone effects, etc.).   |
+        | it will have reset to onboard profile mode. SendAcked  |
+        | with the reliable policy retries the wake command with |
+        | exponential backoff (~6s worst case), absorbing both   |
+        | the in-fade quick-wake and the offline-reconnect slow- |
+        | wake into one call. After that, re-assert host mode.   |
         \*-----------------------------------------------------*/
-        bool quick_wake = false;
+        uint8_t data[2] = { 0x01, 0x01 };
+        blankFAPmessage response;
+        int result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
+                                      data, 2, response);
 
+        if(result > 0)
         {
-            uint8_t data[2] = { 0x01, 0x01 };
-            SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
-
-            blankFAPmessage response;
-            int result = ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode, 500);
-
-            if(result > 0)
-            {
-                quick_wake = true;
-                LOG_DEBUG("%s Wake: device still responsive (fade window)", LOG_TAG);
-            }
+            LOG_DEBUG("%s Wake: device responsive", LOG_TAG);
+        }
+        else
+        {
+            LOG_DEBUG("%s Wake: device unresponsive after retries (result=%d)",
+                      LOG_TAG, result);
         }
 
-        if(!quick_wake)
+        /*-------------------------------------------------*\
+        | Re-assert host mode in case the device fully       |
+        | offlined and reset to onboard profile.             |
+        \*-------------------------------------------------*/
+        if(caps.idx_profile_management != 0)
         {
-            /*-------------------------------------------------*\
-            | Device went fully offline. Retry with delays,      |
-            | then do full re-init.                              |
-            \*-------------------------------------------------*/
-            for(int attempt = 0; attempt < 5; attempt++)
-            {
-                LOG_DEBUG("%s Wake: device offline, retry %d", LOG_TAG, attempt + 1);
-                std::this_thread::sleep_for(200ms);
+            uint8_t mode_data[1] = { 0x05 };
+            blankFAPmessage mode_resp;
+            SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
+                             mode_data, 1, mode_resp);
 
-                uint8_t data[2] = { 0x01, 0x01 };
-                SendLong(caps.idx_rgb_effects, caps.fn_pwr_mode, data, 2);
+            LOG_DEBUG("%s Wake: ProfileManagement set to host mode", LOG_TAG);
+        }
+        else if(caps.idx_onboard_profiles != 0)
+        {
+            uint8_t mode_data[1] = { 0x02 };
+            blankFAPmessage mode_resp;
+            SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
+                             mode_data, 1, mode_resp);
 
-                blankFAPmessage response;
-                int result = ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_mode, 500);
-
-                if(result > 0)
-                {
-                    break;
-                }
-            }
-
-            /*-------------------------------------------------*\
-            | Full re-init: host mode (device reset to onboard)  |
-            \*-------------------------------------------------*/
-            if(caps.idx_profile_management != 0)
-            {
-                uint8_t data[1] = { 0x05 };
-                SendLong(caps.idx_profile_management, FN_8101_GET_SET_MODE, data, 1);
-
-                blankFAPmessage response;
-                ReadResponse(response, caps.idx_profile_management, FN_8101_GET_SET_MODE);
-
-                LOG_DEBUG("%s Wake: ProfileManagement set to host mode", LOG_TAG);
-            }
-            else if(caps.idx_onboard_profiles != 0)
-            {
-                uint8_t data[1] = { 0x02 };
-                SendLong(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE, data, 1);
-
-                blankFAPmessage response;
-                ReadResponse(response, caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE);
-
-                LOG_DEBUG("%s Wake: OnboardProfiles set to host mode", LOG_TAG);
-            }
+            LOG_DEBUG("%s Wake: OnboardProfiles set to host mode", LOG_TAG);
         }
     }
 
@@ -4163,10 +4110,9 @@ void LogitechHIDPPController::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s
     data[5] = (uint8_t)((sleep_s >> 8) & 0xFF);
     data[6] = (uint8_t)( sleep_s       & 0xFF);
 
-    SendLong(caps.idx_rgb_effects, caps.fn_pwr_config, data, sizeof(data));
-
     blankFAPmessage response;
-    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_config);
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_config,
+                     data, sizeof(data), response);
 
     LOG_DEBUG("%s WritePowerConfig: idle=%us sleep=%us", LOG_TAG, idle_s, sleep_s);
 }
@@ -4214,10 +4160,9 @@ void LogitechHIDPPController::ReadActiveProfileSector()
     load_data[2] = (uint8_t)((SECTOR_SIZE >> 8) & 0xFF);    // size hi
     load_data[3] = (uint8_t)( SECTOR_SIZE       & 0xFF);    // size lo
 
-    SendLong(caps.idx_profile_management, FN_8101_LOAD, load_data, sizeof(load_data));
-
     blankFAPmessage load_resp;
-    int load_result = ReadResponse(load_resp, caps.idx_profile_management, FN_8101_LOAD);
+    int load_result = SendAckedIntoFAP(caps.idx_profile_management, FN_8101_LOAD,
+                                       load_data, sizeof(load_data), load_resp);
 
     if(load_result <= 0)
     {
