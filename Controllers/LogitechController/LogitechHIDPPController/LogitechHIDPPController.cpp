@@ -3115,6 +3115,7 @@ void LogitechHIDPPController::StartPowerManager()
 
     ReadFirmwareTimers();
     ReadNvSleepRampConfig();
+    ReadActiveProfileSector();
 
     /*---------------------------------------------------------*\
     | Don't claim SW control here. The device runs its firmware  |
@@ -3879,5 +3880,114 @@ void LogitechHIDPPController::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s
     ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_config);
 
     LOG_DEBUG("%s WritePowerConfig: idle=%us sleep=%us", LOG_TAG, idle_s, sleep_s);
+}
+
+void LogitechHIDPPController::ReadActiveProfileSector()
+{
+    /*---------------------------------------------------------*\
+    | Diagnostic-only read of the active profile sector via     |
+    | ProfileManagement (0x8101) load + paged readBuffer.        |
+    |                                                           |
+    | This sector is the canonical storage for persisted device |
+    | state on G-series devices: idle/sleep timers, baseline    |
+    | RGB effect, FKC enable, and more. The HID++ feature       |
+    | endpoints (0x8071, 0x8081, 0x1B05, ...) are mostly status |
+    | hooks; the configuration database lives here. We don't    |
+    | act on the contents — just log them so we can see what    |
+    | the device thinks its persisted state is.                  |
+    |                                                           |
+    | Wire format mirrors GHUB capture lines 670 (load) and     |
+    | 672-685 (7× readBuffer):                                   |
+    |   load:        long msg, [partition=0x01, sector=0x01,    |
+    |                           size_hi=0x00, size_lo=0x63,     |
+    |                           padding to 16 bytes]            |
+    |   readBuffer:  short msg, [offset_hi, offset_lo, 0]       |
+    |                returns long msg with 16 bytes of data     |
+    |                                                           |
+    | Sector size 0x63 = 99 bytes is what GHUB requested for    |
+    | the G515 active profile. Other devices may differ — we    |
+    | hardcode it for now since this is diagnostic-only.        |
+    \*---------------------------------------------------------*/
+    if(caps.idx_profile_management == 0)
+    {
+        return;
+    }
+
+    constexpr uint16_t SECTOR_SIZE = 0x63;  // 99 bytes
+    constexpr uint16_t PAGE_SIZE   = 16;
+
+    /*---------------------------------------------------------*\
+    | Step 1: load the sector into the device's read buffer     |
+    \*---------------------------------------------------------*/
+    uint8_t load_data[16] = {};
+    load_data[0] = 0x01;                                    // partition: NVS/flash
+    load_data[1] = 0x01;                                    // sector: active profile
+    load_data[2] = (uint8_t)((SECTOR_SIZE >> 8) & 0xFF);    // size hi
+    load_data[3] = (uint8_t)( SECTOR_SIZE       & 0xFF);    // size lo
+
+    SendLong(caps.idx_profile_management, FN_8101_LOAD, load_data, sizeof(load_data));
+
+    blankFAPmessage load_resp;
+    int load_result = ReadResponse(load_resp, caps.idx_profile_management, FN_8101_LOAD);
+
+    if(load_result <= 0)
+    {
+        LOG_DEBUG("%s ProfileSector load failed (result=%d)", LOG_TAG, load_result);
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Step 2: page the sector out 16 bytes at a time            |
+    \*---------------------------------------------------------*/
+    uint8_t sector_buf[SECTOR_SIZE] = {};
+
+    for(uint16_t offset = 0; offset < SECTOR_SIZE; offset += PAGE_SIZE)
+    {
+        uint8_t read_req[3] = {
+            (uint8_t)((offset >> 8) & 0xFF),
+            (uint8_t)( offset       & 0xFF),
+            0x00
+        };
+        uint8_t page_resp[20] = {};
+
+        int result = SendAndReceive(caps.idx_profile_management, FN_8101_READBUFFER,
+                                    read_req, sizeof(read_req),
+                                    page_resp, sizeof(page_resp));
+
+        if(result <= 0)
+        {
+            LOG_DEBUG("%s ProfileSector readBuffer offset=0x%04X failed (result=%d)",
+                      LOG_TAG, (unsigned)offset, result);
+            return;
+        }
+
+        size_t copy_len = (offset + PAGE_SIZE > SECTOR_SIZE)
+                        ? (size_t)(SECTOR_SIZE - offset)
+                        : PAGE_SIZE;
+        memcpy(sector_buf + offset, page_resp, copy_len);
+    }
+
+    /*---------------------------------------------------------*\
+    | Step 3: log as a hexdump, one row per 16 bytes             |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s ProfileSector partition=NVS sector=1 size=%u bytes:",
+              LOG_TAG, (unsigned)SECTOR_SIZE);
+
+    for(uint16_t row = 0; row < SECTOR_SIZE; row += PAGE_SIZE)
+    {
+        size_t row_len = (row + PAGE_SIZE > SECTOR_SIZE)
+                       ? (size_t)(SECTOR_SIZE - row)
+                       : PAGE_SIZE;
+
+        char hex[64] = {};
+        char* p = hex;
+        for(size_t i = 0; i < row_len; i++)
+        {
+            snprintf(p, 4, "%02X ", sector_buf[row + i]);
+            p += 3;
+        }
+
+        LOG_DEBUG("%s   %04X: %s", LOG_TAG, (unsigned)row, hex);
+    }
 }
 
