@@ -279,7 +279,7 @@ void ProfileManager::DeleteProfile(std::string profile_name)
     }
     else
     {
-        filesystem::path filename = profile_directory / profile_name;
+        filesystem::path filename = profile_directory / StringUtils::make_filename(profile_name);
         filename.concat(".json");
 
         filesystem::remove(filename);
@@ -774,7 +774,7 @@ bool ProfileManager::SaveProfileFromJSON(nlohmann::json profile_json)
 {
     if(profile_json.contains("profile_name"))
     {
-        std::string profile_filename = profile_json["profile_name"];
+        std::string profile_filename = StringUtils::make_filename(profile_json["profile_name"]);
 
         profile_filename.append(".json");
 
