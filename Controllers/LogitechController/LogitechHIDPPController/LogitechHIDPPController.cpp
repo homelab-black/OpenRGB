@@ -78,6 +78,7 @@ LogitechHIDPPController::LogitechHIDPPController
     transport.device_address    = 0x00;
     transport.bridge_feat_idx   = 0;
     transport.sub_device_id     = 0;
+    transport.bridge_mtu        = 0;
 }
 
 LogitechHIDPPController::~LogitechHIDPPController()
@@ -388,8 +389,21 @@ int LogitechHIDPPController::SendAcked
                 uint8_t err_func = resp_data[0];
                 uint8_t err_code = resp_data[1];
 
-                if(err_feat == feat_idx &&
-                   (err_func & 0xF0) == (function & 0xF0))
+                /*---------------------------------------------*\
+                | Match: either a direct error for our request,  |
+                | or a Centurion bridge error attributed to the   |
+                | bridge feature index when we're routing through |
+                | it. The bridge swallows the sub-device feat in  |
+                | the error response, so all bridge-routed        |
+                | failures look like errors from the bridge.     |
+                \*---------------------------------------------*/
+                bool is_our_error =
+                    (err_feat == feat_idx &&
+                     (err_func & 0xF0) == (function & 0xF0))
+                 || (transport.bridge_feat_idx != 0 &&
+                     err_feat == transport.bridge_feat_idx);
+
+                if(is_our_error)
                 {
                     if(err_code == 0x08 && policy.retry_on_busy)
                     {
@@ -2016,6 +2030,60 @@ bool LogitechHIDPPController::Probe()
 
             LOG_DEBUG("%s CentPPBridge at index %d — routing to sub-device",
                       LOG_TAG, test_idx);
+
+            /*-------------------------------------------------*\
+            | Pre-check sub-device availability via              |
+            | getConnectionInfo (CentPPBridge fn0). LGHUB does    |
+            | this and refuses to call sendFragment when MTU=0.   |
+            |                                                    |
+            | Response format (from protocol doc line 910-917):   |
+            |   Byte 0: high nibble = connection type/state       |
+            |           low nibble + Byte 1 = sub-device data     |
+            |           length / MTU                              |
+            |   Bytes 2+: sub-device descriptors                 |
+            |                                                    |
+            | If MTU == 0, no sub-device is connected. Calling   |
+            | sendFragment in that state triggers an undocumented|
+            | error code 0x0B and wastes the full retry budget.  |
+            | Skip enumeration and let the dongle-watcher path   |
+            | take over until ConnectionStateChangedEvent fires. |
+            \*-------------------------------------------------*/
+            uint8_t mtu_recv[16] = {};
+            int mtu_result = SendAcked(test_idx, 0x00,
+                                       nullptr, 0,
+                                       mtu_recv, sizeof(mtu_recv),
+                                       HIDPP_POLICY_PROBE);
+
+            if(mtu_result > 0)
+            {
+                transport.bridge_mtu =
+                    ((uint16_t)(mtu_recv[0] & 0x0F) << 8) | mtu_recv[1];
+
+                LOG_DEBUG("%s CentPPBridge MTU=%u (%s)",
+                          LOG_TAG, transport.bridge_mtu,
+                          transport.bridge_mtu > 0 ? "sub-device present"
+                                                   : "no sub-device");
+
+                if(transport.bridge_mtu == 0)
+                {
+                    /*---------------------------------------*\
+                    | No sub-device — skip enumeration. Mark   |
+                    | the feature map complete so on-demand    |
+                    | lookups don't hit the wire. The dongle   |
+                    | will be registered as a watcher and the  |
+                    | sub-device will be probed when           |
+                    | ConnectionStateChangedEvent fires.       |
+                    \*---------------------------------------*/
+                    caps.feature_map_complete = true;
+                    DiscoverDeviceName();
+                    return true;
+                }
+            }
+            else
+            {
+                LOG_DEBUG("%s CentPPBridge getConnectionInfo failed (result=%d)",
+                          LOG_TAG, mtu_result);
+            }
         }
         else
         {
