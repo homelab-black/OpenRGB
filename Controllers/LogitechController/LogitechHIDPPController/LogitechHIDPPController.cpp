@@ -1106,8 +1106,9 @@ uint8_t LogitechHIDPPController::GetFeatureIndex(uint16_t feature_page)
     send_data[1] = feature_page & 0xFF;
 
     uint8_t recv_data[16] = {};
-    int result = SendAndReceive(LOGITECH_HIDPP_PAGE_ROOT_IDX, FN_8071_GET_INFO,
-                                send_data, 2, recv_data, sizeof(recv_data));
+    int result = SendAcked(LOGITECH_HIDPP_PAGE_ROOT_IDX, FN_8071_GET_INFO,
+                           send_data, 2, recv_data, sizeof(recv_data),
+                           HIDPP_POLICY_PROBE);
 
     if(result > 0)
     {
@@ -1198,8 +1199,9 @@ void LogitechHIDPPController::DiscoverDeviceName()
     }
 
     uint8_t recv[16] = {};
-    int result = SendAndReceive(feat_idx, LOTITECH_CMD_DEVICE_NAME_TYPE_GET_COUNT,
-                                nullptr, 0, recv, sizeof(recv));
+    int result = SendAcked(feat_idx, LOTITECH_CMD_DEVICE_NAME_TYPE_GET_COUNT,
+                           nullptr, 0, recv, sizeof(recv),
+                           HIDPP_POLICY_PROBE);
 
     if(result <= 0)
     {
@@ -1213,8 +1215,9 @@ void LogitechHIDPPController::DiscoverDeviceName()
     for(unsigned int offset = 0; offset < name_length; offset += 16)
     {
         uint8_t send_data[1] = { (uint8_t)offset };
-        result = SendAndReceive(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_DEVICE_NAME,
-                                send_data, 1, recv, sizeof(recv));
+        result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_DEVICE_NAME,
+                           send_data, 1, recv, sizeof(recv),
+                           HIDPP_POLICY_PROBE);
 
         if(result <= 0)
         {
@@ -1255,8 +1258,9 @@ void LogitechHIDPPController::DiscoverDeviceType()
     }
 
     uint8_t recv[16] = {};
-    int result = SendAndReceive(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_TYPE,
-                                nullptr, 0, recv, sizeof(recv));
+    int result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_TYPE,
+                           nullptr, 0, recv, sizeof(recv),
+                           HIDPP_POLICY_PROBE);
 
     if(result > 0)
     {
@@ -1431,8 +1435,9 @@ void LogitechHIDPPController::EnumerateFeatures(uint8_t feature_set_idx)
         uint8_t send_data[1] = { 0x00 };
         uint8_t recv_data[60] = {};
 
-        int result = SendAndReceive(feature_set_idx, 0x10,
-                                    send_data, 1, recv_data, sizeof(recv_data));
+        int result = SendAcked(feature_set_idx, 0x10,
+                               send_data, 1, recv_data, sizeof(recv_data),
+                               HIDPP_POLICY_PROBE);
 
         if(result > 0)
         {
@@ -1490,8 +1495,9 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
             uint8_t send_data[1] = { 0x00 };
             uint8_t recv_data[16] = {};
 
-            int result = SendAndReceive(dev_info_idx, 0x10,
-                                        send_data, 1, recv_data, sizeof(recv_data));
+            int result = SendAcked(dev_info_idx, 0x10,
+                                   send_data, 1, recv_data, sizeof(recv_data),
+                                   HIDPP_POLICY_PROBE);
 
             if(result > 0)
             {
@@ -1514,8 +1520,9 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         {
             uint8_t recv_data[16] = {};
 
-            int result = SendAndReceive(dev_info_idx, 0x20,
-                                        nullptr, 0, recv_data, sizeof(recv_data));
+            int result = SendAcked(dev_info_idx, 0x20,
+                                   nullptr, 0, recv_data, sizeof(recv_data),
+                                   HIDPP_POLICY_PROBE);
 
             if(result > 0)
             {
@@ -1546,8 +1553,9 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
 
     {
         uint8_t recv_data[16] = {};
-        int result = SendAndReceive(fw_idx, 0x00,
-                                    nullptr, 0, recv_data, sizeof(recv_data));
+        int result = SendAcked(fw_idx, 0x00,
+                               nullptr, 0, recv_data, sizeof(recv_data),
+                               HIDPP_POLICY_PROBE);
 
         if(result > 0)
         {
@@ -1588,8 +1596,9 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
         uint8_t send_data[1] = { entity };
         uint8_t recv_data[16] = {};
 
-        int result = SendAndReceive(fw_idx, 0x10,
-                                    send_data, 1, recv_data, sizeof(recv_data));
+        int result = SendAcked(fw_idx, 0x10,
+                               send_data, 1, recv_data, sizeof(recv_data),
+                               HIDPP_POLICY_PROBE);
 
         if(result <= 0)
         {
@@ -1625,8 +1634,9 @@ void LogitechHIDPPController::DiscoverFirmwareInfo()
     {
         uint8_t recv_data[16] = {};
 
-        int result = SendAndReceive(fw_idx, 0x20,
-                                    nullptr, 0, recv_data, sizeof(recv_data));
+        int result = SendAcked(fw_idx, 0x20,
+                               nullptr, 0, recv_data, sizeof(recv_data),
+                               HIDPP_POLICY_PROBE);
 
         if(result > 0)
         {
@@ -1719,7 +1729,8 @@ void LogitechHIDPPController::DiscoverRGBEffects()
 
     blankFAPmessage response;
     int result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
-                                  data, data_len, response);
+                                  data, data_len, response,
+                                  HIDPP_POLICY_PROBE);
 
     if(result <= 0)
     {
@@ -1752,13 +1763,15 @@ void LogitechHIDPPController::DiscoverRGBEffects()
         {
             uint8_t query[2] = { (uint8_t)i, 0xFF };
             result = SendAckedIntoFAP(caps.idx_rgb_effects, FN_8071_GET_INFO,
-                                      query, 2, response);
+                                      query, 2, response,
+                                      HIDPP_POLICY_PROBE);
         }
         else
         {
             uint8_t query[2] = { (uint8_t)i, 0x00 };
             result = SendAckedIntoFAP(caps.idx_rgb_effects, LOGITECH_CMD_RGB_EFFECTS_GET_INFO,
-                                      query, 2, response);
+                                      query, 2, response,
+                                      HIDPP_POLICY_PROBE);
         }
 
         if(result <= 0)
@@ -1792,7 +1805,8 @@ void LogitechHIDPPController::DiscoverRGBEffects()
             uint8_t eff_fn = (caps.rgb_feature_page == HIDPP_FEAT_RGB_EFFECTS)
                            ? FN_8071_GET_INFO : LOGITECH_FP8070_EFFECT_INFO;
             result = SendAckedIntoFAP(caps.idx_rgb_effects, eff_fn,
-                                      eff_query, 4, response);
+                                      eff_query, 4, response,
+                                      HIDPP_POLICY_PROBE);
 
             if(result <= 0)
             {
@@ -1848,7 +1862,8 @@ void LogitechHIDPPController::DiscoverPerKeyZones()
         uint8_t query[3] = { 0x00, 0x00, 0x00 };
         blankFAPmessage response;
         int result = SendAckedIntoFAP(perkey_idx, FN_8081_GET_INFO,
-                                      query, 3, response);
+                                      query, 3, response,
+                                      HIDPP_POLICY_PROBE);
 
         if(result > 0)
         {
@@ -1916,7 +1931,8 @@ void LogitechHIDPPController::DiscoverKeyboardLayout()
     }
 
     uint8_t recv_data[16] = {};
-    int result = SendAndReceive(idx, 0x00, nullptr, 0, recv_data, sizeof(recv_data));
+    int result = SendAcked(idx, 0x00, nullptr, 0, recv_data, sizeof(recv_data),
+                           HIDPP_POLICY_PROBE);
 
     if(result > 0)
     {

@@ -274,6 +274,8 @@ static constexpr uint16_t HIDPP_BACKOFF_FRAMEEND[] =
     { 0, 10, 30, 63, 125 };
 static constexpr uint16_t HIDPP_BACKOFF_STREAMING[] =
     { 0, 30 };
+static constexpr uint16_t HIDPP_BACKOFF_PROBE[] =
+    { 0, 100 };
 
 static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
     HIDPP_BACKOFF_RELIABLE,
@@ -300,6 +302,23 @@ static constexpr HIDPPRetryPolicy HIDPP_POLICY_STREAMING = {
     false,  // do not flush — in-flight ACKs from prior writes are expected
     true,   // retry_on_busy
     "streaming"
+};
+
+/*-----------------------------------------------------*\
+| Probe policy: tight budget for is-this-HID++ checks    |
+| during initial discovery. ~500ms worst case for dead   |
+| devices, vs ~6s for reliable. One retry handles a      |
+| transient hiccup on the first IRoot call (e.g. on a    |
+| busy mouse), but we bail fast on truly non-responsive  |
+| or non-HID++ hidraws so probe latency stays bounded.   |
+\*-----------------------------------------------------*/
+static constexpr HIDPPRetryPolicy HIDPP_POLICY_PROBE = {
+    HIDPP_BACKOFF_PROBE,
+    sizeof(HIDPP_BACKOFF_PROBE) / sizeof(uint16_t),
+    200,    // read window
+    true,   // flush_before
+    true,   // retry_on_busy
+    "probe"
 };
 
 class LogitechHIDPPController
