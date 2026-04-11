@@ -56,6 +56,7 @@ LogitechHIDPPController::LogitechHIDPPController
     this->power_thread_running = false;
     this->pending_activity     = -1;
     this->pending_connection   = 0;
+    this->pending_path_check   = false;
     this->device_online        = true;
     this->consecutive_timeouts = 0;
     this->watcher_mode         = false;
@@ -3241,20 +3242,62 @@ void LogitechHIDPPController::StartProbeWatcher()
     LOG_DEBUG("%s Probe watcher started (retrying every 5s)", LOG_TAG);
 }
 
-bool LogitechHIDPPController::ScanForDevice()
+bool LogitechHIDPPController::ScanForDevice(bool force)
 {
     /*---------------------------------------------------------*\
     | Scan sysfs for a hidraw with matching unitId. Called by    |
-    | the power thread when the device goes offline (USB/wireless|
-    | switch). Finds the device on its new connection path.      |
+    | the power thread either periodically (normal reactive     |
+    | mode — only when device_online==false, USB/wireless        |
+    | transition or physical unplug) or on demand from the      |
+    | reader thread after a HID++1.0 Device Connection          |
+    | notification arrives (force=true, bypasses the online    |
+    | gate). Finds the device on its new connection path.      |
+    |                                                           |
+    | Reactive-only: we never migrate while the current path    |
+    | still works. On devices like the G502 X PLUS that expose  |
+    | both a USB-direct hidraw AND a wireless-via-dongle hidraw |
+    | simultaneously (when paired to the receiver and plugged   |
+    | in at the same time), eager migration would bounce us off |
+    | a working path onto one the firmware has actively muted,  |
+    | breaking control. The device signals which path is        |
+    | active by returning errors/going silent on the inactive   |
+    | path — our reader thread picks that up as a hid_read      |
+    | failure and flips device_online=false, at which point the |
+    | power thread calls this function to pick the new path.    |
+    |                                                           |
+    | Linux-only: this implementation walks /sys/class/hidraw.  |
+    | The Windows port will need an equivalent using hidapi's   |
+    | hid_enumerate() + serial_number matching, since Windows   |
+    | has no sysfs. The caller contract (reactive scan when    |
+    | offline, returns true on successful swap) is portable.    |
     |                                                           |
     | Match criteria:                                           |
+    |   - device_online == false (caller should already ensure) |
     |   - HID_UNIQ matches our unitId                           |
     |   - Logitech VID (046D)                                   |
     |   - HID++ interface (usage_page 0xFF00, usage 2)          |
     |   - Different from our current path (device moved)        |
     \*---------------------------------------------------------*/
     if(caps.unit_id.empty() || caps.unit_id == "00000000")
+    {
+        return false;
+    }
+
+    /*---------------------------------------------------------*\
+    | Online guard: never migrate off a working path unless    |
+    | the caller explicitly forces a re-check. The normal       |
+    | periodic scan path stays gated on device_online==false   |
+    | so it's a no-op when everything is healthy.               |
+    |                                                           |
+    | The reader thread bypasses this guard (force=true) after |
+    | seeing a HID++1.0 Device Connection Status notification   |
+    | from the Lightspeed receiver, which fires BEFORE the     |
+    | firmware fully switches its data flow from wireless to   |
+    | USB. At that moment device_online is still true (the     |
+    | current path hasn't failed yet), but we want the scan to |
+    | run so we can migrate to the new path proactively.       |
+    \*---------------------------------------------------------*/
+    if(!force && device_online.load())
     {
         return false;
     }
@@ -3784,6 +3827,46 @@ void LogitechHIDPPController::ReaderThreadFunc()
             }
 
             /*-------------------------------------------------*\
+            | HID++1.0 Device Connection notifications from the  |
+            | Lightspeed receiver. sub_id 0x40 = Device           |
+            | Disconnection, 0x41 = Device Connection Status.     |
+            | Either one is a signal that the paired device's    |
+            | preferred path just changed — typically because    |
+            | the user plugged in (or unplugged) the USB cable   |
+            | on the device itself.                              |
+            |                                                     |
+            | These arrive on the paired device's hidraw with    |
+            | device_index=0x01 (not the receiver's own          |
+            | endpoint) because the kernel dj-receiver driver    |
+            | routes them to the device's virtual hidraw. We    |
+            | see them because our reader is attached to that   |
+            | hidraw.                                             |
+            |                                                     |
+            | Flag a force path-check for the power thread. It  |
+            | will run ScanForDevice(true) which bypasses the   |
+            | device_online gate so the scan can find a          |
+            | different-PID migration candidate even while the  |
+            | current path hasn't failed yet. If no such         |
+            | candidate exists (same path, false alarm), the     |
+            | scan is a no-op.                                   |
+            |                                                     |
+            | This is how we catch the wireless→USB transition: |
+            | the notification fires BEFORE the firmware fully   |
+            | switches its data flow, giving us a window to      |
+            | migrate proactively. The reverse direction        |
+            | (USB→wireless) is already handled via the USB fd  |
+            | becoming invalid on cable unplug.                  |
+            \*-------------------------------------------------*/
+            if(feat == 0x40 || feat == 0x41)
+            {
+                LOG_DEBUG("%s HID++1.0 connection notification sub_id=0x%02X "
+                          "flags=0x%02X (path change — forcing scan)",
+                          LOG_TAG, feat, func);
+                pending_path_check.store(true);
+                continue;
+            }
+
+            /*-------------------------------------------------*\
             | Only queue responses to OUR commands.              |
             | Our commands use HIDPP_SW_ID (0x0A) in the low     |
             | nibble. Firmware-generated messages (battery,       |
@@ -3877,18 +3960,38 @@ void LogitechHIDPPController::PowerThreadFunc()
         }
 
         /*-----------------------------------------------------*\
-        | 1c. Continuous scan for connection migration.          |
-        | Checks sysfs every 2 seconds for our unitId on a      |
-        | hidraw with a DIFFERENT PID. Same-PID matches are     |
-        | filtered out (stale receiver pairing slots), so this  |
-        | only fires on genuine connection changes (e.g., USB   |
-        | plug-in changes PID from 0x40B4 → 0xC355).            |
+        | 1b'. Force path-check from HID++1.0 DJ notification.   |
+        | Flagged by the reader thread when the Lightspeed       |
+        | receiver fires a Device Connection Status or           |
+        | Disconnection sub_id (0x40/0x41). The force-scan       |
+        | bypasses the device_online gate so we can migrate to  |
+        | the USB path before the firmware fully stops routing  |
+        | data over wireless. No-op if the scan finds no        |
+        | different-PID migration candidate.                     |
+        \*-----------------------------------------------------*/
+        if(pending_path_check.exchange(false))
+        {
+            ScanForDevice(true);
+        }
+
+        /*-----------------------------------------------------*\
+        | 1c. Reactive scan for connection migration.            |
+        | ScanForDevice is a no-op when device_online==true, so |
+        | this loop only does work when the device has actually |
+        | gone offline. Poll fast (200ms) in that state so      |
+        | USB-cable/wireless transitions recover in under a     |
+        | second end-to-end; back off to 2s while online since  |
+        | the scan is a no-op anyway and we want to keep the    |
+        | power thread idle most of the time.                    |
         \*-----------------------------------------------------*/
         if(!caps.unit_id.empty())
         {
             auto now = std::chrono::steady_clock::now();
+            auto interval = device_online.load()
+                          ? std::chrono::milliseconds(2000)
+                          : std::chrono::milliseconds(200);
 
-            if(now - last_probe_time >= std::chrono::seconds(2))
+            if(now - last_probe_time >= interval)
             {
                 last_probe_time = now;
                 ScanForDevice();
