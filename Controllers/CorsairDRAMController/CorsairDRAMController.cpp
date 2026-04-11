@@ -10,6 +10,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <cstring>
 #include "CRC.h"
 #include "CorsairDRAMController.h"
 #include "LogManager.h"
@@ -29,6 +30,8 @@ CorsairDRAMController::CorsairDRAMController(i2c_smbus_interface *bus, corsair_d
     pid                 = 0;
     vid                 = 0;
     protocol_version    = 0;
+    direct_mode         = false;
+    last_effect_valid   = false;
 
     /*-----------------------------------------------------*\
     | Read device information                               |
@@ -285,6 +288,30 @@ void CorsairDRAMController::SetEffect
     effect_data[19] = 0x00;
 
     /*-----------------------------------------------------*\
+    | Dedup against the last successfully committed effect  |
+    | config. DeviceUpdateMode often fires with identical   |
+    | parameters (init double-fire, profile re-loads,        |
+    | restoring already-active state). Skipping the flash   |
+    | commit on byte-identical effect_data avoids burning   |
+    | flash cycles for no visible change.                   |
+    \*-----------------------------------------------------*/
+    if(last_effect_valid &&
+       memcmp(effect_data, last_effect_data, sizeof(effect_data)) == 0)
+    {
+        /*-------------------------------------------------*\
+        | Re-apply the static→direct_mode transition that   |
+        | the trailing block below normally performs, in    |
+        | case a previous SetDirect(false) cleared it but   |
+        | the underlying effect bytes didn't change.        |
+        \*-------------------------------------------------*/
+        if(mode == CORSAIR_DRAM_MODE_STATIC && protocol_version >= 4)
+        {
+            direct_mode = true;
+        }
+        return;
+    }
+
+    /*-----------------------------------------------------*\
     | Write effect packet                                   |
     \*-----------------------------------------------------*/
     bus->i2c_smbus_write_byte_data(dev, CORSAIR_DRAM_REG_RESET_BUFFER, 0x00);
@@ -308,6 +335,15 @@ void CorsairDRAMController::SetEffect
     {
         bus->i2c_smbus_write_byte_data(dev, CORSAIR_DRAM_REG_WRITE_CONFIGURATION, CORSAIR_DRAM_ID_EFFECT_CONFIGURATION);
         WaitReady();
+
+        /*-------------------------------------------------*\
+        | Stash the committed bytes for the next dedup      |
+        | comparison. Only stash on a successful commit so  |
+        | a CRC-mismatch failure forces the next call to    |
+        | re-attempt the write.                             |
+        \*-------------------------------------------------*/
+        memcpy(last_effect_data, effect_data, sizeof(effect_data));
+        last_effect_valid = true;
     }
 
     /*-----------------------------------------------------*\

@@ -134,6 +134,17 @@ private:
     bool                    direct_mode;
 
     /*-----------------------------------------------------*\
+    | SetEffect dedup: stash the last successfully          |
+    | committed 20-byte effect_data buffer and skip the     |
+    | flash write if a subsequent SetEffect call would      |
+    | produce identical bytes. Avoids burning flash cycles  |
+    | from redundant DeviceUpdateMode invocations (init     |
+    | races, profile re-loads, identical-state restores).   |
+    \*-----------------------------------------------------*/
+    bool                    last_effect_valid;
+    unsigned char           last_effect_data[20];
+
+    /*-----------------------------------------------------*\
     | Corsair DRAM information                              |
     \*-----------------------------------------------------*/
     unsigned short          vid;
