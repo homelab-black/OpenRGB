@@ -238,6 +238,70 @@ struct HIDPPRawMessage
     int     result;
 };
 
+/*-----------------------------------------------------*\
+| Retry policy for SendAcked.                            |
+|                                                        |
+| Controls the send/read/retry loop for a single HID++   |
+| request. Three canned policies cover all use cases:    |
+|                                                        |
+|   Reliable: probe/discovery/set/get  (~6s worst case)  |
+|   FrameEnd: per-key commit gate      (~230ms worst)    |
+|   Streaming: per-key write inside the animation loop   |
+|              (~80ms worst)                              |
+|                                                        |
+| backoff_ms[i] is the delay applied BEFORE the i-th     |
+| attempt. backoff_ms[0] is normally 0 (no delay before  |
+| the first send). The schedule mirrors the firmware's   |
+| own event burst pattern (63→125→250→500→1000→2000ms,   |
+| "catch at least one of N").                            |
+\*-----------------------------------------------------*/
+struct HIDPPRetryPolicy
+{
+    const uint16_t* backoff_ms;     // schedule[i] = delay before attempt i
+    uint8_t         attempts;       // length of backoff_ms (>=1)
+    uint16_t        read_window_ms; // per-attempt read budget
+    bool            flush_before;   // flush response queue at call start
+    bool            retry_on_busy;  // BUSY (0x08) -> retry the send
+    const char*     name;           // for logging ("reliable", etc.)
+};
+
+/*-----------------------------------------------------*\
+| Canned backoff schedules.                              |
+\*-----------------------------------------------------*/
+static constexpr uint16_t HIDPP_BACKOFF_RELIABLE[] =
+    { 0, 63, 125, 250, 500, 1000, 2000 };
+static constexpr uint16_t HIDPP_BACKOFF_FRAMEEND[] =
+    { 0, 10, 30, 63, 125 };
+static constexpr uint16_t HIDPP_BACKOFF_STREAMING[] =
+    { 0, 30 };
+
+static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
+    HIDPP_BACKOFF_RELIABLE,
+    sizeof(HIDPP_BACKOFF_RELIABLE) / sizeof(uint16_t),
+    300,    // read window
+    true,   // flush_before
+    true,   // retry_on_busy
+    "reliable"
+};
+
+static constexpr HIDPPRetryPolicy HIDPP_POLICY_FRAME_END = {
+    HIDPP_BACKOFF_FRAMEEND,
+    sizeof(HIDPP_BACKOFF_FRAMEEND) / sizeof(uint16_t),
+    100,    // read window
+    false,  // do not flush — preceding per-key ACKs may still be draining
+    true,   // retry_on_busy
+    "frameend"
+};
+
+static constexpr HIDPPRetryPolicy HIDPP_POLICY_STREAMING = {
+    HIDPP_BACKOFF_STREAMING,
+    sizeof(HIDPP_BACKOFF_STREAMING) / sizeof(uint16_t),
+    50,     // read window
+    false,  // do not flush — in-flight ACKs from prior writes are expected
+    true,   // retry_on_busy
+    "streaming"
+};
+
 class LogitechHIDPPController
 {
 public:
@@ -382,6 +446,22 @@ private:
     int             SendAndReceive(uint8_t feat_idx, uint8_t function,
                                    const uint8_t* send_data, size_t send_len,
                                    uint8_t* recv_data, size_t recv_max);
+
+    /*-------------------------------------------------*\
+    | Unified send-and-ack primitive with retry policy. |
+    | All command paths converge here. Returns:         |
+    |   >0 : bytes copied into recv_data                 |
+    |    0 : timeout / BUSY exhaustion                   |
+    |   -1 : non-BUSY HID++ error                        |
+    |   -2 : wire error (SendMessage failed)             |
+    | If hidpp_error_out is non-null and return is -1,  |
+    | the HID++ error code is stored there.             |
+    \*-------------------------------------------------*/
+    int             SendAcked(uint8_t feat_idx, uint8_t function,
+                              const uint8_t* send_data, size_t send_len,
+                              uint8_t* recv_data, size_t recv_max,
+                              const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE,
+                              uint8_t* hidpp_error_out = nullptr);
 
     /*-------------------------------------------------*\
     | Feature discovery                                 |
