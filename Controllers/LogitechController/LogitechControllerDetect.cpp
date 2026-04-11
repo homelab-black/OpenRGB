@@ -1055,8 +1055,10 @@ REGISTER_HID_DETECTOR_IPU("Logitech Powerplay Mat",                             
 |   G502 changed to PU to accomodate old and new firmware. Other devices may require similar update #4627                                           |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_PU("Logitech G502 Wireless Gaming Mouse (wired)",         DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_LIGHTSPEED_PID,                    0xFF00, 2);
-// Handled by unified HID++ controller above
-REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
+// Handled by unified HID++ controller above — DetectLogitechWired would
+// otherwise claim interface 2 first and prevent the HID++ 2.0 controller
+// from opening the device, breaking USB-direct migration and testing.
+//REGISTER_HID_DETECTOR_IPU("Logitech G502 X Plus (wired)",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,                     2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 Proteus Spectrum Gaming Mouse",        DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_PROTEUS_SPECTRUM_PID,           1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 HERO Gaming Mouse",                    DetectLogitechWired,        LOGITECH_VID, LOGITECH_G502_HERO_PID,                       1, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G403 Prodigy Gaming Mouse",                 DetectLogitechWired,        LOGITECH_VID, LOGITECH_G403_PID,                            1, 0xFF00, 2);
