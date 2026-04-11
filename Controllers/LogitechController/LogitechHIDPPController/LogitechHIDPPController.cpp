@@ -299,6 +299,216 @@ int LogitechHIDPPController::SendAndReceive
     return -1;
 }
 
+int LogitechHIDPPController::SendAcked
+    (
+    uint8_t                 feat_idx,
+    uint8_t                 function,
+    const uint8_t*          send_data,
+    size_t                  send_len,
+    uint8_t*                recv_data,
+    size_t                  recv_max,
+    const HIDPPRetryPolicy& policy,
+    uint8_t*                hidpp_error_out
+    )
+{
+    /*---------------------------------------------------------*\
+    | Universal send-and-ack with policy-driven retry. Mirrors  |
+    | the firmware's own event burst pattern: 7-attempt          |
+    | exponential backoff for reliable one-shot commands, tight  |
+    | 2-attempt for streaming animation frames.                  |
+    |                                                           |
+    | Loop semantics per attempt:                                |
+    |   1. Sleep backoff_ms[i] (0 on first attempt)              |
+    |   2. Bail if device went offline                          |
+    |   3. SendMessage; on wire error, mark and retry            |
+    |   4. Read loop bounded by read_window_ms:                  |
+    |      - matching response  -> success                      |
+    |      - HID++ error 0xFF for our request:                  |
+    |          BUSY (0x08) + retry_on_busy -> retry the send    |
+    |          other code                  -> hard fail (-1)    |
+    |      - HID++ error for different request -> discard       |
+    |      - non-matching, non-error frame    -> discard        |
+    |      - read timeout (0)                  -> retry the send|
+    \*---------------------------------------------------------*/
+    if(hidpp_error_out)
+    {
+        *hidpp_error_out = 0;
+    }
+
+    if(policy.flush_before)
+    {
+        FlushResponseQueue();
+    }
+
+    int     last_result = 0;
+    uint8_t last_error  = 0;
+
+    for(uint8_t attempt = 0; attempt < policy.attempts; attempt++)
+    {
+        /*-----------------------------------------------------*\
+        | Backoff before each attempt (0 on first)               |
+        \*-----------------------------------------------------*/
+        uint16_t delay_ms = policy.backoff_ms[attempt];
+
+        if(delay_ms > 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+        }
+
+        /*-----------------------------------------------------*\
+        | Bail early if device went offline mid-retry            |
+        \*-----------------------------------------------------*/
+        if(!device_online.load())
+        {
+            return 0;
+        }
+
+        int send_result = SendMessage(feat_idx, function, send_data, send_len);
+
+        if(send_result < 0)
+        {
+            LOG_DEBUG("%s SendAcked[%s] wire send failed (attempt %d, result=%d) "
+                      "feat=0x%02X func=0x%02X",
+                      LOG_TAG, policy.name, attempt, send_result, feat_idx, function);
+            last_result = -2;
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Read loop bounded by per-attempt window. Drain        |
+        | non-matching HID++ frames within this window — they   |
+        | are stale responses or unrelated events from prior    |
+        | commands. Only retry the send if the window expires   |
+        | with no match (lost on wire) or we got BUSY.           |
+        \*-----------------------------------------------------*/
+        auto window_deadline = std::chrono::steady_clock::now()
+                             + std::chrono::milliseconds(policy.read_window_ms);
+        bool need_resend = false;
+
+        while(!need_resend)
+        {
+            auto now = std::chrono::steady_clock::now();
+
+            if(now >= window_deadline)
+            {
+                LOG_TRACE("%s SendAcked[%s] window expired (attempt %d)",
+                          LOG_TAG, policy.name, attempt);
+                last_result = 0;
+                break;
+            }
+
+            int remaining = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  window_deadline - now).count();
+
+            if(remaining <= 0)
+            {
+                last_result = 0;
+                break;
+            }
+
+            uint8_t resp_feat = 0;
+            uint8_t resp_func = 0;
+            uint8_t resp_data[60] = {};
+
+            int rd = ReadMessage(&resp_feat, &resp_func,
+                                 resp_data, sizeof(resp_data),
+                                 remaining);
+
+            if(rd < 0)
+            {
+                /* Wire error — propagate, don't retry */
+                return -2;
+            }
+
+            if(rd == 0)
+            {
+                /* Window drained with nothing matching — retry the send */
+                last_result = 0;
+                break;
+            }
+
+            /*-------------------------------------------------*\
+            | HID++ error frame                                 |
+            | feat=0xFF, func=err_feat, data[0]=err_func,       |
+            | data[1]=err_code                                  |
+            \*-------------------------------------------------*/
+            if(resp_feat == 0xFF)
+            {
+                uint8_t err_feat = resp_func;
+                uint8_t err_func = resp_data[0];
+                uint8_t err_code = resp_data[1];
+
+                if(err_feat == feat_idx &&
+                   (err_func & 0xF0) == (function & 0xF0))
+                {
+                    if(err_code == 0x08 && policy.retry_on_busy)
+                    {
+                        /* BUSY: retry the send after backoff */
+                        LOG_TRACE("%s SendAcked[%s] BUSY (attempt %d) feat=0x%02X func=0x%02X",
+                                  LOG_TAG, policy.name, attempt, feat_idx, function);
+                        last_error  = 0x08;
+                        last_result = 0;
+                        need_resend = true;
+                        continue;
+                    }
+
+                    /* Non-BUSY HID++ error: hard fail */
+                    LOG_DEBUG("%s SendAcked[%s] HID++ error 0x%02X "
+                              "feat=0x%02X func=0x%02X",
+                              LOG_TAG, policy.name, err_code, feat_idx, function);
+
+                    if(hidpp_error_out)
+                    {
+                        *hidpp_error_out = err_code;
+                    }
+
+                    return -1;
+                }
+
+                /* Error for a different request — stale, discard and keep reading */
+                continue;
+            }
+
+            /*-------------------------------------------------*\
+            | Match our expected response                       |
+            \*-------------------------------------------------*/
+            if(resp_feat == feat_idx &&
+               (resp_func & 0xF0) == (function & 0xF0))
+            {
+                if(recv_data && recv_max > 0)
+                {
+                    size_t copy = (recv_max > sizeof(resp_data))
+                                ? sizeof(resp_data) : recv_max;
+                    memcpy(recv_data, resp_data, copy);
+                }
+
+                if(attempt > 0)
+                {
+                    LOG_DEBUG("%s SendAcked[%s] succeeded on attempt %d "
+                              "feat=0x%02X func=0x%02X",
+                              LOG_TAG, policy.name, attempt, feat_idx, function);
+                }
+
+                return rd;
+            }
+
+            /* Non-matching, non-error: stale unrelated frame, keep reading */
+        }
+    }
+
+    LOG_DEBUG("%s SendAcked[%s] exhausted %d attempts feat=0x%02X func=0x%02X "
+              "(last_error=0x%02X)",
+              LOG_TAG, policy.name, (int)policy.attempts,
+              feat_idx, function, last_error);
+
+    if(hidpp_error_out)
+    {
+        *hidpp_error_out = last_error;
+    }
+
+    return last_result;
+}
+
 /*---------------------------------------------------------*\
 | SendLong / ReadResponse — backward-compatible wrappers    |
 | These dispatch through SendMessage/ReadMessage which      |
