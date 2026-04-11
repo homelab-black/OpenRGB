@@ -21,6 +21,7 @@
 
 #include <codecvt>
 #include <locale>
+#include <regex>
 #include <string>
 #include "StringUtils.h"
 
@@ -92,5 +93,28 @@ const std::string StringUtils::remove_null_terminating_chars(std::string input)
         input.pop_back();
     }
 
+    return(input);
+}
+
+std::string StringUtils::make_filename(std::string input)
+{
+    /*-----------------------------------------------------*\
+    | Replace : characters with - characters                |
+    \*-----------------------------------------------------*/
+    input = std::regex_replace(input, std::regex(":"), "-");
+
+    /*-----------------------------------------------------*\
+    | Replace $ characters with S characters                |
+    \*-----------------------------------------------------*/
+    input = std::regex_replace(input, std::regex("\\$"), "S");
+
+    /*-----------------------------------------------------*\
+    | Remove all other characters                           |
+    \*-----------------------------------------------------*/
+    input = std::regex_replace(input, std::regex("[#%&\\{\\}\\\\<>\\*\\?/!`';@+|=]"), "");
+
+    /*-----------------------------------------------------*\
+    | Return complete string                                |
+    \*-----------------------------------------------------*/
     return(input);
 }
