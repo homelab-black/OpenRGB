@@ -808,15 +808,6 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         \*-----------------------------------------------------*/
         std::vector<RGBColor> snapshot(colors.begin(), colors.end());
 
-        if(!snapshot.empty())
-        {
-            RGBColor first = snapshot[0];
-            LOG_TRACE("[HID++2.0 %s] DeviceUpdateLEDs snapshot: size=%zu first=R%d G%d B%d sent_sz=%zu",
-                      name.c_str(), snapshot.size(),
-                      RGBGetRValue(first), RGBGetGValue(first), RGBGetBValue(first),
-                      sent_colors.size());
-        }
-
         /*-----------------------------------------------------*\
         | Apply dim brightness scaling if not at full brightness.|
         | This modifies the OUTPUT only — the internal colors[]  |
@@ -856,31 +847,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
         }
 
-        size_t changed_count = 0;
-        for(auto& e : color_to_zones) changed_count += e.second.size();
-
-        if(full_update)
-        {
-            size_t black_count = 0;
-            for(size_t i = 0; i < snapshot.size(); i++)
-            {
-                if(snapshot[i] == 0) black_count++;
-            }
-            LOG_TRACE("[HID++2.0 %s] Full update: %zu keys, %zu black, %zu unique colors",
-                      name.c_str(), changed_count, black_count, color_to_zones.size());
-        }
-
-        LOG_DEBUG("[HID++2.0 %s] delta: full=%d sent_sz=%zu snap_sz=%zu changed=%zu colors=%zu",
-                  name.c_str(), full_update,
-                  sent_colors.size(), snapshot.size(),
-                  changed_count, color_to_zones.size());
-
         if(color_to_zones.empty())
         {
             return;
         }
-
-        auto t_start = std::chrono::steady_clock::now();
 
         /*-----------------------------------------------------*\
         | Drain stale ACKs from previous frames before sending. |
@@ -1019,11 +989,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             controller->SetPerKeyColors(individual_pairs);
         }
 
-        auto t_writes = std::chrono::steady_clock::now();
-
         PerKeyFrameResult commit = controller->PerKeyFrameEnd();
-
-        auto t_end = std::chrono::steady_clock::now();
 
         /*-----------------------------------------------------*\
         | Ensure sent_colors is sized to the snapshot before    |
@@ -1095,16 +1061,6 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
         }
 
-        size_t changed = 0;
-        for(auto& e : color_to_zones) changed += e.second.size();
-
-        auto ms_writes = std::chrono::duration_cast<std::chrono::milliseconds>(t_writes - t_start).count();
-        auto ms_frame  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_writes).count();
-        auto ms_total  = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
-
-        LOG_DEBUG("[HID++2.0 %s] DeviceUpdateLEDs: %zu/%zu keys, writes=%lldms frame=%lldms total=%lldms",
-                  name.c_str(), changed, led_to_zone_id.size(),
-                  (long long)ms_writes, (long long)ms_frame, (long long)ms_total);
     }
 }
 
@@ -1138,9 +1094,6 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     }
 
     const mode& current = modes[active_mode];
-
-    LOG_DEBUG("[HID++2.0 %s] DeviceUpdateMode: mode='%s' value=%d color_mode=%d",
-              name.c_str(), current.name.c_str(), current.value, current.color_mode);
 
     /*---------------------------------------------------------*\
     | Direct mode: invalidate delta tracking so the next         |
