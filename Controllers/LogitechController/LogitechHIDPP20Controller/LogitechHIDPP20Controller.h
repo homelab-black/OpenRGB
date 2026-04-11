@@ -559,7 +559,24 @@ private:
     void            ReconnectDevice();
     void            FullReprobe();
     void            RediscoverFeatures();
+    /*---------------------------------------------------*\
+    | Platform-specific. ScanForDevice walks the OS-level  |
+    | HID enumeration to find the same physical device on  |
+    | a new path (USB<->wireless transitions). Linux uses  |
+    | sysfs, Windows uses hidapi + serial_number matching. |
+    | Bodies live in LogitechHIDPP20Controller_Linux.cpp   |
+    | and LogitechHIDPP20Controller_Windows.cpp.           |
+    \*---------------------------------------------------*/
     bool            ScanForDevice(bool force = false);
+
+    /*---------------------------------------------------*\
+    | Platform-specific. Returns the friendly name for a   |
+    | Centurion sub-device at the given hidapi path, or "" |
+    | if no name is available. Linux reads HID_NAME from   |
+    | sysfs; Windows uses hid_device_info::product_string. |
+    \*---------------------------------------------------*/
+    std::string     GetCenturionSubDeviceName(const std::string& path);
+
     void            SwapHIDHandle(hid_device* new_dev, const std::string& new_path);
 
     /*-------------------------------------------------*\
