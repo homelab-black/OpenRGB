@@ -789,8 +789,8 @@ void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
 |   Devices that don't respond to IRoot are released for legacy controllers.                                                                         |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0",                                    DetectLogitechHIDPP20,        LOGITECH_VID, 0xFF00, 2);
-REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43)",                             DetectLogitechHIDPP20,        LOGITECH_VID, 0xFF43, 514);
-REGISTER_HID_DETECTOR_PU("Logitech Centurion",                                     DetectLogitechHIDPP20,        LOGITECH_VID, HID_PID_ANY, 0xFFA0, 1);
+REGISTER_HID_DETECTOR_VPU("Logitech HID++ 2.0 (FF43 transport)",                   DetectLogitechHIDPP20,        LOGITECH_VID, 0xFF43, 514);
+REGISTER_HID_DETECTOR_PU("Logitech HID++ 2.0 (Centurion transport)",               DetectLogitechHIDPP20,        LOGITECH_VID, HID_PID_ANY, 0xFFA0, 1);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |
