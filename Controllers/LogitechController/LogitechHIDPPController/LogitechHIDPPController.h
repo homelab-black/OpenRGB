@@ -438,11 +438,6 @@ private:
     \*-------------------------------------------------*/
     int             SendLong(uint8_t feat_idx, uint8_t function,
                              const uint8_t* data, size_t len);
-    int             ReadResponse(blankFAPmessage& response,
-                                 uint8_t expected_feat_idx,
-                                 uint8_t expected_function,
-                                 int timeout_ms = LOGITECH_PROTOCOL_TIMEOUT,
-                                 int retries_left = 10);
     int             SendAndReceive(uint8_t feat_idx, uint8_t function,
                                    const uint8_t* send_data, size_t send_len,
                                    uint8_t* recv_data, size_t recv_max);
@@ -462,6 +457,17 @@ private:
                               uint8_t* recv_data, size_t recv_max,
                               const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE,
                               uint8_t* hidpp_error_out = nullptr);
+
+    /*-------------------------------------------------*\
+    | Compatibility shim: same as SendAcked but writes  |
+    | the response into a blankFAPmessage. Used by       |
+    | callers that inherited the SendLong+ReadResponse   |
+    | interface and inspect response.data[] downstream.  |
+    \*-------------------------------------------------*/
+    int             SendAckedIntoFAP(uint8_t feat_idx, uint8_t function,
+                                     const uint8_t* send_data, size_t send_len,
+                                     blankFAPmessage& response,
+                                     const HIDPPRetryPolicy& policy = HIDPP_POLICY_RELIABLE);
 
     /*-------------------------------------------------*\
     | Feature discovery                                 |
