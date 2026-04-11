@@ -11,7 +11,10 @@
 #include <thread>
 #include <chrono>
 #include <set>
+#include <fstream>
+#include <dirent.h>
 #include "LogitechHIDPPController.h"
+#include "RGBController_LogitechHIDPP.h"
 #include "LogManager.h"
 
 using namespace std::chrono_literals;
@@ -44,6 +47,9 @@ LogitechHIDPPController::LogitechHIDPPController
     this->power_thread_running = false;
     this->pending_activity     = -1;
     this->pending_connection   = 0;
+    this->device_online        = true;
+    this->consecutive_timeouts = 0;
+    this->watcher_mode         = false;
     this->power_state          = HIDPP_POWER_ACTIVE;
     this->dim_brightness_pct   = 100;
     this->dim_step             = 0;
@@ -166,6 +172,20 @@ int LogitechHIDPPController::ReadFromQueue
     {
         if(response_cv.wait_until(lock, deadline) == std::cv_status::timeout)
         {
+            int timeouts = ++consecutive_timeouts;
+
+            /*-------------------------------------------------*\
+            | 10 consecutive timeouts (~3s with 300ms each) before|
+            | marking offline. Single delayed responses don't    |
+            | trigger offline state.                             |
+            \*-------------------------------------------------*/
+            if(timeouts >= 10 && device_online.load())
+            {
+                LOG_DEBUG("%s Device appears offline (%d consecutive timeouts)",
+                          LOG_TAG, timeouts);
+                device_online.store(false);
+            }
+
             return 0;
         }
 
@@ -174,6 +194,8 @@ int LogitechHIDPPController::ReadFromQueue
             return 0;
         }
     }
+
+    consecutive_timeouts.store(0);
 
     HIDPPRawMessage msg = response_queue.front();
     response_queue.pop_front();
@@ -455,6 +477,11 @@ int LogitechHIDPPController::ReadStandardDirect
         return result;
     }
 
+    /*---------------------------------------------------------*\
+    | Only trace HID++ messages (report ID 0x10 short, 0x11     |
+    | long). Skip HID input reports (mouse/keyboard data).      |
+    \*---------------------------------------------------------*/
+    if(response.buffer[0] == 0x10 || response.buffer[0] == 0x11)
     {
         static auto t0 = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
@@ -661,17 +688,36 @@ int LogitechHIDPPController::ReadCenturionDirect
     if(transport.bridge_feat_idx != 0 && resp_feat == transport.bridge_feat_idx)
     {
         /*-----------------------------------------------------*\
-        | CentPPBridge response — two-response pattern:          |
+        | CentPPBridge — distinguish events from command responses|
         |                                                        |
-        | Response 1 (ACK): bridge echoes feat+func, short msg.  |
-        |   cpl_len=3, func high nibble matches sendFragment.    |
+        | Bridge events (e.g. ConnectionStateChangedEvent) have  |
+        | func high nibble = 0x00 (event index 0) and swid = 0. |
+        | These are NOT wrapped sub-device responses — they are  |
+        | bridge-level notifications. Return as-is so the reader |
+        | thread can detect them.                                |
         |                                                        |
-        | Response 2 (MessageEvent): bridge func 1 with swid=0,  |
-        |   contains the sub-device's actual response nested.    |
-        |                                                        |
-        | If this is the ACK (swid matches ours), discard and    |
-        | read again for the MessageEvent.                       |
+        | Command responses follow a two-response pattern:       |
+        | 1. ACK: bridge echoes feat+func with our swid          |
+        | 2. MessageEvent: func=1x, swid=0, wrapped sub-device   |
         \*-----------------------------------------------------*/
+        if((resp_func & 0xF0) == 0x00 && (resp_func & 0x0F) != HIDPP_SW_ID)
+        {
+            /*-------------------------------------------------*\
+            | Bridge event — return feat/func/data as-is         |
+            \*-------------------------------------------------*/
+            if(feat_idx_out)   *feat_idx_out = resp_feat;
+            if(function_out)   *function_out = resp_func;
+
+            if(data_out && data_max > 0)
+            {
+                size_t avail = (size_t)(cpl_len > 2 ? cpl_len - 2 : 0);
+                size_t copy = (avail < data_max) ? avail : data_max;
+                memcpy(data_out, buf + 5 + hdr_offset, copy);
+            }
+
+            return result;
+        }
+
         if((resp_func & 0x0F) == HIDPP_SW_ID)
         {
             /*-------------------------------------------------*\
@@ -1795,9 +1841,28 @@ bool LogitechHIDPPController::Probe()
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
 
+    /*---------------------------------------------------------*\
+    | Probe WirelessStatus (0x1D4B) for reconnect detection.    |
+    | Lightspeed devices behind kernel-managed receivers send   |
+    | WirelessStatus events when they reconnect after power     |
+    | cycle. Cache the feature index so the reader thread can   |
+    | detect these events without sending commands.             |
+    \*---------------------------------------------------------*/
+    caps.idx_wireless_status = GetFeatureIndex(HIDPP_FEAT_WIRELESS_STATUS);
+
     if(!caps.has_zone_effects && !caps.has_perkey)
     {
         LOG_DEBUG("%s %s: no RGB features found", LOG_TAG, caps.device_name.c_str());
+
+        /*-----------------------------------------------------*\
+        | Centurion dongles with bridge stay alive to watch for  |
+        | sub-device connection events, even without RGB.        |
+        \*-----------------------------------------------------*/
+        if(transport.bridge_feat_idx != 0)
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -1959,7 +2024,7 @@ void LogitechHIDPPController::SetHostMode()
 
 void LogitechHIDPPController::ClaimSWControlIfNeeded()
 {
-    if(sw_control_claimed || caps.idx_rgb_effects == 0)
+    if(sw_control_claimed || caps.idx_rgb_effects == 0 || !device_online.load())
     {
         return;
     }
@@ -1970,7 +2035,15 @@ void LogitechHIDPPController::ClaimSWControlIfNeeded()
     | 2. SW control — flags=5 directly for idle monitoring       |
     | 3. Power mode active                                       |
     \*---------------------------------------------------------*/
+    /*---------------------------------------------------------*\
+    | Match GHUB's claim sequence more closely. GHUB sends      |
+    | SetSWControl with flags=7 first, then SetRGBPowerMode,    |
+    | then SetSWControl with flags=5. This double-transition    |
+    | seems necessary to put the firmware in per-key-ready mode.|
+    \*---------------------------------------------------------*/
     SetHostMode();
+    SetSWControl(3, 7);
+    SetRGBPowerMode(1);
     SetSWControl(3, 5);
     SetRGBPowerMode(1);
 
@@ -1988,6 +2061,8 @@ void LogitechHIDPPController::SetPerKeyColors
     const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors
     )
 {
+    if(!device_online.load()) return;
+
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
     if(perkey_idx == 0)
@@ -2014,8 +2089,7 @@ void LogitechHIDPPController::SetPerKeyColors
 
         if(count == 4 || i == zone_colors.size() - 1)
         {
-            SendLong(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4);
-            std::this_thread::sleep_for(1ms);
+            SendPerKeyData(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4);
             memset(data, 0, sizeof(data));
             count = 0;
         }
@@ -2024,6 +2098,8 @@ void LogitechHIDPPController::SetPerKeyColors
 
 void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
 {
+    if(!device_online.load()) return;
+
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
     if(perkey_idx == 0)
@@ -2060,8 +2136,7 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
     if(min_zone <= max_zone)
     {
         uint8_t data[5] = { min_zone, max_zone, r, g, b };
-        SendLong(perkey_idx, FN_8081_SET_RANGE, data, 5);
-        std::this_thread::sleep_for(1ms);
+        SendPerKeyData(perkey_idx, FN_8081_SET_RANGE, data, 5);
     }
 }
 
@@ -2076,16 +2151,41 @@ void LogitechHIDPPController::SendPerKeyData
     SendLong(perkey_idx, function, data, len);
 
     /*---------------------------------------------------------*\
-    | Pace writes so the device can keep up. The old code used  |
-    | a 1ms hid_read drain; now the reader thread handles       |
-    | reading, so we sleep instead. The ACKs are queued by the  |
-    | reader thread and consumed by PerKeyFrameEnd's read loop. |
+    | Wait for the ACK before sending the next write. This      |
+    | matches GHUB's behavior — without it, the device gets     |
+    | overrun and FrameEnd returns BUSY. Discard any            |
+    | non-matching messages (events, stale acks) until we see   |
+    | the matching ACK or time out.                             |
     \*---------------------------------------------------------*/
-    std::this_thread::sleep_for(1ms);
+    for(int i = 0; i < 10; i++)
+    {
+        uint8_t resp_feat = 0;
+        uint8_t resp_func = 0;
+        uint8_t resp_data[16] = {};
+        int result = ReadMessage(&resp_feat, &resp_func, resp_data, sizeof(resp_data), 50);
+
+        if(result <= 0)
+        {
+            return;
+        }
+
+        if(resp_feat == perkey_idx && (resp_func & 0xF0) == (function & 0xF0))
+        {
+            return;
+        }
+
+        if(resp_feat == 0xFF)
+        {
+            /* HID++ error response — give up */
+            return;
+        }
+    }
 }
 
 bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
 {
+    if(!device_online.load()) return false;
+
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
     if(perkey_idx == 0)
@@ -2093,12 +2193,16 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
         return false;
     }
 
-    frame_counter++;
-    uint16_t fc = (uint16_t)(frame_counter & 0xFFFF);
-
-    uint8_t data[3] = { (uint8_t)(persist ? 0x01 : 0x00),
-                         (uint8_t)((fc >> 8) & 0xFF),
-                         (uint8_t)(fc & 0xFF) };
+    /*---------------------------------------------------------*\
+    | FrameEnd format (matches GHUB capture):                   |
+    |   - LONG message (0x11), 16 bytes of zeros                |
+    |   - No frame counter, no persist flag                     |
+    | We were sending a SHORT message with [persist, fc_hi, fc_lo] |
+    | which caused intermittent BUSY errors. GHUB never sees    |
+    | BUSY because firmware expects long-format FrameEnd.       |
+    \*---------------------------------------------------------*/
+    uint8_t data[16] = {};
+    (void)persist;  // ignored — GHUB doesn't use this
 
     /*---------------------------------------------------------*\
     | Send FrameEnd, then read responses in a loop.             |
@@ -2110,6 +2214,8 @@ bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
 
     for(int attempt = 0; attempt < 10; attempt++)
     {
+        if(!device_online.load()) return false;
+
         SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
 
         for(int reads = 0; reads < 20; reads++)
@@ -2195,7 +2301,7 @@ void LogitechHIDPPController::SetZoneEffect
     bool            persist
     )
 {
-    if(caps.idx_rgb_effects == 0)
+    if(caps.idx_rgb_effects == 0 || !device_online.load())
     {
         return;
     }
@@ -2221,6 +2327,15 @@ void LogitechHIDPPController::SetZoneEffect
             data[2] = r;
             data[3] = g;
             data[4] = b;
+            /*-----------------------------------------------------*\
+            | "Fixed color" marker — only set when there's an       |
+            | actual color. All-black means "Off / pass-through to  |
+            | per-key buffer", which uses byte 5 = 0x00 instead.    |
+            \*-----------------------------------------------------*/
+            if(r != 0 || g != 0 || b != 0)
+            {
+                data[5] = 0x02;
+            }
             break;
 
         case 0x000A:    // Breathing
@@ -2299,6 +2414,16 @@ void LogitechHIDPPController::SetRepaintCallback(std::function<void()> repaint)
     request_repaint_fn = repaint;
 }
 
+void LogitechHIDPPController::SetReinitCallback(std::function<void()> cb)
+{
+    reinit_direct_fn = cb;
+}
+
+void LogitechHIDPPController::SetRegisterCallback(std::function<void(RGBController*)> cb)
+{
+    register_controller_fn = cb;
+}
+
 HIDPPPowerState LogitechHIDPPController::GetPowerState() const
 {
     return power_state;
@@ -2309,6 +2434,628 @@ int LogitechHIDPPController::GetDimBrightness() const
     return dim_brightness_pct.load();
 }
 
+bool LogitechHIDPPController::HasBridge() const
+{
+    return transport.bridge_feat_idx != 0;
+}
+
+bool LogitechHIDPPController::IsOnline() const
+{
+    return device_online.load();
+}
+
+void LogitechHIDPPController::ReprobeSubDevice()
+{
+    /*---------------------------------------------------------*\
+    | Called by power thread when a sub-device connects through  |
+    | the Centurion bridge. The reader thread is running, so all |
+    | commands go through SendAndRead → ReadFromQueue.           |
+    |                                                           |
+    | We clear the sub-device feature cache and re-discover      |
+    | everything. The bridge_feat_idx and dongle name are kept.  |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Re-probing sub-device through bridge", LOG_TAG);
+
+    /*---------------------------------------------------------*\
+    | Give the sub-device a moment to settle after connection    |
+    | before sending commands through the bridge.               |
+    \*---------------------------------------------------------*/
+    std::this_thread::sleep_for(500ms);
+
+    FlushResponseQueue();
+
+    /*---------------------------------------------------------*\
+    | Clear sub-device feature map but keep bridge index.        |
+    | This forces fresh lookups through the bridge.             |
+    \*---------------------------------------------------------*/
+    caps.feature_map.clear();
+    caps.feature_map_complete = false;
+    caps.has_zone_effects     = false;
+    caps.has_perkey            = false;
+    caps.zone_clusters.clear();
+    caps.perkey_zone_ids.clear();
+    caps.idx_rgb_effects       = 0;
+    caps.idx_perkey_v2          = 0;
+    caps.idx_perkey_v1          = 0;
+    caps.idx_profile_management = 0;
+    caps.idx_onboard_profiles   = 0;
+    caps.fn_set_effect          = 0;
+    caps.fn_sw_control          = 0;
+    caps.fn_pwr_config          = 0;
+    caps.fn_pwr_mode            = 0;
+    caps.has_power_mgmt         = false;
+    caps.sw_control_simple      = false;
+    /*---------------------------------------------------------*\
+    | Re-populate feature map. CenturionFeatureSet is always at |
+    | index 1 on the sub-device.                                |
+    \*---------------------------------------------------------*/
+    EnumerateFeatures(1);
+
+    if(!caps.feature_map_complete)
+    {
+        LOG_DEBUG("%s Sub-device not reachable after connect event", LOG_TAG);
+        caps.feature_map_complete = true;
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Discover sub-device identity if not already known.        |
+    \*---------------------------------------------------------*/
+    if(caps.device_name.empty() || caps.device_name.find("PRO X 2") == std::string::npos)
+    {
+        /*-----------------------------------------------------*\
+        | Dongle may have a sysfs-derived name; get real name    |
+        | from the sub-device now that it's reachable.           |
+        \*-----------------------------------------------------*/
+        std::string old_name = caps.device_name;
+        DiscoverDeviceName();
+
+        if(caps.device_name != old_name)
+        {
+            log_tag = "[HID++ " + caps.device_name + "]";
+        }
+    }
+
+    DiscoverDeviceType();
+    DiscoverFirmwareInfo();
+
+    /*---------------------------------------------------------*\
+    | Discover RGB features                                     |
+    \*---------------------------------------------------------*/
+    caps.idx_profile_management = GetFeatureIndex(HIDPP_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP_FEAT_ONBOARD_PROFILES);
+
+    DiscoverRGBEffects();
+    DiscoverPerKeyZones();
+    DiscoverKeyboardLayout();
+
+    if(!caps.has_zone_effects && !caps.has_perkey)
+    {
+        LOG_DEBUG("%s Sub-device has no RGB features", LOG_TAG);
+        return;
+    }
+
+    LOG_INFO("%s Sub-device probed: zones=%zu perkey=%zu",
+             LOG_TAG, caps.zone_clusters.size(), caps.perkey_zone_ids.size());
+
+    /*---------------------------------------------------------*\
+    | Create and register RGBController for the sub-device.     |
+    \*---------------------------------------------------------*/
+    Initialize();
+
+    if(register_controller_fn)
+    {
+        RGBController_LogitechHIDPP* rgb = new RGBController_LogitechHIDPP(this);
+        register_controller_fn(rgb);
+
+        LOG_INFO("%s Registered RGB controller for sub-device", LOG_TAG);
+    }
+}
+
+void LogitechHIDPPController::ReconnectDevice()
+{
+    /*---------------------------------------------------------*\
+    | Called by power thread when WirelessStatus reconnect event |
+    | arrives. Push colors ASAP to override the firmware boot    |
+    | animation — same behavior as GHUB.                        |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Reconnecting device", LOG_TAG);
+
+    FlushResponseQueue();
+
+    if(!device_online.load())
+    {
+        /*-----------------------------------------------------*\
+        | First reconnect event (reconnect=1, config_needed=1).  |
+        | Full init: reset state, claim SW control, push colors. |
+        \*-----------------------------------------------------*/
+        device_online.store(true);
+        consecutive_timeouts.store(0);
+        sw_control_claimed = false;
+        frame_counter = 0;
+
+        {
+            std::lock_guard<std::mutex> lock(power_mutex);
+            dim_brightness_pct.store(100);
+            power_state = HIDPP_POWER_ACTIVE;
+        }
+
+        if(reinit_direct_fn)
+        {
+            reinit_direct_fn();
+        }
+
+        if(caps.has_power_mgmt)
+        {
+            ReadFirmwareTimers();
+        }
+
+        LOG_INFO("%s Device reconnected — colors pushed", LOG_TAG);
+    }
+    else
+    {
+        /*-----------------------------------------------------*\
+        | Second event (config_needed=0) — firmware boot done.   |
+        | Re-push colors in case firmware overwrote per-key      |
+        | buffer during its initialization.                      |
+        \*-----------------------------------------------------*/
+        if(reinit_direct_fn)
+        {
+            reinit_direct_fn();
+        }
+
+        LOG_INFO("%s Device reconnected — colors re-pushed after firmware boot", LOG_TAG);
+    }
+}
+
+void LogitechHIDPPController::FullReprobe()
+{
+    /*---------------------------------------------------------*\
+    | Called by power thread when a failed-probe device becomes  |
+    | reachable. Like ReprobeSubDevice but for non-bridge        |
+    | standard HID++ devices. Reader thread is running.         |
+    \*---------------------------------------------------------*/
+    LOG_DEBUG("%s Full re-probe of previously unreachable device", LOG_TAG);
+
+    FlushResponseQueue();
+
+    caps.feature_map.clear();
+    caps.feature_map_complete = false;
+    caps.has_zone_effects      = false;
+    caps.has_perkey             = false;
+    caps.zone_clusters.clear();
+    caps.perkey_zone_ids.clear();
+    caps.idx_rgb_effects        = 0;
+    caps.idx_perkey_v2           = 0;
+    caps.idx_perkey_v1           = 0;
+    caps.idx_wireless_status     = 0;
+    caps.idx_profile_management  = 0;
+    caps.idx_onboard_profiles    = 0;
+    caps.fn_set_effect           = 0;
+    caps.fn_sw_control           = 0;
+    caps.fn_pwr_config           = 0;
+    caps.fn_pwr_mode             = 0;
+    caps.has_power_mgmt          = false;
+    caps.sw_control_simple       = false;
+
+    /*---------------------------------------------------------*\
+    | Standard HID++ features are looked up on-demand — no bulk |
+    | enumeration needed. Just re-discover everything.          |
+    \*---------------------------------------------------------*/
+    DiscoverDeviceName();
+    log_tag = "[HID++ " + caps.device_name + "]";
+    DiscoverDeviceType();
+    DiscoverFirmwareInfo();
+
+    caps.idx_profile_management = GetFeatureIndex(HIDPP_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP_FEAT_ONBOARD_PROFILES);
+    caps.idx_wireless_status    = GetFeatureIndex(HIDPP_FEAT_WIRELESS_STATUS);
+
+    DiscoverRGBEffects();
+    DiscoverPerKeyZones();
+    DiscoverKeyboardLayout();
+
+    if(!caps.has_zone_effects && !caps.has_perkey)
+    {
+        LOG_DEBUG("%s Device has no RGB features after re-probe", LOG_TAG);
+        return;
+    }
+
+    LOG_INFO("%s Re-probe complete: zones=%zu perkey=%zu",
+             LOG_TAG, caps.zone_clusters.size(), caps.perkey_zone_ids.size());
+
+    device_online.store(true);
+    consecutive_timeouts.store(0);
+    watcher_mode.store(false);
+    Initialize();
+
+    if(register_controller_fn)
+    {
+        RGBController_LogitechHIDPP* rgb = new RGBController_LogitechHIDPP(this);
+        register_controller_fn(rgb);
+        LOG_INFO("%s Registered RGB controller after re-probe", LOG_TAG);
+    }
+}
+
+void LogitechHIDPPController::StartProbeWatcher()
+{
+    /*---------------------------------------------------------*\
+    | Start reader + power threads in watcher mode for a device |
+    | that failed initial probe. The power thread periodically  |
+    | retries IRoot until the device becomes reachable.         |
+    \*---------------------------------------------------------*/
+    if(reader_running)
+    {
+        return;
+    }
+
+    watcher_mode.store(true);
+    device_online.store(false);
+
+    pending_connection = 0;
+    reader_running = true;
+    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+
+    power_thread_running = true;
+    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+
+    LOG_DEBUG("%s Probe watcher started (retrying every 5s)", LOG_TAG);
+}
+
+bool LogitechHIDPPController::ScanForDevice()
+{
+    /*---------------------------------------------------------*\
+    | Scan sysfs for a hidraw with matching unitId. Called by    |
+    | the power thread when the device goes offline (USB/wireless|
+    | switch). Finds the device on its new connection path.      |
+    |                                                           |
+    | Match criteria:                                           |
+    |   - HID_UNIQ matches our unitId                           |
+    |   - Logitech VID (046D)                                   |
+    |   - HID++ interface (usage_page 0xFF00, usage 2)          |
+    |   - Different from our current path (device moved)        |
+    \*---------------------------------------------------------*/
+    if(caps.unit_id.empty() || caps.unit_id == "00000000")
+    {
+        return false;
+    }
+
+    LOG_DEBUG("%s Scanning for device (unitId=%s, current=%s)",
+              LOG_TAG, caps.unit_id.c_str(), location.c_str());
+
+    /*---------------------------------------------------------*\
+    | Normalize our unitId to lowercase hex without dashes for   |
+    | comparison. Sysfs HID_UNIQ varies between drivers:         |
+    |   - Lightspeed virtual: "0d-12-5d-47" (dashes)             |
+    |   - USB direct: "0D125D47" (no dashes)                     |
+    | We strip dashes and lowercase both sides for matching.     |
+    \*---------------------------------------------------------*/
+    std::string target_norm;
+
+    for(char c : caps.unit_id)
+    {
+        if(c != '-')
+        {
+            target_norm += (char)tolower(c);
+        }
+    }
+
+    /*---------------------------------------------------------*\
+    | Read our current PID from sysfs. Only migrate to paths    |
+    | with a DIFFERENT PID — same PID means same receiver,      |
+    | just a different pairing slot (e.g., stale pairing).      |
+    \*---------------------------------------------------------*/
+    unsigned int current_pid = 0;
+    {
+        std::string cur_hidraw = location.substr(location.rfind('/') + 1);
+        std::string cur_uevent = "/sys/class/hidraw/" + cur_hidraw + "/device/uevent";
+        std::ifstream cur_file(cur_uevent);
+        std::string line;
+
+        while(std::getline(cur_file, line))
+        {
+            if(line.compare(0, 7, "HID_ID=") == 0)
+            {
+                size_t lc = line.rfind(':');
+
+                if(lc != std::string::npos)
+                {
+                    sscanf(line.c_str() + lc + 1, "%x", &current_pid);
+                }
+
+                break;
+            }
+        }
+    }
+
+    DIR* dir = opendir("/sys/class/hidraw");
+
+    if(!dir)
+    {
+        return false;
+    }
+
+    struct dirent* entry;
+    std::string found_path;
+
+    while((entry = readdir(dir)) != nullptr)
+    {
+        if(strncmp(entry->d_name, "hidraw", 6) != 0)
+        {
+            continue;
+        }
+
+        std::string uevent_path = "/sys/class/hidraw/" +
+                                  std::string(entry->d_name) + "/device/uevent";
+        std::ifstream uevent(uevent_path);
+
+        if(!uevent.is_open())
+        {
+            continue;
+        }
+
+        std::string line;
+        std::string hid_uniq;
+        std::string hid_id;
+
+        while(std::getline(uevent, line))
+        {
+            if(line.compare(0, 9, "HID_UNIQ=") == 0)
+            {
+                hid_uniq = line.substr(9);
+            }
+            else if(line.compare(0, 7, "HID_ID=") == 0)
+            {
+                hid_id = line.substr(7);
+            }
+        }
+
+        /*-----------------------------------------------------*\
+        | Normalize sysfs HID_UNIQ: strip dashes, lowercase     |
+        \*-----------------------------------------------------*/
+        std::string uniq_norm;
+
+        for(char c : hid_uniq)
+        {
+            if(c != '-')
+            {
+                uniq_norm += (char)tolower(c);
+            }
+        }
+
+        if(uniq_norm != target_norm)
+        {
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Verify Logitech VID (046D) in HID_ID field             |
+        | Format: "0003:0000046D:0000C355"                       |
+        \*-----------------------------------------------------*/
+        if(hid_id.find("0000046D") == std::string::npos &&
+           hid_id.find("0000046d") == std::string::npos)
+        {
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Found a matching hidraw. Use hid_enumerate to find     |
+        | the HID++ interface (usage_page 0xFF00) on this PID.  |
+        \*-----------------------------------------------------*/
+        std::string dev_path = "/dev/" + std::string(entry->d_name);
+
+        LOG_DEBUG("%s Scan: unitId match at %s (pid=0x%s, current=%s)",
+                  LOG_TAG, dev_path.c_str(),
+                  hid_id.substr(hid_id.rfind(':') + 1).c_str(),
+                  location.c_str());
+
+        /*-----------------------------------------------------*\
+        | Skip if this is our current path — device hasn't moved |
+        \*-----------------------------------------------------*/
+        if(dev_path == location)
+        {
+            LOG_DEBUG("%s Scan: skipping (same path)", LOG_TAG);
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Extract PID from HID_ID to enumerate the right device. |
+        | Format: "0003:0000046D:0000XXXX"                       |
+        \*-----------------------------------------------------*/
+        size_t last_colon = hid_id.rfind(':');
+
+        if(last_colon == std::string::npos)
+        {
+            continue;
+        }
+
+        unsigned int pid = 0;
+        sscanf(hid_id.c_str() + last_colon + 1, "%x", &pid);
+
+        /*-----------------------------------------------------*\
+        | Skip if same PID as current path — same receiver,      |
+        | just a different pairing slot (stale pairing).         |
+        | Genuine connection changes always involve a PID change |
+        | (e.g., wireless 0x40B4 → wired 0xC355).               |
+        \*-----------------------------------------------------*/
+        if(pid == current_pid)
+        {
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Enumerate HID devices with this PID to find the one    |
+        | with usage_page 0xFF00 (HID++ interface).              |
+        \*-----------------------------------------------------*/
+        hid_device_info* devs = hid_enumerate(0x046D, (uint16_t)pid);
+        int enum_count = 0;
+
+        for(hid_device_info* d = devs; d != nullptr; d = d->next)
+        {
+            enum_count++;
+            LOG_TRACE("%s Scan: enumerate PID=0x%04X path=%s page=0x%04X usage=%d",
+                      LOG_TAG, pid, d->path, d->usage_page, d->usage);
+
+            if(d->usage_page == 0xFF00 && d->usage == 2 &&
+               std::string(d->path) != location)
+            {
+                found_path = d->path;
+                break;
+            }
+        }
+
+        if(enum_count == 0)
+        {
+            LOG_DEBUG("%s Scan: hid_enumerate(0x046D, 0x%04X) returned no devices", LOG_TAG, pid);
+        }
+
+        hid_free_enumeration(devs);
+
+        if(!found_path.empty())
+        {
+            break;
+        }
+    }
+
+    closedir(dir);
+
+    if(found_path.empty())
+    {
+        LOG_DEBUG("%s Scan: no matching device found on alternate path", LOG_TAG);
+        return false;
+    }
+
+    /*---------------------------------------------------------*\
+    | Found the device on a new path with a different PID.      |
+    | This is a genuine connection change. Open and migrate.    |
+    \*---------------------------------------------------------*/
+    hid_device* new_dev = hid_open_path(found_path.c_str());
+
+    if(!new_dev)
+    {
+        LOG_DEBUG("%s Scan: found %s but failed to open", LOG_TAG, found_path.c_str());
+        return false;
+    }
+
+    LOG_INFO("%s Device migrated: %s -> %s", LOG_TAG, location.c_str(), found_path.c_str());
+
+    SwapHIDHandle(new_dev, found_path);
+    return true;
+}
+
+void LogitechHIDPPController::SwapHIDHandle
+    (
+    hid_device*         new_dev,
+    const std::string&  new_path
+    )
+{
+    /*---------------------------------------------------------*\
+    | Stop reader/power threads, swap HID handle, restart.       |
+    | Called from the power thread — we can't join ourselves,    |
+    | so we stop the reader, swap, and flag for restart.         |
+    |                                                           |
+    | Actually, we're called from the power thread's scan loop.  |
+    | The reader thread is running. We need to:                  |
+    | 1. Stop the reader thread                                  |
+    | 2. Close old handle, set new one                           |
+    | 3. Restart reader thread                                   |
+    | 4. Reinit device                                           |
+    | The power thread keeps running throughout.                 |
+    \*---------------------------------------------------------*/
+
+    /*---------------------------------------------------------*\
+    | Stop reader thread                                         |
+    \*---------------------------------------------------------*/
+    reader_running = false;
+
+    if(reader_thread && reader_thread->joinable())
+    {
+        reader_thread->join();
+    }
+
+    delete reader_thread;
+    reader_thread = nullptr;
+
+    /*---------------------------------------------------------*\
+    | Swap HID handle                                           |
+    \*---------------------------------------------------------*/
+    hid_close(dev);
+    dev       = new_dev;
+    location  = new_path;
+    log_tag   = "[HID++ " + caps.device_name + "]";
+
+    /*---------------------------------------------------------*\
+    | Re-discover transport (might change between Centurion and  |
+    | standard HID++ if device switches connection types).       |
+    \*---------------------------------------------------------*/
+    DiscoverTransport();
+
+    /*---------------------------------------------------------*\
+    | Reset state for new connection                            |
+    \*---------------------------------------------------------*/
+    FlushResponseQueue();
+    device_online.store(true);
+    consecutive_timeouts.store(0);
+    sw_control_claimed = false;
+    frame_counter = 0;
+
+    {
+        std::lock_guard<std::mutex> lock(power_mutex);
+        dim_brightness_pct.store(100);
+        power_state = HIDPP_POWER_ACTIVE;
+    }
+
+    /*---------------------------------------------------------*\
+    | Restart reader thread on new handle                        |
+    \*---------------------------------------------------------*/
+    reader_running = true;
+    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+
+    /*---------------------------------------------------------*\
+    | Reinit device with colors                                 |
+    \*---------------------------------------------------------*/
+    if(reinit_direct_fn)
+    {
+        reinit_direct_fn();
+    }
+
+    if(caps.has_power_mgmt)
+    {
+        ReadFirmwareTimers();
+    }
+
+    LOG_INFO("%s Device reconnected on new path — colors restored", LOG_TAG);
+}
+
+void LogitechHIDPPController::StartEventWatcher()
+{
+    /*---------------------------------------------------------*\
+    | Start reader thread only (no power thread) to watch for    |
+    | connection events on Centurion dongles without sub-devices. |
+    | When ConnectionStateChangedEvent arrives, pending_connection|
+    | is set for the power thread — but since there's no power   |
+    | thread, we need a minimal processing loop.                 |
+    \*---------------------------------------------------------*/
+    if(reader_running)
+    {
+        return;
+    }
+
+    pending_connection = 0;
+    reader_running = true;
+    reader_thread = new std::thread(&LogitechHIDPPController::ReaderThreadFunc, this);
+
+    /*---------------------------------------------------------*\
+    | Start power thread to process connection events.           |
+    | It won't do dim/sleep (no RGB) but it handles              |
+    | pending_connection for sub-device re-probe.                |
+    \*---------------------------------------------------------*/
+    power_thread_running = true;
+    power_thread = new std::thread(&LogitechHIDPPController::PowerThreadFunc, this);
+
+    LOG_DEBUG("%s Event watcher started (watching for sub-device)", LOG_TAG);
+}
+
 void LogitechHIDPPController::StartPowerManager()
 {
     if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
@@ -2316,8 +3063,23 @@ void LogitechHIDPPController::StartPowerManager()
         return;
     }
 
+    if(reader_running)
+    {
+        return;
+    }
+
     ReadFirmwareTimers();
 
+    /*---------------------------------------------------------*\
+    | Don't claim SW control here. The device runs its firmware  |
+    | effect (or saved hardware profile) until DeviceUpdateLEDs  |
+    | is called for the first time, at which point claim + push  |
+    | happen atomically.                                         |
+    |                                                           |
+    | Reader and power threads still start so we can detect      |
+    | migration events (USB plug-in) and process activity events |
+    | once SW control is eventually claimed.                     |
+    \*---------------------------------------------------------*/
     power_state = HIDPP_POWER_ACTIVE;
     pending_activity = -1;
 
@@ -2390,6 +3152,23 @@ void LogitechHIDPPController::ReaderThreadFunc()
         uint8_t data[60] = {};
         int result = ReadHIDDirect(&feat, &func, data, sizeof(data), 50);
 
+        if(result < 0)
+        {
+            /*-------------------------------------------------*\
+            | HID read error — device handle is invalid (device  |
+            | physically removed). Mark offline and sleep to     |
+            | avoid spinning.                                    |
+            \*-------------------------------------------------*/
+            if(device_online.load())
+            {
+                LOG_DEBUG("%s HID read error — device removed", LOG_TAG);
+                device_online.store(false);
+            }
+
+            std::this_thread::sleep_for(100ms);
+            continue;
+        }
+
         if(result > 0)
         {
             /*-------------------------------------------------*\
@@ -2416,8 +3195,21 @@ void LogitechHIDPPController::ReaderThreadFunc()
                (func & 0xF0) == 0x00 &&
                (func & 0x0F) != HIDPP_SW_ID)
             {
-                LOG_DEBUG("%s Bridge ConnectionStateChanged event", LOG_TAG);
-                pending_connection.store(1);
+                /*-------------------------------------------------*\
+                | ConnectionStateChangedEvent payload:               |
+                |   data[0] = ? (always 0 in observed packets)      |
+                |   data[1] = number of connected sub-devices       |
+                |   data[2] = ?                                     |
+                | Connect: [00 01 00], Disconnect: [00 00 00]       |
+                \*-------------------------------------------------*/
+                uint8_t num_devices = data[1];
+                LOG_DEBUG("%s Bridge ConnectionStateChanged: %d sub-device(s) (data: %02X %02X %02X)",
+                          LOG_TAG, num_devices, data[0], data[1], data[2]);
+                /*-------------------------------------------------*\
+                | Store +1 for connected, -1 for disconnected.      |
+                | Power thread checks sign to decide action.        |
+                \*-------------------------------------------------*/
+                pending_connection.store(num_devices > 0 ? 1 : -1);
                 continue;
             }
 
@@ -2441,10 +3233,14 @@ void LogitechHIDPPController::ReaderThreadFunc()
                     LOG_DEBUG("%s WirelessStatus event: reconnect=%d config_needed=%d",
                               LOG_TAG, reconnect, config_needed);
 
-                    if(reconnect || config_needed)
-                    {
-                        pending_connection.store(1);
-                    }
+                    /*-------------------------------------------------*\
+                    | Push colors on BOTH events:                       |
+                    |  reconnect=1: immediately override boot animation |
+                    |  config_needed=0: re-push after firmware boot     |
+                    |    completes (firmware may overwrite per-key       |
+                    |    buffer during its internal initialization)     |
+                    \*-------------------------------------------------*/
+                    pending_connection.store(1);
 
                     continue;
                 }
@@ -2481,8 +3277,35 @@ void LogitechHIDPPController::PowerThreadFunc()
     | Handles power state machine and sends commands.            |
     | Reads responses from the queue (filled by reader thread).  |
     \*---------------------------------------------------------*/
+    auto last_probe_time = std::chrono::steady_clock::now();
+
     while(power_thread_running.load())
     {
+        /*-----------------------------------------------------*\
+        | Watcher mode: device failed initial probe. Retry       |
+        | IRoot every 5 seconds until device becomes reachable.  |
+        \*-----------------------------------------------------*/
+        if(watcher_mode.load())
+        {
+            auto now = std::chrono::steady_clock::now();
+
+            if(now - last_probe_time >= std::chrono::seconds(5))
+            {
+                last_probe_time = now;
+
+                uint8_t test_idx = GetFeatureIndex(HIDPP_FEAT_FEATURE_SET);
+
+                if(test_idx != 0)
+                {
+                    LOG_INFO("%s Device became reachable — initiating full probe", LOG_TAG);
+                    FullReprobe();
+                }
+            }
+
+            std::this_thread::sleep_for(50ms);
+            continue;
+        }
+
         /*-----------------------------------------------------*\
         | 1. Check for pending firmware events                   |
         \*-----------------------------------------------------*/
@@ -2501,13 +3324,38 @@ void LogitechHIDPPController::PowerThreadFunc()
 
         if(connection > 0)
         {
-            LOG_DEBUG("%s Connection state changed — device appeared or reconnected", LOG_TAG);
+            if(HasBridge())
+            {
+                ReprobeSubDevice();
+            }
+            else
+            {
+                ReconnectDevice();
+            }
+        }
+        else if(connection < 0)
+        {
+            LOG_DEBUG("%s Device disconnected", LOG_TAG);
+            device_online.store(false);
+        }
 
-            /*-------------------------------------------------*\
-            | TODO Phase 3: Re-probe sub-device, update registry,|
-            | create/update RGBController, restore colors.       |
-            | For now, just log the event so we know it works.   |
-            \*-------------------------------------------------*/
+        /*-----------------------------------------------------*\
+        | 1c. Continuous scan for connection migration.          |
+        | Checks sysfs every 2 seconds for our unitId on a      |
+        | hidraw with a DIFFERENT PID. Same-PID matches are     |
+        | filtered out (stale receiver pairing slots), so this  |
+        | only fires on genuine connection changes (e.g., USB   |
+        | plug-in changes PID from 0x40B4 → 0xC355).            |
+        \*-----------------------------------------------------*/
+        if(!caps.unit_id.empty())
+        {
+            auto now = std::chrono::steady_clock::now();
+
+            if(now - last_probe_time >= std::chrono::seconds(2))
+            {
+                last_probe_time = now;
+                ScanForDevice();
+            }
         }
 
         /*-----------------------------------------------------*\
@@ -2651,13 +3499,14 @@ void LogitechHIDPPController::StartDimRamp()
     | Start the brightness ramp from 100% to DIM_TARGET_PCT.    |
     | The actual dimming happens in DeviceUpdateLEDs — it reads  |
     | dim_brightness_pct and scales the color buffer output.    |
-    | The power thread adjusts brightness and requests repaints. |
+    | This is our own host-side animation, independent of the   |
+    | firmware's sleep-ramp timer.                               |
     \*---------------------------------------------------------*/
     dim_step      = 0;
     next_dim_time = std::chrono::steady_clock::now();
     power_state   = HIDPP_POWER_DIMMING;
 
-    LOG_DEBUG("%s Dim ramp started (brightness 100%% -> %d%%)", LOG_TAG, DIM_TARGET_PCT);
+    LOG_DEBUG("%s Dim ramp started (100%% -> %d%%)", LOG_TAG, DIM_TARGET_PCT);
 }
 
 void LogitechHIDPPController::DimRampStep()
@@ -2822,35 +3671,14 @@ void LogitechHIDPPController::Wake()
     }
 
     /*---------------------------------------------------------*\
-    | Re-claim SW control with flags=5 (ZONE|EFFECT).            |
-    | Firmware monitors for idle, sends events when idle.        |
+    | Reset state for reinit. ReinitDirectMode (called via the   |
+    | RGBController callback) does the proper sequence:          |
+    |   1. Claim SW control (host mode + flags + power mode)     |
+    |   2. Zone effect with real color from buffer (via          |
+    |      DeviceUpdateLEDs sent_colors-empty path)              |
+    |   3. Full per-key push                                     |
     \*---------------------------------------------------------*/
-    SetSWControl(3, 5);
-    SetRGBPowerMode(1);
-
-    /*---------------------------------------------------------*\
-    | Zone effect before per-key writes (same as initial claim). |
-    | Device needs this to re-establish SW-controlled state.     |
-    \*---------------------------------------------------------*/
-    for(size_t i = 0; i < caps.zone_clusters.size(); i++)
-    {
-        for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
-        {
-            if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
-            {
-                SetZoneEffect(
-                    caps.zone_clusters[i].index,
-                    caps.zone_clusters[i].effects[j].index,
-                    0x0001, 0, 0, 0, 0, false);
-                break;
-            }
-        }
-    }
-
-    /*---------------------------------------------------------*\
-    | Restore full brightness and force a full resend.           |
-    | DeviceUpdateLEDs will push current colors at 100%.         |
-    \*---------------------------------------------------------*/
+    sw_control_claimed = false;
     dim_brightness_pct.store(100);
     init_generation++;
 
@@ -2858,12 +3686,9 @@ void LogitechHIDPPController::Wake()
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 
-    /*---------------------------------------------------------*\
-    | Request repaint to push full-brightness colors now.        |
-    \*---------------------------------------------------------*/
-    if(request_repaint_fn)
+    if(reinit_direct_fn)
     {
-        request_repaint_fn();
+        reinit_direct_fn();
     }
 }
 
@@ -2907,3 +3732,4 @@ void LogitechHIDPPController::ReadFirmwareTimers()
                   LOG_TAG, idle_timeout_s, sleep_timeout_s);
     }
 }
+
