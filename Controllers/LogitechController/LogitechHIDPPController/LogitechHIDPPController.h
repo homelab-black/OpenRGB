@@ -97,6 +97,8 @@
 | Feature 0x8101 functions                              |
 \*-----------------------------------------------------*/
 #define FN_8101_GET_SET_MODE                0x60
+#define FN_8101_LOAD                        0x80    // load(partition, sector, size)
+#define FN_8101_READBUFFER                  0xC0    // readBuffer(offset)
 
 /*-----------------------------------------------------*\
 | Zone cluster effect entry                             |
@@ -408,6 +410,7 @@ private:
     void            ReadFirmwareTimers();
     void            ReadNvSleepRampConfig();
     void            WritePowerConfig(uint16_t idle_s, uint16_t sleep_s);
+    void            ReadActiveProfileSector();
     void            ReprobeSubDevice();
     void            ReconnectDevice();
     void            FullReprobe();
