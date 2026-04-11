@@ -238,65 +238,15 @@ int LogitechHIDPPController::SendAndReceive
     size_t          recv_max
     )
 {
-    int result = SendMessage(feat_idx, function, send_data, send_len);
-
-    if(result < 0)
-    {
-        LOG_DEBUG("%s SendMessage failed (result=%d) for feat=0x%02X func=0x%02X",
-                  LOG_TAG, result, feat_idx, function);
-        return result;
-    }
-
     /*---------------------------------------------------------*\
-    | Loop to discard unsolicited notifications (battery, etc.) |
-    | until we get a response matching our request or timeout.  |
+    | Thin wrapper around SendAcked with the reliable policy.    |
+    | Preserved as a named entry point so existing call sites    |
+    | don't need to be touched.                                  |
     \*---------------------------------------------------------*/
-    for(int attempts = 0; attempts < 10; attempts++)
-    {
-        uint8_t resp_feat = 0;
-        uint8_t resp_func = 0;
-
-        result = ReadMessage(&resp_feat, &resp_func, recv_data, recv_max);
-
-        if(result <= 0)
-        {
-            LOG_DEBUG("%s Read timeout/error (result=%d, attempt=%d) for feat=0x%02X func=0x%02X",
-                      LOG_TAG, result, attempts, feat_idx, function);
-            return result;
-        }
-
-        /*-----------------------------------------------------*\
-        | Check for HID++ error response                        |
-        \*-----------------------------------------------------*/
-        if(resp_feat == 0xFF)
-        {
-            /*-------------------------------------------------*\
-            | HID++ error: resp_func = feat_idx of failed req,  |
-            | recv_data[0] = func|swid, recv_data[1] = error   |
-            \*-------------------------------------------------*/
-            LOG_DEBUG("%s HID++ error for feat=0x%02X func=0x%02X: "
-                      "err_feat=0x%02X err_func=0x%02X err_code=0x%02X",
-                      LOG_TAG, feat_idx, function,
-                      resp_func,
-                      recv_data ? recv_data[0] : 0,
-                      recv_data ? recv_data[1] : 0);
-            return -1;
-        }
-
-        /*-----------------------------------------------------*\
-        | Check if this response matches our request             |
-        \*-----------------------------------------------------*/
-        if(resp_feat == feat_idx &&
-           (resp_func & 0xF0) == (function & 0xF0))
-        {
-            return result;
-        }
-
-        /* Discard non-matching message and retry */
-    }
-
-    LOG_DEBUG("%s SendAndReceive: gave up after 10 attempts", LOG_TAG);
-    return -1;
+    return SendAcked(feat_idx, function,
+                     send_data, send_len,
+                     recv_data, recv_max,
+                     HIDPP_POLICY_RELIABLE);
 }
 
 int LogitechHIDPPController::SendAcked
