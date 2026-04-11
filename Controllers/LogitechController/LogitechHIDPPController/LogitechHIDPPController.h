@@ -164,6 +164,16 @@ struct HIDPPDeviceCapabilities
     bool            sw_control_simple;
 
     /*-------------------------------------------------*\
+    | Persistent NV settings read from RGBEffects fn3    |
+    | (FN_8071_NV_CONFIG). Capability 0x0020 is the      |
+    | sleep ramp / off-ramp transition (enabled +        |
+    | ramp_seconds).                                     |
+    \*-------------------------------------------------*/
+    bool            nv_sleep_ramp_known;
+    bool            nv_sleep_ramp_enabled;
+    uint8_t         nv_sleep_ramp_seconds;
+
+    /*-------------------------------------------------*\
     | Discovered zone and LED data                      |
     \*-------------------------------------------------*/
     std::vector<HIDPPZoneCluster>   zone_clusters;
@@ -396,6 +406,8 @@ private:
     void            StartSleep();
     void            Wake();
     void            ReadFirmwareTimers();
+    void            ReadNvSleepRampConfig();
+    void            WritePowerConfig(uint16_t idle_s, uint16_t sleep_s);
     void            ReprobeSubDevice();
     void            ReconnectDevice();
     void            FullReprobe();

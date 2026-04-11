@@ -2054,16 +2054,34 @@ void LogitechHIDPPController::ClaimSWControlIfNeeded()
     | 3. Power mode active                                       |
     \*---------------------------------------------------------*/
     /*---------------------------------------------------------*\
-    | Match GHUB's claim sequence more closely. GHUB sends      |
-    | SetSWControl with flags=7 first, then SetRGBPowerMode,    |
-    | then SetSWControl with flags=5. This double-transition    |
-    | seems necessary to put the firmware in per-key-ready mode.|
+    | GHUB's exact claim sequence (capture lines 905-918):      |
+    |   1. SetSWControl(3, 7)                                    |
+    |   2. WritePowerConfig — uncompensated sleep               |
+    |   3. SetRGBPowerMode(1)                                    |
+    |   4. SetHostMode(5)                                        |
+    |   5. WritePowerConfig — compensated sleep                 |
+    |   6. SetSWControl(3, 5)                                    |
+    |                                                           |
+    | The two WritePowerConfig calls bracket SetHostMode: the    |
+    | first sets the user-facing sleep value while still in      |
+    | firmware-mode interpretation, the second pulls it forward  |
+    | by the off-ramp duration (so the firmware's fade ends at  |
+    | the user-expected sleep time) once we're in host mode.    |
     \*---------------------------------------------------------*/
-    SetHostMode();
+    uint16_t effective_sleep = sleep_timeout_s;
+
+    if(caps.nv_sleep_ramp_known && caps.nv_sleep_ramp_enabled
+       && caps.nv_sleep_ramp_seconds < sleep_timeout_s)
+    {
+        effective_sleep -= caps.nv_sleep_ramp_seconds;
+    }
+
     SetSWControl(3, 7);
+    WritePowerConfig(idle_timeout_s, sleep_timeout_s);
     SetRGBPowerMode(1);
+    SetHostMode();
+    WritePowerConfig(idle_timeout_s, effective_sleep);
     SetSWControl(3, 5);
-    SetRGBPowerMode(1);
 
     sw_control_claimed = true;
 
@@ -2503,6 +2521,10 @@ void LogitechHIDPPController::ReprobeSubDevice()
     caps.fn_pwr_mode            = 0;
     caps.has_power_mgmt         = false;
     caps.sw_control_simple      = false;
+    caps.nv_sleep_ramp_known    = false;
+    caps.nv_sleep_ramp_enabled  = false;
+    caps.nv_sleep_ramp_seconds  = 0;
+
     /*---------------------------------------------------------*\
     | Re-populate feature map. CenturionFeatureSet is always at |
     | index 1 on the sub-device.                                |
@@ -2606,6 +2628,7 @@ void LogitechHIDPPController::ReconnectDevice()
         if(caps.has_power_mgmt)
         {
             ReadFirmwareTimers();
+            ReadNvSleepRampConfig();
         }
 
         LOG_INFO("%s Device reconnected — colors pushed", LOG_TAG);
@@ -2655,6 +2678,9 @@ void LogitechHIDPPController::FullReprobe()
     caps.fn_pwr_mode             = 0;
     caps.has_power_mgmt          = false;
     caps.sw_control_simple       = false;
+    caps.nv_sleep_ramp_known     = false;
+    caps.nv_sleep_ramp_enabled   = false;
+    caps.nv_sleep_ramp_seconds   = 0;
 
     /*---------------------------------------------------------*\
     | Standard HID++ features are looked up on-demand — no bulk |
@@ -3040,6 +3066,7 @@ void LogitechHIDPPController::SwapHIDHandle
     if(caps.has_power_mgmt)
     {
         ReadFirmwareTimers();
+        ReadNvSleepRampConfig();
     }
 
     LOG_INFO("%s Device reconnected on new path — colors restored", LOG_TAG);
@@ -3087,6 +3114,7 @@ void LogitechHIDPPController::StartPowerManager()
     }
 
     ReadFirmwareTimers();
+    ReadNvSleepRampConfig();
 
     /*---------------------------------------------------------*\
     | Don't claim SW control here. The device runs its firmware  |
@@ -3570,13 +3598,28 @@ void LogitechHIDPPController::DimRampStep()
     {
         power_state = HIDPP_POWER_IDLE;
 
-        uint16_t sleep_delay = (sleep_timeout_s > idle_timeout_s)
-                             ? (sleep_timeout_s - idle_timeout_s) : 0;
+        /*-----------------------------------------------------*\
+        | Pull the sleep deadline forward by the firmware's      |
+        | off-ramp duration so the firmware fade *ends* at the   |
+        | user-configured sleep_timeout_s. Without this we'd    |
+        | be late by nv_sleep_ramp_seconds (30s on G515).       |
+        \*-----------------------------------------------------*/
+        uint16_t effective_sleep = sleep_timeout_s;
+
+        if(caps.nv_sleep_ramp_known && caps.nv_sleep_ramp_enabled
+           && caps.nv_sleep_ramp_seconds < sleep_timeout_s)
+        {
+            effective_sleep -= caps.nv_sleep_ramp_seconds;
+        }
+
+        uint16_t sleep_delay = (effective_sleep > idle_timeout_s)
+                             ? (effective_sleep - idle_timeout_s) : 0;
 
         sleep_deadline = std::chrono::steady_clock::now()
                        + std::chrono::seconds(sleep_delay);
 
-        LOG_DEBUG("%s Dim complete — IDLE (sleep in %us)", LOG_TAG, sleep_delay);
+        LOG_DEBUG("%s Dim complete — IDLE (sleep in %us, effective_sleep=%us)",
+                  LOG_TAG, sleep_delay, effective_sleep);
     }
 }
 
@@ -3749,5 +3792,92 @@ void LogitechHIDPPController::ReadFirmwareTimers()
         LOG_DEBUG("%s Failed to read firmware timers, using defaults (idle=%us sleep=%us)",
                   LOG_TAG, idle_timeout_s, sleep_timeout_s);
     }
+}
+
+void LogitechHIDPPController::ReadNvSleepRampConfig()
+{
+    /*---------------------------------------------------------*\
+    | RGBEffects fn3 NV_CONFIG (0x30) read of capability 0x0020 |
+    | (Off Ramp / Sleep Transition).                            |
+    |                                                           |
+    | Wire format (matches GHUB capture line 901):              |
+    |   request:  short msg, data = [0x00, cap_hi, cap_lo]      |
+    |             where 0x00 = sub-function GET                 |
+    |   response: long msg, data = [echo (3 bytes), enabled,    |
+    |             ramp_seconds, ...]                             |
+    |                                                           |
+    | G515 default observed in GHUB: enabled=0x01, seconds=0x1E |
+    | (= 30 seconds dim ramp before sleep).                     |
+    \*---------------------------------------------------------*/
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
+    {
+        return;
+    }
+
+    uint8_t send_data[3] = { 0x00, 0x00, 0x20 };
+    uint8_t recv_data[16] = {};
+
+    int result = SendAndReceive(caps.idx_rgb_effects, FN_8071_NV_CONFIG,
+                                send_data, sizeof(send_data),
+                                recv_data, sizeof(recv_data));
+
+    if(result <= 0)
+    {
+        LOG_DEBUG("%s NvConfig 0x0020 read failed (result=%d)", LOG_TAG, result);
+        return;
+    }
+
+    if(recv_data[0] != 0x00 || recv_data[1] != 0x00 || recv_data[2] != 0x20)
+    {
+        LOG_DEBUG("%s NvConfig 0x0020 read: unexpected echo %02X %02X %02X",
+                  LOG_TAG, recv_data[0], recv_data[1], recv_data[2]);
+        return;
+    }
+
+    caps.nv_sleep_ramp_enabled = (recv_data[3] != 0);
+    caps.nv_sleep_ramp_seconds = recv_data[4];
+    caps.nv_sleep_ramp_known   = true;
+
+    LOG_DEBUG("%s NvConfig 0x0020 (sleep ramp): enabled=%d ramp=%us "
+              "raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
+              LOG_TAG,
+              (int)caps.nv_sleep_ramp_enabled,
+              (unsigned)caps.nv_sleep_ramp_seconds,
+              recv_data[3], recv_data[4], recv_data[5], recv_data[6],
+              recv_data[7], recv_data[8], recv_data[9], recv_data[10]);
+}
+
+void LogitechHIDPPController::WritePowerConfig(uint16_t idle_s, uint16_t sleep_s)
+{
+    /*---------------------------------------------------------*\
+    | SetRgbPowerModeConfig (fn7, sub-function 0x01 = set)       |
+    | Wire format (long message, 16 bytes payload, matches the  |
+    | GET response layout at the same offsets):                 |
+    |   [0x01, 0x00, 0x00, idle_hi, idle_lo, sleep_hi, sleep_lo, |
+    |    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  |
+    |                                                           |
+    | These are the firmware's *runtime* power timers — the     |
+    | values reset on power cycle but persist across SW control |
+    | release/reclaim, so we need to write them ourselves on    |
+    | every claim to be safe.                                    |
+    \*---------------------------------------------------------*/
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
+    {
+        return;
+    }
+
+    uint8_t data[16] = {};
+    data[0] = 0x01;     // sub-function: SET
+    data[3] = (uint8_t)((idle_s  >> 8) & 0xFF);
+    data[4] = (uint8_t)( idle_s        & 0xFF);
+    data[5] = (uint8_t)((sleep_s >> 8) & 0xFF);
+    data[6] = (uint8_t)( sleep_s       & 0xFF);
+
+    SendLong(caps.idx_rgb_effects, caps.fn_pwr_config, data, sizeof(data));
+
+    blankFAPmessage response;
+    ReadResponse(response, caps.idx_rgb_effects, caps.fn_pwr_config);
+
+    LOG_DEBUG("%s WritePowerConfig: idle=%us sleep=%us", LOG_TAG, idle_s, sleep_s);
 }
 
