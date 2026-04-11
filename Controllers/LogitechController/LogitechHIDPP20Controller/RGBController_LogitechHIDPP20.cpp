@@ -437,10 +437,10 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         }
     );
 
-    controller->SetReinitCallback(
+    controller->SetReapplyActiveModeCallback(
         [this]()
         {
-            return ReinitDirectMode();
+            return ReapplyActiveMode();
         }
     );
 }
@@ -743,14 +743,15 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     /*---------------------------------------------------------*\
-    | If the device is sleeping (powered off), wake it first.    |
-    | DIMMING/IDLE states are handled by brightness scaling —    |
-    | the firmware's onUserActivity handles those transitions.   |
+    | We deliberately do NOT drop frames while power_state is   |
+    | SLEEPING. Bench testing on G515 LS TKL showed the         |
+    | firmware handles concurrent host writes gracefully during |
+    | its SetRgbPowerMode(3) fade — animation continues through |
+    | the fade window without disrupting the firmware's         |
+    | fade-to-off. Letting frames flow avoids host-side state   |
+    | divergence between active_mode changes and what the       |
+    | device is actually showing.                                |
     \*---------------------------------------------------------*/
-    if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
-    {
-        controller->WakeIfNeeded();
-    }
 
     if(caps.has_perkey && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
@@ -1082,6 +1083,18 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     }
 
     /*---------------------------------------------------------*\
+    | Drop mode changes while the firmware is fading to off.     |
+    | The device owns its own power state — we don't force-wake |
+    | it from software. active_mode stays tracked framework-    |
+    | side, and the next wake (firmware onUserActivity) or      |
+    | reconnect will re-apply it through the reinit callback.   |
+    \*---------------------------------------------------------*/
+    if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
     | Claim SW control on first mode set (deferred from init).   |
     \*---------------------------------------------------------*/
     controller->ClaimSWControlIfNeeded();
@@ -1098,12 +1111,11 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     /*---------------------------------------------------------*\
     | Direct mode: invalidate delta tracking so the next         |
     | DeviceUpdateLEDs sends a full frame with actual colors.    |
-    | Don't send here — colors may still be default black from   |
-    | SetupColors, not the restored profile.                     |
     \*---------------------------------------------------------*/
     if(current.name == "Direct")
     {
-        ReinitDirectMode();
+        sent_colors.clear();
+        DeviceUpdateLEDs();
 
         /*-----------------------------------------------------*\
         | Start power manager (reader + power threads) if not    |
@@ -1219,23 +1231,33 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     }
 }
 
-bool RGBController_LogitechHIDPP20::ReinitDirectMode()
+bool RGBController_LogitechHIDPP20::ReapplyActiveMode()
 {
     /*---------------------------------------------------------*\
-    | Full Direct mode initialization sequence. Replays the      |
-    | exact startup sequence after a power cycle or reconnect:   |
-    |   1. Claim SW control (host mode + flags + power mode)     |
-    |   2. Zone effect + per-key push (handled by DeviceUpdate)  |
+    | Re-establish the current active_mode on the device. Used   |
+    | by the wake path (after SetRgbPowerMode(1) cancels the     |
+    | firmware fade) and by the reconnect path (after a wireless |
+    | or USB reconnect). Handles both per-key Direct and zone    |
+    | effect modes:                                              |
     |                                                           |
-    | DeviceUpdateLEDs sets the zone effect automatically when   |
-    | sent_colors is empty (first push or after clear).          |
-    |                                                           |
-    | Returns true iff the SW-control claim ACKed. The power     |
-    | thread's reconnect retry loop uses this to decide whether  |
-    | to back off and try again.                                 |
+    |   1. Claim SW control (host mode + flags + power mode).   |
+    |      Retried internally; returns true iff the final claim |
+    |      ACKed. ReconnectDevice's fast-backoff loop uses this |
+    |      as the accept signal.                                 |
+    |   2. Clear sent_colors so the next frame is full-push.    |
+    |      Per the 0x8071 lifecycle, the device's LED buffer may |
+    |      not survive mode 3→1 or a full reconnect, so we don't |
+    |      trust it to remember any prior state.                 |
+    |   3. Route through DeviceUpdateMode so both per-key Direct |
+    |      (full per-key frame via DeviceUpdateLEDs) and zone    |
+    |      effects (SetEffect per cluster) re-establish          |
+    |      correctly. Covers the case where the active_mode was  |
+    |      changed in the GUI while the device was fading — that |
+    |      mode change was dropped at the time and needs to land |
+    |      here on wake.                                          |
     \*---------------------------------------------------------*/
     bool claimed = controller->ClaimSWControlIfNeeded();
     sent_colors.clear();
-    DeviceUpdateLEDs();
+    DeviceUpdateMode();
     return claimed;
 }

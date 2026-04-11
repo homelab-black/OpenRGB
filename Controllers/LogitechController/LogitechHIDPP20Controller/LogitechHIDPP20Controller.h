@@ -419,11 +419,10 @@ public:
     void            StartProbeWatcher();
     bool            HasBridge() const;
     void            SetRepaintCallback(std::function<void()> repaint);
-    void            SetReinitCallback(std::function<bool()> cb);
+    void            SetReapplyActiveModeCallback(std::function<bool()> cb);
     void            SetRegisterCallback(std::function<void(RGBController*)> cb);
     HIDPP20PowerState GetPowerState() const;
     int             GetDimBrightness() const;
-    void            WakeIfNeeded();
     bool            IsOnline() const;
     void            FlushResponseQueue();
 
@@ -643,6 +642,6 @@ private:
     | Callbacks                                         |
     \*-------------------------------------------------*/
     std::function<void()> request_repaint_fn;
-    std::function<bool()> reinit_direct_fn;
+    std::function<bool()> reapply_active_mode_fn;
     std::function<void(RGBController*)> register_controller_fn;
 };

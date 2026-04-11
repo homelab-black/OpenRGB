@@ -24,7 +24,7 @@ public:
     void        UpdateZoneLEDs(int zone);
     void        UpdateSingleLED(int led);
     void        DeviceUpdateMode();
-    bool        ReinitDirectMode();
+    bool        ReapplyActiveMode();
 
 private:
     LogitechHIDPP20Controller*    controller;

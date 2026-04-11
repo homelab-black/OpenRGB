@@ -2860,9 +2860,9 @@ void LogitechHIDPP20Controller::SetRepaintCallback(std::function<void()> repaint
     request_repaint_fn = repaint;
 }
 
-void LogitechHIDPP20Controller::SetReinitCallback(std::function<bool()> cb)
+void LogitechHIDPP20Controller::SetReapplyActiveModeCallback(std::function<bool()> cb)
 {
-    reinit_direct_fn = cb;
+    reapply_active_mode_fn = cb;
 }
 
 void LogitechHIDPP20Controller::SetRegisterCallback(std::function<void(RGBController*)> cb)
@@ -3059,7 +3059,7 @@ void LogitechHIDPP20Controller::ReconnectDevice()
             return;
         }
 
-        if(reinit_direct_fn && reinit_direct_fn())
+        if(reapply_active_mode_fn && reapply_active_mode_fn())
         {
             claimed = true;
             LOG_INFO("%s Device reconnected — SW control reclaimed (attempt %zu/%zu)",
@@ -3291,7 +3291,7 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     |                                                           |
     | Must run after the reader thread is restarted (the       |
     | discovery uses queue-backed reads) and before the         |
-    | reinit_direct_fn callback (so the SW control claim sees  |
+    | reapply_active_mode_fn callback (so the SW control claim sees  |
     | correct indices).                                         |
     \*---------------------------------------------------------*/
     RediscoverFeatures();
@@ -3299,9 +3299,9 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     /*---------------------------------------------------------*\
     | Reinit device with colors                                 |
     \*---------------------------------------------------------*/
-    if(reinit_direct_fn)
+    if(reapply_active_mode_fn)
     {
-        reinit_direct_fn();
+        reapply_active_mode_fn();
     }
 
     if(caps.has_power_mgmt)
@@ -3857,19 +3857,6 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
     }
 }
 
-void LogitechHIDPP20Controller::WakeIfNeeded()
-{
-    std::lock_guard<std::mutex> lock(power_mutex);
-
-    if(power_state == HIDPP20_POWER_ACTIVE)
-    {
-        return;
-    }
-
-    LOG_DEBUG("%s WakeIfNeeded: waking from state %d", LOG_TAG, power_state);
-    Wake();
-}
-
 void LogitechHIDPP20Controller::StartDimRamp()
 {
     /*---------------------------------------------------------*\
@@ -3980,116 +3967,56 @@ void LogitechHIDPP20Controller::StartSleep()
 void LogitechHIDPP20Controller::Wake()
 {
     /*---------------------------------------------------------*\
-    | Restore from any non-ACTIVE state.                         |
+    | Called from OnUserActivity(1) when the firmware tells us  |
+    | the device has seen user input. Works for DIMMING, IDLE,  |
+    | and SLEEPING states uniformly — the only wrinkle is that  |
+    | SLEEPING means we previously sent SetRgbPowerMode(3) to   |
+    | initiate the fade, so we have to explicitly cancel it     |
+    | with SetRgbPowerMode(1) first.                             |
+    |                                                           |
+    | Per the 0x8071 protocol lifecycle (LOGITECH_HIDPP2_       |
+    | PROTOCOL.md §0x8071), a proper wake is: power mode 1 (if  |
+    | we were sleeping), then SetSWControl(3,5) to re-claim     |
+    | rendering from the firmware's idle-monitor mode, then     |
+    | re-push the current lighting state (the device's LED      |
+    | buffer may not survive mode 3→1 transition and we don't   |
+    | trust the device to remember). The re-push is handled by  |
+    | the reapply_active_mode_fn callback which clears          |
+    | sent_colors and routes through DeviceUpdateMode so both   |
+    | per-key Direct and zone-effect modes re-establish.         |
+    |                                                           |
     | power_mutex must already be held by the caller.            |
     \*---------------------------------------------------------*/
     HIDPP20PowerState prev = power_state;
 
-    /*---------------------------------------------------------*\
-    | Flush stale per-key ACKs from the dim ramp so subsequent   |
-    | commands can find their responses.                          |
-    \*---------------------------------------------------------*/
     FlushResponseQueue();
-
-    /*---------------------------------------------------------*\
-    | Wake-from-DIMMING/IDLE: we never released SW control. The  |
-    | only state that changed entering dim was SetSWControl flags|
-    | 5 → 3 (release EFFECT to firmware so it can monitor user   |
-    | activity) and brightness scaling on host-side writes. So   |
-    | the wake is symmetric: flip flags 3 → 5, restore brightness|
-    | to 100%, request a repaint, and let the normal delta path  |
-    | push the now-full-brightness colors. No reclaim, no init   |
-    | generation bump (which would clear sent_colors and re-fire |
-    | the SetZoneEffect prep call), no full reinit.              |
-    \*---------------------------------------------------------*/
-    if(prev == HIDPP20_POWER_DIMMING || prev == HIDPP20_POWER_IDLE)
-    {
-        SetSWControl(3, 5);
-        dim_brightness_pct.store(100);
-        power_state = HIDPP20_POWER_ACTIVE;
-
-        LOG_DEBUG("%s Woke from state %d (lightweight)", LOG_TAG, prev);
-
-        if(request_repaint_fn)
-        {
-            request_repaint_fn();
-        }
-
-        return;
-    }
 
     if(prev == HIDPP20_POWER_SLEEPING)
     {
         /*-----------------------------------------------------*\
-        | The sleep command starts a firmware fade-to-off that   |
-        | takes ~30s. During that window, the device is still    |
-        | responsive — just cancel with SetRGBPowerMode(1).      |
-        |                                                        |
-        | If the device has fully gone offline and reconnected,  |
-        | it will have reset to onboard profile mode. SendAcked  |
-        | with the reliable policy retries the wake command with |
-        | exponential backoff (~6s worst case), absorbing both   |
-        | the in-fade quick-wake and the offline-reconnect slow- |
-        | wake into one call. After that, re-assert host mode.   |
+        | Cancel the firmware's fade-to-off. SW control is still |
+        | ours; this is not a reconnect. The device stays on the |
+        | same hidraw handle, same feature map, same claim.      |
         \*-----------------------------------------------------*/
-        uint8_t data[2] = { 0x01, 0x01 };
-        blankFAPmessage response;
-        int result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
-                                      data, 2, response);
-
-        if(result > 0)
-        {
-            LOG_DEBUG("%s Wake: device responsive", LOG_TAG);
-        }
-        else
-        {
-            LOG_DEBUG("%s Wake: device unresponsive after retries (result=%d)",
-                      LOG_TAG, result);
-        }
-
-        /*-------------------------------------------------*\
-        | Re-assert host mode in case the device fully       |
-        | offlined and reset to onboard profile.             |
-        \*-------------------------------------------------*/
-        if(caps.idx_profile_management != 0)
-        {
-            uint8_t mode_data[1] = { 0x05 };
-            blankFAPmessage mode_resp;
-            SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
-                             mode_data, 1, mode_resp);
-
-            LOG_DEBUG("%s Wake: ProfileManagement set to host mode", LOG_TAG);
-        }
-        else if(caps.idx_onboard_profiles != 0)
-        {
-            uint8_t mode_data[1] = { 0x02 };
-            blankFAPmessage mode_resp;
-            SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
-                             mode_data, 1, mode_resp);
-
-            LOG_DEBUG("%s Wake: OnboardProfiles set to host mode", LOG_TAG);
-        }
+        SetRGBPowerMode(1);
     }
 
-    /*---------------------------------------------------------*\
-    | Reset state for reinit. ReinitDirectMode (called via the   |
-    | RGBController callback) does the proper sequence:          |
-    |   1. Claim SW control (host mode + flags + power mode)     |
-    |   2. Zone effect with real color from buffer (via          |
-    |      DeviceUpdateLEDs sent_colors-empty path)              |
-    |   3. Full per-key push                                     |
-    \*---------------------------------------------------------*/
-    sw_control_claimed = false;
+    SetSWControl(3, 5);
     dim_brightness_pct.store(100);
-    init_generation++;
-
     power_state = HIDPP20_POWER_ACTIVE;
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 
-    if(reinit_direct_fn)
+    /*---------------------------------------------------------*\
+    | Re-push the current lighting state. For Direct modes this |
+    | clears sent_colors and pushes a full frame via             |
+    | DeviceUpdateLEDs; for zone effects it re-issues SetEffect |
+    | on every cluster. The callback routes through              |
+    | DeviceUpdateMode so both cases are covered.                |
+    \*---------------------------------------------------------*/
+    if(reapply_active_mode_fn)
     {
-        reinit_direct_fn();
+        reapply_active_mode_fn();
     }
 }
 
