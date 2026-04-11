@@ -575,28 +575,6 @@ int LogitechHIDPP20Controller::SendStandard
         msg_len = LOGITECH_LONG_MESSAGE_LEN;
     }
 
-    {
-        static auto t0 = std::chrono::steady_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-
-        if(msg_len == LOGITECH_SHORT_MESSAGE_LEN)
-        {
-            LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X]",
-                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                      buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
-        }
-        else
-        {
-            LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
-                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                      buf[0], buf[1], buf[2], buf[3],
-                      buf[4], buf[5], buf[6], buf[7],
-                      buf[8], buf[9], buf[10], buf[11],
-                      buf[12], buf[13], buf[14], buf[15],
-                      buf[16], buf[17], buf[18], buf[19]);
-        }
-    }
-
     int result;
 
     if(mutex)
@@ -691,18 +669,6 @@ int LogitechHIDPP20Controller::ReadStandardDirect
                 return 0;
             }
             continue;
-        }
-
-        {
-            static auto t0 = std::chrono::steady_clock::now();
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-            LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X%02X %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
-                      LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                      response.buffer[0], response.buffer[1], response.buffer[2], response.buffer[3],
-                      response.buffer[4], response.buffer[5], response.buffer[6], response.buffer[7],
-                      response.buffer[8], response.buffer[9], response.buffer[10], response.buffer[11],
-                      response.buffer[12], response.buffer[13], response.buffer[14], response.buffer[15],
-                      response.buffer[16], response.buffer[17], response.buffer[18], response.buffer[19]);
         }
 
         if(feat_idx_out)
@@ -835,15 +801,6 @@ int LogitechHIDPP20Controller::SendCenturion
         }
     }
 
-    {
-        static auto t0 = std::chrono::steady_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        LOG_TRACE("%s [%lld.%03lld] <= w[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
-                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                  buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
-                  buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
-    }
-
     int result;
 
     if(mutex)
@@ -923,15 +880,6 @@ int LogitechHIDPP20Controller::ReadCenturionDirect
                       LOG_TAG, HIDPP20_READ_DRAIN_BUDGET);
             return 0;
         }
-    }
-
-    {
-        static auto t0 = std::chrono::steady_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-        LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
-                  LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                  buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
-                  buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
     }
 
     /*---------------------------------------------------------*\
@@ -1026,15 +974,6 @@ int LogitechHIDPP20Controller::ReadCenturionDirect
                               LOG_TAG, HIDPP20_READ_DRAIN_BUDGET);
                     return 0;
                 }
-            }
-
-            {
-                static auto t0 = std::chrono::steady_clock::now();
-                auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-                LOG_TRACE("%s [%lld.%03lld] => r[%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X ...]",
-                          LOG_TAG, (long long)(ms / 1000), (long long)(ms % 1000),
-                          buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7],
-                          buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]);
             }
 
             resp_feat = buf[3 + hdr_offset];
@@ -1899,21 +1838,8 @@ void LogitechHIDPP20Controller::DiscoverPerKeyZones()
 
         if(result <= 0)
         {
-            LOG_DEBUG("%s Per-key GetInfo page %u: no response",
-                      LOG_TAG, page);
             continue;
         }
-
-        LOG_DEBUG("%s Per-key GetInfo page %u: "
-                  "%02X %02X | %02X %02X %02X %02X %02X %02X %02X "
-                  "%02X %02X %02X %02X %02X %02X %02X",
-                  LOG_TAG, page,
-                  response.data[0], response.data[1],
-                  response.data[2], response.data[3], response.data[4],
-                  response.data[5], response.data[6], response.data[7],
-                  response.data[8], response.data[9], response.data[10],
-                  response.data[11], response.data[12], response.data[13],
-                  response.data[14], response.data[15]);
 
         /*-----------------------------------------------------*\
         | Parse 14-byte bitmap (bytes 2..15 of the response).    |
@@ -2548,10 +2474,6 @@ void LogitechHIDPP20Controller::SetAllPerKeyColor(RGBColor color)
     {
         return;
     }
-
-    LOG_DEBUG("%s SetAllPerKeyColor: R=%d G=%d B=%d zones=%zu",
-              LOG_TAG, RGBGetRValue(color), RGBGetGValue(color), RGBGetBValue(color),
-              caps.perkey_zone_ids.size());
 
     uint8_t r = RGBGetRValue(color);
     uint8_t g = RGBGetGValue(color);
