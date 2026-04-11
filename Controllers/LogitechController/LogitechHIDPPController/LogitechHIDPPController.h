@@ -213,6 +213,9 @@ struct HIDPPTransport
     uint8_t             device_address;     // Centurion 0x50: device address (e.g., 0x23)
     uint8_t             bridge_feat_idx;    // CentPPBridge feature index on parent (0 if N/A)
     uint8_t             sub_device_id;      // CentPPBridge sub-device ID (typically 0)
+    uint16_t            bridge_mtu;         // CentPPBridge MTU from getConnectionInfo:
+                                            //   0 = no sub-device, sendFragment will fail
+                                            //   >0 = sub-device present, payload size in bytes
 };
 
 /*-----------------------------------------------------*\
