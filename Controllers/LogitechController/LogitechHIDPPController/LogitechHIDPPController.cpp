@@ -182,20 +182,13 @@ int LogitechHIDPPController::ReadFromQueue
     {
         if(response_cv.wait_until(lock, deadline) == std::cv_status::timeout)
         {
-            int timeouts = ++consecutive_timeouts;
-
             /*-------------------------------------------------*\
-            | 10 consecutive timeouts (~3s with 300ms each) before|
-            | marking offline. Single delayed responses don't    |
-            | trigger offline state.                             |
+            | Offline detection lives at the SendAcked layer    |
+            | now: one tick per fully-failed call, not per      |
+            | per-attempt read window. Streaming policies that  |
+            | retry several times don't artificially accelerate |
+            | the offline declaration.                          |
             \*-------------------------------------------------*/
-            if(timeouts >= 10 && device_online.load())
-            {
-                LOG_DEBUG("%s Device appears offline (%d consecutive timeouts)",
-                          LOG_TAG, timeouts);
-                device_online.store(false);
-            }
-
             return 0;
         }
 
@@ -204,8 +197,6 @@ int LogitechHIDPPController::ReadFromQueue
             return 0;
         }
     }
-
-    consecutive_timeouts.store(0);
 
     HIDPPRawMessage msg = response_queue.front();
     response_queue.pop_front();
@@ -453,6 +444,7 @@ int LogitechHIDPPController::SendAcked
                               LOG_TAG, policy.name, attempt, feat_idx, function);
                 }
 
+                consecutive_timeouts.store(0);
                 return rd;
             }
 
@@ -468,6 +460,25 @@ int LogitechHIDPPController::SendAcked
     if(hidpp_error_out)
     {
         *hidpp_error_out = last_error;
+    }
+
+    /*---------------------------------------------------------*\
+    | Offline detection: tick once per fully-failed call (all    |
+    | retry attempts exhausted with no response). At a threshold |
+    | of 10 we declare the device gone. Reset to 0 happens on    |
+    | any successful call (above) — single delayed responses     |
+    | don't push us toward offline.                              |
+    \*---------------------------------------------------------*/
+    if(last_result == 0)
+    {
+        int timeouts = ++consecutive_timeouts;
+
+        if(timeouts >= 10 && device_online.load())
+        {
+            LOG_DEBUG("%s Device appears offline (%d consecutive failed calls)",
+                      LOG_TAG, timeouts);
+            device_online.store(false);
+        }
     }
 
     return last_result;
@@ -2294,14 +2305,15 @@ uint32_t LogitechHIDPPController::GetInitGeneration() const
 | SW Control and Power                                      |
 \*---------------------------------------------------------*/
 
-void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
+int LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
 {
     if(caps.idx_rgb_effects == 0)
     {
-        return;
+        return 0;
     }
 
     blankFAPmessage response;
+    int             result;
 
     if(caps.sw_control_simple)
     {
@@ -2309,8 +2321,8 @@ void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
         | 0x8070: simple [enabled(bool), persist(bool)]          |
         \*-----------------------------------------------------*/
         uint8_t data[2] = { (uint8_t)(mode > 0 ? 0x01 : 0x00), 0x00 };
-        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
-                         data, 2, response);
+        result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
+                                  data, 2, response);
     }
     else
     {
@@ -2318,11 +2330,14 @@ void LogitechHIDPPController::SetSWControl(uint8_t mode, uint8_t flags)
         | 0x8071/0x0600: [0x01(set), mode, flags]                |
         \*-----------------------------------------------------*/
         uint8_t data[3] = { 0x01, mode, flags };
-        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
-                         data, 3, response);
+        result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
+                                  data, 3, response);
     }
 
-    LOG_DEBUG("%s SetSWControl mode=%d flags=0x%02X", LOG_TAG, mode, flags);
+    LOG_DEBUG("%s SetSWControl mode=%d flags=0x%02X result=%d",
+              LOG_TAG, mode, flags, result);
+
+    return result;
 }
 
 void LogitechHIDPPController::SetRGBPowerMode(uint8_t mode)
@@ -2362,11 +2377,16 @@ void LogitechHIDPPController::SetHostMode()
     }
 }
 
-void LogitechHIDPPController::ClaimSWControlIfNeeded()
+bool LogitechHIDPPController::ClaimSWControlIfNeeded()
 {
-    if(sw_control_claimed || caps.idx_rgb_effects == 0 || !device_online.load())
+    if(sw_control_claimed)
     {
-        return;
+        return true;
+    }
+
+    if(caps.idx_rgb_effects == 0 || !device_online.load())
+    {
+        return false;
     }
 
     /*---------------------------------------------------------*\
@@ -2403,11 +2423,26 @@ void LogitechHIDPPController::ClaimSWControlIfNeeded()
     SetRGBPowerMode(1);
     SetHostMode();
     WritePowerConfig(idle_timeout_s, effective_sleep);
-    SetSWControl(3, 5);
 
-    sw_control_claimed = true;
+    /*---------------------------------------------------------*\
+    | Only mark control claimed if the final SetSWControl(3,5)  |
+    | actually ACKs. Marking it claimed on a failed call is how |
+    | we previously stranded the device in onboard mode after a |
+    | wireless reconnect — no retry, firmware watchdog timed     |
+    | out at 10s, default animation came back.                  |
+    \*---------------------------------------------------------*/
+    int final_result = SetSWControl(3, 5);
 
-    LOG_DEBUG("%s Claimed SW control (deferred from init)", LOG_TAG);
+    if(final_result > 0)
+    {
+        sw_control_claimed = true;
+        LOG_DEBUG("%s Claimed SW control (deferred from init)", LOG_TAG);
+        return true;
+    }
+
+    LOG_DEBUG("%s SW control claim failed (final SetSWControl result=%d)",
+              LOG_TAG, final_result);
+    return false;
 }
 
 /*---------------------------------------------------------*\
@@ -2430,25 +2465,29 @@ void LogitechHIDPPController::SetPerKeyColors
 
     /*---------------------------------------------------------*\
     | Batch into SetIndividualRgbZones (fn1): 4 entries/packet  |
-    | Each entry = [zone_id, R, G, B]                           |
-    | Fire-and-forget: FrameEnd handles draining stale ACKs.    |
+    | Each entry = [zone_id, R, G, B]. Track the zones in each  |
+    | batch so PerKeyFrameEnd can report which committed.       |
     \*---------------------------------------------------------*/
-    uint8_t data[16];
-    int count = 0;
+    uint8_t              data[16];
+    std::vector<uint8_t> batch_zones;
+    int                  count = 0;
 
     for(size_t i = 0; i < zone_colors.size(); i++)
     {
         int offset = count * 4;
-        data[offset + 0] = zone_colors[i].first;
+        data[offset + 0] = (uint8_t)zone_colors[i].first;
         data[offset + 1] = RGBGetRValue(zone_colors[i].second);
         data[offset + 2] = RGBGetGValue(zone_colors[i].second);
         data[offset + 3] = RGBGetBValue(zone_colors[i].second);
+        batch_zones.push_back((uint8_t)zone_colors[i].first);
         count++;
 
         if(count == 4 || i == zone_colors.size() - 1)
         {
-            SendPerKeyData(perkey_idx, FN_8081_SET_INDIVIDUAL, data, count * 4);
+            SendPerKeyData(perkey_idx, FN_8081_SET_INDIVIDUAL,
+                           data, count * 4, batch_zones);
             memset(data, 0, sizeof(data));
+            batch_zones.clear();
             count = 0;
         }
     }
@@ -2493,76 +2532,265 @@ void LogitechHIDPPController::SetAllPerKeyColor(RGBColor color)
 
     if(min_zone <= max_zone)
     {
-        uint8_t data[5] = { min_zone, max_zone, r, g, b };
-        SendPerKeyData(perkey_idx, FN_8081_SET_RANGE, data, 5);
+        uint8_t              data[5] = { min_zone, max_zone, r, g, b };
+        std::vector<uint8_t> batch_zones;
+
+        for(uint16_t zid : caps.perkey_zone_ids)
+        {
+            if(zid >= min_zone && zid <= max_zone)
+            {
+                batch_zones.push_back((uint8_t)zid);
+            }
+        }
+
+        SendPerKeyData(perkey_idx, FN_8081_SET_RANGE, data, 5, batch_zones);
     }
 }
 
 void LogitechHIDPPController::SendPerKeyData
     (
-    uint8_t         perkey_idx,
-    uint8_t         function,
-    const uint8_t*  data,
-    size_t          len
+    uint8_t                     perkey_idx,
+    uint8_t                     function,
+    const uint8_t*              data,
+    size_t                      len,
+    const std::vector<uint8_t>& zone_ids
     )
 {
     /*---------------------------------------------------------*\
-    | Per-key write through SendAcked with the streaming policy |
-    | (1 retry, 30ms gap, 50ms read window per attempt). Fire-  |
-    | and-forget — return value intentionally ignored, since    |
-    | PerKeyFrameEnd is the commit gate that determines whether |
-    | the frame actually landed.                                |
+    | Truly fire-and-forget. Push the packet onto the wire,     |
+    | record the zones it covers in outstanding_writes, and    |
+    | return. PerKeyFrameEnd will drain the response queue at  |
+    | end-of-frame and FIFO-match each ACK back to the          |
+    | corresponding outstanding entry.                          |
+    |                                                          |
+    | The retry/backoff machinery is intentionally NOT used    |
+    | here — when a streaming frame fails, we don't want to    |
+    | delay the next frame retrying old data. The carry-over   |
+    | of uncommitted zones via sent_colors[i]=HIDPP_UNCOMMITTED|
+    | naturally ensures missed keys land in the next frame.    |
     \*---------------------------------------------------------*/
-    uint8_t recv[20] = {};
-    SendAcked(perkey_idx, function, data, len,
-              recv, sizeof(recv),
-              HIDPP_POLICY_STREAMING);
+    int send_result = SendMessage(perkey_idx, function, data, len);
+
+    if(send_result < 0)
+    {
+        LOG_DEBUG("%s SendPerKeyData wire send failed (result=%d) func=0x%02X",
+                  LOG_TAG, send_result, function);
+        /* Still record the outstanding entry — its zones will  */
+        /* be reported as unacked, which is correct.             */
+    }
+
+    OutstandingPerKeyWrite entry;
+    entry.function = function;
+    entry.zone_ids = zone_ids;
+    outstanding_writes.push_back(std::move(entry));
 }
 
-bool LogitechHIDPPController::PerKeyFrameEnd(bool persist)
+PerKeyFrameResult LogitechHIDPPController::PerKeyFrameEnd()
 {
-    if(!device_online.load()) return false;
+    PerKeyFrameResult result;
+    result.frame_end_acked = false;
+
+    /*---------------------------------------------------------*\
+    | Build attempted_zones from the outstanding writes list    |
+    | up front so the caller can use it for both the success    |
+    | and failure paths.                                        |
+    \*---------------------------------------------------------*/
+    for(const auto& w : outstanding_writes)
+    {
+        for(uint8_t z : w.zone_ids)
+        {
+            result.attempted_zones.push_back(z);
+        }
+    }
+
+    if(!device_online.load())
+    {
+        outstanding_writes.clear();
+        return result;
+    }
 
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
     if(perkey_idx == 0)
     {
-        return false;
+        outstanding_writes.clear();
+        return result;
     }
 
     /*---------------------------------------------------------*\
-    | FrameEnd format (matches GHUB capture):                   |
-    |   - LONG message (0x11), 16 bytes of zeros                |
-    |   - No frame counter, no persist flag                     |
-    | We were sending a SHORT message with [persist, fc_hi, fc_lo] |
-    | which caused intermittent BUSY errors. GHUB never sees    |
-    | BUSY because firmware expects long-format FrameEnd.       |
+    | Send FrameEnd directly. No retry, no backoff: a streaming |
+    | frame failure means the next frame's delta will pick up   |
+    | the missed keys, and we don't want to delay that frame.   |
+    |                                                           |
+    | Format (matches GHUB capture): LONG message (0x11), 16    |
+    | bytes of zeros. The firmware expects long-format FrameEnd |
+    | — short-format hits intermittent BUSY.                    |
     \*---------------------------------------------------------*/
     uint8_t data[16] = {};
-    (void)persist;  // ignored — GHUB doesn't use this
+    int send_result = SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
 
-    /*---------------------------------------------------------*\
-    | Use the FRAME_END policy: 5 attempts with 0/10/30/63/125  |
-    | ms backoff, 100ms read window per attempt, no flush      |
-    | (preceding per-key write ACKs may still be draining).    |
-    | ~230ms worst case fits inside a typical animation frame   |
-    | budget × a few frames of slack. SendAcked handles the     |
-    | BUSY-retry and stale-ACK draining internally.             |
-    \*---------------------------------------------------------*/
-    uint8_t recv[20] = {};
-    int result = SendAcked(perkey_idx, FN_8081_FRAME_END,
-                           data, sizeof(data),
-                           recv, sizeof(recv),
-                           HIDPP_POLICY_FRAME_END);
-
-    if(result > 0)
+    if(send_result < 0)
     {
-        return true;
+        LOG_DEBUG("%s FrameEnd wire send failed (result=%d)", LOG_TAG, send_result);
+        outstanding_writes.clear();
+        return result;
     }
 
-    LOG_DEBUG("%s FrameEnd failed (result=%d, fc=%u)",
-              LOG_TAG, result, frame_counter);
-    return false;
+    /*---------------------------------------------------------*\
+    | Drain responses in FIFO order until we either see the     |
+    | FrameEnd ACK or run out the wait budget. Each per-key     |
+    | write response is matched (by feature + function high     |
+    | nibble) to the head of outstanding_writes; matched zones  |
+    | go into acked_zones. The FrameEnd response itself is the  |
+    | terminating event.                                        |
+    |                                                           |
+    | Wait budget: 300ms. Generous enough to absorb the slow   |
+    | batch-ACK behavior we've seen on G515 (~700ms p99) for    |
+    | dense per-key frames, but won't actually consume that    |
+    | much time on healthy devices — the loop exits the moment  |
+    | the FrameEnd response shows up.                           |
+    \*---------------------------------------------------------*/
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+    size_t outstanding_idx = 0;
+    int    busy_retries    = 0;
+
+    while(true)
+    {
+        auto now = std::chrono::steady_clock::now();
+        if(now >= deadline)
+        {
+            LOG_DEBUG("%s FrameEnd timed out waiting for ACK (matched %zu/%zu writes)",
+                      LOG_TAG, outstanding_idx, outstanding_writes.size());
+            break;
+        }
+
+        int remaining = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                              deadline - now).count();
+        if(remaining <= 0)
+        {
+            break;
+        }
+
+        uint8_t resp_feat = 0;
+        uint8_t resp_func = 0;
+        uint8_t resp_data[60] = {};
+
+        int rd = ReadMessage(&resp_feat, &resp_func,
+                             resp_data, sizeof(resp_data),
+                             remaining);
+
+        if(rd < 0)
+        {
+            LOG_DEBUG("%s FrameEnd read error (result=%d)", LOG_TAG, rd);
+            break;
+        }
+
+        if(rd == 0)
+        {
+            /* timeout */
+            LOG_DEBUG("%s FrameEnd timed out waiting for ACK (matched %zu/%zu writes)",
+                      LOG_TAG, outstanding_idx, outstanding_writes.size());
+            break;
+        }
+
+        /*-----------------------------------------------------*\
+        | HID++ error frame: feat=0xFF, func=err_feat,          |
+        | data[0]=err_func, data[1]=err_code.                   |
+        |                                                       |
+        | The case we care about is BUSY (0x08) for our         |
+        | FrameEnd: the firmware is still draining the per-key  |
+        | write queue and asks us to re-send. Without this we   |
+        | hang on the deadline waiting for an ACK that never   |
+        | comes, since BUSY-rejected commands are not queued.  |
+        |                                                       |
+        | Re-send with a tight budget — 3 retries, 30ms gap.   |
+        | If BUSY persists past that, give up for this frame    |
+        | and let delta carry-over handle it next frame.        |
+        \*-----------------------------------------------------*/
+        if(resp_feat == 0xFF)
+        {
+            uint8_t err_feat = resp_func;
+            uint8_t err_func_byte = resp_data[0];
+            uint8_t err_code = resp_data[1];
+
+            bool is_our_frame_end =
+                (err_feat == perkey_idx) &&
+                ((err_func_byte & 0xF0) == FN_8081_FRAME_END);
+
+            if(is_our_frame_end)
+            {
+                size_t max_busy_retries =
+                    sizeof(HIDPP_FRAME_END_BUSY_BACKOFF_MS) / sizeof(uint16_t);
+
+                if(err_code == 0x08 && (size_t)busy_retries < max_busy_retries)
+                {
+                    uint16_t delay_ms = HIDPP_FRAME_END_BUSY_BACKOFF_MS[busy_retries];
+                    busy_retries++;
+                    LOG_TRACE("%s FrameEnd BUSY, re-sending (retry %d, delay %ums)",
+                              LOG_TAG, busy_retries, delay_ms);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+                    SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
+                    continue;
+                }
+
+                /* Non-BUSY error or out of retries — frame committed=false */
+                LOG_DEBUG("%s FrameEnd error 0x%02X (retries=%d)",
+                          LOG_TAG, err_code, busy_retries);
+                break;
+            }
+
+            /* Error for an unrelated request — discard and keep reading */
+            continue;
+        }
+
+        /*-----------------------------------------------------*\
+        | Discard frames that aren't from our perkey feature.   |
+        \*-----------------------------------------------------*/
+        if(resp_feat != perkey_idx)
+        {
+            continue;
+        }
+
+        uint8_t resp_func_hi = resp_func & 0xF0;
+
+        /*-----------------------------------------------------*\
+        | FrameEnd response — terminator.                       |
+        \*-----------------------------------------------------*/
+        if(resp_func_hi == FN_8081_FRAME_END)
+        {
+            result.frame_end_acked = true;
+            break;
+        }
+
+        /*-----------------------------------------------------*\
+        | Per-key write response. Match against the next        |
+        | outstanding entry by function high nibble. If the     |
+        | head doesn't match (a write was dropped on the wire   |
+        | or the firmware is responding out of order), skip     |
+        | unmatched heads — those entries' zones will be left   |
+        | out of acked_zones and treated as uncommitted.        |
+        \*-----------------------------------------------------*/
+        while(outstanding_idx < outstanding_writes.size() &&
+              outstanding_writes[outstanding_idx].function != resp_func_hi)
+        {
+            outstanding_idx++;
+        }
+
+        if(outstanding_idx >= outstanding_writes.size())
+        {
+            /* No matching outstanding write — stale or unexpected response */
+            continue;
+        }
+
+        for(uint8_t z : outstanding_writes[outstanding_idx].zone_ids)
+        {
+            result.acked_zones.push_back(z);
+        }
+        outstanding_idx++;
+    }
+
+    outstanding_writes.clear();
+    return result;
 }
 
 /*---------------------------------------------------------*\
@@ -2695,7 +2923,7 @@ void LogitechHIDPPController::SetRepaintCallback(std::function<void()> repaint)
     request_repaint_fn = repaint;
 }
 
-void LogitechHIDPPController::SetReinitCallback(std::function<void()> cb)
+void LogitechHIDPPController::SetReinitCallback(std::function<bool()> cb)
 {
     reinit_direct_fn = cb;
 }
@@ -2840,23 +3068,29 @@ void LogitechHIDPPController::ReprobeSubDevice()
 void LogitechHIDPPController::ReconnectDevice()
 {
     /*---------------------------------------------------------*\
-    | Called by power thread when WirelessStatus reconnect event |
-    | arrives. Push colors ASAP to override the firmware boot    |
-    | animation — same behavior as GHUB.                        |
+    | Called by power thread when a WirelessStatus reconnect     |
+    | event arrives. Race the firmware boot animation: hammer    |
+    | the SW-control claim + per-key push on a fast-backoff      |
+    | schedule until the claim ACKs (matches GHUB, which lands   |
+    | control in ~50ms).                                         |
+    |                                                           |
+    | Previously this code split work across the two firmware    |
+    | events (reconnect=1/config_needed=1 then config_needed=0)  |
+    | and only pushed once per event. The first push raced the   |
+    | boot, the second only fired after the animation finished,  |
+    | and a failed claim left sw_control_claimed=true so the     |
+    | 10s firmware watchdog dropped us back to onboard mode.    |
     \*---------------------------------------------------------*/
     LOG_DEBUG("%s Reconnecting device", LOG_TAG);
 
     FlushResponseQueue();
 
-    if(!device_online.load())
+    bool first_event = !device_online.load();
+
+    if(first_event)
     {
-        /*-----------------------------------------------------*\
-        | First reconnect event (reconnect=1, config_needed=1).  |
-        | Full init: reset state, claim SW control, push colors. |
-        \*-----------------------------------------------------*/
         device_online.store(true);
         consecutive_timeouts.store(0);
-        sw_control_claimed = false;
         frame_counter = 0;
 
         {
@@ -2864,33 +3098,49 @@ void LogitechHIDPPController::ReconnectDevice()
             dim_brightness_pct.store(100);
             power_state = HIDPP_POWER_ACTIVE;
         }
-
-        if(reinit_direct_fn)
-        {
-            reinit_direct_fn();
-        }
-
-        if(caps.has_power_mgmt)
-        {
-            ReadFirmwareTimers();
-            ReadNvSleepRampConfig();
-        }
-
-        LOG_INFO("%s Device reconnected — colors pushed", LOG_TAG);
     }
-    else
+
+    /*---------------------------------------------------------*\
+    | Always invalidate any stale claim so the loop below runs   |
+    | the full claim sequence on each attempt until it sticks.   |
+    \*---------------------------------------------------------*/
+    sw_control_claimed = false;
+
+    bool   claimed       = false;
+    size_t attempt_count = sizeof(HIDPP_RECLAIM_BACKOFF_MS) / sizeof(uint16_t);
+
+    for(size_t i = 0; i < attempt_count; i++)
     {
-        /*-----------------------------------------------------*\
-        | Second event (config_needed=0) — firmware boot done.   |
-        | Re-push colors in case firmware overwrote per-key      |
-        | buffer during its initialization.                      |
-        \*-----------------------------------------------------*/
-        if(reinit_direct_fn)
+        if(HIDPP_RECLAIM_BACKOFF_MS[i] > 0)
         {
-            reinit_direct_fn();
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(HIDPP_RECLAIM_BACKOFF_MS[i]));
         }
 
-        LOG_INFO("%s Device reconnected — colors re-pushed after firmware boot", LOG_TAG);
+        if(!device_online.load())
+        {
+            return;
+        }
+
+        if(reinit_direct_fn && reinit_direct_fn())
+        {
+            claimed = true;
+            LOG_INFO("%s Device reconnected — SW control reclaimed (attempt %zu/%zu)",
+                     LOG_TAG, i + 1, attempt_count);
+            break;
+        }
+    }
+
+    if(!claimed)
+    {
+        LOG_WARNING("%s Device reconnected — SW control reclaim failed after %zu attempts",
+                    LOG_TAG, attempt_count);
+    }
+
+    if(first_event && caps.has_power_mgmt)
+    {
+        ReadFirmwareTimers();
+        ReadNvSleepRampConfig();
     }
 }
 
@@ -3521,11 +3771,11 @@ void LogitechHIDPPController::ReaderThreadFunc()
                               LOG_TAG, reconnect, config_needed);
 
                     /*-------------------------------------------------*\
-                    | Push colors on BOTH events:                       |
-                    |  reconnect=1: immediately override boot animation |
-                    |  config_needed=0: re-push after firmware boot     |
-                    |    completes (firmware may overwrite per-key       |
-                    |    buffer during its internal initialization)     |
+                    | Forward both events to the power thread. Each      |
+                    | call into ReconnectDevice runs the fast-backoff    |
+                    | reclaim loop, so the second event acts as a        |
+                    | belt-and-suspenders re-claim once the firmware     |
+                    | boot fully settles.                                |
                     \*-------------------------------------------------*/
                     pending_connection.store(1);
 
@@ -3824,9 +4074,16 @@ void LogitechHIDPPController::DimRampStep()
     | brightness. For animations this is redundant (the          |
     | animation loop already calls it), but for static colors   |
     | this is the only way to push the dimmed output.           |
+    |                                                           |
+    | Do NOT bump init_generation here — that would clear        |
+    | sent_colors and make the next DeviceUpdateLEDs treat the   |
+    | frame as a first-push, firing the SetZoneEffect(0xFF,      |
+    | static black, persist=true) prep call. On mice that flash  |
+    | as a brief black-out per dim step. Delta tracking already  |
+    | handles the changed brightness correctly: snapshot is the  |
+    | scaled output, sent_colors holds the previously scaled     |
+    | frame, and the diff catches every pixel that moved.       |
     \*---------------------------------------------------------*/
-    init_generation++;
-
     if(request_repaint_fn)
     {
         request_repaint_fn();
@@ -3893,6 +4150,33 @@ void LogitechHIDPPController::Wake()
     | commands can find their responses.                          |
     \*---------------------------------------------------------*/
     FlushResponseQueue();
+
+    /*---------------------------------------------------------*\
+    | Wake-from-DIMMING/IDLE: we never released SW control. The  |
+    | only state that changed entering dim was SetSWControl flags|
+    | 5 → 3 (release EFFECT to firmware so it can monitor user   |
+    | activity) and brightness scaling on host-side writes. So   |
+    | the wake is symmetric: flip flags 3 → 5, restore brightness|
+    | to 100%, request a repaint, and let the normal delta path  |
+    | push the now-full-brightness colors. No reclaim, no init   |
+    | generation bump (which would clear sent_colors and re-fire |
+    | the SetZoneEffect prep call), no full reinit.              |
+    \*---------------------------------------------------------*/
+    if(prev == HIDPP_POWER_DIMMING || prev == HIDPP_POWER_IDLE)
+    {
+        SetSWControl(3, 5);
+        dim_brightness_pct.store(100);
+        power_state = HIDPP_POWER_ACTIVE;
+
+        LOG_DEBUG("%s Woke from state %d (lightweight)", LOG_TAG, prev);
+
+        if(request_repaint_fn)
+        {
+            request_repaint_fn();
+        }
+
+        return;
+    }
 
     if(prev == HIDPP_POWER_SLEEPING)
     {

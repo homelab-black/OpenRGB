@@ -16,6 +16,17 @@
 #include "KeyboardLayoutManager.h"
 #include "LogManager.h"
 
+/*---------------------------------------------------------*\
+| Sentinel for "this LED's last write didn't ACK".          |
+| Stored in sent_colors[i] to force the next frame to       |
+| re-push the LED regardless of color delta. The high byte  |
+| 0xFF is unreachable from any ToRGBColor(r,g,b) value      |
+| (those have high byte 0), so the sentinel never collides  |
+| with a real color including black (0x00000000) or         |
+| white (0x00FFFFFF).                                        |
+\*---------------------------------------------------------*/
+static constexpr RGBColor HIDPP_UNCOMMITTED = 0xFF000000;
+
 /**------------------------------------------------------------------*\
     @name Logitech HID++ 2.0
     @category Keyboard,Mouse,Headset
@@ -388,7 +399,7 @@ RGBController_LogitechHIDPP::RGBController_LogitechHIDPP(LogitechHIDPPController
     controller->SetReinitCallback(
         [this]()
         {
-            ReinitDirectMode();
+            return ReinitDirectMode();
         }
     );
 }
@@ -571,6 +582,23 @@ void RGBController_LogitechHIDPP::SetupZones()
             leds.push_back(new_led);
 
             led_to_zone_id.push_back(cluster.index);
+        }
+    }
+
+    /*---------------------------------------------------------*\
+    | Build the zone_id -> LED index reverse map. Indexed       |
+    | 0..255 (zone IDs are bytes); -1 marks "no LED for this    |
+    | zone". Used by the FrameEnd commit step to translate the  |
+    | acked_zones list back into LED indices for sent_colors.  |
+    \*---------------------------------------------------------*/
+    zone_id_to_led_idx.assign(256, -1);
+
+    for(size_t i = 0; i < led_to_zone_id.size(); i++)
+    {
+        uint16_t zid = led_to_zone_id[i];
+        if(zid > 0 && zid < 256)
+        {
+            zone_id_to_led_idx[zid] = (int)i;
         }
     }
 
@@ -804,11 +832,14 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                 }
 
                 /*-------------------------------------------------*\
-                | fn5 (SET_RANGE): 3 range entries per packet        |
+                | fn5 (SET_RANGE): 3 range entries per packet.       |
+                | Track every zone in each packet's ranges so the    |
+                | FrameEnd ACK matcher can mark them committed.      |
                 \*-------------------------------------------------*/
                 for(size_t i = 0; i < ranges.size(); i += 3)
                 {
-                    uint8_t data[16] = {};
+                    uint8_t              data[16] = {};
+                    std::vector<uint8_t> packet_zones;
                     size_t batch = ranges.size() - i;
                     if(batch > 3) batch = 3;
 
@@ -819,17 +850,26 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                         data[j * 5 + 2] = r;
                         data[j * 5 + 3] = g;
                         data[j * 5 + 4] = b;
+
+                        for(uint8_t z = ranges[i + j].first;
+                            z <= ranges[i + j].second; z++)
+                        {
+                            packet_zones.push_back(z);
+                        }
                     }
 
-                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_RANGE, data, batch * 5);
+                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_RANGE,
+                                               data, batch * 5, packet_zones);
                 }
 
                 /*-------------------------------------------------*\
-                | fn6 (SET_SINGLE_VALUE) for remaining scattered     |
+                | fn6 (SET_SINGLE_VALUE) for remaining scattered.    |
+                | Track the listed zone IDs in each packet.          |
                 \*-------------------------------------------------*/
                 for(size_t i = 0; i < scattered.size(); i += 13)
                 {
-                    uint8_t data[16] = {};
+                    uint8_t              data[16] = {};
+                    std::vector<uint8_t> packet_zones;
                     data[0] = r;
                     data[1] = g;
                     data[2] = b;
@@ -840,9 +880,11 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
                     for(size_t j = 0; j < batch; j++)
                     {
                         data[3 + j] = scattered[i + j];
+                        packet_zones.push_back(scattered[i + j]);
                     }
 
-                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_SINGLE_VALUE, data, 3 + batch);
+                    controller->SendPerKeyData(perkey_idx, FN_8081_SET_SINGLE_VALUE,
+                                               data, 3 + batch, packet_zones);
                 }
             }
             else
@@ -861,22 +903,79 @@ void RGBController_LogitechHIDPP::DeviceUpdateLEDs()
 
         auto t_writes = std::chrono::steady_clock::now();
 
-        bool committed = controller->PerKeyFrameEnd();
+        PerKeyFrameResult commit = controller->PerKeyFrameEnd();
 
         auto t_end = std::chrono::steady_clock::now();
 
         /*-----------------------------------------------------*\
-        | Only update tracking on successful commit. On failure  |
-        | the next call will resend these keys.                  |
+        | Ensure sent_colors is sized to the snapshot before    |
+        | the commit loop writes by index. On the first frame   |
+        | (or after a reinit clear) sent_colors is empty, and   |
+        | the per-zone writes below would silently no-op,       |
+        | leaving sent_colors empty and re-firing the prep call |
+        | on every subsequent frame.                            |
+        |                                                       |
+        | Initial fill is HIDPP_UNCOMMITTED so any LED that we  |
+        | did not touch this frame stays "uncommitted" and gets |
+        | scheduled for the next delta.                         |
         \*-----------------------------------------------------*/
-        if(committed)
+        if(sent_colors.size() != snapshot.size())
         {
-            sent_colors = snapshot;
+            sent_colors.assign(snapshot.size(), HIDPP_UNCOMMITTED);
         }
+
         /*-----------------------------------------------------*\
-        | On failure, sent_colors is unchanged — the next delta  |
-        | will naturally include the same keys for retry.        |
+        | Build a fast lookup of acked zones for this frame.    |
         \*-----------------------------------------------------*/
+        std::set<uint8_t> acked_set(commit.acked_zones.begin(),
+                                    commit.acked_zones.end());
+
+        if(commit.frame_end_acked)
+        {
+            /*-------------------------------------------------*\
+            | Frame end ACKed: any zone whose write packet also  |
+            | ACKed is now committed — advance sent_colors for   |
+            | that LED. Any zone we attempted but never saw an   |
+            | ACK for goes to HIDPP_UNCOMMITTED so the next      |
+            | frame's delta picks it up.                         |
+            \*-------------------------------------------------*/
+            for(uint8_t zid : commit.attempted_zones)
+            {
+                int led_idx = zone_id_to_led_idx[zid];
+                if(led_idx < 0 || (size_t)led_idx >= sent_colors.size())
+                {
+                    continue;
+                }
+
+                if(acked_set.count(zid))
+                {
+                    sent_colors[led_idx] = snapshot[led_idx];
+                }
+                else
+                {
+                    sent_colors[led_idx] = HIDPP_UNCOMMITTED;
+                }
+            }
+        }
+        else
+        {
+            /*-------------------------------------------------*\
+            | Frame end timed out: we don't know what the device |
+            | committed. Mark every attempted LED uncommitted so  |
+            | the next frame re-pushes them all. Don't bother    |
+            | with the per-zone ACK info here — if FrameEnd      |
+            | didn't land, the per-key writes that did ACK still |
+            | sit in the staging buffer un-swapped.              |
+            \*-------------------------------------------------*/
+            for(uint8_t zid : commit.attempted_zones)
+            {
+                int led_idx = zone_id_to_led_idx[zid];
+                if(led_idx >= 0 && (size_t)led_idx < sent_colors.size())
+                {
+                    sent_colors[led_idx] = HIDPP_UNCOMMITTED;
+                }
+            }
+        }
 
         size_t changed = 0;
         for(auto& e : color_to_zones) changed += e.second.size();
@@ -1049,7 +1148,7 @@ void RGBController_LogitechHIDPP::DeviceUpdateMode()
     }
 }
 
-void RGBController_LogitechHIDPP::ReinitDirectMode()
+bool RGBController_LogitechHIDPP::ReinitDirectMode()
 {
     /*---------------------------------------------------------*\
     | Full Direct mode initialization sequence. Replays the      |
@@ -1059,8 +1158,13 @@ void RGBController_LogitechHIDPP::ReinitDirectMode()
     |                                                           |
     | DeviceUpdateLEDs sets the zone effect automatically when   |
     | sent_colors is empty (first push or after clear).          |
+    |                                                           |
+    | Returns true iff the SW-control claim ACKed. The power     |
+    | thread's reconnect retry loop uses this to decide whether  |
+    | to back off and try again.                                 |
     \*---------------------------------------------------------*/
-    controller->ClaimSWControlIfNeeded();
+    bool claimed = controller->ClaimSWControlIfNeeded();
     sent_colors.clear();
     DeviceUpdateLEDs();
+    return claimed;
 }

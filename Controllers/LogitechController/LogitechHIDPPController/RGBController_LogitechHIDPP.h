@@ -24,7 +24,7 @@ public:
     void        UpdateZoneLEDs(int zone);
     void        UpdateSingleLED(int led);
     void        DeviceUpdateMode();
-    void        ReinitDirectMode();
+    bool        ReinitDirectMode();
 
 private:
     LogitechHIDPPController*    controller;
@@ -35,7 +35,20 @@ private:
     std::vector<uint16_t>       led_to_zone_id;
 
     /*---------------------------------------------------------*\
-    | Last successfully committed colors for delta updates      |
+    | Reverse map: zone_id -> LED index (-1 if no LED).         |
+    | Indexed 0..255 (zone IDs are bytes). Built once in        |
+    | SetupZones to avoid scanning led_to_zone_id at commit     |
+    | time, which would be O(N) per acked zone.                 |
+    \*---------------------------------------------------------*/
+    std::vector<int>            zone_id_to_led_idx;
+
+    /*---------------------------------------------------------*\
+    | Last successfully committed colors for delta updates.     |
+    | An entry of HIDPP_UNCOMMITTED (0xFF000000) marks an LED   |
+    | whose last write didn't ACK and which therefore needs to  |
+    | be re-pushed in the next frame regardless of color delta. |
+    | The high byte (0xFF) is impossible for any value produced |
+    | by ToRGBColor() so it never collides with a real color.   |
     \*---------------------------------------------------------*/
     std::vector<RGBColor>       sent_colors;
     uint32_t                    last_init_gen = 0;
