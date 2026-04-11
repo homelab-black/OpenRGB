@@ -242,6 +242,33 @@ struct HIDPPRawMessage
 };
 
 /*-----------------------------------------------------*\
+| Per-key write tracking. SendPerKeyData is fire-and-   |
+| forget at the wire layer; we track which zones each   |
+| outstanding write covers so PerKeyFrameEnd can match  |
+| ACKs back by FIFO order and report which zones the   |
+| firmware actually committed.                           |
+\*-----------------------------------------------------*/
+struct OutstandingPerKeyWrite
+{
+    uint8_t              function;     // FN_8081_* (high nibble carries the type)
+    std::vector<uint8_t> zone_ids;     // zones covered by this packet
+};
+
+/*-----------------------------------------------------*\
+| Result of a per-key frame commit. The caller uses     |
+| these to update its delta-tracking state:             |
+|   - frame_end_acked: did the FrameEnd packet ACK?     |
+|   - acked_zones:    zones whose write packet ACKed    |
+|   - attempted_zones: every zone written this frame   |
+\*-----------------------------------------------------*/
+struct PerKeyFrameResult
+{
+    bool                 frame_end_acked;
+    std::vector<uint8_t> acked_zones;
+    std::vector<uint8_t> attempted_zones;
+};
+
+/*-----------------------------------------------------*\
 | Retry policy for SendAcked.                            |
 |                                                        |
 | Controls the send/read/retry loop for a single HID++   |
@@ -273,12 +300,32 @@ struct HIDPPRetryPolicy
 \*-----------------------------------------------------*/
 static constexpr uint16_t HIDPP_BACKOFF_RELIABLE[] =
     { 0, 63, 125, 250, 500, 1000, 2000 };
-static constexpr uint16_t HIDPP_BACKOFF_FRAMEEND[] =
-    { 0, 10, 30, 63, 125 };
-static constexpr uint16_t HIDPP_BACKOFF_STREAMING[] =
-    { 0, 30 };
 static constexpr uint16_t HIDPP_BACKOFF_PROBE[] =
     { 0, 100 };
+
+/*-----------------------------------------------------*\
+| SW-control reclaim backoff. Used by ReconnectDevice    |
+| to retry the claim+push sequence after a wireless      |
+| reconnect, racing the firmware boot animation. GHUB    |
+| typically lands control in ~50ms; this schedule fits   |
+| 6 attempts inside ~620ms so the animation never gets   |
+| a chance to become visible.                            |
+\*-----------------------------------------------------*/
+static constexpr uint16_t HIDPP_RECLAIM_BACKOFF_MS[] =
+    { 0, 20, 40, 80, 160, 320 };
+
+/*-----------------------------------------------------*\
+| FrameEnd BUSY retry backoff. Used by PerKeyFrameEnd    |
+| when the firmware returns HID++ error 0x08 (BUSY)     |
+| because it's still draining the per-key write queue.  |
+| First retry is fast (~2 USB round trips) for the      |
+| common case where BUSY was transient; subsequent      |
+| retries give actual drain headroom. Total worst case  |
+| ~180ms, fits inside the PerKeyFrameEnd 300ms deadline |
+| with margin for the eventual ACK to land.             |
+\*-----------------------------------------------------*/
+static constexpr uint16_t HIDPP_FRAME_END_BUSY_BACKOFF_MS[] =
+    { 5, 15, 30, 50, 80 };
 
 static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
     HIDPP_BACKOFF_RELIABLE,
@@ -287,24 +334,6 @@ static constexpr HIDPPRetryPolicy HIDPP_POLICY_RELIABLE = {
     true,   // flush_before
     true,   // retry_on_busy
     "reliable"
-};
-
-static constexpr HIDPPRetryPolicy HIDPP_POLICY_FRAME_END = {
-    HIDPP_BACKOFF_FRAMEEND,
-    sizeof(HIDPP_BACKOFF_FRAMEEND) / sizeof(uint16_t),
-    100,    // read window
-    false,  // do not flush — preceding per-key ACKs may still be draining
-    true,   // retry_on_busy
-    "frameend"
-};
-
-static constexpr HIDPPRetryPolicy HIDPP_POLICY_STREAMING = {
-    HIDPP_BACKOFF_STREAMING,
-    sizeof(HIDPP_BACKOFF_STREAMING) / sizeof(uint16_t),
-    50,     // read window
-    false,  // do not flush — in-flight ACKs from prior writes are expected
-    true,   // retry_on_busy
-    "streaming"
 };
 
 /*-----------------------------------------------------*\
@@ -350,12 +379,20 @@ public:
 
     /*-------------------------------------------------*\
     | Per-key lighting (0x8081)                          |
+    |                                                    |
+    | Per-key writes are fire-and-forget at the wire    |
+    | layer. SendPerKeyData enqueues an outstanding     |
+    | write entry; PerKeyFrameEnd drains the response   |
+    | queue, matches ACKs by FIFO, and returns which   |
+    | zones the firmware actually committed plus       |
+    | whether the FrameEnd itself ACKed.               |
     \*-------------------------------------------------*/
-    void            SetPerKeyColors(const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors);
-    void            SetAllPerKeyColor(RGBColor color);
-    void            SendPerKeyData(uint8_t perkey_idx, uint8_t function,
-                                   const uint8_t* data, size_t len);
-    bool            PerKeyFrameEnd(bool persist = false);
+    void              SetPerKeyColors(const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors);
+    void              SetAllPerKeyColor(RGBColor color);
+    void              SendPerKeyData(uint8_t perkey_idx, uint8_t function,
+                                     const uint8_t* data, size_t len,
+                                     const std::vector<uint8_t>& zone_ids);
+    PerKeyFrameResult PerKeyFrameEnd();
 
     /*-------------------------------------------------*\
     | Zone effects (0x8071 / 0x8070)                    |
@@ -368,10 +405,10 @@ public:
     /*-------------------------------------------------*\
     | SW control management                             |
     \*-------------------------------------------------*/
-    void            SetSWControl(uint8_t mode, uint8_t flags);
+    int             SetSWControl(uint8_t mode, uint8_t flags);
     void            SetRGBPowerMode(uint8_t mode);
     void            SetHostMode();
-    void            ClaimSWControlIfNeeded();
+    bool            ClaimSWControlIfNeeded();
 
     /*-------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
@@ -382,7 +419,7 @@ public:
     void            StartProbeWatcher();
     bool            HasBridge() const;
     void            SetRepaintCallback(std::function<void()> repaint);
-    void            SetReinitCallback(std::function<void()> cb);
+    void            SetReinitCallback(std::function<bool()> cb);
     void            SetRegisterCallback(std::function<void(RGBController*)> cb);
     HIDPPPowerState GetPowerState() const;
     int             GetDimBrightness() const;
@@ -576,9 +613,17 @@ private:
     uint16_t        sleep_timeout_s;
 
     /*-------------------------------------------------*\
+    | Per-key write tracking (per active frame)         |
+    | Populated by SendPerKeyData, drained by           |
+    | PerKeyFrameEnd. Single-threaded — only the RGB    |
+    | controller thread touches per-key state.          |
+    \*-------------------------------------------------*/
+    std::vector<OutstandingPerKeyWrite> outstanding_writes;
+
+    /*-------------------------------------------------*\
     | Callbacks                                         |
     \*-------------------------------------------------*/
     std::function<void()> request_repaint_fn;
-    std::function<void()> reinit_direct_fn;
+    std::function<bool()> reinit_direct_fn;
     std::function<void(RGBController*)> register_controller_fn;
 };
