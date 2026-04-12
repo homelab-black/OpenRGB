@@ -4085,7 +4085,7 @@ void LogitechHIDPP20Controller::ReadFirmwareTimers()
             sleep_timeout_s = sleep;
         }
 
-        LOG_DEBUG("%s Firmware timers: idle=%us sleep=%us", LOG_TAG, idle_timeout_s, sleep_timeout_s);
+        LOG_TRACE("%s Firmware timers: idle=%us sleep=%us", LOG_TAG, idle_timeout_s, sleep_timeout_s);
     }
     else
     {
