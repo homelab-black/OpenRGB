@@ -30,26 +30,6 @@
 
 typedef void (*NetServerCallback)(void *);
 
-typedef struct
-{
-    NetPacketHeader             header;
-    char *                      data;
-    SOCKET                      client_sock;
-    unsigned int                client_protocol_version;
-} NetworkServerControllerThreadQueueEntry;
-
-typedef struct
-{
-    unsigned int                                        id;
-    unsigned int                                        index;
-    std::queue<NetworkServerControllerThreadQueueEntry> queue;
-    std::mutex                                          queue_mutex;
-    std::mutex                                          start_mutex;
-    std::condition_variable                             start_cv;
-    std::thread *                                       thread;
-    std::atomic<bool>                                   online;
-} NetworkServerControllerThread;
-
 class NetworkClientInfo
 {
 public:
@@ -71,6 +51,25 @@ typedef struct
     RGBController * controller;
     unsigned int    id;
 } NetworkControllerID;
+
+typedef struct
+{
+    NetPacketHeader             header;
+    char *                      data;
+    NetworkClientInfo *         client_info;
+} NetworkServerControllerThreadQueueEntry;
+
+typedef struct
+{
+    unsigned int                                        id;
+    unsigned int                                        index;
+    std::queue<NetworkServerControllerThreadQueueEntry> queue;
+    std::mutex                                          queue_mutex;
+    std::mutex                                          start_mutex;
+    std::condition_variable                             start_cv;
+    std::thread *                                       thread;
+    std::atomic<bool>                                   online;
+} NetworkServerControllerThread;
 
 class NetworkServer
 {
@@ -236,7 +235,11 @@ private:
     NetPacketStatus                     ProcessRequest_ProfileManager_GetProfileList(SOCKET client_sock);
     NetPacketStatus                     ProcessRequest_ProfileManager_LoadProfile(unsigned int data_size, char * data);
     NetPacketStatus                     ProcessRequest_ProfileManager_SaveProfile(unsigned int data_size, char * data);
-    NetPacketStatus                     ProcessRequest_ProfileManager_UploadProfile(unsigned int data_size, char * data);
+    NetPacketStatus                     ProcessRequest_ProfileManager_UploadProfile(unsigned int data_size, char * data, NetworkClientInfo* client_info);
+
+    NetPacketStatus                     ProcessRequest_SettingsManager_GetSettings(NetworkClientInfo* client_info, unsigned int data_size, char * data);
+    NetPacketStatus                     ProcessRequest_SettingsManager_SetSettings(NetworkClientInfo* client_info, unsigned int data_size, char * data);
+    NetPacketStatus                     ProcessRequest_SettingsManager_SaveSettings(NetworkClientInfo* client_info);
 
     NetPacketStatus                     ProcessRequest_RGBController_AddSegment(unsigned int controller_id, unsigned char * data_ptr, unsigned int protocol_version);
     NetPacketStatus                     ProcessRequest_RGBController_ClearSegments(unsigned int controller_id, unsigned char * data_ptr, unsigned int protocol_version);
