@@ -2337,33 +2337,27 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     | 3. Power mode active                                       |
     \*---------------------------------------------------------*/
     /*---------------------------------------------------------*\
-    | GHUB's exact claim sequence (capture lines 905-918):      |
-    |   1. SetSWControl(3, 7)                                    |
-    |   2. WritePowerConfig — uncompensated sleep               |
-    |   3. SetRGBPowerMode(1)                                    |
-    |   4. SetHostMode(5)                                        |
-    |   5. WritePowerConfig — compensated sleep                 |
-    |   6. SetSWControl(3, 5)                                    |
+    | GHUB's claim sequence does two WritePowerConfig calls      |
+    | around SetHostMode, writing (a) its profile's sleep value |
+    | then (b) that value minus the firmware off-ramp. We don't |
+    | write timers at all: we don't have a profile we want to   |
+    | impose on the device, and our host-side StartSleep trigger|
+    | already fires SetRgbPowerMode(3) explicitly at the moment |
+    | we want the fade to begin. Writing compensated values back |
+    | to RAM was how we previously shrank sleep_timeout_s by     |
+    | 30s on every reclaim — the "current RAM value minus 30"    |
+    | pattern cascaded.                                           |
     |                                                           |
-    | The two WritePowerConfig calls bracket SetHostMode: the    |
-    | first sets the user-facing sleep value while still in      |
-    | firmware-mode interpretation, the second pulls it forward  |
-    | by the off-ramp duration (so the firmware's fade ends at  |
-    | the user-expected sleep time) once we're in host mode.    |
+    | Read-only observation of the RAM timers happens via        |
+    | ReadFirmwareTimers at init, on power state transitions,    |
+    | and in a periodic poll from the power thread. Our host-    |
+    | side sleep_deadline math applies the off-ramp compensation|
+    | at the moment we compute the deadline, not in what we     |
+    | write to the device.                                       |
     \*---------------------------------------------------------*/
-    uint16_t effective_sleep = sleep_timeout_s;
-
-    if(caps.nv_sleep_ramp_known && caps.nv_sleep_ramp_enabled
-       && caps.nv_sleep_ramp_seconds < sleep_timeout_s)
-    {
-        effective_sleep -= caps.nv_sleep_ramp_seconds;
-    }
-
     SetSWControl(3, 7);
-    WritePowerConfig(idle_timeout_s, sleep_timeout_s);
     SetRGBPowerMode(1);
     SetHostMode();
-    WritePowerConfig(idle_timeout_s, effective_sleep);
 
     /*---------------------------------------------------------*\
     | Only mark control claimed if the final SetSWControl(3,5)  |
@@ -3359,6 +3353,13 @@ void LogitechHIDPP20Controller::StartPowerManager()
     ReadActiveProfileSector();
 
     /*---------------------------------------------------------*\
+    | Seed the periodic RAM-timer poll clock so the first tick  |
+    | of the power thread's 30s re-read happens 30s from here,  |
+    | not immediately (we just read above).                      |
+    \*---------------------------------------------------------*/
+    last_timer_poll = std::chrono::steady_clock::now();
+
+    /*---------------------------------------------------------*\
     | Don't claim SW control here. The device runs its firmware  |
     | effect (or saved hardware profile) until DeviceUpdateLEDs  |
     | is called for the first time, at which point claim + push  |
@@ -3767,6 +3768,23 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
             }
         }
 
+        /*-----------------------------------------------------*\
+        | Periodic re-read of the RAM power timers. They're      |
+        | volatile and another tool (Solaar, GHub) can change    |
+        | them under us. Poll every 30s so our cached values     |
+        | stay reasonably fresh between power-state transitions |
+        | (which also re-read via their own hooks).              |
+        \*-----------------------------------------------------*/
+        if(caps.has_power_mgmt)
+        {
+            auto now = std::chrono::steady_clock::now();
+            if(now - last_timer_poll >= std::chrono::seconds(30))
+            {
+                last_timer_poll = now;
+                ReadFirmwareTimers();
+            }
+        }
+
         std::this_thread::sleep_for(50ms);
     }
 }
@@ -3833,6 +3851,15 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
         | Flush stale per-key ACKs before sending commands       |
         \*-----------------------------------------------------*/
         FlushResponseQueue();
+
+        /*-----------------------------------------------------*\
+        | Re-read the RAM timers before we compute anything —    |
+        | another tool (Solaar, GHub) may have changed them      |
+        | during the active window. Our sleep_deadline math in   |
+        | DimRampStep is going to use these values, so make sure |
+        | they're fresh.                                          |
+        \*-----------------------------------------------------*/
+        ReadFirmwareTimers();
 
         /*-----------------------------------------------------*\
         | Switch to flags=3 (ZONE|POWER): release EFFECT to|
@@ -4004,6 +4031,12 @@ void LogitechHIDPP20Controller::Wake()
     SetSWControl(3, 5);
     dim_brightness_pct.store(100);
     power_state = HIDPP20_POWER_ACTIVE;
+
+    /*---------------------------------------------------------*\
+    | Re-read RAM timers on wake. Another tool may have         |
+    | changed them during our sleep/idle window.                |
+    \*---------------------------------------------------------*/
+    ReadFirmwareTimers();
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 

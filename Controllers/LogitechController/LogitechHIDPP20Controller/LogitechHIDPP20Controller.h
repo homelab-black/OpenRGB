@@ -625,6 +625,13 @@ private:
     std::chrono::steady_clock::time_point sleep_deadline;
 
     /*-------------------------------------------------*\
+    | Last periodic RAM-timer poll timestamp. Drives     |
+    | the 30s cache-refresh loop in PowerThreadFunc so   |
+    | we notice external changes to idle/sleep timers.   |
+    \*-------------------------------------------------*/
+    std::chrono::steady_clock::time_point last_timer_poll;
+
+    /*-------------------------------------------------*\
     | Firmware power config (read from device)          |
     \*-------------------------------------------------*/
     uint16_t        idle_timeout_s;
