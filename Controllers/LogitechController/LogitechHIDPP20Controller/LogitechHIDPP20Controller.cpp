@@ -4123,13 +4123,7 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
 void LogitechHIDPP20Controller::FlushResponseQueue()
 {
     std::lock_guard<std::mutex> lock(response_mutex);
-    size_t flushed = response_queue.size();
     response_queue.clear();
-
-    if(flushed > 0)
-    {
-        LOG_DEBUG("%s Flushed %zu stale messages from response queue", LOG_TAG, flushed);
-    }
 }
 
 void LogitechHIDPP20Controller::DispatchEvent
