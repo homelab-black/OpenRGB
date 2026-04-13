@@ -4064,11 +4064,12 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
         ps_last_logged_idle     = idle_timeout_s;
         ps_last_logged_sleep    = sleep_timeout_s;
         ps_last_logged_external = ps_on_external_power;
-        LOG_DEBUG("%s Idle management: power=%s dim=%d/%d%% idle=%us sleep=%d/%us",
+        LOG_DEBUG("%s Idle management: power=%s dim=%s(%d%%) idle=%us sleep=%s(%us)",
                   LOG_TAG,
                   ps_on_external_power ? "external" : "battery",
-                  ps_dim_enabled, ps_dim_target_pct,
-                  idle_timeout_s, ps_sleep_enabled, sleep_timeout_s);
+                  ps_dim_enabled   ? "on" : "off", ps_dim_target_pct,
+                  idle_timeout_s,
+                  ps_sleep_enabled ? "on" : "off", sleep_timeout_s);
     }
 }
 
