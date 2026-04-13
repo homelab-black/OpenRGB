@@ -46,6 +46,7 @@
 #define HIDPP20_FEAT_CENTURION_RGB            0x0600
 #define HIDPP20_FEAT_CENTURION_DEVICE_INFO   0x0100
 #define HIDPP20_FEAT_CENTURION_DEVICE_NAME   0x0101
+#define HIDPP20_FEAT_UNIFIED_BATTERY          0x1004
 #define HIDPP20_FEAT_WIRELESS_STATUS          0x1D4B
 
 /*-----------------------------------------------------*\
@@ -325,7 +326,7 @@ static constexpr uint16_t HIDPP20_RECLAIM_BACKOFF_MS[] =
 | with margin for the eventual ACK to land.             |
 \*-----------------------------------------------------*/
 static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
-    { 5, 15, 30, 50, 80 };
+    { 30, 60, 90 };
 
 static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_RELIABLE = {
     HIDPP20_BACKOFF_RELIABLE,
@@ -424,6 +425,9 @@ public:
     HIDPP20PowerState GetPowerState() const;
     int             GetDimBrightness() const;
     bool            IsOnline() const;
+    void            SetWireless(bool w)     { wireless = w; }
+    bool            QueryWirelessStatus();
+    bool            QueryExternalPower();
     void            FlushResponseQueue();
 
 private:
@@ -625,17 +629,37 @@ private:
     std::chrono::steady_clock::time_point sleep_deadline;
 
     /*-------------------------------------------------*\
-    | Last periodic RAM-timer poll timestamp. Drives     |
-    | the 30s cache-refresh loop in PowerThreadFunc so   |
-    | we notice external changes to idle/sleep timers.   |
+    | Last idle-settings re-read timestamp. Drives the   |
+    | 500ms poll in PowerThreadFunc that re-reads the    |
+    | LogitechHIDPP20IdleSettings JSON key so updates    |
+    | from the plugin (or manual edits) apply within     |
+    | about half a second without any callback plumbing. |
     \*-------------------------------------------------*/
-    std::chrono::steady_clock::time_point last_timer_poll;
+    std::chrono::steady_clock::time_point last_idle_poll;
 
     /*-------------------------------------------------*\
     | Firmware power config (read from device)          |
     \*-------------------------------------------------*/
     uint16_t        idle_timeout_s;
     uint16_t        sleep_timeout_s;
+
+    /*-------------------------------------------------*\
+    | Host-side idle/dim/sleep state.                    |
+    | Populated from LogitechHIDPP20IdleSettings on each |
+    | ApplyPowerSavingProfile() invocation.              |
+    \*-------------------------------------------------*/
+    bool            ps_dim_enabled          = false;
+    int             ps_dim_target_pct       = DIM_TARGET_PCT;
+    bool            ps_sleep_enabled        = false;
+    bool            ps_on_external_power    = false;
+    bool            ps_last_logged_external = false;
+    int             ps_last_logged_pct      = -1;
+    int             ps_last_logged_idle     = -1;
+    int             ps_last_logged_sleep    = -1;
+    uint8_t         idx_unified_battery     = 0;
+
+    void            ApplyPowerSavingProfile();
+    bool            IsCurrentlyWireless() const;
 
     /*-------------------------------------------------*\
     | Per-key write tracking (per active frame)         |

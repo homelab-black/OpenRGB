@@ -16,6 +16,8 @@
 #include "RGBController_LogitechHIDPP20.h"
 #include "LogManager.h"
 
+#include "LogitechHIDPP20IdleSettings.h"
+
 using namespace std::chrono_literals;
 
 #define LOG_TAG log_tag.c_str()
@@ -2557,6 +2559,8 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
     | bytes of zeros. The firmware expects long-format FrameEnd |
     | — short-format hits intermittent BUSY.                    |
     \*---------------------------------------------------------*/
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+
     uint8_t data[16] = {};
     int send_result = SendMessage(perkey_idx, FN_8081_FRAME_END, data, sizeof(data));
 
@@ -3302,6 +3306,8 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     {
         ReadFirmwareTimers();
         ReadNvSleepRampConfig();
+        QueryExternalPower();
+        ApplyPowerSavingProfile();
     }
 
     LOG_INFO("%s Device reconnected on new path — colors restored", LOG_TAG);
@@ -3352,12 +3358,16 @@ void LogitechHIDPP20Controller::StartPowerManager()
     ReadNvSleepRampConfig();
     ReadActiveProfileSector();
 
+    LogitechHIDPP20IdleSettings::instance()->load();
+    QueryExternalPower();
+    ApplyPowerSavingProfile();
+
     /*---------------------------------------------------------*\
-    | Seed the periodic RAM-timer poll clock so the first tick  |
-    | of the power thread's 30s re-read happens 30s from here,  |
-    | not immediately (we just read above).                      |
+    | Seed the periodic idle-settings poll clock so the first    |
+    | tick of the power thread's 500ms re-read happens one       |
+    | interval from now, not immediately (we just applied above).|
     \*---------------------------------------------------------*/
-    last_timer_poll = std::chrono::steady_clock::now();
+    last_idle_poll = std::chrono::steady_clock::now();
 
     /*---------------------------------------------------------*\
     | Don't claim SW control here. The device runs its firmware  |
@@ -3756,7 +3766,23 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
                 }
 
                 case HIDPP20_POWER_IDLE:
-                    if(sleep_timeout_s > 0 &&
+                    /*-------------------------------------------------*\
+                    | Poll dim brightness target — if the user is        |
+                    | dragging the slider, ps_dim_target_pct updates     |
+                    | in-memory and we pick it up here on the next 50ms  |
+                    | tick without any callback/repaint chain.           |
+                    \*-------------------------------------------------*/
+                    if(dim_brightness_pct.load() != ps_dim_target_pct)
+                    {
+                        dim_brightness_pct.store(ps_dim_target_pct);
+
+                        if(request_repaint_fn)
+                        {
+                            request_repaint_fn();
+                        }
+                    }
+
+                    if(sleep_timeout_s > 0 && ps_sleep_enabled &&
                        std::chrono::steady_clock::now() >= sleep_deadline)
                     {
                         StartSleep();
@@ -3769,23 +3795,202 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         }
 
         /*-----------------------------------------------------*\
-        | Periodic re-read of the RAM power timers. They're      |
-        | volatile and another tool (Solaar, GHub) can change    |
-        | them under us. Poll every 30s so our cached values     |
-        | stay reasonably fresh between power-state transitions |
-        | (which also re-read via their own hooks).              |
+        | Fast poll of idle settings + external-power flag.      |
+        | QueryExternalPower is a single HID++ 0x1004 GetStatus  |
+        | call — cheap on wire and lets ApplyPowerSavingProfile  |
+        | pick between the on_battery and plugged_in profiles    |
+        | within half a second of a power-source transition.     |
+        | The idle-settings reload itself is purely in-memory.   |
         \*-----------------------------------------------------*/
         if(caps.has_power_mgmt)
         {
             auto now = std::chrono::steady_clock::now();
-            if(now - last_timer_poll >= std::chrono::seconds(30))
+            if(now - last_idle_poll >= std::chrono::milliseconds(500))
             {
-                last_timer_poll = now;
-                ReadFirmwareTimers();
+                last_idle_poll = now;
+                QueryExternalPower();
+                ApplyPowerSavingProfile();
             }
         }
 
         std::this_thread::sleep_for(50ms);
+    }
+}
+
+bool LogitechHIDPP20Controller::IsCurrentlyWireless() const
+{
+    return wireless;
+}
+
+bool LogitechHIDPP20Controller::QueryWirelessStatus()
+{
+    if(caps.idx_wireless_status == 0)
+    {
+        LOG_DEBUG("%s QueryWirelessStatus: feature not present", LOG_TAG);
+        return false;
+    }
+
+    uint8_t send_data[1] = {0};
+    uint8_t recv_data[16] = {};
+    uint8_t hidpp_err = 0;
+
+    int result = SendAcked(caps.idx_wireless_status, 0,
+                           send_data, 0, recv_data, sizeof(recv_data),
+                           HIDPP20_POLICY_PROBE, &hidpp_err);
+
+    LOG_DEBUG("%s QueryWirelessStatus: result=%d err=0x%02X "
+              "data=[%02X %02X %02X %02X %02X %02X]",
+              LOG_TAG, result, hidpp_err,
+              recv_data[0], recv_data[1], recv_data[2],
+              recv_data[3], recv_data[4], recv_data[5]);
+
+    if(result <= 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool LogitechHIDPP20Controller::QueryExternalPower()
+{
+    /*---------------------------------------------------------*\
+    | Query HID++ 2.0 feature 0x1004 (UnifiedBattery) fn1       |
+    | GetStatus. We only care about response byte 3 — the       |
+    | "external power" flag. Non-zero means wired / cradle /    |
+    | whatever is providing external power; zero means running  |
+    | on its own battery.                                       |
+    |                                                           |
+    | Updates ps_on_external_power and returns the new value.   |
+    | On failure returns the cached value without touching it.  |
+    \*---------------------------------------------------------*/
+    if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
+    {
+        return ps_on_external_power;
+    }
+
+    if(idx_unified_battery == 0)
+    {
+        idx_unified_battery = GetFeatureIndex(HIDPP20_FEAT_UNIFIED_BATTERY,
+                                              HIDPP20_POLICY_PROBE);
+
+        if(idx_unified_battery == 0)
+        {
+            /*-----------------------------------------------------*\
+            | Device doesn't expose UnifiedBattery. Wired-only      |
+            | devices (no battery) report the feature absent; we    |
+            | treat them as permanently externally powered.         |
+            \*-----------------------------------------------------*/
+            ps_on_external_power = true;
+            return ps_on_external_power;
+        }
+    }
+
+    uint8_t send_data[1] = {0};
+    uint8_t recv_data[16] = {};
+
+    int result = SendAcked(idx_unified_battery, 0x10,
+                           send_data, 0, recv_data, sizeof(recv_data),
+                           HIDPP20_POLICY_PROBE);
+
+    if(result <= 0)
+    {
+        LOG_TRACE("%s QueryExternalPower: GetStatus failed (result=%d) — using cached",
+                  LOG_TAG, result);
+        return ps_on_external_power;
+    }
+
+    ps_on_external_power = (recv_data[3] != 0);
+
+    return ps_on_external_power;
+}
+
+void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
+{
+    /*---------------------------------------------------------*\
+    | Re-read the JSON every invocation. This is a cheap        |
+    | in-memory SettingsManager hash lookup + a handful of      |
+    | field copies — safe to do on every 500ms power-thread     |
+    | tick. Any write from the plugin (or a manual JSON edit)   |
+    | therefore applies within one poll interval without any    |
+    | cross-boundary signalling.                                 |
+    \*---------------------------------------------------------*/
+    LogitechHIDPP20IdleSettings* settings = LogitechHIDPP20IdleSettings::instance();
+    settings->load();
+
+    /*---------------------------------------------------------*\
+    | Unconfigured: the JSON key is absent entirely (plugin     |
+    | not in use). Leave idle/sleep management to firmware —    |
+    | we do NOT overwrite idle_timeout_s / sleep_timeout_s so   |
+    | the values read at init by ReadFirmwareTimers stand.      |
+    \*---------------------------------------------------------*/
+    if(!settings->isConfigured())
+    {
+        bool changed = ps_dim_enabled || ps_sleep_enabled ||
+                       ps_last_logged_pct != -2;
+
+        ps_dim_enabled    = false;
+        ps_dim_target_pct = DIM_TARGET_PCT;
+        ps_sleep_enabled  = false;
+
+        if(changed)
+        {
+            ps_last_logged_pct      = -2;
+            ps_last_logged_idle     = -1;
+            ps_last_logged_sleep    = -1;
+            ps_last_logged_external = ps_on_external_power;
+            LOG_DEBUG("%s Idle management: unconfigured — deferring to firmware",
+                      LOG_TAG);
+        }
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Configured: pick the active profile based on whether the  |
+    | device is currently externally powered. ps_on_external_   |
+    | power is refreshed by QueryExternalPower() on the same    |
+    | 500 ms power-thread poll that calls us.                   |
+    \*---------------------------------------------------------*/
+    const LogitechHIDPP20IdleProfile& profile = ps_on_external_power
+        ? settings->pluggedIn()
+        : settings->onBattery();
+
+    bool prev_dim   = ps_dim_enabled;
+    bool prev_sleep = ps_sleep_enabled;
+
+    ps_dim_enabled    = profile.dim_when_idle;
+    ps_dim_target_pct = profile.dim_when_idle ? profile.dim_brightness : DIM_TARGET_PCT;
+    ps_sleep_enabled  = profile.allow_sleep;
+
+    if(profile.allow_sleep)
+    {
+        sleep_timeout_s = (uint16_t)profile.sleep_timeout_s;
+    }
+    else
+    {
+        sleep_timeout_s = 0;
+    }
+
+    if(profile.dim_when_idle)
+    {
+        idle_timeout_s = (uint16_t)profile.idle_timeout_s;
+    }
+
+    if(prev_dim   != ps_dim_enabled      || prev_sleep != ps_sleep_enabled ||
+       ps_last_logged_pct      != ps_dim_target_pct    ||
+       ps_last_logged_idle     != (int)idle_timeout_s  ||
+       ps_last_logged_sleep    != (int)sleep_timeout_s ||
+       ps_last_logged_external != ps_on_external_power)
+    {
+        ps_last_logged_pct      = ps_dim_target_pct;
+        ps_last_logged_idle     = idle_timeout_s;
+        ps_last_logged_sleep    = sleep_timeout_s;
+        ps_last_logged_external = ps_on_external_power;
+        LOG_DEBUG("%s Idle management: power=%s dim=%d/%d%% idle=%us sleep=%d/%us",
+                  LOG_TAG,
+                  ps_on_external_power ? "external" : "battery",
+                  ps_dim_enabled, ps_dim_target_pct,
+                  idle_timeout_s, ps_sleep_enabled, sleep_timeout_s);
     }
 }
 
@@ -3845,6 +4050,11 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
             return;
         }
 
+        if(!ps_dim_enabled && !ps_sleep_enabled)
+        {
+            return;
+        }
+
         LOG_DEBUG("%s onUserActivity: IDLE — starting dim", LOG_TAG);
 
         /*-----------------------------------------------------*\
@@ -3853,20 +4063,27 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
         FlushResponseQueue();
 
         /*-----------------------------------------------------*\
-        | Re-read the RAM timers before we compute anything —    |
-        | another tool (Solaar, GHub) may have changed them      |
-        | during the active window. Our sleep_deadline math in   |
-        | DimRampStep is going to use these values, so make sure |
-        | they're fresh.                                          |
-        \*-----------------------------------------------------*/
-        ReadFirmwareTimers();
-
-        /*-----------------------------------------------------*\
         | Switch to flags=3 (ZONE|POWER): release EFFECT to|
         | firmware, monitor for user activity (keypress).        |
         \*-----------------------------------------------------*/
         SetSWControl(3, 3);
-        StartDimRamp();
+
+        if(!ps_dim_enabled)
+        {
+            power_state = HIDPP20_POWER_IDLE;
+
+            uint16_t sleep_delay = (sleep_timeout_s > idle_timeout_s)
+                                 ? (sleep_timeout_s - idle_timeout_s) : 0;
+            sleep_deadline = std::chrono::steady_clock::now()
+                           + std::chrono::seconds(sleep_delay);
+
+            LOG_DEBUG("%s Dim disabled — skipping to IDLE (sleep in %us)",
+                      LOG_TAG, sleep_delay);
+        }
+        else
+        {
+            StartDimRamp();
+        }
     }
     else
     {
@@ -3897,7 +4114,7 @@ void LogitechHIDPP20Controller::StartDimRamp()
     next_dim_time = std::chrono::steady_clock::now();
     power_state   = HIDPP20_POWER_DIMMING;
 
-    LOG_DEBUG("%s Dim ramp started (100%% -> %d%%)", LOG_TAG, DIM_TARGET_PCT);
+    LOG_DEBUG("%s Dim ramp started (100%% -> %d%%)", LOG_TAG, ps_dim_target_pct);
 }
 
 void LogitechHIDPP20Controller::DimRampStep()
@@ -3914,11 +4131,12 @@ void LogitechHIDPP20Controller::DimRampStep()
 
     dim_step++;
 
-    int brightness = 100 - ((100 - DIM_TARGET_PCT) * dim_step / DIM_STEPS);
+    int target     = ps_dim_target_pct;
+    int brightness = 100 - ((100 - target) * dim_step / DIM_STEPS);
 
-    if(brightness < DIM_TARGET_PCT)
+    if(brightness < target)
     {
-        brightness = DIM_TARGET_PCT;
+        brightness = target;
     }
 
     dim_brightness_pct.store(brightness);
@@ -4031,12 +4249,6 @@ void LogitechHIDPP20Controller::Wake()
     SetSWControl(3, 5);
     dim_brightness_pct.store(100);
     power_state = HIDPP20_POWER_ACTIVE;
-
-    /*---------------------------------------------------------*\
-    | Re-read RAM timers on wake. Another tool may have         |
-    | changed them during our sleep/idle window.                |
-    \*---------------------------------------------------------*/
-    ReadFirmwareTimers();
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 
