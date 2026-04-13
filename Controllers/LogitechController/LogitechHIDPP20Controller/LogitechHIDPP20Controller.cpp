@@ -3135,6 +3135,19 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     last_power_raw      = 0xFFFF;
 
     /*---------------------------------------------------------*\
+    | Force ApplyPowerSavingProfile's dedup to re-emit its      |
+    | "Idle management: ..." line on the next call so a path    |
+    | transition always produces a full state confirmation in   |
+    | the log, symmetric with the QueryExternalPower re-log.    |
+    | Inverting ps_last_logged_external guarantees the boolean  |
+    | comparison trips regardless of the current power state.   |
+    \*---------------------------------------------------------*/
+    ps_last_logged_pct      = -1;
+    ps_last_logged_idle     = -1;
+    ps_last_logged_sleep    = -1;
+    ps_last_logged_external = !ps_on_external_power;
+
+    /*---------------------------------------------------------*\
     | Standard HID++ features are looked up on-demand — no bulk |
     | enumeration needed. Just re-discover everything.          |
     \*---------------------------------------------------------*/
