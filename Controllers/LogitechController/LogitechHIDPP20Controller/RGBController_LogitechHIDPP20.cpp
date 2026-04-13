@@ -1230,7 +1230,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         b = RGBGetBValue(current.colors[0]);
     }
 
-    uint16_t period = (uint16_t)(current.speed * 100);
+    /*---------------------------------------------------------*\
+    | Invert the slider direction: OpenRGB convention is higher  |
+    | slider = faster animation, but the wire format expects a   |
+    | period in milliseconds where lower = faster. Map slider    |
+    | 1..255 to period 25500..100ms.                             |
+    \*---------------------------------------------------------*/
+    uint16_t period = (uint16_t)((256 - current.speed) * 100);
 
     /*---------------------------------------------------------*\
     | Brightness defaults to 100 for modes that don't expose    |
