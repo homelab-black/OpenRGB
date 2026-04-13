@@ -1672,13 +1672,30 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
     if(caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS)
     {
         cluster_count = response.data[2];
+
+        /*-----------------------------------------------------*\
+        | 0x8071 GetInfo response layout:                       |
+        |   byte 2     numRgbZones                              |
+        |   bytes 3-4  extendedCapabilities (BE16)              |
+        |   bytes 5-6  effectBlockCount     (BE16)              |
+        |   byte 7     supportedClusterIndex                    |
+        | Logging the extra fields makes it easy to spot a      |
+        | device whose enumerated effect list looks too short   |
+        | relative to what it claims it can do.                 |
+        \*-----------------------------------------------------*/
+        uint16_t ext_caps     = ((uint16_t)response.data[3] << 8) | response.data[4];
+        uint16_t effect_blocks = ((uint16_t)response.data[5] << 8) | response.data[6];
+        uint8_t  supported_idx = response.data[7];
+
+        LOG_INFO("%s RGBEffects 0x8071 GetInfo: zones=%u extCaps=0x%04X effectBlocks=%u supportedClusterIdx=%u",
+                 LOG_TAG, cluster_count, ext_caps, effect_blocks, supported_idx);
     }
     else
     {
         cluster_count = response.data[0];
+        LOG_INFO("%s RGB feature page=0x%04X cluster_count=%u",
+                 LOG_TAG, caps.rgb_feature_page, cluster_count);
     }
-
-    LOG_VERBOSE("%s Zone cluster count: %d", LOG_TAG, cluster_count);
 
     /*---------------------------------------------------------*\
     | GetRgbClusterInfo for each cluster                        |
@@ -1717,8 +1734,8 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
             cluster.effect_count = response.data[3];
         }
 
-        LOG_VERBOSE("%s Cluster %d: location=0x%04X effects=%d",
-                    LOG_TAG, i, cluster.location, cluster.effect_count);
+        LOG_INFO("%s Cluster %d: location=0x%04X effects=%d",
+                 LOG_TAG, i, cluster.location, cluster.effect_count);
 
         /*-----------------------------------------------------*\
         | GetEffectInfo for each effect in this cluster          |
@@ -1743,8 +1760,8 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
             effect.capabilities  = (response.data[4] << 8) | response.data[5];
             effect.default_period = (response.data[6] << 8) | response.data[7];
 
-            LOG_DEBUG("%s   Effect %d: id=0x%04X caps=0x%04X period=%d",
-                      LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period);
+            LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms",
+                     LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period);
 
             cluster.effects.push_back(effect);
         }
@@ -2741,6 +2758,7 @@ void LogitechHIDPP20Controller::SetZoneEffect
     unsigned char   g,
     unsigned char   b,
     uint16_t        period,
+    unsigned char   brightness,
     bool            persist
     )
 {
@@ -2782,18 +2800,30 @@ void LogitechHIDPP20Controller::SetZoneEffect
             break;
 
         case 0x000A:    // Breathing
+            /*-----------------------------------------------------*\
+            | Effect param layout (10 bytes, indices into data[]):  |
+            |   data[2..4]  = R, G, B                               |
+            |   data[5..6]  = periodHi, periodLo (BE16 milliseconds)|
+            |   data[7]     = 0                                     |
+            |   data[8]     = brightness 0..100                     |
+            \*-----------------------------------------------------*/
             data[2] = r;
             data[3] = g;
             data[4] = b;
             data[5] = (period >> 8) & 0xFF;
             data[6] = period & 0xFF;
-            data[8] = (period > 0) ? (uint8_t)(period / 100) : 50;
+            data[8] = brightness;
             break;
 
         case 0x0003:    // Color Cycle / Spectrum
+            /*-----------------------------------------------------*\
+            | Effect param layout (10 bytes, indices into data[]):  |
+            |   data[7..8]  = periodHi, periodLo (BE16 milliseconds)|
+            |   data[9]     = brightness 0..100                     |
+            \*-----------------------------------------------------*/
             data[7] = (period >> 8) & 0xFF;
             data[8] = period & 0xFF;
-            data[9] = (period > 0) ? (uint8_t)(period / 100) : 50;
+            data[9] = brightness;
             break;
 
         case 0x0004:    // Color Wave
@@ -2825,6 +2855,13 @@ void LogitechHIDPP20Controller::SetZoneEffect
         /*-----------------------------------------------------*\
         | 0x8070: 13-byte payload, no persist byte               |
         \*-----------------------------------------------------*/
+        LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
+                  "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
+                  "%02X %02X %02X %02X %02X]",
+                  LOG_TAG, cluster_idx, effect_idx, effect_id,
+                  data[0], data[1], data[2], data[3], data[4], data[5], data[6],
+                  data[7], data[8], data[9], data[10], data[11], data[12]);
+
         blankFAPmessage response;
         SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
                          data, 13, response);
@@ -2835,6 +2872,16 @@ void LogitechHIDPP20Controller::SetZoneEffect
         | 0x8071/0x0600: 16-byte payload with persist at [12]    |
         \*-----------------------------------------------------*/
         data[12] = persist ? 0x01 : 0x00;
+
+        LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
+                  "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
+                  "%02X %02X %02X %02X %02X %02X %02X %02X]",
+                  LOG_TAG, cluster_idx, effect_idx, effect_id,
+                  data[0], data[1], data[2], data[3],
+                  data[4], data[5], data[6], data[7],
+                  data[8], data[9], data[10], data[11],
+                  data[12], data[13], data[14], data[15]);
+
         blankFAPmessage response;
         SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
                          data, 16, response);

@@ -358,13 +358,17 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                 case 0x0003:    // Color Cycle / Spectrum
                 {
                     mode Cycle;
-                    Cycle.name       = "Spectrum Cycle";
-                    Cycle.value      = fx.index;
-                    Cycle.flags      = MODE_FLAG_HAS_SPEED;
-                    Cycle.speed_min  = 1;
-                    Cycle.speed_max  = 255;
-                    Cycle.speed      = 100;
-                    Cycle.color_mode = MODE_COLORS_NONE;
+                    Cycle.name           = "Spectrum Cycle";
+                    Cycle.value          = fx.index;
+                    Cycle.flags          = MODE_FLAG_HAS_SPEED
+                                         | MODE_FLAG_HAS_BRIGHTNESS;
+                    Cycle.speed_min      = 1;
+                    Cycle.speed_max      = 255;
+                    Cycle.speed          = 100;
+                    Cycle.brightness_min = 1;
+                    Cycle.brightness_max = 100;
+                    Cycle.brightness     = 100;
+                    Cycle.color_mode     = MODE_COLORS_NONE;
                     modes.push_back(Cycle);
                     break;
                 }
@@ -372,15 +376,20 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                 case 0x000A:    // Breathing
                 {
                     mode Breathing;
-                    Breathing.name       = "Breathing";
-                    Breathing.value      = fx.index;
-                    Breathing.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED;
-                    Breathing.speed_min  = 1;
-                    Breathing.speed_max  = 255;
-                    Breathing.speed      = 100;
-                    Breathing.colors_min = 1;
-                    Breathing.colors_max = 1;
-                    Breathing.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                    Breathing.name           = "Breathing";
+                    Breathing.value          = fx.index;
+                    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                                             | MODE_FLAG_HAS_SPEED
+                                             | MODE_FLAG_HAS_BRIGHTNESS;
+                    Breathing.speed_min      = 1;
+                    Breathing.speed_max      = 255;
+                    Breathing.speed          = 100;
+                    Breathing.brightness_min = 1;
+                    Breathing.brightness_max = 100;
+                    Breathing.brightness     = 100;
+                    Breathing.colors_min     = 1;
+                    Breathing.colors_max     = 1;
+                    Breathing.color_mode     = MODE_COLORS_MODE_SPECIFIC;
                     Breathing.colors.resize(1);
                     modes.push_back(Breathing);
                     break;
@@ -800,6 +809,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                 0x0001,              /* static effect */
                 0, 0, 0,             /* black — no fixed-color marker, becomes "Off" */
                 0,
+                100,                 /* brightness — unused for static, default 100 */
                 true                 /* persist=true to match GHUB's prep call */);
         }
 
@@ -1134,11 +1144,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     sent_colors.clear();
 
     /*---------------------------------------------------------*\
-    | Per-key completely masks zone effects and the per-key      |
-    | buffer can only be cleared by a power cycle. So on         |
-    | devices with per-key, implement all modes via per-key      |
-    | writes. Zone effects are only used on devices without      |
-    | per-key support.                                           |
+    | On per-key devices, single-color non-animated modes (Off, |
+    | Static) are applied through the per-key path so the LEDs  |
+    | track the mode color cleanly. Animated effects (anything  |
+    | with HAS_SPEED — Breathing, Cycle, Wave, Ripple) fall     |
+    | through to the zone-effect path below; in practice zone   |
+    | effects render correctly alongside per-key on the devices |
+    | we have data for.                                          |
     \*---------------------------------------------------------*/
     if(caps.has_perkey)
     {
@@ -1153,9 +1165,20 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         }
 
         /*-----------------------------------------------------*\
-        | Static mode via per-key: set all LEDs to mode color    |
+        | Static mode via per-key: only used as a fallback when  |
+        | the device exposes per-key but no zone effects. When   |
+        | both are available we prefer the zone-effect path      |
+        | because per-key writes alone don't fully claim against |
+        | the firmware effect engine on some devices (G502),     |
+        | leaving the firmware fade fighting our per-key colors  |
+        | until something else (e.g. Cycle) force-claims.        |
+        | Gated on !HAS_SPEED so animated colored effects like   |
+        | Breathing don't get clipped to a static color.         |
         \*-----------------------------------------------------*/
-        if(current.color_mode == MODE_COLORS_MODE_SPECIFIC && current.colors.size() > 0)
+        if(!caps.has_zone_effects
+           && current.color_mode == MODE_COLORS_MODE_SPECIFIC
+           && current.colors.size() > 0
+           && !(current.flags & MODE_FLAG_HAS_SPEED))
         {
             controller->SetAllPerKeyColor(current.colors[0]);
             controller->PerKeyFrameEnd();
@@ -1163,10 +1186,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         }
 
         /*-----------------------------------------------------*\
-        | For animated effects (Breathing, Cycle, etc.) on       |
-        | per-key devices: fall through to zone effects as a     |
-        | best-effort. They'll only be visible if per-key        |
-        | hasn't been written yet this session.                  |
+        | Animated effects (Breathing, Cycle, Wave, Ripple) on   |
+        | per-key devices fall through to the zone effect path.  |
         \*-----------------------------------------------------*/
     }
 
@@ -1189,7 +1210,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                     controller->SetZoneEffect(
                         caps.zone_clusters[i].index,
                         caps.zone_clusters[i].effects[j].index,
-                        0x0001, 0, 0, 0, 0, false);
+                        0x0001, 0, 0, 0, 0, 100, false);
                     break;
                 }
             }
@@ -1211,6 +1232,16 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 
     uint16_t period = (uint16_t)(current.speed * 100);
 
+    /*---------------------------------------------------------*\
+    | Brightness defaults to 100 for modes that don't expose    |
+    | a brightness slider — those modes ignore the value at the |
+    | wire level anyway. Modes flagged HAS_BRIGHTNESS take the  |
+    | user-set value from current.brightness.                   |
+    \*---------------------------------------------------------*/
+    unsigned char brightness = (current.flags & MODE_FLAG_HAS_BRIGHTNESS)
+                             ? (unsigned char)current.brightness
+                             : 100;
+
     for(size_t i = 0; i < caps.zone_clusters.size(); i++)
     {
         uint16_t eff_id = 0;
@@ -1224,10 +1255,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             }
         }
 
+        /*-----------------------------------------------------*\
+        | persist=true matches what the captured GHUB packet    |
+        | replay does for every mode-set on these devices. With |
+        | persist=false the firmware appears to accept the      |
+        | command without actually committing the new effect,   |
+        | which is consistent with Static (which gets prepped   |
+        | with persist=true at startup) being the only effect   |
+        | that visibly works.                                   |
+        \*-----------------------------------------------------*/
         controller->SetZoneEffect(
             caps.zone_clusters[i].index,
             current.value,
-            eff_id, r, g, b, period, false);
+            eff_id, r, g, b, period, brightness, true);
     }
 }
 
