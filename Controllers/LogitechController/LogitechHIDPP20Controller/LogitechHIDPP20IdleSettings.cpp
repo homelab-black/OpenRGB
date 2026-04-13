@@ -16,6 +16,37 @@ LogitechHIDPP20IdleSettings* LogitechHIDPP20IdleSettings::instance()
     return &inst;
 }
 
+/*---------------------------------------------------------*\
+| Minimum idle / sleep values the controller will honor.    |
+| Matches what Logitech firmware typically clamps to on     |
+| HID++ 2.0 devices, and guarantees the skip-dim path's     |
+| sleep_delay math always produces a positive window.       |
+\*---------------------------------------------------------*/
+static const int MIN_IDLE_S     = 15;
+static const int MIN_SLEEP_S    = 45;
+static const int MIN_DIM_WINDOW = 30;   // sleep must exceed idle by at least this
+
+static void ClampProfile(LogitechHIDPP20IdleProfile& p)
+{
+    if(p.dim_brightness < 0)   p.dim_brightness = 0;
+    if(p.dim_brightness > 100) p.dim_brightness = 100;
+
+    if(p.idle_timeout_s < MIN_IDLE_S)
+    {
+        p.idle_timeout_s = MIN_IDLE_S;
+    }
+
+    if(p.sleep_timeout_s < MIN_SLEEP_S)
+    {
+        p.sleep_timeout_s = MIN_SLEEP_S;
+    }
+
+    if(p.sleep_timeout_s < p.idle_timeout_s + MIN_DIM_WINDOW)
+    {
+        p.sleep_timeout_s = p.idle_timeout_s + MIN_DIM_WINDOW;
+    }
+}
+
 static LogitechHIDPP20IdleProfile ProfileFromJson(const json& j)
 {
     LogitechHIDPP20IdleProfile p;
@@ -25,6 +56,8 @@ static LogitechHIDPP20IdleProfile ProfileFromJson(const json& j)
     if(j.contains("idle_timeout_s"))  p.idle_timeout_s  = j["idle_timeout_s"];
     if(j.contains("allow_sleep"))     p.allow_sleep     = j["allow_sleep"];
     if(j.contains("sleep_timeout_s")) p.sleep_timeout_s = j["sleep_timeout_s"];
+
+    ClampProfile(p);
 
     return p;
 }
