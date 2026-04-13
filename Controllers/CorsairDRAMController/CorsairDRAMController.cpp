@@ -10,6 +10,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <cstring>
 #include "CRC.h"
 #include "CorsairDRAMController.h"
 #include "LogManager.h"
@@ -29,6 +30,8 @@ CorsairDRAMController::CorsairDRAMController(i2c_smbus_interface *bus, corsair_d
     pid                 = 0;
     vid                 = 0;
     protocol_version    = 0;
+    direct_mode         = false;
+    last_effect_valid   = false;
 
     /*-----------------------------------------------------*\
     | Read device information                               |
@@ -285,6 +288,30 @@ void CorsairDRAMController::SetEffect
     effect_data[19] = 0x00;
 
     /*-----------------------------------------------------*\
+    | Dedup against the last successfully committed effect  |
+    | config. DeviceUpdateMode often fires with identical   |
+    | parameters (init double-fire, profile re-loads,        |
+    | restoring already-active state). Skipping the flash   |
+    | commit on byte-identical effect_data avoids burning   |
+    | flash cycles for no visible change.                   |
+    \*-----------------------------------------------------*/
+    if(last_effect_valid &&
+       memcmp(effect_data, last_effect_data, sizeof(effect_data)) == 0)
+    {
+        /*-------------------------------------------------*\
+        | Re-apply the static→direct_mode transition that   |
+        | the trailing block below normally performs, in    |
+        | case a previous SetDirect(false) cleared it but   |
+        | the underlying effect bytes didn't change.        |
+        \*-------------------------------------------------*/
+        if(mode == CORSAIR_DRAM_MODE_STATIC && protocol_version >= 4)
+        {
+            direct_mode = true;
+        }
+        return;
+    }
+
+    /*-----------------------------------------------------*\
     | Write effect packet                                   |
     \*-----------------------------------------------------*/
     bus->i2c_smbus_write_byte_data(dev, CORSAIR_DRAM_REG_RESET_BUFFER, 0x00);
@@ -308,7 +335,71 @@ void CorsairDRAMController::SetEffect
     {
         bus->i2c_smbus_write_byte_data(dev, CORSAIR_DRAM_REG_WRITE_CONFIGURATION, CORSAIR_DRAM_ID_EFFECT_CONFIGURATION);
         WaitReady();
+
+        /*-------------------------------------------------*\
+        | Stash the committed bytes for the next dedup      |
+        | comparison. Only stash on a successful commit so  |
+        | a CRC-mismatch failure forces the next call to    |
+        | re-attempt the write.                             |
+        \*-------------------------------------------------*/
+        memcpy(last_effect_data, effect_data, sizeof(effect_data));
+        last_effect_valid = true;
     }
+
+    /*-----------------------------------------------------*\
+    | Static (Custom) mode is unique among the effect modes |
+    | in that it renders user-supplied per-LED colors. On    |
+    | protocol v4+ devices, the effect config commit above   |
+    | tells the firmware to use static mode; subsequent      |
+    | SetColorsPerLED calls then need to take the live       |
+    | block-write path (registers 0x31/0x32) instead of the  |
+    | streaming/flash path, so per-LED color changes don't   |
+    | burn flash cycles. The DDR5 firmware has a small flash |
+    | budget — hammering it with every color change can      |
+    | permanently brick LED output. Manual save              |
+    | (DeviceSaveMode) commits the live colors to flash on   |
+    | demand.                                               |
+    |                                                       |
+    | Protocol v3 devices have no live block-write path, so  |
+    | Custom mode keeps writing to flash on every update     |
+    | (the existing upstream behavior). They retain the      |
+    | AUTOMATIC_SAVE flag in the RGBController.              |
+    \*-----------------------------------------------------*/
+    if(mode == CORSAIR_DRAM_MODE_STATIC && protocol_version >= 4)
+    {
+        direct_mode = true;
+    }
+}
+
+void CorsairDRAMController::SaveMode(RGBColor* colors)
+{
+    /*-----------------------------------------------------*\
+    | Commit the current per-LED color buffer to flash for   |
+    | Custom (static) mode on protocol v4+ devices. Custom   |
+    | mode normally streams colors via the live 0x31/0x32    |
+    | block writes to avoid flash wear; this method routes   |
+    | one frame through the streaming/flash path so the user |
+    | can persist a chosen configuration across power cycles |
+    | by clicking Save in the OpenRGB UI.                    |
+    |                                                       |
+    | No-op on v3: Custom mode there is already AUTOMATIC_   |
+    | SAVE (every color change writes flash) so manual save  |
+    | has nothing to do.                                     |
+    |                                                       |
+    | Effect modes are AUTOMATIC_SAVE on all protocol        |
+    | versions — they commit to flash on every SetEffect     |
+    | call so DeviceSaveMode is a no-op for them. Only       |
+    | Custom on v4+ needs manual persistence.                |
+    \*-----------------------------------------------------*/
+    if(protocol_version < 4)
+    {
+        return;
+    }
+
+    bool was_direct = direct_mode;
+    direct_mode     = false;
+    SetColorsPerLED(colors);
+    direct_mode     = was_direct;
 }
 
 bool CorsairDRAMController::WaitReady()

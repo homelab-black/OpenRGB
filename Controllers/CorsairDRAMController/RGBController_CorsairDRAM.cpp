@@ -57,7 +57,25 @@ RGBController_CorsairDRAM::RGBController_CorsairDRAM(CorsairDRAMController* cont
     mode Custom;
     Custom.name                 = "Custom";
     Custom.value                = CORSAIR_DRAM_MODE_STATIC;
-    Custom.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_AUTOMATIC_SAVE;
+    /*-----------------------------------------------------*\
+    | On protocol v4+ devices, Custom mode is routed through |
+    | the live block-write path (registers 0x31/0x32) to     |
+    | avoid burning flash cycles on every per-LED color      |
+    | change. The user must click Save (DeviceSaveMode) to   |
+    | persist the chosen configuration across power cycles.  |
+    |                                                       |
+    | On protocol v3 there is no live path; Custom keeps the |
+    | upstream automatic-save behavior where every color     |
+    | update writes to flash.                                |
+    \*-----------------------------------------------------*/
+    if(controller->GetProtocolVersion() >= 4)
+    {
+        Custom.flags            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
+    }
+    else
+    {
+        Custom.flags            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_AUTOMATIC_SAVE;
+    }
     Custom.color_mode           = MODE_COLORS_PER_LED;
     modes.push_back(Custom);
 
@@ -327,4 +345,20 @@ void RGBController_CorsairDRAM::DeviceUpdateMode()
                           mode_colors[5]);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
+}
+
+void RGBController_CorsairDRAM::DeviceSaveMode()
+{
+    /*-----------------------------------------------------*\
+    | Manual save: only meaningful for Custom mode on v4+    |
+    | devices, where per-LED color updates go through the    |
+    | live block-write path. Effect modes are AUTOMATIC_SAVE |
+    | (every change writes flash) so there's nothing to do.  |
+    | The controller's SaveMode() handles the v3 fast-bail   |
+    | internally so this can be called unconditionally.      |
+    \*-----------------------------------------------------*/
+    if(modes[active_mode].value == CORSAIR_DRAM_MODE_STATIC)
+    {
+        controller->SaveMode(colors.data());
+    }
 }
