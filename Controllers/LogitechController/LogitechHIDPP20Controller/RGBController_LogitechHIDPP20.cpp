@@ -27,6 +27,36 @@
 \*---------------------------------------------------------*/
 static constexpr RGBColor HIDPP20_UNCOMMITTED = 0xFF000000;
 
+/*---------------------------------------------------------*\
+| Effect period range, in milliseconds. Matches the         |
+| 1000..20000ms range Logitech firmware tests against and   |
+| LGHUB clamps to in capture data. Out-of-band values can   |
+| produce flashy / invisible animations on real hardware,   |
+| so the slider stays clamped here on our side.             |
+\*---------------------------------------------------------*/
+static const uint16_t HIDPP20_PERIOD_MIN_MS = 1000;
+static const uint16_t HIDPP20_PERIOD_MAX_MS = 20000;
+
+/*---------------------------------------------------------*\
+| Speed slider range presented to the user. 1..100 matches  |
+| our brightness convention. Higher = faster animation,     |
+| inverted on the wire because lower period = faster cycle. |
+\*---------------------------------------------------------*/
+static const int      HIDPP20_SPEED_SLIDER_MIN = 1;
+static const int      HIDPP20_SPEED_SLIDER_MAX = 100;
+
+static uint16_t SpeedSliderToPeriodMs(int slider)
+{
+    if(slider <= HIDPP20_SPEED_SLIDER_MIN) return HIDPP20_PERIOD_MAX_MS;
+    if(slider >= HIDPP20_SPEED_SLIDER_MAX) return HIDPP20_PERIOD_MIN_MS;
+
+    const int period_range = HIDPP20_PERIOD_MAX_MS - HIDPP20_PERIOD_MIN_MS;
+    const int slider_range = HIDPP20_SPEED_SLIDER_MAX - HIDPP20_SPEED_SLIDER_MIN;
+
+    return (uint16_t)(HIDPP20_PERIOD_MAX_MS
+                    - ((slider - HIDPP20_SPEED_SLIDER_MIN) * period_range) / slider_range);
+}
+
 /**------------------------------------------------------------------*\
     @name Logitech HID++ 2.0
     @category Keyboard,Mouse,Headset
@@ -362,9 +392,9 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     Cycle.value          = fx.index;
                     Cycle.flags          = MODE_FLAG_HAS_SPEED
                                          | MODE_FLAG_HAS_BRIGHTNESS;
-                    Cycle.speed_min      = 1;
-                    Cycle.speed_max      = 255;
-                    Cycle.speed          = 100;
+                    Cycle.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Cycle.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Cycle.speed          = 80;     /* ~4.9s, lively medium */
                     Cycle.brightness_min = 1;
                     Cycle.brightness_max = 100;
                     Cycle.brightness     = 100;
@@ -381,9 +411,9 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
                                              | MODE_FLAG_HAS_SPEED
                                              | MODE_FLAG_HAS_BRIGHTNESS;
-                    Breathing.speed_min      = 1;
-                    Breathing.speed_max      = 255;
-                    Breathing.speed          = 100;
+                    Breathing.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Breathing.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Breathing.speed          = 70;     /* ~6.8s, calm medium */
                     Breathing.brightness_min = 1;
                     Breathing.brightness_max = 100;
                     Breathing.brightness     = 100;
@@ -398,13 +428,17 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                 case 0x0004:    // Color Wave
                 {
                     mode Wave;
-                    Wave.name       = "Color Wave";
-                    Wave.value      = fx.index;
-                    Wave.flags      = MODE_FLAG_HAS_SPEED;
-                    Wave.speed_min  = 1;
-                    Wave.speed_max  = 255;
-                    Wave.speed      = 100;
-                    Wave.color_mode = MODE_COLORS_NONE;
+                    Wave.name           = "Color Wave";
+                    Wave.value          = fx.index;
+                    Wave.flags          = MODE_FLAG_HAS_SPEED
+                                        | MODE_FLAG_HAS_BRIGHTNESS;
+                    Wave.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Wave.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Wave.speed          = 80;     /* ~4.9s, lively medium */
+                    Wave.brightness_min = 1;
+                    Wave.brightness_max = 100;
+                    Wave.brightness     = 100;
+                    Wave.color_mode     = MODE_COLORS_NONE;
                     modes.push_back(Wave);
                     break;
                 }
@@ -412,15 +446,20 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                 case 0x000B:    // Ripple
                 {
                     mode Ripple;
-                    Ripple.name       = "Ripple";
-                    Ripple.value      = fx.index;
-                    Ripple.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_SPEED;
-                    Ripple.speed_min  = 1;
-                    Ripple.speed_max  = 255;
-                    Ripple.speed      = 100;
-                    Ripple.colors_min = 1;
-                    Ripple.colors_max = 1;
-                    Ripple.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                    Ripple.name           = "Ripple";
+                    Ripple.value          = fx.index;
+                    Ripple.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                                          | MODE_FLAG_HAS_SPEED
+                                          | MODE_FLAG_HAS_BRIGHTNESS;
+                    Ripple.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Ripple.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Ripple.speed          = 70;     /* ~6.8s, calm medium */
+                    Ripple.brightness_min = 1;
+                    Ripple.brightness_max = 100;
+                    Ripple.brightness     = 100;
+                    Ripple.colors_min     = 1;
+                    Ripple.colors_max     = 1;
+                    Ripple.color_mode     = MODE_COLORS_MODE_SPECIFIC;
                     Ripple.colors.resize(1);
                     modes.push_back(Ripple);
                     break;
@@ -1230,13 +1269,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         b = RGBGetBValue(current.colors[0]);
     }
 
-    /*---------------------------------------------------------*\
-    | Invert the slider direction: OpenRGB convention is higher  |
-    | slider = faster animation, but the wire format expects a   |
-    | period in milliseconds where lower = faster. Map slider    |
-    | 1..255 to period 25500..100ms.                             |
-    \*---------------------------------------------------------*/
-    uint16_t period = (uint16_t)((256 - current.speed) * 100);
+    uint16_t period = SpeedSliderToPeriodMs(current.speed);
 
     /*---------------------------------------------------------*\
     | Brightness defaults to 100 for modes that don't expose    |
