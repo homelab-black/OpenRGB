@@ -3929,9 +3929,14 @@ bool LogitechHIDPP20Controller::QueryExternalPower()
 
     ps_on_external_power = (charge_status != 0) || (external_power != 0);
 
-    LOG_TRACE("%s QueryExternalPower: charge_status=%u external_power=%u -> %s",
-              LOG_TAG, charge_status, external_power,
-              ps_on_external_power ? "external" : "battery");
+    uint16_t raw = ((uint16_t)charge_status << 8) | external_power;
+    if(raw != last_power_raw)
+    {
+        last_power_raw = raw;
+        LOG_TRACE("%s QueryExternalPower: charge_status=%u external_power=%u -> %s",
+                  LOG_TAG, charge_status, external_power,
+                  ps_on_external_power ? "external" : "battery");
+    }
 
     return ps_on_external_power;
 }
