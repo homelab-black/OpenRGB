@@ -670,6 +670,7 @@ private:
     int             ps_last_logged_pct      = -1;
     int             ps_last_logged_idle     = -1;
     int             ps_last_logged_sleep    = -1;
+    uint16_t        last_power_raw          = 0xFFFF;  // dedup for QueryExternalPower TRACE
     uint8_t         idx_unified_battery     = 0;
 
     void            ApplyPowerSavingProfile();
