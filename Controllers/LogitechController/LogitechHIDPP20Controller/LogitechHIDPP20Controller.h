@@ -401,7 +401,8 @@ public:
     void            SetZoneEffect(uint8_t cluster_idx, uint8_t effect_idx,
                                   uint16_t effect_id,
                                   unsigned char r, unsigned char g, unsigned char b,
-                                  uint16_t period, bool persist);
+                                  uint16_t period, unsigned char brightness,
+                                  bool persist);
 
     /*-------------------------------------------------*\
     | SW control management                             |
