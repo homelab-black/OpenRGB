@@ -3863,10 +3863,27 @@ bool LogitechHIDPP20Controller::QueryExternalPower()
 {
     /*---------------------------------------------------------*\
     | Query HID++ 2.0 feature 0x1004 (UnifiedBattery) fn1       |
-    | GetStatus. We only care about response byte 3 — the       |
-    | "external power" flag. Non-zero means wired / cradle /    |
-    | whatever is providing external power; zero means running  |
-    | on its own battery.                                       |
+    | GetStatus and determine whether the device is drawing     |
+    | external power.                                            |
+    |                                                           |
+    | Response layout:                                           |
+    |   byte 2: Charging Status                                 |
+    |     0 = Discharging                                       |
+    |     1 = Charging (wired)                                  |
+    |     2 = Charging (slow)                                   |
+    |     3 = Complete                                          |
+    |     4 = Error                                             |
+    |     5 = Wireless Charging                                 |
+    |   byte 3: External Power Status                           |
+    |     0 = no external power                                 |
+    |     non-zero = external power present                     |
+    |                                                           |
+    | We consider the device externally powered if EITHER byte  |
+    | is non-zero: some devices leave byte 3 at 0 whenever they |
+    | are actively charging and rely on byte 2 alone to signal  |
+    | the wired state. The pre-refactor QueryOnBattery used the |
+    | same OR semantic (expressed from the on-battery side) and |
+    | was known to work across the Logitech lineup.             |
     |                                                           |
     | Updates ps_on_external_power and returns the new value.   |
     | On failure returns the cached value without touching it.  |
@@ -3907,7 +3924,14 @@ bool LogitechHIDPP20Controller::QueryExternalPower()
         return ps_on_external_power;
     }
 
-    ps_on_external_power = (recv_data[3] != 0);
+    uint8_t charge_status  = recv_data[2];
+    uint8_t external_power = recv_data[3];
+
+    ps_on_external_power = (charge_status != 0) || (external_power != 0);
+
+    LOG_TRACE("%s QueryExternalPower: charge_status=%u external_power=%u -> %s",
+              LOG_TAG, charge_status, external_power,
+              ps_on_external_power ? "external" : "battery");
 
     return ps_on_external_power;
 }
