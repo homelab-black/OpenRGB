@@ -638,10 +638,24 @@ private:
     std::chrono::steady_clock::time_point last_idle_poll;
 
     /*-------------------------------------------------*\
-    | Firmware power config (read from device)          |
+    | Effective idle/sleep timers used by the state     |
+    | machine. Populated from the firmware snapshot by  |
+    | default, then possibly overridden by profile      |
+    | values in ApplyPowerSavingProfile.                |
     \*-------------------------------------------------*/
     uint16_t        idle_timeout_s;
     uint16_t        sleep_timeout_s;
+
+    /*-------------------------------------------------*\
+    | Firmware-configured timer snapshot. Read at init  |
+    | (and on reconnect) by ReadFirmwareTimers and      |
+    | never overwritten by profile application, so      |
+    | that the unconfigured fallback path and transition|
+    | back from a user profile both have a clean set    |
+    | of defaults to return to.                         |
+    \*-------------------------------------------------*/
+    uint16_t        fw_idle_timeout_s   = 60;
+    uint16_t        fw_sleep_timeout_s  = 300;
 
     /*-------------------------------------------------*\
     | Host-side idle/dim/sleep state.                    |

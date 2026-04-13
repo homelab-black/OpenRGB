@@ -3918,29 +3918,44 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
     LogitechHIDPP20IdleSettings* settings = LogitechHIDPP20IdleSettings::instance();
     settings->load();
 
+    bool prev_dim   = ps_dim_enabled;
+    bool prev_sleep = ps_sleep_enabled;
+
     /*---------------------------------------------------------*\
-    | Unconfigured: the JSON key is absent entirely (plugin     |
-    | not in use). Leave idle/sleep management to firmware —    |
-    | we do NOT overwrite idle_timeout_s / sleep_timeout_s so   |
-    | the values read at init by ReadFirmwareTimers stand.      |
+    | Start from the firmware-timer baseline. Both the           |
+    | configured and unconfigured paths return to these if       |
+    | they don't explicitly override, so a profile that sets     |
+    | idle_timeout_s does not leave a stale value behind after   |
+    | the user resets to an empty config.                        |
     \*---------------------------------------------------------*/
+    idle_timeout_s  = fw_idle_timeout_s;
+    sleep_timeout_s = fw_sleep_timeout_s;
+
     if(!settings->isConfigured())
     {
-        bool changed = ps_dim_enabled || ps_sleep_enabled ||
-                       ps_last_logged_pct != -2;
-
-        ps_dim_enabled    = false;
+        /*---------------------------------------------------------*\
+        | Unconfigured: no plugin in use. We still hold SW control  |
+        | so firmware will NOT dim or sleep autonomously — it only  |
+        | emits idle events and expects the host to act. Run a      |
+        | basic default profile ourselves using the firmware-       |
+        | configured timer values so lights still dim and sleep.    |
+        \*---------------------------------------------------------*/
+        ps_dim_enabled    = true;
         ps_dim_target_pct = DIM_TARGET_PCT;
-        ps_sleep_enabled  = false;
+        ps_sleep_enabled  = true;
 
-        if(changed)
+        if(prev_dim   != ps_dim_enabled      || prev_sleep != ps_sleep_enabled ||
+           ps_last_logged_pct      != ps_dim_target_pct    ||
+           ps_last_logged_idle     != (int)idle_timeout_s  ||
+           ps_last_logged_sleep    != (int)sleep_timeout_s ||
+           ps_last_logged_external != ps_on_external_power)
         {
-            ps_last_logged_pct      = -2;
-            ps_last_logged_idle     = -1;
-            ps_last_logged_sleep    = -1;
+            ps_last_logged_pct      = ps_dim_target_pct;
+            ps_last_logged_idle     = idle_timeout_s;
+            ps_last_logged_sleep    = sleep_timeout_s;
             ps_last_logged_external = ps_on_external_power;
-            LOG_DEBUG("%s Idle management: unconfigured — deferring to firmware",
-                      LOG_TAG);
+            LOG_DEBUG("%s Idle management: defaults (dim=%d%% firmware idle=%us sleep=%us)",
+                      LOG_TAG, ps_dim_target_pct, idle_timeout_s, sleep_timeout_s);
         }
         return;
     }
@@ -3955,12 +3970,15 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
         ? settings->pluggedIn()
         : settings->onBattery();
 
-    bool prev_dim   = ps_dim_enabled;
-    bool prev_sleep = ps_sleep_enabled;
-
     ps_dim_enabled    = profile.dim_when_idle;
     ps_dim_target_pct = profile.dim_when_idle ? profile.dim_brightness : DIM_TARGET_PCT;
     ps_sleep_enabled  = profile.allow_sleep;
+
+    if(profile.dim_when_idle)
+    {
+        idle_timeout_s = (uint16_t)profile.idle_timeout_s;
+    }
+    /* else: idle_timeout_s stays at fw_idle_timeout_s from above */
 
     if(profile.allow_sleep)
     {
@@ -3968,12 +3986,11 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
     }
     else
     {
+        /*-----------------------------------------------------*\
+        | Signal "don't sleep" to the state machine. The IDLE    |
+        | branch of PowerThreadFunc gates on sleep_timeout_s>0.  |
+        \*-----------------------------------------------------*/
         sleep_timeout_s = 0;
-    }
-
-    if(profile.dim_when_idle)
-    {
-        idle_timeout_s = (uint16_t)profile.idle_timeout_s;
     }
 
     if(prev_dim   != ps_dim_enabled      || prev_sleep != ps_sleep_enabled ||
@@ -4289,12 +4306,14 @@ void LogitechHIDPP20Controller::ReadFirmwareTimers()
 
         if(idle > 0)
         {
-            idle_timeout_s = idle;
+            idle_timeout_s    = idle;
+            fw_idle_timeout_s = idle;
         }
 
         if(sleep > 0)
         {
-            sleep_timeout_s = sleep;
+            sleep_timeout_s    = sleep;
+            fw_sleep_timeout_s = sleep;
         }
 
         LOG_TRACE("%s Firmware timers: idle=%us sleep=%us", LOG_TAG, idle_timeout_s, sleep_timeout_s);
