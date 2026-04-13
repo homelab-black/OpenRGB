@@ -3771,8 +3771,15 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
                     | dragging the slider, ps_dim_target_pct updates     |
                     | in-memory and we pick it up here on the next 50ms  |
                     | tick without any callback/repaint chain.           |
+                    |                                                    |
+                    | Gated on ps_dim_enabled: a profile (or the default |
+                    | unconfigured fallback) can enter IDLE state via    |
+                    | the skip-dim path in OnUserActivity, and we must   |
+                    | not dim in that case — only sleep when the deadline|
+                    | hits.                                              |
                     \*-------------------------------------------------*/
-                    if(dim_brightness_pct.load() != ps_dim_target_pct)
+                    if(ps_dim_enabled &&
+                       dim_brightness_pct.load() != ps_dim_target_pct)
                     {
                         dim_brightness_pct.store(ps_dim_target_pct);
 
@@ -3937,10 +3944,11 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
         | Unconfigured: no plugin in use. We still hold SW control  |
         | so firmware will NOT dim or sleep autonomously — it only  |
         | emits idle events and expects the host to act. Run a      |
-        | basic default profile ourselves using the firmware-       |
-        | configured timer values so lights still dim and sleep.    |
+        | basic default profile ourselves: no dim on idle (OpenRGB  |
+        | users generally expect lights to stay on), but still go   |
+        | to sleep at the firmware-configured timeout.              |
         \*---------------------------------------------------------*/
-        ps_dim_enabled    = true;
+        ps_dim_enabled    = false;
         ps_dim_target_pct = DIM_TARGET_PCT;
         ps_sleep_enabled  = true;
 
@@ -3954,8 +3962,8 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
             ps_last_logged_idle     = idle_timeout_s;
             ps_last_logged_sleep    = sleep_timeout_s;
             ps_last_logged_external = ps_on_external_power;
-            LOG_DEBUG("%s Idle management: defaults (dim=%d%% firmware idle=%us sleep=%us)",
-                      LOG_TAG, ps_dim_target_pct, idle_timeout_s, sleep_timeout_s);
+            LOG_DEBUG("%s Idle management: defaults (dim=off, firmware sleep=%us)",
+                      LOG_TAG, sleep_timeout_s);
         }
         return;
     }
