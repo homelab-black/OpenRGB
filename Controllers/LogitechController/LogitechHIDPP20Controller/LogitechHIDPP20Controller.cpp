@@ -3124,6 +3124,17 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     caps.nv_sleep_ramp_seconds   = 0;
 
     /*---------------------------------------------------------*\
+    | idx_unified_battery lives outside caps (discovered lazily |
+    | by QueryExternalPower on first use) so it isn't cleared   |
+    | by the caps reset above. Clear it here too so the next    |
+    | QueryExternalPower call re-probes on the new path — the   |
+    | old path's feature index may not exist, or may map to a   |
+    | different feature entirely, on the new map.               |
+    \*---------------------------------------------------------*/
+    idx_unified_battery = 0;
+    last_power_raw      = 0xFFFF;
+
+    /*---------------------------------------------------------*\
     | Standard HID++ features are looked up on-demand — no bulk |
     | enumeration needed. Just re-discover everything.          |
     \*---------------------------------------------------------*/
