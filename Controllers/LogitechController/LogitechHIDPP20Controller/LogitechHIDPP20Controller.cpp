@@ -539,11 +539,25 @@ int LogitechHIDPP20Controller::SendStandard
     | Auto-select short (0x10, 7 bytes) vs long (0x11, 20 bytes) |
     | based on data length. Upper layers just provide data;       |
     | transport picks the smallest frame that fits.               |
+    |                                                             |
+    | Windows exception: HIDClass splits the HID++ short and long |
+    | message Top-Level Collections into separate virtual HID     |
+    | devices (page 0xFF00 usage 1 vs usage 2). We open the long- |
+    | message TLC, which rejects 7-byte writes. Force long format |
+    | on Windows so every outgoing frame matches the collection   |
+    | we opened — Linux hidraw and macOS IOHIDManager expose both |
+    | TLCs through one handle and keep the size-based heuristic.  |
     \*---------------------------------------------------------*/
     uint8_t buf[LOGITECH_LONG_MESSAGE_LEN];
     size_t  msg_len;
 
-    if(len <= 3)
+#if defined(_WIN32)
+    const bool prefer_short = false;
+#else
+    const bool prefer_short = (len <= 3);
+#endif
+
+    if(prefer_short)
     {
         memset(buf, 0, LOGITECH_SHORT_MESSAGE_LEN);
         buf[0] = LOGITECH_SHORT_MESSAGE;
