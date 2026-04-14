@@ -3274,9 +3274,10 @@ void LogitechHIDPP20Controller::StartProbeWatcher()
 /*---------------------------------------------------------*\
 | ScanForDevice and GetCenturionSubDeviceName live in       |
 | LogitechHIDPP20Controller_Linux.cpp /                     |
-| LogitechHIDPP20Controller_Windows.cpp. Both are the only  |
-| parts of this controller that touch platform-specific    |
-| HID enumeration details (sysfs vs hidapi serial_number). |
+| LogitechHIDPP20Controller_Windows_MacOS.cpp. Both are    |
+| the only parts of this controller that touch platform-   |
+| specific HID enumeration details (sysfs vs hidapi        |
+| serial_number).                                           |
 \*---------------------------------------------------------*/
 
 void LogitechHIDPP20Controller::SwapHIDHandle

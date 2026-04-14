@@ -1,17 +1,12 @@
 /*---------------------------------------------------------*\
-| LogitechHIDPP20Controller_Windows.cpp                      |
+| LogitechHIDPP20Controller_Windows_MacOS.cpp                |
 |                                                           |
-|   Windows-specific path-migration and device-name lookup  |
-|   for the unified Logitech HID++ 2.0 controller.          |
+|   Path-migration and device-name lookup for the unified   |
+|   Logitech HID++ 2.0 controller on Windows and macOS.     |
 |                                                           |
 |   Uses hidapi's hid_enumerate + hid_device_info fields    |
 |   (serial_number, product_string, product_id, usage_page) |
-|   since Windows has no sysfs equivalent.                  |
-|                                                           |
-|   Initial port — we don't have a Windows box in the loop  |
-|   to iterate on, so the design aims to be "no worse than  |
-|   graceful no-op" on first run. Expect follow-up fixes    |
-|   when real Windows hardware reports back.                |
+|   on platforms with no /sys/class/hidraw equivalent.      |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |

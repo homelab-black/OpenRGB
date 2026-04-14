@@ -567,9 +567,10 @@ private:
     | Platform-specific. ScanForDevice walks the OS-level  |
     | HID enumeration to find the same physical device on  |
     | a new path (USB<->wireless transitions). Linux uses  |
-    | sysfs, Windows uses hidapi + serial_number matching. |
-    | Bodies live in LogitechHIDPP20Controller_Linux.cpp   |
-    | and LogitechHIDPP20Controller_Windows.cpp.           |
+    | sysfs; Windows and macOS use hidapi + serial_number  |
+    | matching. Bodies live in                             |
+    | LogitechHIDPP20Controller_Linux.cpp and              |
+    | LogitechHIDPP20Controller_Windows_MacOS.cpp.         |
     \*---------------------------------------------------*/
     bool            ScanForDevice(bool force = false);
 
