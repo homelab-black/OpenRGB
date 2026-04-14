@@ -727,7 +727,7 @@ int LogitechHIDPP20Controller::SendCenturion
         | Payload: [devId<<4|lenHi, lenLo, subCPL=0x00,          |
         |           subFeatIdx, subFunc|swid, subParams...]       |
         \*-----------------------------------------------------*/
-        uint8_t sub_msg_len = 3 + (uint8_t)len;  // subCPL + featIdx + func + data
+        uint16_t sub_msg_len = 3 + (uint16_t)len;  // subCPL + featIdx + func + data
 
         if(transport.addressed)
         {
