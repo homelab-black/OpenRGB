@@ -82,8 +82,7 @@ const hidapi_wrapper default_wrapper =
 bool BasicHIDBlock::compare(hid_device_info* info)
 {
     return ( (vid == info->vendor_id)
-        && ( (pid == HID_PID_ANY)
-            || (pid == info->product_id) )
+        && (pid == info->product_id)
 #ifdef USE_HID_USAGE
         && ( (usage_page == HID_USAGE_PAGE_ANY)
             || (usage_page == info->usage_page) )
@@ -366,27 +365,6 @@ void ResourceManager::RegisterHIDDeviceDetector(std::string name,
     block.usage         = usage;
 
     hid_device_detectors.push_back(block);
-}
-
-bool ResourceManager::HasHIDDetectorForPID(uint16_t vid, uint16_t pid)
-{
-    for(const auto& det : hid_device_detectors)
-    {
-        if(det.vid == vid && det.pid == pid)
-        {
-            return true;
-        }
-    }
-
-    for(const auto& det : hid_wrapped_device_detectors)
-    {
-        if(det.vid == vid && det.pid == pid)
-        {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 void ResourceManager::RegisterHIDWrappedDeviceDetector(std::string name,

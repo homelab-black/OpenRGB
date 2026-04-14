@@ -17,7 +17,6 @@
 #define REGISTER_I2C_PCI_DETECTOR(name, func, ven, dev, subven, subdev, addr)           static I2CPCIDeviceDetector     device_detector_obj_##ven##dev##subven##subdev##addr##func(name, func, ven, dev, subven, subdev, addr)
 #define REGISTER_I2C_BUS_DETECTOR(func)                                                 static I2CBusDetector           device_detector_obj_##func(func)
 #define REGISTER_HID_DETECTOR(name, func, vid, pid)                                     static HIDDeviceDetector        device_detector_obj_##vid##pid(name, func, vid, pid, HID_INTERFACE_ANY, HID_USAGE_PAGE_ANY, HID_USAGE_ANY)
-#define REGISTER_HID_DETECTOR_VPU(name, func, vid, page, usage)                         static HIDDeviceDetector        device_detector_obj_##vid##__##page##_##usage(name, func, vid, HID_PID_ANY, HID_INTERFACE_ANY, page, usage)
 #define REGISTER_HID_DETECTOR_I(name, func, vid, pid, interface)                        static HIDDeviceDetector        device_detector_obj_##vid##pid##_##interface(name, func, vid, pid, interface, HID_USAGE_PAGE_ANY, HID_USAGE_ANY)
 #define REGISTER_HID_DETECTOR_IP(name, func, vid, pid, interface, page)                 static HIDDeviceDetector        device_detector_obj_##vid##pid##_##interface##_##page(name, func, vid, pid, interface, page, HID_USAGE_ANY)
 #define REGISTER_HID_DETECTOR_IPU(name, func, vid, pid, interface, page, usage)         static HIDDeviceDetector        device_detector_obj_##vid##pid##_##interface##_##page##_##usage(name, func, vid, pid, interface, page, usage)
