@@ -50,6 +50,8 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->sw_control_claimed           = false;
     this->sw_control_needs_upgrade_to_5 = false;
     this->frame_counter                = 0;
+    this->retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+    this->retry_paint_attempt_.store(0);
     this->init_generation      = 0;
     this->log_tag              = "[HID++ " + std::string(path) + "]";
     this->reader_thread        = nullptr;
@@ -2491,6 +2493,102 @@ void LogitechHIDPP20Controller::UpgradeSwControlAfterFirstPaint()
 }
 
 /*---------------------------------------------------------*\
+| Retry-paint scheduling                                    |
+|                                                           |
+| Called by RGBController_LogitechHIDPP20::DeviceUpdateLEDs |
+| when a full pass completes with `acked_zones.size() !=    |
+| attempted_zones.size()` (partial commit). The retry       |
+| re-runs a whole DeviceUpdateLEDs cycle from the power     |
+| thread so the uncommitted zones (marked                   |
+| HIDPP20_UNCOMMITTED in sent_colors) get another shot.     |
+|                                                           |
+| Streaming animation frames also call ScheduleRetryPaint   |
+| on partial commit, but the next animation frame almost    |
+| always CancelRetryPaint()s before the deadline fires,     |
+| so the retry is a free no-op in the streaming path.       |
+| The retry only actually fires when no follow-up frame     |
+| arrives — which matches our two problem cases:            |
+|   1. First frame after a reconnect-transient claim       |
+|      (Direct mode, no animation timer).                   |
+|   2. Last frame of an animation that then stops.         |
+\*---------------------------------------------------------*/
+
+void LogitechHIDPP20Controller::ScheduleRetryPaint()
+{
+    size_t max_attempts =
+        sizeof(HIDPP20_REPAINT_RETRY_BACKOFF_MS) / sizeof(uint16_t);
+
+    uint8_t attempt = retry_paint_attempt_.load();
+
+    if(attempt >= max_attempts)
+    {
+        /*-----------------------------------------------------*\
+        | Retry budget exhausted. Give up for this sequence —   |
+        | the next fresh failure (after a full_commit clears    |
+        | the attempt counter) will start from attempt 0.       |
+        \*-----------------------------------------------------*/
+        retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+        LOG_DEBUG("%s retry paint budget exhausted (%zu attempts)",
+                  LOG_TAG, max_attempts);
+        return;
+    }
+
+    uint16_t delay_ms = HIDPP20_REPAINT_RETRY_BACKOFF_MS[attempt];
+    auto     deadline = std::chrono::steady_clock::now()
+                      + std::chrono::milliseconds(delay_ms);
+
+    retry_paint_deadline_.store(deadline);
+
+    LOG_DEBUG("%s retry paint scheduled attempt=%u delay=%ums",
+              LOG_TAG, attempt, delay_ms);
+}
+
+void LogitechHIDPP20Controller::CancelRetryPaint()
+{
+    retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+    retry_paint_attempt_.store(0);
+}
+
+void LogitechHIDPP20Controller::TickRetryPaintIfPending()
+{
+    /*---------------------------------------------------------*\
+    | Called from the power thread's main loop each tick.       |
+    | Checks the retry deadline and fires the repaint callback  |
+    | when it expires. The callback runs DeviceUpdateLEDs on    |
+    | the power thread's context — not recursively from inside  |
+    | another DeviceUpdateLEDs call.                            |
+    \*---------------------------------------------------------*/
+    auto deadline = retry_paint_deadline_.load();
+
+    if(deadline == std::chrono::steady_clock::time_point{})
+    {
+        return;
+    }
+
+    if(std::chrono::steady_clock::now() < deadline)
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Clear the deadline before firing so a concurrent          |
+    | ScheduleRetryPaint (from a different thread) doesn't      |
+    | double-fire on the same tick. Advance the attempt counter |
+    | so the next ScheduleRetryPaint (if this retry also fails) |
+    | picks the next backoff slot.                              |
+    \*---------------------------------------------------------*/
+    retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+    retry_paint_attempt_.fetch_add(1);
+
+    LOG_DEBUG("%s retry paint firing", LOG_TAG);
+
+    if(request_repaint_fn)
+    {
+        request_repaint_fn();
+    }
+}
+
+/*---------------------------------------------------------*\
 | Per-key lighting (0x8081)                                 |
 \*---------------------------------------------------------*/
 
@@ -3179,6 +3277,8 @@ void LogitechHIDPP20Controller::ReconnectDevice()
     \*---------------------------------------------------------*/
     sw_control_claimed           = false;
     sw_control_needs_upgrade_to_5 = false;
+    retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+    retry_paint_attempt_.store(0);
 
     bool   claimed       = false;
     size_t attempt_count = sizeof(HIDPP20_RECLAIM_BACKOFF_MS) / sizeof(uint16_t);
@@ -3427,6 +3527,8 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     consecutive_timeouts.store(0);
     sw_control_claimed           = false;
     sw_control_needs_upgrade_to_5 = false;
+    retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
+    retry_paint_attempt_.store(0);
     frame_counter = 0;
 
     {
@@ -3984,6 +4086,13 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
                 ApplyPowerSavingProfile();
             }
         }
+
+        /*-----------------------------------------------------*\
+        | Fire any pending retry-paint whose deadline has come   |
+        | due. The callback runs DeviceUpdateLEDs on this        |
+        | thread's context, not recursively inside another call. |
+        \*-----------------------------------------------------*/
+        TickRetryPaintIfPending();
 
         std::this_thread::sleep_for(50ms);
     }

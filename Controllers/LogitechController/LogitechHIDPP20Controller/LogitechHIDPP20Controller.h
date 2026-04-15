@@ -328,6 +328,25 @@ static constexpr uint16_t HIDPP20_RECLAIM_BACKOFF_MS[] =
 static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
     { 30, 60, 90 };
 
+/*-----------------------------------------------------*\
+| Per-key frame retry backoff. Used when a full         |
+| DeviceUpdateLEDs pass completes with some zones       |
+| unacked (partial commit). The retry re-runs a whole   |
+| frame from the power thread, so the backoff is        |
+| between full frames, not individual packets.          |
+|                                                        |
+| First value aligned to the power thread's 50ms poll   |
+| cadence — anything shorter rounds up anyway, and      |
+| matching the tick makes latency predictable.          |
+|                                                        |
+| Worst case: 5 retries, cumulative ~1550ms. This       |
+| covers the reconnect-transient window where the G502  |
+| firmware silently drops per-key writes for several    |
+| hundred ms after the wireless link re-establishes.    |
+\*-----------------------------------------------------*/
+static constexpr uint16_t HIDPP20_REPAINT_RETRY_BACKOFF_MS[] =
+    { 50, 100, 200, 400, 800 };
+
 static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_RELIABLE = {
     HIDPP20_BACKOFF_RELIABLE,
     sizeof(HIDPP20_BACKOFF_RELIABLE) / sizeof(uint16_t),
@@ -414,6 +433,16 @@ public:
     void            UpgradeSwControlAfterFirstPaint();
 
     /*-------------------------------------------------*\
+    | Per-key retry scheduling. Called by the RGB        |
+    | controller's DeviceUpdateLEDs on partial-commit    |
+    | frames; the power thread polls and fires           |
+    | request_repaint_fn when a retry deadline expires.  |
+    \*-------------------------------------------------*/
+    void            ScheduleRetryPaint();
+    void            CancelRetryPaint();
+    void            TickRetryPaintIfPending();
+
+    /*-------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
     \*-------------------------------------------------*/
     void            StartPowerManager();
@@ -444,6 +473,18 @@ private:
     bool                        sw_control_claimed;
     bool                        sw_control_needs_upgrade_to_5;
     uint32_t                    frame_counter;
+
+    /*-------------------------------------------------*\
+    | Retry-paint state (partial-commit recovery).      |
+    | retry_paint_deadline_ zero = no retry pending.    |
+    | retry_paint_attempt_ indexes into                  |
+    | HIDPP20_REPAINT_RETRY_BACKOFF_MS; once it reaches |
+    | the array length, we give up for this sequence.   |
+    | Atomic so both the paint thread (RGB controller)  |
+    | and the power thread can access without locks.    |
+    \*-------------------------------------------------*/
+    std::atomic<std::chrono::steady_clock::time_point>  retry_paint_deadline_;
+    std::atomic<uint8_t>                                retry_paint_attempt_;
     uint32_t                    init_generation;
     std::string                 log_tag;
 

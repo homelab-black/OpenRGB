@@ -1042,6 +1042,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         PerKeyFrameResult commit = controller->PerKeyFrameEnd();
 
         /*-----------------------------------------------------*\
+        | A frame is "fully committed" only if FrameEnd ACKed   |
+        | AND every attempted zone also ACKed. FrameEnd alone   |
+        | is not enough — the firmware happily ACKs FrameEnd    |
+        | even when prior per-key writes were silently dropped  |
+        | (observed on G502 X PLUS during wireless reconnect    |
+        | transients, where the Set* writes return no response  |
+        | but FrameEnd still lands cleanly).                    |
+        \*-----------------------------------------------------*/
+        bool full_commit = commit.frame_end_acked
+                         && (commit.acked_zones.size()
+                             == commit.attempted_zones.size());
+
+        /*-----------------------------------------------------*\
         | Upgrade SW control flags from 6 → 5 once the per-key  |
         | layer is populated. ClaimSWControlIfNeeded leaves the |
         | device at flags=6 (effect engine still autonomous) to |
@@ -1049,11 +1062,39 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         | per-key layer is masking zone output, it's safe (and  |
         | required for idle/wake event generation) to claim the |
         | effect bit. No-op if the upgrade has already happened |
-        | or if claim itself hasn't occurred.                    |
+        | or if claim itself hasn't occurred.                   |
+        |                                                       |
+        | Gated on full_commit: upgrading into flags=5 with an  |
+        | empty per-key buffer would leave the firmware with    |
+        | nothing to render and expose its default LED buffer   |
+        | (warm-white on the G502 X PLUS).                      |
         \*-----------------------------------------------------*/
-        if(commit.frame_end_acked)
+        if(full_commit)
         {
             controller->UpgradeSwControlAfterFirstPaint();
+        }
+
+        /*-----------------------------------------------------*\
+        | Retry scheduling. Any frame with missed zones schedules|
+        | a follow-up repaint via the power thread so the        |
+        | uncommitted zones (HIDPP20_UNCOMMITTED in sent_colors) |
+        | get another chance. Exponential backoff; bounded      |
+        | budget; resets on full_commit.                         |
+        |                                                        |
+        | Streaming animation frames hit this path too but the   |
+        | next animation frame almost always cancels before the  |
+        | deadline fires — the retry only meaningfully runs when |
+        | no follow-up frame arrives (first paint after a        |
+        | reconnect-transient claim, or the last frame of an     |
+        | animation that then stops).                            |
+        \*-----------------------------------------------------*/
+        if(full_commit)
+        {
+            controller->CancelRetryPaint();
+        }
+        else
+        {
+            controller->ScheduleRetryPaint();
         }
 
         /*-----------------------------------------------------*\
