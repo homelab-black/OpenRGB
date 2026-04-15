@@ -46,9 +46,10 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->device_index  = device_index;
     this->wireless      = wireless;
     this->mutex         = mutex_ptr;
-    this->initialized          = false;
-    this->sw_control_claimed   = false;
-    this->frame_counter        = 0;
+    this->initialized                  = false;
+    this->sw_control_claimed           = false;
+    this->sw_control_needs_upgrade_to_5 = false;
+    this->frame_counter                = 0;
     this->init_generation      = 0;
     this->log_tag              = "[HID++ " + std::string(path) + "]";
     this->reader_thread        = nullptr;
@@ -2387,53 +2388,106 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     }
 
     /*---------------------------------------------------------*\
-    | Full takeover in documented order (matches Solaar):         |
-    | 1. Host mode                                               |
-    | 2. SW control — flags=5 directly for idle monitoring       |
-    | 3. Power mode active                                       |
-    \*---------------------------------------------------------*/
-    /*---------------------------------------------------------*\
+    | Two-phase claim to avoid the onboard→host transition      |
+    | flash (warm-white ~3000K, ~50ms) visible on G502 X PLUS.  |
+    |                                                           |
+    | The SW Control `flags` bits are not "Zone/Power/Effect"   |
+    | as the overview doc labels them — the detail section     |
+    | (LOGITECH_HIDPP2_PROTOCOL.md:16201, derived from a G502   |
+    | pcap) uses bit 0 = effect control, bit 1 = power          |
+    | management, bit 2 = NV config. Setting the effect bit     |
+    | suspends the firmware's autonomous effect engine, and     |
+    | anything the host hasn't explicitly painted since that    |
+    | moment shows as the firmware's default LED buffer — on    |
+    | the G502 X PLUS that default is warm-white.               |
+    |                                                           |
+    | G Hub paints the G502 with flags=6 (power+NV, NOT effect) |
+    | the entire time, so the firmware effect engine keeps      |
+    | rendering the onboard profile's output right up to the    |
+    | moment SetEffectByIndex replaces it — no visible gap.     |
+    |                                                           |
+    | We can't just stay on flags=6 forever: the idle/wake      |
+    | state machine in OnUserActivity uses flags=5/3 as its     |
+    | active/idle signals and needs those specific values for   |
+    | the firmware to generate the right onUserActivity events. |
+    | So we claim at flags=6, let the first per-key frame paint |
+    | through the transition, then upgrade to flags=5 only      |
+    | after the per-key layer is active — at that point per-key |
+    | masks any zone output anyway, so the 6→5 transition is    |
+    | invisible.                                                 |
+    |                                                           |
+    | The previous sequence wrote `(3,7)` then `(3,5)` to mimic |
+    | G Hub's *keyboard first-contact* behavior. That was right |
+    | for the initial G515 bring-up but wrong for the mouse —   |
+    | on the G502 X PLUS the effect bit at claim time is the    |
+    | root cause of the startup flash.                          |
+    |                                                           |
     | GHUB's claim sequence does two WritePowerConfig calls      |
     | around SetHostMode, writing (a) its profile's sleep value |
     | then (b) that value minus the firmware off-ramp. We don't |
     | write timers at all: we don't have a profile we want to   |
     | impose on the device, and our host-side StartSleep trigger|
     | already fires SetRgbPowerMode(3) explicitly at the moment |
-    | we want the fade to begin. Writing compensated values back |
-    | to RAM was how we previously shrank sleep_timeout_s by     |
-    | 30s on every reclaim — the "current RAM value minus 30"    |
-    | pattern cascaded.                                           |
-    |                                                           |
-    | Read-only observation of the RAM timers happens via        |
-    | ReadFirmwareTimers at init, on power state transitions,    |
-    | and in a periodic poll from the power thread. Our host-    |
-    | side sleep_deadline math applies the off-ramp compensation|
-    | at the moment we compute the deadline, not in what we     |
-    | write to the device.                                       |
+    | we want the fade to begin.                                 |
     \*---------------------------------------------------------*/
-    SetSWControl(3, 7);
+    int claim_result = SetSWControl(3, 6);
+
+    if(claim_result <= 0)
+    {
+        LOG_DEBUG("%s SW control claim failed (SetSWControl(3,6) result=%d)",
+                  LOG_TAG, claim_result);
+        return false;
+    }
+
     SetRGBPowerMode(1);
     SetHostMode();
 
-    /*---------------------------------------------------------*\
-    | Only mark control claimed if the final SetSWControl(3,5)  |
-    | actually ACKs. Marking it claimed on a failed call is how |
-    | we previously stranded the device in onboard mode after a |
-    | wireless reconnect — no retry, firmware watchdog timed     |
-    | out at 10s, default animation came back.                  |
-    \*---------------------------------------------------------*/
-    int final_result = SetSWControl(3, 5);
+    sw_control_claimed            = true;
+    sw_control_needs_upgrade_to_5 = true;
 
-    if(final_result > 0)
+    LOG_DEBUG("%s Claimed SW control at flags=6 "
+              "(effect engine still autonomous until first per-key frame)",
+              LOG_TAG);
+    return true;
+}
+
+void LogitechHIDPP20Controller::UpgradeSwControlAfterFirstPaint()
+{
+    /*---------------------------------------------------------*\
+    | Called by RGBController_LogitechHIDPP20::DeviceUpdateLEDs |
+    | immediately after the first successful PerKeyFrameEnd of |
+    | a newly-claimed session. At this point the per-key buffer |
+    | is populated with real host colors, so the per-key layer  |
+    | masks the zone layer and the 6→5 transition no longer     |
+    | exposes the firmware's default LED buffer. Upgrading to   |
+    | flags=5 puts the device into the "active steady state"    |
+    | that OnUserActivity expects for idle detection events.    |
+    \*---------------------------------------------------------*/
+    if(!sw_control_needs_upgrade_to_5)
     {
-        sw_control_claimed = true;
-        LOG_DEBUG("%s Claimed SW control (deferred from init)", LOG_TAG);
-        return true;
+        return;
     }
 
-    LOG_DEBUG("%s SW control claim failed (final SetSWControl result=%d)",
-              LOG_TAG, final_result);
-    return false;
+    if(caps.idx_rgb_effects == 0 || !device_online.load())
+    {
+        sw_control_needs_upgrade_to_5 = false;
+        return;
+    }
+
+    int result = SetSWControl(3, 5);
+
+    if(result > 0)
+    {
+        sw_control_needs_upgrade_to_5 = false;
+        LOG_DEBUG("%s Upgraded SW control to flags=5 "
+                  "(per-key layer now masks zone layer)", LOG_TAG);
+    }
+    else
+    {
+        LOG_DEBUG("%s SW control upgrade to flags=5 failed (result=%d)",
+                  LOG_TAG, result);
+        /* Leave the flag set so the next frame will retry. */
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -3123,7 +3177,8 @@ void LogitechHIDPP20Controller::ReconnectDevice()
     | Always invalidate any stale claim so the loop below runs   |
     | the full claim sequence on each attempt until it sticks.   |
     \*---------------------------------------------------------*/
-    sw_control_claimed = false;
+    sw_control_claimed           = false;
+    sw_control_needs_upgrade_to_5 = false;
 
     bool   claimed       = false;
     size_t attempt_count = sizeof(HIDPP20_RECLAIM_BACKOFF_MS) / sizeof(uint16_t);
@@ -3370,7 +3425,8 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     FlushResponseQueue();
     device_online.store(true);
     consecutive_timeouts.store(0);
-    sw_control_claimed = false;
+    sw_control_claimed           = false;
+    sw_control_needs_upgrade_to_5 = false;
     frame_counter = 0;
 
     {

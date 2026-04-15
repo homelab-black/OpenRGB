@@ -411,6 +411,7 @@ public:
     void            SetRGBPowerMode(uint8_t mode);
     void            SetHostMode();
     bool            ClaimSWControlIfNeeded();
+    void            UpgradeSwControlAfterFirstPaint();
 
     /*-------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
@@ -441,6 +442,7 @@ private:
     HIDPP20Transport              transport;
     bool                        initialized;
     bool                        sw_control_claimed;
+    bool                        sw_control_needs_upgrade_to_5;
     uint32_t                    frame_counter;
     uint32_t                    init_generation;
     std::string                 log_tag;
