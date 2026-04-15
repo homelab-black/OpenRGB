@@ -1042,6 +1042,21 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         PerKeyFrameResult commit = controller->PerKeyFrameEnd();
 
         /*-----------------------------------------------------*\
+        | Upgrade SW control flags from 6 → 5 once the per-key  |
+        | layer is populated. ClaimSWControlIfNeeded leaves the |
+        | device at flags=6 (effect engine still autonomous) to |
+        | avoid the onboard→host transition flash; now that the |
+        | per-key layer is masking zone output, it's safe (and  |
+        | required for idle/wake event generation) to claim the |
+        | effect bit. No-op if the upgrade has already happened |
+        | or if claim itself hasn't occurred.                    |
+        \*-----------------------------------------------------*/
+        if(commit.frame_end_acked)
+        {
+            controller->UpgradeSwControlAfterFirstPaint();
+        }
+
+        /*-----------------------------------------------------*\
         | Ensure sent_colors is sized to the snapshot before    |
         | the commit loop writes by index. On the first frame   |
         | (or after a reinit clear) sent_colors is empty, and   |
