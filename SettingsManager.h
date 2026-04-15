@@ -40,6 +40,8 @@ public:
     ~SettingsManager();
 
     json GetSettings(std::string settings_key) override;
+    json GetSettingsSchema(std::string settings_key);
+    void RegisterSettingsSchema(std::string settings_key, std::string settings_title, json new_schema);
     void SetSettings(std::string settings_key, json new_settings) override;
     void SetSettingsFromJsonString(std::string settings_json_str) override;
 
@@ -48,7 +50,7 @@ public:
 
 private:
     json             settings_data;
-    json             settings_prototype;
+    json             settings_schema;
     filesystem::path settings_filename;
     std::mutex       mutex;
     bool             config_found;

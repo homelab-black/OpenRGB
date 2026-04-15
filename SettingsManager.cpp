@@ -88,6 +88,30 @@ json SettingsManager::GetSettings(std::string settings_key)
     return result;
 }
 
+json SettingsManager::GetSettingsSchema(std::string settings_key)
+{
+    if(settings_key == "")
+    {
+        return(settings_schema);
+    }
+    else if(settings_schema.contains(settings_key) && settings_schema[settings_key].contains("properties"))
+    {
+        return(settings_schema[settings_key]["properties"]);
+    }
+    else
+    {
+        nlohmann::json empty;
+        return(empty);
+    }
+}
+
+void SettingsManager::RegisterSettingsSchema(std::string settings_key, std::string settings_title, json new_schema)
+{
+    settings_schema[settings_key]["title"] = settings_title;
+    settings_schema[settings_key]["type"]  = "object";
+    settings_schema[settings_key]["properties"].update(new_schema, true);
+}
+
 void SettingsManager::SetSettings(std::string settings_key, json new_settings)
 {
     bool ui_settings_key = false;

@@ -43,6 +43,7 @@ public:
     ~OpenRGBZoneEditorDialog();
 
     int show();
+    void OnSettingChanged(std::string key, nlohmann::json settings);
 
 private slots:
     void changeEvent(QEvent *event);

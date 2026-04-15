@@ -481,6 +481,17 @@ public:
     virtual void                    SetAllZoneColors(int zone, RGBColor color)                                                                          = 0;
 
     /*-----------------------------------------------------*\
+    | Settings Functions                                    |
+    \*-----------------------------------------------------*/
+    virtual nlohmann::json          GetDeviceSettingsSchema()                                                                                           = 0;
+    virtual nlohmann::json          GetDeviceSettings()                                                                                                 = 0;
+    virtual void                    SetDeviceSettings(nlohmann::json settings_json)                                                                     = 0;
+
+    virtual nlohmann::json          GetZoneSettingsSchema(int zone)                                                                                     = 0;
+    virtual nlohmann::json          GetZoneSettings(int zone)                                                                                           = 0;
+    virtual void                    SetZoneSettings(int zone, nlohmann::json settings_json)                                                             = 0;
+
+    /*-----------------------------------------------------*\
     | Update Callback Functions                             |
     \*-----------------------------------------------------*/
     virtual void                    RegisterUpdateCallback(RGBControllerCallback new_callback, void * new_callback_arg)                                 = 0;
@@ -644,6 +655,17 @@ public:
     void                    SetAllZoneColors(int zone, RGBColor color);
 
     /*-----------------------------------------------------*\
+    | Settings Functions                                    |
+    \*-----------------------------------------------------*/
+    nlohmann::json          GetDeviceSettingsSchema();
+    nlohmann::json          GetDeviceSettings();
+    void                    SetDeviceSettings(nlohmann::json settings_json);
+
+    nlohmann::json          GetZoneSettingsSchema(int zone);
+    nlohmann::json          GetZoneSettings(int zone);
+    void                    SetZoneSettings(int zone, nlohmann::json settings_json);
+
+    /*-----------------------------------------------------*\
     | Update Callback Functions                             |
     \*-----------------------------------------------------*/
     void                    RegisterUpdateCallback(RGBControllerCallback new_callback, void * new_callback_arg);
@@ -684,6 +706,9 @@ public:
     virtual void            DeviceUpdateMode();
     virtual void            DeviceUpdateZoneMode(int zone);
     virtual void            DeviceSaveMode();
+
+    virtual void            DeviceUpdateSettings();
+    virtual void            DeviceUpdateZoneSettings(int zone);
 
     /*-----------------------------------------------------*\
     | Static Serialized Description Functions               |
@@ -738,6 +763,7 @@ protected:
     std::string             serial;         /* controller serial number */
     std::string             vendor;         /* controller vendor        */
     std::string             version;        /* controller version       */
+    std::string             settings;       /* controller settings JSON */
 
     /*-----------------------------------------------------*\
     | Controller variables                                  |

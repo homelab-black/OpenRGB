@@ -8,6 +8,7 @@
 \*---------------------------------------------------------*/
 
 #include "OpenRGBDevicePage.h"
+#include "OpenRGBDeviceSettingsPage.h"
 #include "OpenRGBZoneEditorDialog.h"
 #include "ProfileManager.h"
 #include "ResourceManager.h"
@@ -2222,6 +2223,10 @@ void OpenRGBDevicePage::on_EditZoneButton_clicked()
     bool            selected_all_zones;
     int             selected_zone;
     int             selected_segment;
+
+    //HACK: display settings page by clicking edit button
+    OpenRGBDeviceSettingsPage dlg(device);
+    dlg.exec();
 
     GetSelectedZone(&selected_all_zones, &selected_zone, &selected_segment);
 

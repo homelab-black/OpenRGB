@@ -12,12 +12,19 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QLineEdit>
+#include <QListWidgetItem>
+#include "OpenRGBDynamicSettingsWidget.h"
 #include "OpenRGBMatrixMapEditorDialog.h"
 #include "OpenRGBSegmentExportDialog.h"
 #include "OpenRGBZoneEditorDialog.h"
 #include "ProfileManager.h"
 #include "ResourceManager.h"
 #include "ui_OpenRGBZoneEditorDialog.h"
+
+static void Callback(void* this_ptr, std::string key, nlohmann::json settings)
+{
+    ((OpenRGBZoneEditorDialog*)this_ptr)->OnSettingChanged(key, settings);
+}
 
 OpenRGBZoneEditorDialog::OpenRGBZoneEditorDialog(RGBController* edit_dev_ptr, unsigned int edit_zone_idx_val, QWidget *parent) :
     QDialog(parent),
@@ -178,6 +185,30 @@ OpenRGBZoneEditorDialog::OpenRGBZoneEditorDialog(RGBController* edit_dev_ptr, un
     {
         edit_zone.flags |= ZONE_FLAG_MANUALLY_CONFIGURED_SEGMENTS;
         ui->GroupBoxSegments->setTitle("Segments Configuration (*)");
+    }
+
+    /*-----------------------------------------------------*\
+    | Initialize settings list                              |
+    \*-----------------------------------------------------*/
+    nlohmann::json settings_schema  = edit_dev->GetZoneSettingsSchema(edit_zone_idx);
+    nlohmann::json settings_value   = edit_dev->GetZoneSettings(edit_zone_idx);
+
+    ui->ListWidgetDeviceSpecificZoneConfiguration->setSelectionMode(QAbstractItemView::NoSelection);
+    ui->ListWidgetDeviceSpecificZoneConfiguration->setFocusPolicy(Qt::NoFocus);
+
+    /*-----------------------------------------------------*\
+    | Loop through the schema and create an entry for each  |
+    | setting                                               |
+    \*-----------------------------------------------------*/
+    for(nlohmann::json::iterator json_iterator = settings_schema.begin(); json_iterator != settings_schema.end(); json_iterator++)
+    {
+        nlohmann::json                  schema_entry    = json_iterator.value();
+        QListWidgetItem*                item            = new QListWidgetItem(ui->ListWidgetDeviceSpecificZoneConfiguration);
+        OpenRGBDynamicSettingsWidget*   item_widget     = new OpenRGBDynamicSettingsWidget(json_iterator.key(), schema_entry, settings_value);
+
+        item_widget->SetCallback(Callback, this);
+        item->setSizeHint(item_widget->sizeHint());
+        ui->ListWidgetDeviceSpecificZoneConfiguration->setItemWidget(item, item_widget);
     }
 }
 
@@ -924,3 +955,7 @@ void OpenRGBZoneEditorDialog::on_ComboBoxZoneColorOrder_currentIndexChanged(int 
     }
 }
 
+void OpenRGBZoneEditorDialog::OnSettingChanged(std::string /*key*/, nlohmann::json settings)
+{
+    edit_dev->SetZoneSettings(edit_zone_idx, settings);
+}

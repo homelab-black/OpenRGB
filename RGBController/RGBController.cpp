@@ -1727,6 +1727,149 @@ void RGBController::SetAllZoneColors(int zone, RGBColor color)
     AccessMutex.unlock();
 }
 
+/*-----------------------------------------------------*\
+| Settings Functions                                    |
+\*-----------------------------------------------------*/
+nlohmann::json RGBController::GetDeviceSettingsSchema()
+{
+    nlohmann::json settings_schema_json;
+    nlohmann::json settings_string_json;
+
+    AccessMutex.lock_shared();
+    try
+    {
+        settings_string_json = json::parse(settings);
+    }
+    catch(...)
+    {
+    }
+    AccessMutex.unlock_shared();
+
+    if(settings_string_json.contains("schema"))
+    {
+        settings_schema_json = settings_string_json["schema"];
+    }
+
+    return(settings_schema_json);
+}
+
+nlohmann::json RGBController::GetDeviceSettings()
+{
+    nlohmann::json settings_json;
+    nlohmann::json settings_string_json;
+
+    AccessMutex.lock_shared();
+    try
+    {
+        settings_string_json = json::parse(settings);
+    }
+    catch(...)
+    {
+    }
+    AccessMutex.unlock_shared();
+
+    if(settings_string_json.contains("settings"))
+    {
+        settings_json = settings_string_json["settings"];
+    }
+
+    return(settings_json);
+}
+
+void RGBController::SetDeviceSettings(nlohmann::json settings_json)
+{
+    nlohmann::json settings_string_json;
+    nlohmann::json settings_schema_json;
+
+    AccessMutex.lock();
+
+    settings_string_json = json::parse(settings);
+
+    if(settings_string_json.contains("schema"))
+    {
+        settings_schema_json = settings_string_json["schema"];
+    }
+
+    if(settings_string_json.contains("settings"))
+    {
+        /*-------------------------------------------------*\
+        | Iterate through all keys in updated settings to   |
+        | validate them against the schema                  |
+        \*-------------------------------------------------*/
+        for(nlohmann::json::iterator json_iterator = settings_json.begin(); json_iterator != settings_json.end(); json_iterator++)
+        {
+            std::string         key             = json_iterator.key();
+            std::string         type            = "";
+
+            if(settings_schema_json.contains(key) && settings_schema_json[key].contains("title") && settings_schema_json[key].contains("type"))
+            {
+                settings_string_json["settings"][key] = settings_json[key];
+            }
+        }
+    }
+
+    settings = settings_string_json.dump();
+
+    AccessMutex.unlock();
+}
+
+nlohmann::json RGBController::GetZoneSettingsSchema(int zone)
+{
+    nlohmann::json settings_schema_json;
+    nlohmann::json settings_string_json;
+
+    AccessMutex.lock_shared();
+    try
+    {
+        settings_string_json = json::parse(settings);
+    }
+    catch(...)
+    {
+    }
+    AccessMutex.unlock_shared();
+
+    if(settings_string_json.contains("zones") && (zone < (int)settings_string_json["zones"].size()))
+    {
+        if(settings_string_json["zones"][zone].contains("schema"))
+        {
+            settings_schema_json = settings_string_json["zones"][zone]["schema"];
+        }
+    }
+
+    return(settings_schema_json);
+}
+
+nlohmann::json RGBController::GetZoneSettings(int zone)
+{
+    nlohmann::json settings_json;
+    nlohmann::json settings_string_json;
+
+    AccessMutex.lock_shared();
+    try
+    {
+        settings_string_json = json::parse(settings);
+    }
+    catch(...)
+    {
+    }
+    AccessMutex.unlock_shared();
+
+    if(settings_string_json.contains("zones") && (zone < (int)settings_string_json["zones"].size()))
+    {
+        if(settings_string_json["zones"][zone].contains("settings"))
+        {
+            settings_json = settings_string_json["zones"][zone]["settings"];
+        }
+    }
+
+    return(settings_json);
+}
+
+void RGBController::SetZoneSettings(int zone, nlohmann::json settings_json)
+{
+
+}
+
 /*---------------------------------------------------------*\
 | Update Callback Functions                                 |
 \*---------------------------------------------------------*/
@@ -2146,6 +2289,19 @@ void RGBController::DeviceSaveMode()
     \*-----------------------------------------------------*/
 }
 
+void RGBController::DeviceUpdateSettings()
+{
+    /*-----------------------------------------------------*\
+    | If not implemented by controller, does nothing        |
+    \*-----------------------------------------------------*/
+}
+
+void RGBController::DeviceUpdateZoneSettings(int /*zone*/)
+{
+    /*-----------------------------------------------------*\
+    | If not implemented by controller, does nothing        |
+    \*-----------------------------------------------------*/
+}
 
 /*---------------------------------------------------------*\
 | Static Serialized Description Functions                   |
@@ -2207,6 +2363,7 @@ unsigned char * RGBController::GetDeviceDescriptionData(unsigned char* data_ptr,
     unsigned short num_zones                = (unsigned short)controller->zones.size();
     unsigned short num_leds                 = (unsigned short)controller->leds.size();
     unsigned short num_led_alt_names        = (unsigned short)controller->led_alt_names.size();
+    unsigned short settings_len             = (unsigned short)strlen(controller->settings.c_str())    + 1;
 
     /*-----------------------------------------------------*\
     | Copy in type                                          |
@@ -2359,6 +2516,18 @@ unsigned char * RGBController::GetDeviceDescriptionData(unsigned char* data_ptr,
         data_ptr += sizeof(flags);
     }
 
+    /*-----------------------------------------------------*\
+    | Copy in controller settings                           |
+    \*-----------------------------------------------------*/
+    if(protocol_version >= 6)
+    {
+        memcpy(data_ptr, &settings_len, sizeof(settings_len));
+        data_ptr += sizeof(settings_len);
+
+        strcpy((char *)data_ptr, controller->settings.c_str());
+        data_ptr += settings_len;
+    }
+
     return(data_ptr);
 }
 
@@ -2382,6 +2551,7 @@ unsigned int RGBController::GetDeviceDescriptionSize(RGBController* controller, 
     unsigned short num_zones                = (unsigned short)controller->zones.size();
     unsigned short num_leds                 = (unsigned short)controller->leds.size();
     unsigned short num_led_alt_names        = (unsigned short)controller->led_alt_names.size();
+    unsigned short settings_len             = (unsigned short)strlen(controller->settings.c_str())    + 1;
 
     data_size                              += sizeof(device_type);
     data_size                              += sizeof(name_len);
@@ -2440,6 +2610,12 @@ unsigned int RGBController::GetDeviceDescriptionSize(RGBController* controller, 
     if(protocol_version >= 5)
     {
         data_size                          += sizeof(flags);
+    }
+
+    if(protocol_version >= 6)
+    {
+        data_size                          += sizeof(settings_len);
+        data_size                          += settings_len;
     }
 
     return(data_size);
@@ -3170,6 +3346,16 @@ unsigned char* RGBController::SetDeviceDescription(unsigned char* data_ptr, unsi
     if(protocol_version >= 5)
     {
         COPY_DATA_FIELD_UNLOCK(data_ptr, data_start, controller->flags, controller);
+    }
+
+    /*-----------------------------------------------------*\
+    | Copy in settings                                      |
+    \*-----------------------------------------------------*/
+    if(protocol_version >= 6)
+    {
+        unsigned short settings_len;
+        COPY_DATA_FIELD_UNLOCK(data_ptr, data_start, settings_len, controller);
+        COPY_STRING_FIELD_UNLOCK(data_ptr, data_start, settings_len, controller->settings, controller);
     }
 
     /*-----------------------------------------------------*\

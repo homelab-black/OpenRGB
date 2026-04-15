@@ -128,9 +128,104 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     setWindowIcon(logo);
 
     /*-----------------------------------------------------*\
-    | Set window geometry from config (if available)        |
+    | Get Settings Manager pointer                          |
     \*-----------------------------------------------------*/
     SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
+
+    /*-----------------------------------------------------*\
+    | Create UserInterface settings schema                  |
+    \*-----------------------------------------------------*/
+    json                ui_settings_schema;
+
+    ui_settings_schema["numerical_labels"]["title"]             = "Numerical Labels";
+    ui_settings_schema["numerical_labels"]["type"]              = "bool";
+
+    ui_settings_schema["disable_key_expansion"]["title"]        = "Disable Key Expansion";
+    ui_settings_schema["disable_key_expansion"]["type"]         = "bool";
+
+    ui_settings_schema["greyscale_tray_icon"]["title"]          = "Greyscale Tray Icon";
+    ui_settings_schema["greyscale_tray_icon"]["type"]           = "bool";
+
+    ui_settings_schema["minimize_on_close"]["title"]            = "Minimize On Close";
+    ui_settings_schema["minimize_on_close"]["type"]             = "bool";
+
+    ui_settings_schema["geometry"]["title"]                                 = "Geometry";
+    ui_settings_schema["geometry"]["type"]                                  = "object";
+
+    ui_settings_schema["geometry"]["properties"]["load_geometry"]["title"]  = "Load Geometry";
+    ui_settings_schema["geometry"]["properties"]["load_geometry"]["type"]   = "bool";
+
+    ui_settings_schema["geometry"]["properties"]["save_on_exit"]["title"]   = "Save On Exit";
+    ui_settings_schema["geometry"]["properties"]["save_on_exit"]["type"]    = "bool";
+
+    ui_settings_schema["geometry"]["properties"]["x"]["title"]              = "X";
+    ui_settings_schema["geometry"]["properties"]["x"]["type"]               = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["y"]["title"]              = "Y";
+    ui_settings_schema["geometry"]["properties"]["y"]["type"]               = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["width"]["title"]          = "Width";
+    ui_settings_schema["geometry"]["properties"]["width"]["type"]           = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["height"]["title"]         = "Height";
+    ui_settings_schema["geometry"]["properties"]["height"]["type"]          = "integer";
+
+    settings_manager->RegisterSettingsSchema("UserInterface", "User Interface", ui_settings_schema);
+
+    /*-----------------------------------------------------*\
+    | Create LogManager settings schema                     |
+    \*-----------------------------------------------------*/
+    json                logmanager_settings_schema;
+
+    logmanager_settings_schema["log_console"]["title"]          = "Enable Log Console";
+    logmanager_settings_schema["log_console"]["type"]           = "bool";
+
+    logmanager_settings_schema["log_file"]["title"]             = "Enable Log File";
+    logmanager_settings_schema["log_file"]["type"]              = "bool";
+
+    logmanager_settings_schema["loglevel"]["title"]             = "Log Level";
+    logmanager_settings_schema["loglevel"]["type"]              = "integer";
+
+    logmanager_settings_schema["file_count_limit"]["title"]     = "Log File Count Limit";
+    logmanager_settings_schema["file_count_limit"]["type"]      = "integer";
+
+    settings_manager->RegisterSettingsSchema("LogManager", "Log Manager", logmanager_settings_schema);
+
+    /*-----------------------------------------------------*\
+    | Create Detection settings schema                      |
+    \*-----------------------------------------------------*/
+    json                detection_settings_schema;
+
+    detection_settings_schema["hid_safe_mode"]["title"]                 = "HID Safe Mode";
+    detection_settings_schema["hid_safe_mode"]["type"]                  = "bool";
+
+    detection_settings_schema["initial_detection_delay_ms"]["title"]    = "Initial Detection Delay (ms)";
+    detection_settings_schema["initial_detection_delay_ms"]["type"]     = "integer";
+
+    settings_manager->RegisterSettingsSchema("Detectors", "Detection", detection_settings_schema);
+
+    /*-----------------------------------------------------*\
+    | Create ProfileManager settings schema                 |
+    \*-----------------------------------------------------*/
+    json                profilemanager_settings_schema;
+
+    profilemanager_settings_schema["exit_profile"]["title"]             = "Load Profile on Exit";
+    profilemanager_settings_schema["exit_profile"]["type"]              = "profile";
+
+    profilemanager_settings_schema["open_profile"]["title"]             = "Load Profile on Open";
+    profilemanager_settings_schema["open_profile"]["type"]              = "profile";
+
+    profilemanager_settings_schema["resume_profile"]["title"]           = "Load Profile on Resume";
+    profilemanager_settings_schema["resume_profile"]["type"]            = "profile";
+
+    profilemanager_settings_schema["suspend_profile"]["title"]          = "Load Profile on Suspend";
+    profilemanager_settings_schema["suspend_profile"]["type"]           = "profile";
+
+    settings_manager->RegisterSettingsSchema("ProfileManager", "Profile Manager", profilemanager_settings_schema);
+
+    /*-----------------------------------------------------*\
+    | Set window geometry from config (if available)        |
+    \*-----------------------------------------------------*/
     std::string         ui_string           = "UserInterface";
     json                ui_settings;
     bool                new_settings_keys   = false;
@@ -572,7 +667,7 @@ bool OpenRGBDialog::isCompactTabMode()
 }
 
 void OpenRGBDialog::resizeEvent(QResizeEvent *event)
-{    
+{
     bool compact_mode = isCompactTabMode();
 
     for(int i = 0; i < ui->DevicesTabBar->count(); i++)

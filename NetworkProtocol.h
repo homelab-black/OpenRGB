@@ -167,6 +167,9 @@ enum
     NET_PACKET_ID_RGBCONTROLLER_SAVEMODE            = 1102, /* RGBController::SaveMode()                        */
     NET_PACKET_ID_RGBCONTROLLER_UPDATEZONEMODE      = 1103, /* RGBController::UpdateZoneMode()                  */
 
+    NET_PACKET_ID_RGBCONTROLLER_SETDEVICESETTINGS   = 1130, /* RGBController::SetDeviceSettings()               */
+    NET_PACKET_ID_RGBCONTROLLER_SETZONESETTINGS     = 1131, /* RGBController::SetZoneSettings()                 */
+
     NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE        = 1150, /* RGBController::SignalUpdate()                    */
 };
 

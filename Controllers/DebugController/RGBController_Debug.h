@@ -20,7 +20,7 @@ using json = nlohmann::json;
 class RGBController_Debug : public RGBController
 {
 public:
-    RGBController_Debug(bool custom, json settings);
+    RGBController_Debug(bool custom, json dbg_settings);
     ~RGBController_Debug();
 
     void        SetupZones();

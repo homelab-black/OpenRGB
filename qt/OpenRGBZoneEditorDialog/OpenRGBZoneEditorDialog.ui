@@ -205,6 +205,18 @@
      </item>
     </layout>
    </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QGroupBox" name="GroupBoxDeviceSpecificZoneConfiguration">
+     <property name="title">
+      <string>Device-Specific Zone Configuration</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_4">
+      <item row="0" column="0">
+       <widget class="QListWidget" name="ListWidgetDeviceSpecificZoneConfiguration"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>

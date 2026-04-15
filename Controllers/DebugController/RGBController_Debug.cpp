@@ -46,10 +46,12 @@ static unsigned int debug_keyboard_underglow_map[3][10] =
       {   10,  11,  12,  13,  14,  15,  16,  17,  18,  19 },
       {   20,  21,  22,  23,  24,  25,  26,  27,  28,  29 } };
 
-RGBController_Debug::RGBController_Debug(bool custom, json settings)
+RGBController_Debug::RGBController_Debug(bool custom, json dbg_settings)
 {
+    nlohmann::json settings_json;
+
     custom_controller   = custom;
-    debug_settings      = settings;
+    debug_settings      = dbg_settings;
 
     if(custom_controller)
     {
@@ -143,6 +145,36 @@ RGBController_Debug::RGBController_Debug(bool custom, json settings)
         {
             name                        = name_setting;
         }
+
+        /*---------------------------------------------------------*\
+        | Create some test settings                                 |
+        \*---------------------------------------------------------*/
+        settings_json["schema"]["test_string"]["title"]     = "String Setting";
+        settings_json["schema"]["test_string"]["type"]      = "string";
+
+        settings_json["schema"]["test_bool"]["title"]       = "Boolean Setting";
+        settings_json["schema"]["test_bool"]["type"]        = "bool";
+
+        settings_json["schema"]["test_enum"]["title"]       = "String Enum Setting";
+        settings_json["schema"]["test_enum"]["type"]        = "string";
+        settings_json["schema"]["test_enum"]["enum"][0]     = "Option 1";
+        settings_json["schema"]["test_enum"]["enum"][1]     = "Option 2";
+        settings_json["schema"]["test_enum"]["enum"][2]     = "Option 3";
+
+        settings_json["schema"]["test_enum_int"]["title"]   = "Integer Enum Setting";
+        settings_json["schema"]["test_enum_int"]["type"]    = "integer";
+        settings_json["schema"]["test_enum_int"]["enum"][0] = 2;
+        settings_json["schema"]["test_enum_int"]["enum"][1] = 4;
+        settings_json["schema"]["test_enum_int"]["enum"][2] = 8;
+
+        settings_json["schema"]["test_int"]["title"]        = "Integer Setting";
+        settings_json["schema"]["test_int"]["type"]         = "integer";
+
+        settings_json["settings"]["test_string"]            = "This is a test";
+        settings_json["settings"]["test_bool"]              = true;
+        settings_json["settings"]["test_enum"]              = "Option 2";
+        settings_json["settings"]["test_enum_int"]          = 4;
+        settings_json["settings"]["test_int"]               = 12345;
     }
 
     /*-----------------------------------------------------*\
@@ -158,6 +190,41 @@ RGBController_Debug::RGBController_Debug(bool custom, json settings)
     modes.push_back(Direct);
 
     SetupZones();
+
+    /*---------------------------------------------------------*\
+    | Create some test settings for each zone                   |
+    \*---------------------------------------------------------*/
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        settings_json["zones"][zone_idx]["schema"]["test_string"]["title"]     = "String Setting";
+        settings_json["zones"][zone_idx]["schema"]["test_string"]["type"]      = "string";
+
+        settings_json["zones"][zone_idx]["schema"]["test_bool"]["title"]       = "Boolean Setting";
+        settings_json["zones"][zone_idx]["schema"]["test_bool"]["type"]        = "bool";
+
+        settings_json["zones"][zone_idx]["schema"]["test_enum"]["title"]       = "String Enum Setting";
+        settings_json["zones"][zone_idx]["schema"]["test_enum"]["type"]        = "string";
+        settings_json["zones"][zone_idx]["schema"]["test_enum"]["enum"][0]     = "Option 1";
+        settings_json["zones"][zone_idx]["schema"]["test_enum"]["enum"][1]     = "Option 2";
+        settings_json["zones"][zone_idx]["schema"]["test_enum"]["enum"][2]     = "Option 3";
+
+        settings_json["zones"][zone_idx]["schema"]["test_enum_int"]["title"]   = "Integer Enum Setting";
+        settings_json["zones"][zone_idx]["schema"]["test_enum_int"]["type"]    = "integer";
+        settings_json["zones"][zone_idx]["schema"]["test_enum_int"]["enum"][0] = 2;
+        settings_json["zones"][zone_idx]["schema"]["test_enum_int"]["enum"][1] = 4;
+        settings_json["zones"][zone_idx]["schema"]["test_enum_int"]["enum"][2] = 8;
+
+        settings_json["zones"][zone_idx]["schema"]["test_int"]["title"]        = "Integer Setting";
+        settings_json["zones"][zone_idx]["schema"]["test_int"]["type"]         = "integer";
+
+        settings_json["zones"][zone_idx]["settings"]["test_string"]            = "This is a test";
+        settings_json["zones"][zone_idx]["settings"]["test_bool"]              = true;
+        settings_json["zones"][zone_idx]["settings"]["test_enum"]              = "Option 2";
+        settings_json["zones"][zone_idx]["settings"]["test_enum_int"]          = 4;
+        settings_json["zones"][zone_idx]["settings"]["test_int"]               = 12345;
+    }
+
+    settings = settings_json.dump();
 }
 
 RGBController_Debug::~RGBController_Debug()
