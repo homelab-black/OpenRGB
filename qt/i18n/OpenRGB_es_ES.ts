@@ -1132,7 +1132,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Cargar forma de la ventana</translation>
@@ -1186,8 +1186,8 @@
         <translation>Tema de colores (requiere reiniciar)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Activar la consola de registros (requiere reiniciar)</translation>
+        <source>Enable Log Console</source>
+        <translation>Activar la consola de registros</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

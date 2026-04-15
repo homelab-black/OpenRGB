@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Bruk vindugeometri</translation>
@@ -1212,8 +1212,8 @@
         <translation>Tema (omstart kreves)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Aktiver loggkonsoll (omstart kreves)</translation>
+        <source>Enable Log Console</source>
+        <translation>Aktiver loggkonsoll</translation>
     </message>
     <message>
         <source>Drivers Settings</source>

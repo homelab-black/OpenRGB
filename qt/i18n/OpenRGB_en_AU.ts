@@ -879,7 +879,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation></translation>
@@ -925,7 +925,7 @@
         <translation></translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
+        <source>Enable Log Console</source>
         <translation></translation>
     </message>
     <message>

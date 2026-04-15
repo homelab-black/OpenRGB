@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Загружаць геаметрыю акна</translation>
@@ -1184,8 +1184,8 @@
         <translation>Тэма (патрабуецца перазапуск)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Уключыць кансоль журнала (патрабуецца перазапуск)</translation>
+        <source>Enable Log Console</source>
+        <translation>Уключыць кансоль журнала</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

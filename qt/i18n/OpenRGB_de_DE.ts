@@ -1131,7 +1131,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Fenster Geometrie laden</translation>
@@ -1213,8 +1213,8 @@
         <translation>Stil (Programmneustart erforderlich)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Log Konsole aktivieren (Programmneustart erforderlich)</translation>
+        <source>Enable Log Console</source>
+        <translation>Log Konsole aktivieren</translation>
     </message>
     <message>
         <source>Drivers Settings</source>

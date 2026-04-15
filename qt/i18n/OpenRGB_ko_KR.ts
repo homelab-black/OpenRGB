@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>윈도우 지오메트리 불러오기</translation>
@@ -1184,8 +1184,8 @@
         <translation>테마 (재시작 필요)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>콘솔 로그 활성화 (재시작 필요)</translation>
+        <source>Enable Log Console</source>
+        <translation>콘솔 로그 활성화</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

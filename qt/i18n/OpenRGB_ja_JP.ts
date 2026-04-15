@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>ウィンドウジオメトリをロード</translation>
@@ -1152,8 +1152,8 @@
         <translation>サーバースタート</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>ログコンソールを有効にする(再起動が必要)</translation>
+        <source>Enable Log Console</source>
+        <translation>ログコンソールを有効にする</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

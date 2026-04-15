@@ -1131,7 +1131,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Φόρτωση γεωμετρίας παραθύρου</translation>
@@ -1185,8 +1185,8 @@
         <translation>Θέμα (απαιτείται επανεκκίνηση)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Ενεργοποίηση της κονσόλας καταγραφής (απαιτείται επανεκκίνηση)</translation>
+        <source>Enable Log Console</source>
+        <translation>Ενεργοποίηση της κονσόλας καταγραφής</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

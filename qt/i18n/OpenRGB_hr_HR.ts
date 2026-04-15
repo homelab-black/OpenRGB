@@ -1132,7 +1132,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Učitaj geometriju prozora</translation>
@@ -1186,8 +1186,8 @@
         <translation>Tema (potrebno je ponovno pokretanje)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Omogući konzolu zapisa (potrebno je ponovno pokretanje)</translation>
+        <source>Enable Log Console</source>
+        <translation>Omogući konzolu zapisa</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

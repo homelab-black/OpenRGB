@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Minimize on Close</source>
         <translation>關閉窗口時最小化</translation>
@@ -1144,7 +1144,7 @@
         <translation>啟動伺服器</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
+        <source>Enable Log Console</source>
         <translation>啟用日誌控制台（需要重新啟動）</translation>
     </message>
     <message>

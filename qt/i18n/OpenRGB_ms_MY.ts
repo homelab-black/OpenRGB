@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Open Settings Folder</source>
         <translation>Buka Folder Seting</translation>
@@ -1144,8 +1144,8 @@
         <translation>Seting Antara Muka Pengguna:</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Dayakan Log Konsol (Restart diperlukan)</translation>
+        <source>Enable Log Console</source>
+        <translation>Dayakan Log Konsol</translation>
     </message>
     <message>
         <source>Start Server</source>

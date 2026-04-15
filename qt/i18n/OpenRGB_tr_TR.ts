@@ -879,7 +879,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Pencere Geometrisini Yükle</translation>
@@ -929,8 +929,8 @@
         <translation>Tema (yeniden başlatma gerekli)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Kayıt Konsolunu Etkinleştir (yeniden başlatma gerekli)</translation>
+        <source>Enable Log Console</source>
+        <translation>Kayıt Konsolunu Etkinleştir</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

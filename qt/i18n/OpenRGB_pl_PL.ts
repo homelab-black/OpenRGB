@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Wczytaj pozycję okna</translation>
@@ -1184,8 +1184,8 @@
         <translation>Temat (wymagany restart)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Włączenie Konsoli LOGów (wymagany restart)</translation>
+        <source>Enable Log Console</source>
+        <translation>Włączenie Konsoli LOGów</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

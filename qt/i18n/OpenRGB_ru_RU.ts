@@ -880,7 +880,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Загружать геометрию окна</translation>
@@ -946,8 +946,8 @@
         <translation>Тема (потребуется перезапуск)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Включить консоль журналирования (потребуется перезапуск)</translation>
+        <source>Enable Log Console</source>
+        <translation>Включить консоль журналирования</translation>
     </message>
     <message>
         <source>Custom Arguments</source>

@@ -1126,7 +1126,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Charger la géométrie de la fenêtre</translation>
@@ -1180,8 +1180,8 @@
         <translation>Thème (nécessite un redémarrage)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Activer la console de logs (nécessite un redémarrage)</translation>
+        <source>Enable Log Console</source>
+        <translation>Activer la console de logs</translation>
     </message>
     <message>
         <source>Custom Arguments</source>
@@ -1905,7 +1905,7 @@
     </message>
 </context>
 <context>
-    <name>Ui::OpenRGBSettingsPage</name>
+    <name>Ui::Settings</name>
     <message>
         <source>A problem occurred enabling Start at Login.</source>
         <translation type="vanished">Un problème est survenu pour l&apos;activation du démarrage à la connexion.</translation>

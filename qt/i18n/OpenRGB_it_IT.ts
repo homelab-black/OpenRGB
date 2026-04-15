@@ -1130,7 +1130,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBSettingsPage</name>
+    <name>Settings</name>
     <message>
         <source>Load Window Geometry</source>
         <translation>Carica Geometria Finestra</translation>
@@ -1184,8 +1184,8 @@
         <translation>Tema (riavvio richiesto)</translation>
     </message>
     <message>
-        <source>Enable Log Console (restart required)</source>
-        <translation>Attiva Console Registri (riavvio richiesto)</translation>
+        <source>Enable Log Console</source>
+        <translation>Attiva Console Registri</translation>
     </message>
     <message>
         <source>Custom Arguments</source>
