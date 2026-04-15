@@ -31,11 +31,6 @@ using namespace std::chrono_literals;
 const char* DETECTIONMANAGER = "DetectionManager";
 
 /*---------------------------------------------------------*\
-| Define a macro for QT lupdate to parse                    |
-\*---------------------------------------------------------*/
-#define QT_TRANSLATE_NOOP(scope, x) x
-
-/*---------------------------------------------------------*\
 | Warning Strings                                           |
 \*---------------------------------------------------------*/
 const char* I2C_ERR_WIN =   QT_TRANSLATE_NOOP("DetectionManager",
