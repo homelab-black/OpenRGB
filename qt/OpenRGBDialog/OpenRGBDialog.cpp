@@ -7,6 +7,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include "AutoStart.h"
 #include "OpenRGBDialog.h"
 #include "LogManager.h"
 #include "PluginManager.h"
@@ -26,6 +27,7 @@
 
 #include "ui_OpenRGBDialog.h"
 
+#include <QDirIterator>
 #include <QLabel>
 #include <QTabBar>
 #include <QMessageBox>
@@ -55,6 +57,18 @@ static void OpenRGBDialogProfileManagerCallback(void * this_ptr, unsigned int up
 
         case PROFILEMANAGER_UPDATE_REASON_ACTIVE_PROFILE_CHANGED:
             QMetaObject::invokeMethod(this_obj, "UpdateActiveProfile", Qt::QueuedConnection);
+            break;
+    }
+}
+
+static void OpenRGBDialogSettingsManagerCallback(void * this_ptr, unsigned int update_reason)
+{
+    OpenRGBDialog * this_obj = (OpenRGBDialog *)this_ptr;
+
+    switch(update_reason)
+    {
+        case SETTINGSMANAGER_UPDATE_REASON_SETTINGS_UPDATED:
+            QMetaObject::invokeMethod(this_obj, "onSettingsUpdated", Qt::QueuedConnection);
             break;
     }
 }
@@ -128,73 +142,82 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     setWindowIcon(logo);
 
     /*-----------------------------------------------------*\
-    | Set window geometry from config (if available)        |
+    | Create AutoStart settings schema                      |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
-    std::string         ui_string           = "UserInterface";
-    json                ui_settings;
-    bool                new_settings_keys   = false;
+    json                autostart_settings_schema;
 
-    ui_settings = settings_manager->GetSettings(ui_string);
+    autostart_settings_schema["enabled"]["title"]                           = "Enable Start at Login";
+    autostart_settings_schema["enabled"]["type"]                            = "bool";
+    autostart_settings_schema["enabled"]["description"]                     = "Start OpenRGB on login";
 
-    if(ui_settings.contains("show_led_view") && ui_settings["show_led_view"])
-    {
-        ShowLEDView();
-    }
+    autostart_settings_schema["start_minimized"]["title"]                   = "Start Minimized";
+    autostart_settings_schema["start_minimized"]["type"]                    = "bool";
+    autostart_settings_schema["start_minimized"]["description"]             = "Start minimized to the system tray";
+
+    autostart_settings_schema["custom_arguments"]["title"]                  = "Custom Arguments";
+    autostart_settings_schema["custom_arguments"]["type"]                   = "string";
+    autostart_settings_schema["custom_arguments"]["description"]            = "Additional command line arguments to pass to OpenRGB when starting on login";
+
+    ResourceManager::get()->GetSettingsManager()->RegisterSettingsSchema("AutoStart", "Start at Login", autostart_settings_schema);
 
     /*-----------------------------------------------------*\
-    | If geometry info doesn't exist, write it to config    |
+    | Create UserInterface settings schema                  |
     \*-----------------------------------------------------*/
-    if(!ui_settings.contains("geometry"))
-    {
-        json geometry_settings;
+    json                ui_settings_schema;
 
-        geometry_settings["load_geometry"]  = false;
-        geometry_settings["save_on_exit"]   = false;
-        geometry_settings["x"]              = 0;
-        geometry_settings["y"]              = 0;
-        geometry_settings["width"]          = 0;
-        geometry_settings["height"]         = 0;
+    ui_settings_schema["numerical_labels"]["title"]                         = "Numerical Labels";
+    ui_settings_schema["numerical_labels"]["description"]                   = "Display numerical labels for otherwise non-labeled LEDs in the LED view";
+    ui_settings_schema["numerical_labels"]["type"]                          = "bool";
 
-        ui_settings["geometry"] = geometry_settings;
-        new_settings_keys       = true;
-    }
+    ui_settings_schema["disable_key_expansion"]["title"]                    = "Disable Key Expansion";
+    ui_settings_schema["disable_key_expansion"]["type"]                     = "bool";
 
-    /*-----------------------------------------------------*\
-    | If geometry information exists in settings, apply it  |
-    \*-----------------------------------------------------*/
-    bool load_geometry = false;
+    ui_settings_schema["monochrome_tray_icon"]["title"]                     = "Monochrome Tray Icon";
+    ui_settings_schema["monochrome_tray_icon"]["description"]               = "Use a monochrome icon in the system tray instead of a full color icon";
+    ui_settings_schema["monochrome_tray_icon"]["type"]                      = "bool";
 
-    if(ui_settings["geometry"].contains("load_geometry"))
-    {
-        load_geometry = ui_settings["geometry"]["load_geometry"].get<bool>();
-    }
+    ui_settings_schema["hex_format"]["title"]                               = "Hex Format";
+    ui_settings_schema["hex_format"]["type"]                                = "string";
+    ui_settings_schema["hex_format"]["description"]                         = "Select #BBGGRR or #RRGGBB format for hex display and input";
+    ui_settings_schema["hex_format"]["enum"][0]                             = "BGR";
+    ui_settings_schema["hex_format"]["enum"][1]                             = "RGB";
 
-    if(load_geometry)
-    {
-        QRect set_window;
+    ui_settings_schema["language"]["title"]                                 = "Language";
+    ui_settings_schema["language"]["type"]                                  = "language";
+    ui_settings_schema["language"]["description"]                           = "Language for the user interface";
 
-        /*-------------------------------------------------*\
-        | x and y can be set independent of width and       |
-        | height.  QT attempts to clamp these values in     |
-        | case the user enters invalid numbers.             |
-        \*-------------------------------------------------*/
-        if( ui_settings["geometry"].contains("x")
-         && ui_settings["geometry"].contains("y"))
-        {
-            set_window.setX(ui_settings["geometry"]["x"].get<int>());
-            set_window.setY(ui_settings["geometry"]["y"].get<int>());
-        }
+    ui_settings_schema["minimize_on_close"]["title"]                        = "Minimize On Close";
+    ui_settings_schema["minimize_on_close"]["description"]                  = "Keep OpenRGB active in the system tray when closing the main window";
+    ui_settings_schema["minimize_on_close"]["type"]                         = "bool";
 
-        if( ui_settings["geometry"].contains("width")
-         && ui_settings["geometry"].contains("height"))
-        {
-            set_window.setWidth(ui_settings["geometry"]["width"].get<int>());
-            set_window.setHeight(ui_settings["geometry"]["height"].get<int>());
-        }
+    ui_settings_schema["run_zone_checks"]["title"]                          = "Run Zone Checks on Rescan";
+    ui_settings_schema["run_zone_checks"]["type"]                           = "bool";
 
-        setGeometry(set_window);
-    }
+    ui_settings_schema["show_led_view"]["title"]                            = "Show LED View by Default";
+    ui_settings_schema["show_led_view"]["type"]                             = "bool";
+
+    ui_settings_schema["geometry"]["title"]                                 = "Geometry";
+    ui_settings_schema["geometry"]["type"]                                  = "object";
+
+    ui_settings_schema["geometry"]["properties"]["load_geometry"]["title"]  = "Load Geometry";
+    ui_settings_schema["geometry"]["properties"]["load_geometry"]["type"]   = "bool";
+
+    ui_settings_schema["geometry"]["properties"]["save_on_exit"]["title"]   = "Save On Exit";
+    ui_settings_schema["geometry"]["properties"]["save_on_exit"]["type"]    = "bool";
+
+    ui_settings_schema["geometry"]["properties"]["x"]["title"]              = "X";
+    ui_settings_schema["geometry"]["properties"]["x"]["type"]               = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["y"]["title"]              = "Y";
+    ui_settings_schema["geometry"]["properties"]["y"]["type"]               = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["width"]["title"]          = "Width";
+    ui_settings_schema["geometry"]["properties"]["width"]["type"]           = "integer";
+
+    ui_settings_schema["geometry"]["properties"]["height"]["title"]         = "Height";
+    ui_settings_schema["geometry"]["properties"]["height"]["type"]          = "integer";
+
+    ResourceManager::get()->GetSettingsManager()->RegisterSettingsSchema("UserInterface", "User Interface", ui_settings_schema);
 
     /*-----------------------------------------------------*\
     | Register resource manager callbacks                   |
@@ -205,6 +228,11 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     | Register profile manager callbacks                    |
     \*-----------------------------------------------------*/
     ResourceManager::get()->GetProfileManager()->RegisterProfileManagerCallback(OpenRGBDialogProfileManagerCallback, this);
+
+    /*-----------------------------------------------------*\
+    | Register settings manager callbacks                   |
+    \*-----------------------------------------------------*/
+    ResourceManager::get()->GetSettingsManager()->RegisterSettingsManagerCallback(OpenRGBDialogSettingsManagerCallback, this);
 
     /*-----------------------------------------------------*\
     | Register dialog show callback with log manager        |
@@ -295,46 +323,7 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     connect( actionExit, SIGNAL( triggered() ), this, SLOT( on_Exit() ));
     trayIconMenu->addAction(actionExit);
 
-    /*-----------------------------------------------------*\
-    | If tray minimize flag isn't in the config, set        |
-    | default value to false                                |
-    \*-----------------------------------------------------*/
-    if(!ui_settings.contains("minimize_on_close"))
-    {
-        ui_settings["minimize_on_close"] = false;
-        new_settings_keys                = true;
-    }
-
     connect(trayIcon,SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(on_ReShow(QSystemTrayIcon::ActivationReason)));
-
-    /*-----------------------------------------------------*\
-    | If Greyscale Tray Icon flag is not set in config then |
-    | set the default value to false                        |
-    \*-----------------------------------------------------*/
-    if(!ui_settings.contains("greyscale_tray_icon"))
-    {
-        ui_settings["greyscale_tray_icon"] = false;
-        new_settings_keys                  = true;
-    }
-
-    /*-----------------------------------------------------*\
-    | If greyscale tray icon exists in settings, apply it   |
-    |   or else set the icon to the default window logo     |
-    \*-----------------------------------------------------*/
-    if(ui_settings.contains("greyscale_tray_icon"))
-    {
-        SetTrayIcon(ui_settings["greyscale_tray_icon"].get<bool>());
-    }
-
-    /*-----------------------------------------------------*\
-    | Save the settings if new default values have been     |
-    | inserted                                              |
-    \*-----------------------------------------------------*/
-    if(new_settings_keys)
-    {
-        settings_manager->SetSettings(ui_string, ui_settings);
-        settings_manager->SaveSettings();
-    }
 
     trayIcon->setToolTip("OpenRGB");
     trayIcon->setContextMenu(trayIconMenu);
@@ -408,23 +397,9 @@ OpenRGBDialog::OpenRGBDialog(QWidget *parent) : QMainWindow(parent), ui(new Ui::
     }
 
     /*-----------------------------------------------------*\
-    | If log console is enabled in settings, enable it      |
+    | Process Settings                                      |
     \*-----------------------------------------------------*/
-    json log_manager_settings = settings_manager->GetSettings("LogManager");
-
-    bool log_console_enabled = false;
-    if(log_manager_settings.contains("log_console"))
-    {
-        log_console_enabled = log_manager_settings["log_console"];
-    }
-
-    /*-----------------------------------------------------*\
-    | Add the log console page                              |
-    \*-----------------------------------------------------*/
-    if(log_console_enabled)
-    {
-        AddConsolePage();
-    }
+    onSettingsUpdated();
 
     /*-----------------------------------------------------*\
     | Connect aboutToQuit signal to handleAboutToQuit       |
@@ -572,7 +547,7 @@ bool OpenRGBDialog::isCompactTabMode()
 }
 
 void OpenRGBDialog::resizeEvent(QResizeEvent *event)
-{    
+{
     bool compact_mode = isCompactTabMode();
 
     for(int i = 0; i < ui->DevicesTabBar->count(); i++)
@@ -669,12 +644,6 @@ void OpenRGBDialog::AddSettingsPage()
     TabLabel* SettingsTabLabel = new TabLabel(OpenRGBFont::options, (char *)"General Settings", (char *)context, true);
 
     ui->SettingsTabBar->tabBar()->setTabButton(ui->SettingsTabBar->tabBar()->count() - 1, QTabBar::LeftSide, SettingsTabLabel);
-
-    /*-----------------------------------------------------*\
-    | Connect signals to slots                              |
-    \*-----------------------------------------------------*/
-    connect(SettingsPage, SIGNAL(TrayIconChanged(bool)), this, SLOT(SetTrayIcon(bool)));
-    connect(this, SIGNAL(ProfileListChanged()), SettingsPage, SLOT(UpdateProfiles()));
 }
 
 void OpenRGBDialog::AddManualDevicesSettingsPage()
@@ -1222,6 +1191,44 @@ void OpenRGBDialog::SetDialogMessage(PLogMessage msg)
     dialog_message = QString::fromStdString(msg->buffer);
 }
 
+void OpenRGBDialog::SetLanguage(std::string language)
+{
+    QApplication*           app             = static_cast<QApplication *>(QApplication::instance());
+    QMap<QString, QString>  language_map;
+    QDirIterator            language_files(":/i18n/", QDirIterator::Subdirectories);
+    bool                    loaded          = false;
+
+    while(language_files.hasNext())
+    {
+        if(translator.load(language_files.next()))
+        {
+            language_map.insert(translator.translate("OpenRGBSettingsPage", "English - US"), language_files.filePath());
+        }
+    }
+
+    QString                 language_file = language_map[QString::fromStdString(language)];
+
+    app->removeTranslator(&translator);
+
+    if(language == "System Default")
+    {
+        QLocale locale = QLocale(QLocale::system());
+        QLocale::setDefault(locale);
+
+        loaded = translator.load(":/i18n/" + QString("OpenRGB_%1.qm").arg(locale.name()));
+    }
+    else
+    {
+        loaded = translator.load(language_file);
+    }
+
+    if(loaded)
+    {
+        app->installTranslator(&translator);
+        LOG_DEBUG("[OpenRGBDialog] Changed Language to %s from the %s file\n", language.c_str(), language_file.toStdString().c_str());
+    }
+}
+
 void OpenRGBDialog::UpdateActiveProfile()
 {
     ProfileManager* profile_manager = ResourceManager::get()->GetProfileManager();
@@ -1412,6 +1419,159 @@ void OpenRGBDialog::onDetectionEnded()
     | Load the on open automatic profile                    |
     \*-----------------------------------------------------*/
     ResourceManager::get()->GetProfileManager()->LoadAutoProfileOpen();
+}
+
+void OpenRGBDialog::onSettingsUpdated()
+{
+    /*-----------------------------------------------------*\
+    | Get SettingsManager pointer                           |
+    \*-----------------------------------------------------*/
+    SettingsManager*    settings_manager    = ResourceManager::get()->GetSettingsManager();
+
+    /*-----------------------------------------------------*\
+    | Read UserInterface settings                           |
+    \*-----------------------------------------------------*/
+    json                ui_settings         = settings_manager->GetSettings("UserInterface");
+
+    if(ui_settings.contains("show_led_view") && ui_settings["show_led_view"])
+    {
+        ShowLEDView();
+    }
+
+    /*-----------------------------------------------------*\
+    | If geometry info doesn't exist, write it to config    |
+    \*-----------------------------------------------------*/
+    if(!ui_settings.contains("geometry"))
+    {
+        json geometry_settings;
+
+        geometry_settings["load_geometry"]  = false;
+        geometry_settings["save_on_exit"]   = false;
+        geometry_settings["x"]              = 0;
+        geometry_settings["y"]              = 0;
+        geometry_settings["width"]          = 0;
+        geometry_settings["height"]         = 0;
+
+        ui_settings["geometry"] = geometry_settings;
+    }
+
+    /*-----------------------------------------------------*\
+    | If geometry information exists in settings, apply it  |
+    \*-----------------------------------------------------*/
+    bool load_geometry = false;
+
+    if(ui_settings["geometry"].contains("load_geometry"))
+    {
+        load_geometry = ui_settings["geometry"]["load_geometry"].get<bool>();
+    }
+
+    if(load_geometry)
+    {
+        QRect set_window;
+
+        /*-------------------------------------------------*\
+        | x and y can be set independent of width and       |
+        | height.  QT attempts to clamp these values in     |
+        | case the user enters invalid numbers.             |
+        \*-------------------------------------------------*/
+        if( ui_settings["geometry"].contains("x")
+         && ui_settings["geometry"].contains("y"))
+        {
+            set_window.setX(ui_settings["geometry"]["x"].get<int>());
+            set_window.setY(ui_settings["geometry"]["y"].get<int>());
+        }
+
+        if( ui_settings["geometry"].contains("width")
+         && ui_settings["geometry"].contains("height"))
+        {
+            set_window.setWidth(ui_settings["geometry"]["width"].get<int>());
+            set_window.setHeight(ui_settings["geometry"]["height"].get<int>());
+        }
+
+        setGeometry(set_window);
+    }
+
+    /*-----------------------------------------------------*\
+    | If monochrome tray icon exists in settings, apply it  |
+    |   or else set the icon to the default window logo     |
+    \*-----------------------------------------------------*/
+    if(ui_settings.contains("monochrome_tray_icon"))
+    {
+        SetTrayIcon(ui_settings["monochrome_tray_icon"].get<bool>());
+    }
+
+    if(ui_settings.contains("language"))
+    {
+        std::string language                    = ui_settings["language"];
+        SetLanguage(language);
+    }
+
+    /*-----------------------------------------------------*\
+    | Read LogManager settings                              |
+    \*-----------------------------------------------------*/
+    json            log_manager_settings        = settings_manager->GetSettings("LogManager");
+    bool            log_console_enabled         = false;
+
+    if(log_manager_settings.contains("log_console"))
+    {
+        log_console_enabled = log_manager_settings["log_console"];
+    }
+
+    /*-----------------------------------------------------*\
+    | Add the log console page                              |
+    \*-----------------------------------------------------*/
+    if(log_console_enabled)
+    {
+        AddConsolePage();
+    }
+    else
+    {
+        RemoveConsolePage();
+    }
+
+    /*-----------------------------------------------------*\
+    | Read AutoStart settings                               |
+    \*-----------------------------------------------------*/
+    json            autostart_settings      = settings_manager->GetSettings("AutoStart");
+    bool            autostart_enabled       = false;
+    std::string     autostart_arguments;
+
+    AutoStart       auto_start("OpenRGB");
+
+    if(autostart_settings.contains("enabled"))
+    {
+        autostart_enabled = autostart_settings["enabled"];
+    }
+
+    if(autostart_settings.contains("start_minimized"))
+    {
+        if(autostart_settings["start_minimized"] == true)
+        {
+            autostart_arguments            += "--startminimized ";
+        }
+    }
+
+    if(autostart_settings.contains("custom_arguments"))
+    {
+        autostart_arguments                += (std::string)autostart_settings["custom_arguments"];
+    }
+
+    if(autostart_enabled)
+    {
+        AutoStartInfo   auto_start_info;
+
+        auto_start_info.args                = autostart_arguments;
+        auto_start_info.category            = "Utility;";
+        auto_start_info.desc                = std::string("OpenRGB ") + std::string(VERSION_STRING);
+        auto_start_info.icon                = "OpenRGB";
+        auto_start_info.path                = auto_start.GetExePath();
+
+        auto_start.EnableAutoStart(auto_start_info);
+    }
+    else
+    {
+        auto_start.DisableAutoStart();
+    }
 }
 
 void OpenRGBDialog::on_SetAllDevices(unsigned char red, unsigned char green, unsigned char blue)
@@ -1738,7 +1898,7 @@ void OpenRGBDialog::SetTrayIcon(bool tray_icon)
 {
     if(tray_icon)
     {
-        trayIcon->setIcon(QIcon(":OpenRGBGreyscale.png"));
+        trayIcon->setIcon(QIcon(":OpenRGBMonochrome.png"));
     }
     else
     {
@@ -1880,14 +2040,38 @@ void OpenRGBDialog::TogglePluginsVisibility(int tab_idx, QTabWidget* tabBar)
 
 void OpenRGBDialog::AddConsolePage()
 {
-    OpenRGBConsolePage* page = new OpenRGBConsolePage();
+    bool        found   = false;
+    int         index   = (ui->InformationTabBar->tabBar()->count() - 1);
+    QWidget*    tab     = ui->InformationTabBar->widget(index);
 
-    ui->InformationTabBar->addTab(page, "");
+    if(dynamic_cast<OpenRGBConsolePage*>(tab) != nullptr)
+    {
+        found = true;
+    }
 
-    /*-----------------------------------------------------*\
-    | Create the tab label                                  |
-    \*-----------------------------------------------------*/
-    TabLabel* ConsoleTabLabel = new TabLabel(OpenRGBFont::terminal, (char *)"Log Console", (char *)context, true);
+    if(!found)
+    {
+        OpenRGBConsolePage* page = new OpenRGBConsolePage();
 
-    ui->InformationTabBar->tabBar()->setTabButton(ui->InformationTabBar->tabBar()->count() - 1, QTabBar::LeftSide, ConsoleTabLabel);
+        ui->InformationTabBar->addTab(page, "");
+
+        /*-----------------------------------------------------*\
+        | Create the tab label                                  |
+        \*-----------------------------------------------------*/
+        TabLabel* ConsoleTabLabel = new TabLabel(OpenRGBFont::terminal, (char *)"Log Console", (char *)context, true);
+
+        ui->InformationTabBar->tabBar()->setTabButton(ui->InformationTabBar->tabBar()->count() - 1, QTabBar::LeftSide, ConsoleTabLabel);
+    }
+}
+
+void OpenRGBDialog::RemoveConsolePage()
+{
+    int         index   = (ui->InformationTabBar->tabBar()->count() - 1);
+    QWidget*    tab     = ui->InformationTabBar->widget(index);
+
+    if(dynamic_cast<OpenRGBConsolePage*>(tab) != nullptr)
+    {
+        ui->InformationTabBar->removeTab(index);
+        delete tab;
+    }
 }
