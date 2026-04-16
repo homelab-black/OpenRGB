@@ -66,6 +66,8 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->consecutive_timeouts = 0;
     this->watcher_mode         = false;
     this->power_state          = HIDPP20_POWER_ACTIVE;
+    this->deep_sleep           = false;
+    this->consecutive_frame_end_failures = 0;
     this->dim_brightness_pct   = 100;
     this->dim_step             = 0;
     this->idle_timeout_s       = 60;
@@ -3151,6 +3153,32 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
         outstanding_idx++;
     }
 
+    /*---------------------------------------------------------*\
+    | Deep-sleep detection. If FrameEnd failed (no ACK) while  |
+    | we're in the SLEEPING state, the device may have finished |
+    | its firmware fade and entered deep sleep. Track           |
+    | consecutive failures; once we hit the threshold, suppress |
+    | further frame sends until Wake() clears the flag.        |
+    |                                                           |
+    | A successful ACK resets the counter — transient BUSY      |
+    | bursts during the fade don't accumulate.                  |
+    \*---------------------------------------------------------*/
+    if(result.frame_end_acked)
+    {
+        consecutive_frame_end_failures.store(0);
+    }
+    else if(power_state == HIDPP20_POWER_SLEEPING)
+    {
+        int failures = consecutive_frame_end_failures.fetch_add(1) + 1;
+
+        if(failures >= HIDPP20_DEEP_SLEEP_FAILURE_THRESHOLD && !deep_sleep.load())
+        {
+            deep_sleep.store(true);
+            LOG_DEBUG("%s Device entered deep sleep (%d consecutive FrameEnd failures)",
+                      LOG_TAG, failures);
+        }
+    }
+
     outstanding_writes.clear();
     return result;
 }
@@ -3343,6 +3371,11 @@ bool LogitechHIDPP20Controller::HasBridge() const
 bool LogitechHIDPP20Controller::IsOnline() const
 {
     return device_online.load();
+}
+
+bool LogitechHIDPP20Controller::IsDeepSleep() const
+{
+    return deep_sleep.load();
 }
 
 void LogitechHIDPP20Controller::ReprobeSubDevice()
@@ -4801,6 +4834,8 @@ void LogitechHIDPP20Controller::Wake()
 
     SetSWControl(3, 5);
     dim_brightness_pct.store(100);
+    deep_sleep.store(false);
+    consecutive_frame_end_failures.store(0);
     power_state = HIDPP20_POWER_ACTIVE;
 
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);

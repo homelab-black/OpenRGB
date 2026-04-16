@@ -350,6 +350,16 @@ static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
     { 30, 60, 90 };
 
 /*-----------------------------------------------------*\
+| Deep-sleep detection threshold. After StartSleep()    |
+| commands the firmware fade, the device eventually     |
+| enters deep sleep and returns BUSY to every FrameEnd. |
+| Once this many consecutive FrameEnd attempts exhaust  |
+| all BUSY retries while power_state == SLEEPING, we    |
+| suppress further frame sends until Wake() fires.      |
+\*-----------------------------------------------------*/
+static constexpr int HIDPP20_DEEP_SLEEP_FAILURE_THRESHOLD = 5;
+
+/*-----------------------------------------------------*\
 | Per-key frame retry backoff. Used when a full         |
 | DeviceUpdateLEDs pass completes with some zones       |
 | unacked (partial commit). The retry re-runs a whole   |
@@ -496,6 +506,7 @@ public:
     HIDPP20PowerState GetPowerState() const;
     int             GetDimBrightness() const;
     bool            IsOnline() const;
+    bool            IsDeepSleep() const;
     void            SetWireless(bool w)     { wireless = w; }
     bool            QueryWirelessStatus();
     bool            QueryExternalPower();
@@ -695,6 +706,8 @@ private:
     \*-------------------------------------------------*/
     HIDPP20PowerState         power_state;
     std::mutex              power_mutex;
+    std::atomic<bool>       deep_sleep;             // true once device stops responding after StartSleep()
+    std::atomic<int>        consecutive_frame_end_failures; // FrameEnd BUSY exhaustions while SLEEPING
 
     /*-------------------------------------------------*\
     | Dim ramp state                                    |
