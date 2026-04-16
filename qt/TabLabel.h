@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <string>
 #include <QWidget>
 
 namespace Ui
@@ -26,8 +27,9 @@ public:
 
 private:
     Ui::TabLabel *ui;
-    char* label;
-    char* ctxt;
+    std::string  label_storage;
+    const char*  label;
+    char*        ctxt;
 
 private slots:
     void changeEvent(QEvent *event);
