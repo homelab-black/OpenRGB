@@ -311,6 +311,7 @@ RGBController_EVisionV2Keyboard::RGBController_EVisionV2Keyboard(EVisionV2Keyboa
             break;
 
         case ENDORFY_KEYBOARD_PART_EDGE:
+            name += " Edge";
             SetupEdgeModes();
             break;
     }
