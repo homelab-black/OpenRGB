@@ -2342,12 +2342,35 @@ void LogitechHIDPP20Controller::SetHostMode()
     }
     else if(caps.idx_onboard_profiles != 0)
     {
-        uint8_t data[1] = { 0x02 };
-        blankFAPmessage response;
+        /*-----------------------------------------------------*\
+        | Clone G Hub's wire pattern: unconditional              |
+        | SetOnboardMode(host) followed by a GetOnboardMode      |
+        | verify read. G Hub never reads first — in the G502 X   |
+        | PLUS pcap frames 2223/2227 it writes fn1 with 0x02     |
+        | then immediately re-queries fn2, ignoring the          |
+        | response value (no retry logic, no branching on it).   |
+        | The verify appears to be a state-settle / sync point   |
+        | rather than a check, but since we don't know what      |
+        | firmware-side effect it has, we mirror it.             |
+        |                                                         |
+        | An earlier revision of this function added a pre-Set    |
+        | GetOnboardMode guard to skip the write when already    |
+        | in host mode. That was written against a misread of    |
+        | the pcap (I initially thought G Hub did Get-then-Set)   |
+        | and deviated from G Hub's actual wire behavior, so it   |
+        | has been removed. See feedback_clone_ghub_first.md.    |
+        \*-----------------------------------------------------*/
+        uint8_t         set_data[1] = { 0x02 };
+        blankFAPmessage set_response;
         SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
-                         data, 1, response);
+                         set_data, 1, set_response);
 
-        LOG_DEBUG("%s OnboardProfiles set to host mode", LOG_TAG);
+        blankFAPmessage verify_response;
+        SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_GET_ONBOARD_MODE,
+                         nullptr, 0, verify_response);
+
+        LOG_DEBUG("%s OnboardProfiles set to host mode, verify=0x%02X",
+                  LOG_TAG, verify_response.data[0]);
     }
 }
 
