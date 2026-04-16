@@ -26,8 +26,9 @@ TabLabel::TabLabel(int icon, QString name, char* original, char* context) :
 
     ui->name->setText(name);
 
-    label   = original;
-    ctxt    = context;
+    label_storage = original ? original : "";
+    label         = label_storage.c_str();
+    ctxt          = context;
 }
 
 TabLabel::~TabLabel()
