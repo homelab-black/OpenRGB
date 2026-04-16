@@ -23,6 +23,7 @@
 #define EVISION_KEYBOARD3_VID       0x3299
 #define EVISION_KEYBOARD_USAGE_PAGE 0xFF1C
 #define ENDORFY_OMNIS_PID           0x0012
+#define ENDORFY_THOCK_PID           0x00A2
 #define DEXP_BLAZE_PID              0x5084
 #define GLORIOUS_GMMK_TKL_PID       0x5064
 #define REDRAGON_K550_PID           0x5204
@@ -105,6 +106,19 @@ void DetectEndorfyKeyboards(hid_device_info* info, const std::string& name)
     }
 }
 
+void DetectEndorfyThockKeyboards(hid_device_info* info, const std::string& name)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, ENDORFY_KEYBOARD_LAYOUT, name);
+        RGBController_EVisionV2Keyboard* rgb_controller = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_KEYBOARD);
+
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}
+
 /*---------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                     |
 \*---------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -121,5 +135,6 @@ REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5064",      DetectEVisionKeyboar
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5084",      DetectEVisionKeyboards,   EVISION_KEYBOARD2_VID, DEXP_BLAZE_PID,            1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:505B",      DetectEVisionKeyboards,   EVISION_KEYBOARD2_VID, SKILLKORP_K5_PID,          1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("Endorfy Omnis",                   DetectEndorfyKeyboards,   EVISION_KEYBOARD3_VID, ENDORFY_OMNIS_PID,         1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("Endorfy Thock",                   DetectEndorfyThockKeyboards, EVISION_KEYBOARD3_VID, ENDORFY_THOCK_PID,      1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("CSB/ICL01 Keyboard",              DetectEVisionV2Keyboards, EVISION_KEYBOARD2_VID, BYGG_CSB_ICL01_PID,        1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("Gamepower Ogre RGB 0C45:7672",    DetectEVisionKeyboards,   EVISION_KEYBOARD_VID,  GAMEPOWER_OGRE_RGB_PID,    1, EVISION_KEYBOARD_USAGE_PAGE);
