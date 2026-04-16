@@ -1109,20 +1109,23 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         }
 
         /*-----------------------------------------------------*\
-        | Retry scheduling. Any frame with missed zones schedules|
-        | a follow-up repaint via the power thread so the        |
-        | uncommitted zones (HIDPP20_UNCOMMITTED in sent_colors) |
-        | get another chance. Exponential backoff; bounded      |
-        | budget; resets on full_commit.                         |
-        |                                                        |
-        | Streaming animation frames hit this path too but the   |
-        | next animation frame almost always cancels before the  |
-        | deadline fires — the retry only meaningfully runs when |
-        | no follow-up frame arrives (first paint after a        |
-        | reconnect-transient claim, or the last frame of an     |
-        | animation that then stops).                            |
+        | Retry scheduling — ONLY on the critical first paint   |
+        | after a fresh claim (needs_prep == true). Streaming    |
+        | animation frames regularly partial-commit due to       |
+        | fire-and-forget timing, and the delta carry-over       |
+        | (HIDPP20_UNCOMMITTED) already handles missed zones on  |
+        | the next animation tick. Scheduling retries on every   |
+        | partial streaming frame causes the power thread's      |
+        | TickRetryPaintIfPending to fire request_repaint_fn     |
+        | between animation frames, colliding with the animation |
+        | loop and producing visible stalls.                     |
+        |                                                       |
+        | For the first-paint-after-claim case (needs_prep),     |
+        | there IS no "next animation frame" guaranteed, so the  |
+        | retry is the only mechanism to recover from a partial  |
+        | commit during the reconnect-transient window.          |
         \*-----------------------------------------------------*/
-        if(full_commit)
+        if(full_commit || !needs_prep)
         {
             controller->CancelRetryPaint();
         }
