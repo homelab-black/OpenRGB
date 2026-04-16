@@ -814,7 +814,18 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     | fade-to-off. Letting frames flow avoids host-side state   |
     | divergence between active_mode changes and what the       |
     | device is actually showing.                                |
+    |                                                           |
+    | However, once the fade completes and the device enters    |
+    | deep sleep, it returns BUSY to every FrameEnd. The        |
+    | controller tracks consecutive FrameEnd failures during    |
+    | SLEEPING and sets deep_sleep once the threshold is hit.   |
+    | At that point we stop sending frames entirely — Wake()    |
+    | clears the flag and triggers a full repaint.              |
     \*---------------------------------------------------------*/
+    if(controller->IsDeepSleep())
+    {
+        return;
+    }
 
     if(caps.has_perkey && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
@@ -1364,6 +1375,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                 }
             }
         }
+        controller->UpgradeSwControlAfterFirstPaint();
         return;
     }
 
@@ -1418,6 +1430,15 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             current.value,
             eff_id, r, g, b, period, brightness, true);
     }
+
+    /*---------------------------------------------------------*\
+    | The zone effects are now committed — safe to upgrade from  |
+    | flags=6 to flags=5. Without this, devices that only use    |
+    | zone effects (no per-key Direct path) would stay at        |
+    | flags=6 forever and the firmware would never send           |
+    | onUserActivity events for idle/sleep.                       |
+    \*---------------------------------------------------------*/
+    controller->UpgradeSwControlAfterFirstPaint();
 }
 
 bool RGBController_LogitechHIDPP20::ReapplyActiveMode()
