@@ -1787,6 +1787,102 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
     }
 
     caps.has_zone_effects = !caps.zone_clusters.empty();
+
+    /*---------------------------------------------------------*\
+    | Probe for device-firmware effect cards. Only defined on   |
+    | the 0x8071 RGBEffects path — 0x8070 and 0x0600 don't      |
+    | expose GetEffectSpecificInfo in the same form.            |
+    \*---------------------------------------------------------*/
+    DiscoverEffectCards();
+}
+
+void LogitechHIDPP20Controller::DiscoverEffectCards()
+{
+    /*---------------------------------------------------------*\
+    | Probes the device for the presence of firmware-resident  |
+    | effect cards via 0x8071 fn0 GetEffectSpecificInfo. On     |
+    | devices that have them (observed on G502 X PLUS), every   |
+    | valid card returns a device-wide template byte pair at a  |
+    | fixed position in page 1 of the response — G Hub reads    |
+    | those bytes and echoes them into the per-key prep call's  |
+    | `SetEffectByIndex` params[6..7]. Our implementation does  |
+    | the same.                                                 |
+    |                                                           |
+    | Request format (from LOGITECH_HIDPP2_PROTOCOL.md          |
+    | "GetEffectSpecificInfo" under 0x8071 fn0):                |
+    |   [0xFF, effectIdHi, 0x01, effectIdLo, pageIndex]         |
+    |                                                           |
+    | Response layout in blankFAPmessage::data[] terms (i.e.    |
+    | starting AFTER the 4-byte HID++ header                    |
+    | report_id/dev_idx/feat_idx/func_byte):                    |
+    |                                                           |
+    |   data[0..4]  5-byte prefix                               |
+    |     [0] 0xFF echo of subfn marker                         |
+    |     [1] echo of effectIdHi                                |
+    |     [2] 0x01 echo of static constant                      |
+    |     [3] 0x00 static zero (NOT an echo of effectIdLo)      |
+    |     [4] 0x00 static zero (NOT an echo of pageIndex)       |
+    |   data[5..15] 11-byte page payload                        |
+    |     [5..6]   header (0x00 0x00)                           |
+    |     [7..8]   firmware card ID (BE16; differs per card)    |
+    |     [9]      pad                                          |
+    |     [10..11] device-wide template bytes (our target)      |
+    |     [12..15] trailing zeros                               |
+    |                                                           |
+    | Devices without effect cards return InvalidArgument for   |
+    | any effectIdLo; we detect that as a non-positive result   |
+    | and leave caps.has_effect_cards = false so the per-key    |
+    | prep falls back to the Static-pass-through path.          |
+    \*---------------------------------------------------------*/
+    caps.has_effect_cards        = false;
+    caps.effect_card_template[0] = 0;
+    caps.effect_card_template[1] = 0;
+
+    if(caps.idx_rgb_effects == 0 ||
+       caps.rgb_feature_page != HIDPP20_FEAT_RGB_EFFECTS ||
+       !device_online.load())
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Query card at effectIdLo=0, page 1. Any valid card works — |
+    | the template bytes are device-wide and identical across    |
+    | every card on the device — so using card 0 is simplest.    |
+    \*---------------------------------------------------------*/
+    uint8_t         query[5] = { 0xFF, 0x00, 0x01, 0x00, 0x01 };
+    blankFAPmessage response;
+    int             result = SendAckedIntoFAP(
+                                  caps.idx_rgb_effects,
+                                  FN_8071_GET_INFO,
+                                  query, sizeof(query),
+                                  response,
+                                  HIDPP20_POLICY_PROBE);
+
+    if(result <= 0)
+    {
+        LOG_DEBUG("%s DiscoverEffectCards: no effect cards on this device "
+                  "(result=%d)", LOG_TAG, result);
+        return;
+    }
+
+    caps.has_effect_cards        = true;
+    caps.effect_card_template[0] = response.data[10];
+    caps.effect_card_template[1] = response.data[11];
+
+    LOG_INFO("%s Effect cards present: template bytes = 0x%02X 0x%02X "
+             "(card firmware_id=0x%02X%02X, full data[0..15] = "
+             "%02X %02X %02X %02X %02X %02X %02X %02X "
+             "%02X %02X %02X %02X %02X %02X %02X %02X)",
+             LOG_TAG,
+             caps.effect_card_template[0], caps.effect_card_template[1],
+             response.data[7], response.data[8],
+             response.data[0], response.data[1], response.data[2],
+             response.data[3], response.data[4], response.data[5],
+             response.data[6], response.data[7], response.data[8],
+             response.data[9], response.data[10], response.data[11],
+             response.data[12], response.data[13], response.data[14],
+             response.data[15]);
 }
 
 void LogitechHIDPP20Controller::DiscoverPerKeyZones()
@@ -2493,6 +2589,130 @@ void LogitechHIDPP20Controller::UpgradeSwControlAfterFirstPaint()
 }
 
 /*---------------------------------------------------------*\
+| Observed per-key prep sequence                            |
+|                                                           |
+| Two SetEffectByIndex calls cloned byte-for-byte from a    |
+| G Hub pcap on a G502 X PLUS (wired-ish connection via     |
+| Lightspeed receiver; see ~/orgb/G502-capture-1.pcap).    |
+| The two frames are:                                       |
+|                                                           |
+|   Frame 2297 (17.348s, ~262ms after SetOnboardMode(02)):  |
+|     1101091a ff 02 00 00 00 00 00 00 20 64 00 00 01 …     |
+|     RgbEffects.SetEffectByIndex                           |
+|       cluster=0xFF (all clusters)                         |
+|       effectIdx=0x02 (Breathing on G502's enumerated set) |
+|       params=[00 00 00 00 00 00 20 64 00 00] (10 bytes)   |
+|         — positions [6]=0x20, [7]=0x64 are non-zero. The |
+|         Breathing effect parameter layout documented in   |
+|         the protocol reference has period/brightness in   |
+|         those slots, but the exact meaning of these two   |
+|         values in this context is NOT understood. G Hub   |
+|         sends them verbatim on every claim; we mirror.    |
+|       persist=0x01                                        |
+|                                                           |
+|   Frame 2321 (17.443s, ~95ms after frame 2297):           |
+|     1101091a ff 04 00 00 00 00 00 00 00 00 00 00 01 …     |
+|     RgbEffects.SetEffectByIndex                           |
+|       cluster=0xFF                                        |
+|       effectIdx=0x04 — OUT OF RANGE on G502 X PLUS (the   |
+|         device only enumerates effects 0..3 via           |
+|         GetEffectInfo). Likely a "custom / direct mode"   |
+|         slot the firmware accepts but does not advertise  |
+|         through the normal enumeration.                   |
+|       params=[00 × 10]                                    |
+|       persist=0x01                                        |
+|                                                           |
+| The function we call is caps.fn_set_effect (0x10 on       |
+| 0x8071, 0x30 on 0x8070, same as SetZoneEffect uses).      |
+|                                                           |
+| We do NOT attempt to derive these values from the effect  |
+| param layout tables because we don't understand what      |
+| they mean. They're observed-working bytes from the wire   |
+| capture and that's the contract. If this prep sequence    |
+| later turns out to work on other devices, the gating in   |
+| DeviceUpdateLEDs can be loosened.                         |
+\*---------------------------------------------------------*/
+
+void LogitechHIDPP20Controller::DoObservedPerKeyPrep()
+{
+    if(caps.idx_rgb_effects == 0 || !device_online.load())
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Prep1: SetEffectByIndex(cluster=0xFF, effectIdx=2, params)|
+    | with the device-wide template bytes at params[6..7].      |
+    |                                                           |
+    | The template bytes are discovered at feature-discovery    |
+    | time via GetEffectSpecificInfo on any firmware effect     |
+    | card; LGHUB does the same read-then-echo pattern, and on  |
+    | a G502 X PLUS the read value is 0x20 0x64 across every    |
+    | card. We don't know what those bytes mean semantically —  |
+    | just that the device expects to see them echoed back      |
+    | verbatim in this position when LGHUB primes the firmware  |
+    | effect engine for per-key takeover.                        |
+    \*---------------------------------------------------------*/
+    uint8_t prep1[16] =
+    {
+        0xFF, 0x02,                                 /* cluster, effectIdx */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,        /* params[0..5] */
+        caps.effect_card_template[0],              /* params[6] — device */
+        caps.effect_card_template[1],              /* params[7] — device */
+        0x00, 0x00,                                 /* params[8..9] */
+        0x01,                                       /* persist */
+        0x00, 0x00, 0x00                           /* padding */
+    };
+    blankFAPmessage prep1_resp;
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                     prep1, 16, prep1_resp);
+
+    /*---------------------------------------------------------*\
+    | Prep2: SetEffectByIndex with effectIdx set to the first   |
+    | out-of-range slot above the last enumerated effect, all   |
+    | params zero.                                              |
+    |                                                           |
+    | On the G502 X PLUS (4 enumerated effects: 0..3) this      |
+    | means effectIdx=4 — matches the value in pcap frame 2321. |
+    | On other devices, effectIdx is parameterized by effect    |
+    | count so the same "first OOR slot" semantic holds.        |
+    |                                                           |
+    | The RE thread's working theory is that this is a firmware |
+    | "custom/direct mode" slot the effect engine accepts but   |
+    | doesn't advertise through GetEffectInfo. Without that     |
+    | slot being written, the per-key pipeline doesn't enter    |
+    | cleanly and the firmware exposes its default LED state    |
+    | during the claim→paint window (the 3000K warm-white flash |
+    | we previously observed on cold starts).                   |
+    \*---------------------------------------------------------*/
+    uint8_t num_effects = 0;
+
+    if(!caps.zone_clusters.empty())
+    {
+        size_t count = caps.zone_clusters[0].effects.size();
+        num_effects  = (count > 0xFFu) ? 0xFFu : (uint8_t)count;
+    }
+
+    uint8_t prep2[16] =
+    {
+        0xFF, num_effects,                          /* cluster, first OOR slot */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,        /* params[0..5] */
+        0x00, 0x00, 0x00, 0x00,                    /* params[6..9] */
+        0x01,                                       /* persist */
+        0x00, 0x00, 0x00                           /* padding */
+    };
+    blankFAPmessage prep2_resp;
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                     prep2, 16, prep2_resp);
+
+    LOG_DEBUG("%s DoObservedPerKeyPrep: prep1 template=0x%02X%02X "
+              "prep2 idx=%u (OOR slot above %u enumerated effects)",
+              LOG_TAG,
+              caps.effect_card_template[0], caps.effect_card_template[1],
+              num_effects, num_effects);
+}
+
+/*---------------------------------------------------------*\
 | Retry-paint scheduling                                    |
 |                                                           |
 | Called by RGBController_LogitechHIDPP20::DeviceUpdateLEDs |
@@ -3152,6 +3372,9 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     caps.feature_map_complete = false;
     caps.has_zone_effects     = false;
     caps.has_perkey            = false;
+    caps.has_effect_cards      = false;
+    caps.effect_card_template[0] = 0;
+    caps.effect_card_template[1] = 0;
     caps.zone_clusters.clear();
     caps.perkey_zone_ids.clear();
     caps.idx_rgb_effects       = 0;
@@ -3344,6 +3567,9 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     caps.feature_map_complete = false;
     caps.has_zone_effects      = false;
     caps.has_perkey             = false;
+    caps.has_effect_cards       = false;
+    caps.effect_card_template[0] = 0;
+    caps.effect_card_template[1] = 0;
     caps.zone_clusters.clear();
     caps.perkey_zone_ids.clear();
     caps.idx_rgb_effects        = 0;
