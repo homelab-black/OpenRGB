@@ -177,6 +177,27 @@ struct HIDPP20DeviceCapabilities
     uint8_t         nv_sleep_ramp_seconds;
 
     /*-------------------------------------------------*\
+    | Device-firmware effect cards (0x8071 fn0          |
+    | GetEffectSpecificInfo). Populated by                |
+    | DiscoverEffectCards at feature-discovery time.    |
+    |                                                    |
+    | has_effect_cards — probe returned a valid response |
+    |   for firmware card 0 page 1 (no InvalidArgument). |
+    | effect_card_template[0..1] — device-wide constant  |
+    |   bytes read from that response at data[10..11].    |
+    |   Echoed back into prep1 of DoObservedPerKeyPrep    |
+    |   at SetEffectByIndex params[6..7].                 |
+    |                                                    |
+    | Gate for the observed per-key prep is now          |
+    | has_effect_cards — replaces the earlier             |
+    | "effects.size() < 5" heuristic, which was a proxy  |
+    | that correlated with "has cards" on the devices we |
+    | happened to know but had no principled meaning.     |
+    \*-------------------------------------------------*/
+    bool            has_effect_cards;
+    uint8_t         effect_card_template[2];
+
+    /*-------------------------------------------------*\
     | Discovered zone and LED data                      |
     \*-------------------------------------------------*/
     std::vector<HIDPP20ZoneCluster>   zone_clusters;
@@ -443,6 +464,16 @@ public:
     void            TickRetryPaintIfPending();
 
     /*-------------------------------------------------*\
+    | Observed per-key prep sequence. Two                |
+    | SetEffectByIndex calls cloned byte-for-byte from a |
+    | G Hub pcap on a G502 X PLUS (frames 2297 & 2321).  |
+    | Used in place of the Static-pass-through prep when |
+    | the device's RGBEffects enumeration matches the    |
+    | G502 shape — see DeviceUpdateLEDs for gating.      |
+    \*-------------------------------------------------*/
+    void            DoObservedPerKeyPrep();
+
+    /*-------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
     \*-------------------------------------------------*/
     void            StartPowerManager();
@@ -584,6 +615,7 @@ private:
     void            EnumerateFeatures(uint8_t feature_set_idx);
     void            DiscoverFirmwareInfo();
     void            DiscoverRGBEffects();
+    void            DiscoverEffectCards();
     void            DiscoverPerKeyZones();
     void            DiscoverKeyboardLayout();
 

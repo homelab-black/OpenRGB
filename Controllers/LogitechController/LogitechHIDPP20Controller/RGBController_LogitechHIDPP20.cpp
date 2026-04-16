@@ -819,37 +819,71 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         }
 
         /*-----------------------------------------------------*\
-        | Per-key prep call (matches GHUB capture):              |
-        |   SetEffect cluster=0xFF, effect=static, RGB=(0,0,0),  |
-        |   persist=true                                         |
+        | Per-key prep call. Two paths, selected by a runtime   |
+        | capability probe at feature-discovery time:           |
         |                                                       |
-        | This is the formal "transition to per-key mode" call. |
-        | Setting all clusters to static black with persist     |
-        | tells the firmware we're taking over per-key writes.  |
-        | Per-key writes then override individual zones; any    |
-        | unwritten zones remain off (which is correct).        |
+        | (A) Observed prep via DoObservedPerKeyPrep — two       |
+        |     SetEffectByIndex calls on 0x8071 cloned from       |
+        |     LGHUB's wire behavior. The template bytes at      |
+        |     prep1 params[6..7] and the effectIdx at prep2 are  |
+        |     parameterized from device-discovery results       |
+        |     (caps.effect_card_template[], and                  |
+        |     caps.zone_clusters[0].effects.size() respectively)|
+        |     so the same code adapts to any device that shares  |
+        |     the G502-family prep pattern.                      |
+        |                                                       |
+        |     Gated on caps.has_effect_cards, which is set by   |
+        |     DiscoverEffectCards iff the device responds       |
+        |     successfully to GetEffectSpecificInfo. Devices    |
+        |     without firmware effect cards leave this false     |
+        |     and fall through to path (B).                      |
+        |                                                       |
+        | (B) Static-pass-through prep (original fork behavior, |
+        |     doc-verified on G515) — applied when the device   |
+        |     has no effect cards or uses 0x8070 / 0x0600       |
+        |     instead of 0x8071. SetEffect cluster=0xFF,         |
+        |     effect=Static, RGB=(0,0,0), no fixed-color marker,|
+        |     persist=1.                                         |
+        |                                                       |
+        | An earlier revision used `effects.size() < 5` as a     |
+        | heuristic proxy for "G502-shaped" devices. The proxy   |
+        | accidentally correlated with "has effect cards" on    |
+        | the two devices we knew about but had no principled   |
+        | meaning — it's been replaced with the direct capability|
+        | probe.                                                 |
         \*-----------------------------------------------------*/
         if(sent_colors.empty() && caps.has_zone_effects)
         {
-            uint8_t static_effect_idx = 0;
+            bool shape_matches_observed_prep =
+                caps.has_effect_cards
+                && caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS;
 
-            for(size_t j = 0; j < caps.zone_clusters[0].effects.size(); j++)
+            if(shape_matches_observed_prep)
             {
-                if(caps.zone_clusters[0].effects[j].effect_id == 0x0001)
-                {
-                    static_effect_idx = caps.zone_clusters[0].effects[j].index;
-                    break;
-                }
+                controller->DoObservedPerKeyPrep();
             }
+            else
+            {
+                uint8_t static_effect_idx = 0;
 
-            controller->SetZoneEffect(
-                0xFF,                /* all clusters */
-                static_effect_idx,
-                0x0001,              /* static effect */
-                0, 0, 0,             /* black — no fixed-color marker, becomes "Off" */
-                0,
-                100,                 /* brightness — unused for static, default 100 */
-                true                 /* persist=true to match GHUB's prep call */);
+                for(size_t j = 0; j < caps.zone_clusters[0].effects.size(); j++)
+                {
+                    if(caps.zone_clusters[0].effects[j].effect_id == 0x0001)
+                    {
+                        static_effect_idx = caps.zone_clusters[0].effects[j].index;
+                        break;
+                    }
+                }
+
+                controller->SetZoneEffect(
+                    0xFF,                /* all clusters */
+                    static_effect_idx,
+                    0x0001,              /* static effect */
+                    0, 0, 0,             /* black — no fixed-color marker */
+                    0,
+                    100,                 /* brightness — unused for static */
+                    true                 /* persist=true */);
+            }
         }
 
         /*-----------------------------------------------------*\
