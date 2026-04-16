@@ -4772,12 +4772,15 @@ void LogitechHIDPP20Controller::Wake()
     | PROTOCOL.md §0x8071), a proper wake is: power mode 1 (if  |
     | we were sleeping), then SetSWControl(3,5) to re-claim     |
     | rendering from the firmware's idle-monitor mode, then     |
-    | re-push the current lighting state (the device's LED      |
-    | buffer may not survive mode 3→1 transition and we don't   |
-    | trust the device to remember). The re-push is handled by  |
-    | the reapply_active_mode_fn callback which clears          |
-    | sent_colors and routes through DeviceUpdateMode so both   |
-    | per-key Direct and zone-effect modes re-establish.         |
+    | re-push the current lighting state at full brightness.     |
+    |                                                           |
+    | The re-push uses request_repaint_fn (DeviceUpdateLEDs)    |
+    | NOT reapply_active_mode_fn (which re-runs the full claim  |
+    | + per-key prep sequence). Wake is NOT a reconnect — the   |
+    | device handle, feature map, SW control claim, and per-key |
+    | prep are all still intact. Re-running the claim would     |
+    | briefly reset the zone effect layer and flash the firmware |
+    | default colors for ~50ms before per-key takes back over.  |
     |                                                           |
     | power_mutex must already be held by the caller.            |
     \*---------------------------------------------------------*/
@@ -4802,15 +4805,31 @@ void LogitechHIDPP20Controller::Wake()
     LOG_DEBUG("%s Woke from state %d", LOG_TAG, prev);
 
     /*---------------------------------------------------------*\
-    | Re-push the current lighting state. For Direct modes this |
-    | clears sent_colors and pushes a full frame via             |
-    | DeviceUpdateLEDs; for zone effects it re-issues SetEffect |
-    | on every cluster. The callback routes through              |
-    | DeviceUpdateMode so both cases are covered.                |
+    | Re-push the current lighting state at full brightness.    |
+    |                                                           |
+    | We use request_repaint_fn (lightweight: just calls         |
+    | DeviceUpdateLEDs) NOT reapply_active_mode_fn (heavyweight: |
+    | re-runs ClaimSWControlIfNeeded → SetOnboardMode → per-key |
+    | prep sequence → DeviceUpdateMode). On a wake-from-dim/idle |
+    | the device is still in host mode, SW control is still      |
+    | claimed, and the per-key prep has already been established |
+    | — all we need is a fresh paint at restored brightness.     |
+    |                                                           |
+    | The brightness was restored to 100% above                  |
+    | (dim_brightness_pct.store(100)), so DeviceUpdateLEDs will  |
+    | apply the full-brightness multiplier to the snapshot.      |
+    | Since sent_colors was recorded at the previous (dimmed)    |
+    | brightness, the delta detects a change on every zone and   |
+    | pushes a full frame naturally — no sent_colors.clear()     |
+    | needed.                                                    |
+    |                                                           |
+    | ReapplyActiveMode (the heavyweight path) is reserved for   |
+    | reconnects where the device was fully re-enumerated and    |
+    | needs the complete claim + prep + mode re-establishment.   |
     \*---------------------------------------------------------*/
-    if(reapply_active_mode_fn)
+    if(request_repaint_fn)
     {
-        reapply_active_mode_fn();
+        request_repaint_fn();
     }
 }
 
