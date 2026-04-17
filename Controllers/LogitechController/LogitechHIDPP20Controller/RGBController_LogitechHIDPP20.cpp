@@ -38,6 +38,15 @@ static const uint16_t HIDPP20_PERIOD_MIN_MS = 1000;
 static const uint16_t HIDPP20_PERIOD_MAX_MS = 20000;
 
 /*---------------------------------------------------------*\
+| Ripple has its own narrower, much faster period range.    |
+| Values taken from G915's LOGITECH_G915_SPEED_RIPPLE_*     |
+| constants: 2ms..200ms. A ripple feels right when quick —  |
+| using the breathing range (1..20s) makes it invisible.    |
+\*---------------------------------------------------------*/
+static const uint16_t HIDPP20_RIPPLE_PERIOD_MIN_MS = 2;
+static const uint16_t HIDPP20_RIPPLE_PERIOD_MAX_MS = 200;
+
+/*---------------------------------------------------------*\
 | Speed slider range presented to the user. 1..100 matches  |
 | our brightness convention. Higher = faster animation,     |
 | inverted on the wire because lower period = faster cycle. |
@@ -45,16 +54,26 @@ static const uint16_t HIDPP20_PERIOD_MAX_MS = 20000;
 static const int      HIDPP20_SPEED_SLIDER_MIN = 1;
 static const int      HIDPP20_SPEED_SLIDER_MAX = 100;
 
-static uint16_t SpeedSliderToPeriodMs(int slider)
+static uint16_t SliderToPeriodMs(int slider, uint16_t period_min_ms, uint16_t period_max_ms)
 {
-    if(slider <= HIDPP20_SPEED_SLIDER_MIN) return HIDPP20_PERIOD_MAX_MS;
-    if(slider >= HIDPP20_SPEED_SLIDER_MAX) return HIDPP20_PERIOD_MIN_MS;
+    if(slider <= HIDPP20_SPEED_SLIDER_MIN) return period_max_ms;
+    if(slider >= HIDPP20_SPEED_SLIDER_MAX) return period_min_ms;
 
-    const int period_range = HIDPP20_PERIOD_MAX_MS - HIDPP20_PERIOD_MIN_MS;
+    const int period_range = period_max_ms - period_min_ms;
     const int slider_range = HIDPP20_SPEED_SLIDER_MAX - HIDPP20_SPEED_SLIDER_MIN;
 
-    return (uint16_t)(HIDPP20_PERIOD_MAX_MS
+    return (uint16_t)(period_max_ms
                     - ((slider - HIDPP20_SPEED_SLIDER_MIN) * period_range) / slider_range);
+}
+
+static uint16_t SpeedSliderToPeriodMs(int slider)
+{
+    return SliderToPeriodMs(slider, HIDPP20_PERIOD_MIN_MS, HIDPP20_PERIOD_MAX_MS);
+}
+
+static uint16_t RippleSpeedSliderToPeriodMs(int slider)
+{
+    return SliderToPeriodMs(slider, HIDPP20_RIPPLE_PERIOD_MIN_MS, HIDPP20_RIPPLE_PERIOD_MAX_MS);
 }
 
 /**------------------------------------------------------------------*\
@@ -376,11 +395,27 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     mode Static;
                     Static.name       = "Static";
                     Static.value      = fx.index;
-                    Static.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
-                    Static.colors_min = 1;
-                    Static.colors_max = 1;
-                    Static.color_mode = MODE_COLORS_MODE_SPECIFIC;
-                    Static.colors.resize(1);
+
+                    /*-----------------------------------------------------*\
+                    | Multi-cluster devices (mice with logo/scroll/DPI)     |
+                    | get per-LED colors so each zone can be painted        |
+                    | independently in Static. Single-cluster devices       |
+                    | (keyboards, single-zone mice) keep the single-color   |
+                    | MODE_COLORS_MODE_SPECIFIC UX.                         |
+                    \*-----------------------------------------------------*/
+                    if(caps.zone_clusters.size() > 1)
+                    {
+                        Static.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+                        Static.color_mode = MODE_COLORS_PER_LED;
+                    }
+                    else
+                    {
+                        Static.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+                        Static.colors_min = 1;
+                        Static.colors_max = 1;
+                        Static.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                        Static.colors.resize(1);
+                    }
                     modes.push_back(Static);
                     break;
                 }
@@ -408,19 +443,33 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     mode Breathing;
                     Breathing.name           = "Breathing";
                     Breathing.value          = fx.index;
-                    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
-                                             | MODE_FLAG_HAS_SPEED
-                                             | MODE_FLAG_HAS_BRIGHTNESS;
                     Breathing.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
                     Breathing.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
                     Breathing.speed          = 70;     /* ~6.8s, calm medium */
                     Breathing.brightness_min = 1;
                     Breathing.brightness_max = 100;
                     Breathing.brightness     = 100;
-                    Breathing.colors_min     = 1;
-                    Breathing.colors_max     = 1;
-                    Breathing.color_mode     = MODE_COLORS_MODE_SPECIFIC;
-                    Breathing.colors.resize(1);
+
+                    /*-----------------------------------------------------*\
+                    | See Static above — multi-cluster gets per-LED colors. |
+                    \*-----------------------------------------------------*/
+                    if(caps.zone_clusters.size() > 1)
+                    {
+                        Breathing.flags      = MODE_FLAG_HAS_PER_LED_COLOR
+                                             | MODE_FLAG_HAS_SPEED
+                                             | MODE_FLAG_HAS_BRIGHTNESS;
+                        Breathing.color_mode = MODE_COLORS_PER_LED;
+                    }
+                    else
+                    {
+                        Breathing.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                                             | MODE_FLAG_HAS_SPEED
+                                             | MODE_FLAG_HAS_BRIGHTNESS;
+                        Breathing.colors_min = 1;
+                        Breathing.colors_max = 1;
+                        Breathing.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                        Breathing.colors.resize(1);
+                    }
                     modes.push_back(Breathing);
                     break;
                 }
@@ -1419,17 +1468,16 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     }
 
     /*---------------------------------------------------------*\
-    | Effect mode: apply to all clusters                         |
+    | Effect mode: apply to all clusters.                        |
+    |                                                           |
+    | Color source per cluster:                                  |
+    |   MODE_COLORS_PER_LED        — current.colors[i] maps to   |
+    |                                caps.zone_clusters[i]       |
+    |                                (one LED per cluster on the |
+    |                                0x8070 zone path)           |
+    |   MODE_COLORS_MODE_SPECIFIC  — current.colors[0] for all   |
+    |   MODE_COLORS_NONE           — zero (effect ignores RGB)   |
     \*---------------------------------------------------------*/
-    unsigned char r = 0, g = 0, b = 0;
-
-    if(current.color_mode == MODE_COLORS_MODE_SPECIFIC && current.colors.size() > 0)
-    {
-        r = RGBGetRValue(current.colors[0]);
-        g = RGBGetGValue(current.colors[0]);
-        b = RGBGetBValue(current.colors[0]);
-    }
-
     uint16_t period = SpeedSliderToPeriodMs(current.speed);
 
     /*---------------------------------------------------------*\
@@ -1455,6 +1503,29 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             }
         }
 
+        unsigned char r = 0, g = 0, b = 0;
+
+        if(current.color_mode == MODE_COLORS_PER_LED && i < current.colors.size())
+        {
+            r = RGBGetRValue(current.colors[i]);
+            g = RGBGetGValue(current.colors[i]);
+            b = RGBGetBValue(current.colors[i]);
+        }
+        else if(current.color_mode == MODE_COLORS_MODE_SPECIFIC && !current.colors.empty())
+        {
+            r = RGBGetRValue(current.colors[0]);
+            g = RGBGetGValue(current.colors[0]);
+            b = RGBGetBValue(current.colors[0]);
+        }
+
+        /*-----------------------------------------------------*\
+        | Ripple wants a narrower, much faster period range      |
+        | (2..200ms) than the breathing/wave baseline of 1..20s. |
+        \*-----------------------------------------------------*/
+        uint16_t cluster_period = (eff_id == 0x000B)
+                                ? RippleSpeedSliderToPeriodMs(current.speed)
+                                : period;
+
         /*-----------------------------------------------------*\
         | 0x8071/0x0600: persist=true matches what the captured |
         | GHUB packet replay does for every mode-set on these   |
@@ -1473,7 +1544,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         controller->SetZoneEffect(
             caps.zone_clusters[i].index,
             current.value,
-            eff_id, r, g, b, period, brightness, effect_persist);
+            eff_id, r, g, b, cluster_period, brightness, effect_persist);
     }
 
     /*---------------------------------------------------------*\
