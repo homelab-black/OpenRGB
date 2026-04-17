@@ -806,23 +806,31 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     /*---------------------------------------------------------*\
-    | We deliberately do NOT drop frames while power_state is   |
-    | SLEEPING. Bench testing on G515 LS TKL showed the         |
-    | firmware handles concurrent host writes gracefully during |
-    | its SetRgbPowerMode(3) fade — animation continues through |
-    | the fade window without disrupting the firmware's         |
-    | fade-to-off. Letting frames flow avoids host-side state   |
-    | divergence between active_mode changes and what the       |
-    | device is actually showing.                                |
+    | Frame suppression during SLEEPING has two layers:          |
     |                                                           |
-    | However, once the fade completes and the device enters    |
-    | deep sleep, it returns BUSY to every FrameEnd. The        |
-    | controller tracks consecutive FrameEnd failures during    |
-    | SLEEPING and sets deep_sleep once the threshold is hit.   |
-    | At that point we stop sending frames entirely — Wake()    |
-    | clears the flag and triggers a full repaint.              |
+    | 1. Quirk-based: devices with SLEEP_SUPPRESSES_FRAMES     |
+    |    (e.g. G502 X PLUS) wake on per-key writes during the  |
+    |    firmware fade, cancelling SetRgbPowerMode(3) before    |
+    |    the fade completes. For these devices we suppress      |
+    |    frames immediately when power_state == SLEEPING.       |
+    |                                                           |
+    | 2. Deep-sleep: devices WITHOUT the quirk (e.g. G515 LS   |
+    |    TKL) tolerate per-key writes during the fade — frames  |
+    |    flow through without disrupting it. But once the fade  |
+    |    completes and the device enters deep sleep, it returns |
+    |    BUSY to every FrameEnd. The controller tracks          |
+    |    consecutive failures and sets deep_sleep once the      |
+    |    threshold is hit.                                      |
+    |                                                           |
+    | Both paths suppress until Wake() clears the state.        |
     \*---------------------------------------------------------*/
     if(controller->IsDeepSleep())
+    {
+        return;
+    }
+
+    if((caps.quirks & HIDPP20_QUIRK_SLEEP_SUPPRESSES_FRAMES)
+       && controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
     {
         return;
     }
