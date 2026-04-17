@@ -3231,8 +3231,11 @@ void LogitechHIDPP20Controller::SetZoneEffect
 
     /*---------------------------------------------------------*\
     | SetEffectByIndex (fn1 on 0x8071, fn3 on 0x8070)           |
-    | 0x8071: [cluster, effect_idx, 10-byte params, persist]    |
-    | 0x8070: [zone, effect_idx, 11-byte params]                |
+    | 0x8071/0x0600: [cluster, effect_idx, 10-byte params,      |
+    |                 persist at [12]]                          |
+    | 0x8070:        [zone,    effect_idx, 10-byte params,      |
+    |                 persist at [12] (Bit 2-3 Power,           |
+    |                 Bit 1-0 Persistence)]                     |
     \*---------------------------------------------------------*/
     uint8_t data[16];
     memset(data, 0, sizeof(data));
@@ -3312,42 +3315,25 @@ void LogitechHIDPP20Controller::SetZoneEffect
             break;
     }
 
-    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
-    {
-        /*-----------------------------------------------------*\
-        | 0x8070: 13-byte payload, no persist byte               |
-        \*-----------------------------------------------------*/
-        LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
-                  "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
-                  "%02X %02X %02X %02X %02X]",
-                  LOG_TAG, cluster_idx, effect_idx, effect_id,
-                  data[0], data[1], data[2], data[3], data[4], data[5], data[6],
-                  data[7], data[8], data[9], data[10], data[11], data[12]);
+    /*-----------------------------------------------------*\
+    | 16-byte payload for all pages; persist at byte[12].    |
+    | 0x8070 and 0x8071/0x0600 share the same byte position  |
+    | per LogitechProtocolCommon setMode convention.         |
+    \*-----------------------------------------------------*/
+    data[12] = persist ? 0x01 : 0x00;
 
-        blankFAPmessage response;
-        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
-                         data, 13, response);
-    }
-    else
-    {
-        /*-----------------------------------------------------*\
-        | 0x8071/0x0600: 16-byte payload with persist at [12]    |
-        \*-----------------------------------------------------*/
-        data[12] = persist ? 0x01 : 0x00;
+    LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
+              "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
+              "%02X %02X %02X %02X %02X %02X %02X %02X]",
+              LOG_TAG, cluster_idx, effect_idx, effect_id,
+              data[0], data[1], data[2], data[3],
+              data[4], data[5], data[6], data[7],
+              data[8], data[9], data[10], data[11],
+              data[12], data[13], data[14], data[15]);
 
-        LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
-                  "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
-                  "%02X %02X %02X %02X %02X %02X %02X %02X]",
-                  LOG_TAG, cluster_idx, effect_idx, effect_id,
-                  data[0], data[1], data[2], data[3],
-                  data[4], data[5], data[6], data[7],
-                  data[8], data[9], data[10], data[11],
-                  data[12], data[13], data[14], data[15]);
-
-        blankFAPmessage response;
-        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
-                         data, 16, response);
-    }
+    blankFAPmessage response;
+    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                     data, 16, response);
 }
 
 /*---------------------------------------------------------*\

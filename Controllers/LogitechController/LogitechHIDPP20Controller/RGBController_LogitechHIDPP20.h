@@ -24,10 +24,20 @@ public:
     void        UpdateZoneLEDs(int zone);
     void        UpdateSingleLED(int led);
     void        DeviceUpdateMode();
+    void        DeviceSaveMode();
     bool        ReapplyActiveMode();
 
 private:
     LogitechHIDPP20Controller*    controller;
+
+    /*---------------------------------------------------------*\
+    | When true, the next DeviceUpdateMode cycle sends its       |
+    | SetZoneEffect calls with persist=true instead of the       |
+    | default ephemeral write. Used by DeviceSaveMode to replay  |
+    | the active mode as a NVM-committed effect on 0x8070        |
+    | devices, which default to non-persistent live writes.      |
+    \*---------------------------------------------------------*/
+    bool                        save_pending = false;
 
     /*---------------------------------------------------------*\
     | Maps OpenRGB LED index -> HID++ per-key zone ID           |
