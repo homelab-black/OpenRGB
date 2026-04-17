@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| LogitechHIDPP20Controller_Windows_MacOS.cpp                |
+| LogitechHIDPP20Controller_Windows_MacOS.cpp               |
 |                                                           |
 |   Path-migration and device-name lookup for the unified   |
 |   Logitech HID++ 2.0 controller on Windows and macOS.     |
@@ -25,9 +25,9 @@
 #define LOG_TAG log_tag.c_str()
 
 /*---------------------------------------------------------*\
-| Helper: wchar_t* -> std::string (UTF-8).                   |
-| hidapi returns wchar_t* for strings on Windows; we need    |
-| std::string for comparison and logging.                    |
+| Helper: wchar_t* -> std::string (UTF-8).                  |
+| hidapi returns wchar_t* for strings on Windows; we need   |
+| std::string for comparison and logging.                   |
 \*---------------------------------------------------------*/
 static std::string hidpp20_wchar_to_std(const wchar_t* w)
 {
@@ -39,10 +39,10 @@ static std::string hidpp20_wchar_to_std(const wchar_t* w)
     return StringUtils::wstring_to_string(std::wstring(w));
 }
 
-/*---------------------------------------------------------*\
+/*----------------------------------------------------------*\
 | Helper: normalize a hex-ish identity string for comparison |
 | (strip dashes, lowercase).                                 |
-\*---------------------------------------------------------*/
+\*----------------------------------------------------------*/
 static std::string hidpp20_normalize_id(const std::string& s)
 {
     std::string out;
@@ -100,12 +100,12 @@ std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::stri
 bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 {
     /*---------------------------------------------------------*\
-    | Scan hidapi for a Logitech device with matching unitId.  |
+    | Scan hidapi for a Logitech device with matching unitId.   |
     | Called by the power thread either periodically (normal    |
-    | reactive mode — only when device_online==false, USB/       |
+    | reactive mode — only when device_online==false, USB/      |
     | wireless transition or physical unplug) or on demand      |
     | from the reader thread after a HID++1.0 Device            |
-    | Connection notification arrives (force=true, bypasses    |
+    | Connection notification arrives (force=true, bypasses     |
     | the online gate). Finds the device on its new             |
     | connection path.                                          |
     |                                                           |
@@ -118,9 +118,9 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     | Logitech devices generally corresponds to the same        |
     | stable identity as the HID++-reported unit_id. If         |
     | serial_number matching yields nothing (hidapi may not     |
-    | populate it for some Logitech devices on Windows), we    |
-    | fall through to IRoot probing every candidate on the     |
-    | matching usage_page/usage so we can still find the       |
+    | populate it for some Logitech devices on Windows), we     |
+    | fall through to IRoot probing every candidate on the      |
+    | matching usage_page/usage so we can still find the        |
     | device albeit more slowly.                                |
     \*---------------------------------------------------------*/
     if(caps.unit_id.empty() || caps.unit_id == "00000000")
@@ -169,7 +169,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     | current path, (b) speak the HID++ interface, and (c) have |
     | a plausible identity match — either the serial_number     |
     | matches our unit_id, or at minimum their PID differs from |
-    | ours so they can't be another slot on the same dongle.   |
+    | ours so they can't be another slot on the same dongle.    |
     \*---------------------------------------------------------*/
     for(hid_device_info* d = devs; d != nullptr; d = d->next)
     {
@@ -185,8 +185,8 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 
         /*-----------------------------------------------------*\
         | Only HID++ interface (usage_page 0xFF00, usage 2).    |
-        | Note: on Windows hidapi may or may not populate        |
-        | usage / usage_page consistently. If either is zero,    |
+        | Note: on Windows hidapi may or may not populate       |
+        | usage / usage_page consistently. If either is zero,   |
         | fall through — we'll probe unconditionally in that    |
         | case rather than dropping a potential candidate.      |
         \*-----------------------------------------------------*/
@@ -199,7 +199,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 
         /*-----------------------------------------------------*\
         | Compare serial_number (wchar_t*) against our unit_id. |
-        | Normalize both and do an exact-match comparison.       |
+        | Normalize both and do an exact-match comparison.      |
         | Empty/missing serial is allowed — falls through as a  |
         | serial_match=false candidate so the probe path can    |
         | still find it via a different-PID filter.             |
@@ -221,7 +221,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         | If we have no serial match AND this path shares the   |
         | current PID, skip. Same PID with no identity evidence |
         | is probably a sibling slot on the same dongle, not a  |
-        | valid migration target.                                |
+        | valid migration target.                               |
         \*-----------------------------------------------------*/
         if(!serial_match && d->product_id == current_pid && current_pid != 0)
         {
@@ -243,7 +243,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     }
 
     /*---------------------------------------------------------*\
-    | Sort so serial-matched candidates get probed first.        |
+    | Sort so serial-matched candidates get probed first.       |
     \*---------------------------------------------------------*/
     std::stable_sort(candidates.begin(), candidates.end(),
                      [](const Candidate& a, const Candidate& b)
@@ -252,10 +252,10 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
                      });
 
     /*---------------------------------------------------------*\
-    | Probe each candidate with IRoot GetFeature feat 0x0001.    |
+    | Probe each candidate with IRoot GetFeature feat 0x0001.   |
     | A live slot returns a long-form (0x11) response; a stale  |
     | slot returns a short-form (0x10) error. See the Linux     |
-    | companion file for the wire-level explanation.             |
+    | companion file for the wire-level explanation.            |
     \*---------------------------------------------------------*/
     std::string found_path;
     hid_device* found_dev  = nullptr;

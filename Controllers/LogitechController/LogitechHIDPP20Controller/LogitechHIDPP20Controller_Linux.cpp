@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| LogitechHIDPP20Controller_Linux.cpp                        |
+| LogitechHIDPP20Controller_Linux.cpp                       |
 |                                                           |
 |   Linux-specific path-migration and device-name lookup    |
 |   for the unified Logitech HID++ 2.0 controller.          |
@@ -28,13 +28,13 @@
 
 std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::string& path)
 {
-    /*---------------------------------------------------------*\
+    /*--------------------------------------------------------*\
     | Centurion sub-device friendly name comes from sysfs      |
     | HID_NAME=, same field Solaar reads. The `path` arg is a  |
     | hidraw dev path like /dev/hidraw5; extract the hidrawN   |
     | basename and read /sys/class/hidraw/<basename>/device/   |
     | uevent.                                                  |
-    \*---------------------------------------------------------*/
+    \*--------------------------------------------------------*/
     std::string sysfs_name;
     size_t pos = path.rfind("hidraw");
 
@@ -75,13 +75,13 @@ std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::stri
 bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 {
     /*---------------------------------------------------------*\
-    | Scan sysfs for a hidraw with matching unitId. Called by    |
+    | Scan sysfs for a hidraw with matching unitId. Called by   |
     | the power thread either periodically (normal reactive     |
-    | mode — only when device_online==false, USB/wireless        |
+    | mode — only when device_online==false, USB/wireless       |
     | transition or physical unplug) or on demand from the      |
     | reader thread after a HID++1.0 Device Connection          |
-    | notification arrives (force=true, bypasses the online    |
-    | gate). Finds the device on its new connection path.      |
+    | notification arrives (force=true, bypasses the online     |
+    | gate). Finds the device on its new connection path.       |
     |                                                           |
     | Reactive-only: we never migrate while the current path    |
     | still works. On devices like the G502 X PLUS that expose  |
@@ -112,18 +112,18 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     }
 
     /*---------------------------------------------------------*\
-    | Online guard: never migrate off a working path unless    |
+    | Online guard: never migrate off a working path unless     |
     | the caller explicitly forces a re-check. The normal       |
-    | periodic scan path stays gated on device_online==false   |
+    | periodic scan path stays gated on device_online==false    |
     | so it's a no-op when everything is healthy.               |
     |                                                           |
-    | The reader thread bypasses this guard (force=true) after |
+    | The reader thread bypasses this guard (force=true) after  |
     | seeing a HID++1.0 Device Connection Status notification   |
-    | from the Lightspeed receiver, which fires BEFORE the     |
-    | firmware fully switches its data flow from wireless to   |
-    | USB. At that moment device_online is still true (the     |
-    | current path hasn't failed yet), but we want the scan to |
-    | run so we can migrate to the new path proactively.       |
+    | from the Lightspeed receiver, which fires BEFORE the      |
+    | firmware fully switches its data flow from wireless to    |
+    | USB. At that moment device_online is still true (the      |
+    | current path hasn't failed yet), but we want the scan to  |
+    | run so we can migrate to the new path proactively.        |
     \*---------------------------------------------------------*/
     if(!force && device_online.load())
     {
@@ -131,11 +131,11 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     }
 
     /*---------------------------------------------------------*\
-    | Normalize our unitId to lowercase hex without dashes for   |
-    | comparison. Sysfs HID_UNIQ varies between drivers:         |
-    |   - Lightspeed virtual: "0d-12-5d-47" (dashes)             |
-    |   - USB direct: "0D125D47" (no dashes)                     |
-    | We strip dashes and lowercase both sides for matching.     |
+    | Normalize our unitId to lowercase hex without dashes for  |
+    | comparison. Sysfs HID_UNIQ varies between drivers:        |
+    |   - Lightspeed virtual: "0d-12-5d-47" (dashes)            |
+    |   - USB direct: "0D125D47" (no dashes)                    |
+    | We strip dashes and lowercase both sides for matching.    |
     \*---------------------------------------------------------*/
     std::string target_norm;
 
@@ -175,7 +175,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         }
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Collect ALL sysfs hidraws with matching unit_id + Logitech |
     | VID + different PID. With multiple Lightspeed dongles in   |
     | the system, several hidraws can share the same HID_UNIQ:   |
@@ -183,7 +183,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     | are stale virt-slots on dongles where our device is not    |
     | actually present. We have to probe each one to find out    |
     | which slot is real — sysfs alone can't tell them apart.    |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     struct Candidate
     {
         std::string  dev_path;
@@ -286,7 +286,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         return false;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Probe each candidate before committing. Two-dongle systems |
     | can expose multiple sysfs hidraws with the same HID_UNIQ:  |
     | one is the live slot, others are stale pairings that       |
@@ -299,7 +299,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     | passes; the overall pending_path_check retry loop will     |
     | naturally re-probe all candidates on subsequent scans if   |
     | none pass on the current pass (e.g., mid-transition).      |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     std::string found_path;
     hid_device* found_dev  = nullptr;
 
@@ -312,7 +312,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         /*-----------------------------------------------------*\
         | Multi-dongle caveat: hid_enumerate returns entries    |
         | for ALL dongles with this PID (046D:4099 Lightspeed   |
-        | can appear several times in a single machine). Match |
+        | can appear several times in a single machine). Match  |
         | strictly on the sysfs candidate's dev_path so each    |
         | candidate resolves to its OWN dongle's HID++          |
         | interface — not the first match we stumble across.    |
@@ -351,21 +351,21 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
             continue;
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Probe: HID++2.0 IRoot GetFeature for feat 0x0001       |
         | (IFeatureSet). Wire: w[10 FF 0000 000100]              |
-        |   - report_id 0x10 (short)                              |
-        |   - device_index 0xFF                                   |
-        |   - feat_idx 0x00 (IRoot)                               |
+        |   - report_id 0x10 (short)                             |
+        |   - device_index 0xFF                                  |
+        |   - feat_idx 0x00 (IRoot)                              |
         |   - address 0x00 (func 0 GetFeature, sw_id 0)          |
         |   - payload 00 01 00 (feat_id 0x0001)                  |
-        |                                                         |
+        |                                                        |
         | A live device returns r[11 xx 00 0X ...] — long form,  |
         | feat_idx 0x00, the address byte we sent back, and the  |
-        | feature index in the payload.                           |
+        | feature index in the payload.                          |
         | A stale slot returns r[10 xx 8F 00 00 08 ...] — short  |
         | error form. Reject anything that starts with 0x10.     |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         uint8_t  probe[7]    = {0x10, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00};
         uint8_t  reply[20]   = {};
         int      write_rc    = hid_write(test_dev, probe, sizeof(probe));
@@ -374,9 +374,9 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         if(write_rc >= 0)
         {
             /*-----------------------------------------------------*\
-            | Drain up to ~100ms, looking for a long-form response |
+            | Drain up to ~100ms, looking for a long-form response  |
             | matching our probe. Skip stray reports from unrelated |
-            | firmware events that might be queued on the hidraw.  |
+            | firmware events that might be queued on the hidraw.   |
             \*-----------------------------------------------------*/
             auto deadline = std::chrono::steady_clock::now() +
                             std::chrono::milliseconds(100);
