@@ -471,6 +471,27 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         }
     }
 
+    /*---------------------------------------------------------*\
+    | On 0x8070 devices every effect write is ephemeral by      |
+    | default (see DeviceUpdateMode persist branch below). Add  |
+    | a Save button on firmware-effect modes so users can       |
+    | explicitly commit the active mode to NVM. Direct is       |
+    | excluded because per-key framebuffer writes don't map to  |
+    | a savable firmware effect on 0x8070. 0x8071/0x0600        |
+    | already persist on every write, so no Save button is      |
+    | exposed there pending further research.                   |
+    \*---------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        for(auto& m : modes)
+        {
+            if(m.name != "Direct")
+            {
+                m.flags |= MODE_FLAG_MANUAL_SAVE;
+            }
+        }
+    }
+
     SetupZones();
 
     /*---------------------------------------------------------*\
@@ -1362,13 +1383,23 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     /*---------------------------------------------------------*\
     | Zone effect modes (devices without per-key, or animated    |
     | effects that can't be done via per-key)                    |
+    |                                                           |
+    | persist branching:                                         |
+    |   0x8070: ephemeral by default; becomes persist=true       |
+    |           only when DeviceSaveMode has set save_pending.   |
+    |   0x8071/0x0600: keeps the pre-existing per-branch         |
+    |           hardcoded values (Off=false, Effect=true)        |
+    |           pending 0x8071 save research.                    |
     \*---------------------------------------------------------*/
+    const bool is_8070 = (caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS);
 
     /*---------------------------------------------------------*\
     | Off mode: set static black on all clusters                 |
     \*---------------------------------------------------------*/
     if(current.value == 0xFF)
     {
+        const bool off_persist = is_8070 ? save_pending : false;
+
         for(size_t i = 0; i < caps.zone_clusters.size(); i++)
         {
             for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
@@ -1378,7 +1409,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                     controller->SetZoneEffect(
                         caps.zone_clusters[i].index,
                         caps.zone_clusters[i].effects[j].index,
-                        0x0001, 0, 0, 0, 0, 100, false);
+                        0x0001, 0, 0, 0, 0, 100, off_persist);
                     break;
                 }
             }
@@ -1425,18 +1456,24 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         }
 
         /*-----------------------------------------------------*\
-        | persist=true matches what the captured GHUB packet    |
-        | replay does for every mode-set on these devices. With |
-        | persist=false the firmware appears to accept the      |
-        | command without actually committing the new effect,   |
-        | which is consistent with Static (which gets prepped   |
-        | with persist=true at startup) being the only effect   |
-        | that visibly works.                                   |
+        | 0x8071/0x0600: persist=true matches what the captured |
+        | GHUB packet replay does for every mode-set on these   |
+        | devices. With persist=false the firmware appears to   |
+        | accept the command without actually committing the    |
+        | new effect, which is consistent with Static (which    |
+        | gets prepped with persist=true at startup) being the  |
+        | only effect that visibly works.                       |
+        |                                                       |
+        | 0x8070: ephemeral (persist=false) on live writes;     |
+        | DeviceSaveMode flips save_pending true to replay the  |
+        | active mode with persist=true and commit to NVM.      |
         \*-----------------------------------------------------*/
+        const bool effect_persist = is_8070 ? save_pending : true;
+
         controller->SetZoneEffect(
             caps.zone_clusters[i].index,
             current.value,
-            eff_id, r, g, b, period, brightness, true);
+            eff_id, r, g, b, period, brightness, effect_persist);
     }
 
     /*---------------------------------------------------------*\
@@ -1447,6 +1484,32 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | onUserActivity events for idle/sleep.                       |
     \*---------------------------------------------------------*/
     controller->UpgradeSwControlAfterFirstPaint();
+}
+
+void RGBController_LogitechHIDPP20::DeviceSaveMode()
+{
+    /*---------------------------------------------------------*\
+    | 0x8071/0x0600 already write persist=true on every mode    |
+    | change, so the Save button isn't exposed on those pages   |
+    | (MODE_FLAG_MANUAL_SAVE is only set for 0x8070 modes in    |
+    | the constructor). If a save ever lands here from those    |
+    | pages anyway, nothing needs doing — the active mode is    |
+    | already committed to NVM.                                 |
+    |                                                           |
+    | 0x8070: replay the active mode through DeviceUpdateMode   |
+    | with save_pending true so the zone effect writes go out   |
+    | with persist=true, committing the currently-live effect  |
+    | to flash.                                                  |
+    \*---------------------------------------------------------*/
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+    if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        return;
+    }
+
+    save_pending = true;
+    DeviceUpdateMode();
+    save_pending = false;
 }
 
 bool RGBController_LogitechHIDPP20::ReapplyActiveMode()
