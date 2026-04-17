@@ -43,6 +43,7 @@
 #define HIDPP20_FEAT_PER_KEY_LIGHTING_V1      0x8080
 #define HIDPP20_FEAT_PER_KEY_LIGHTING_V2      0x8081
 #define HIDPP20_FEAT_KEYBOARD_LAYOUT          0x4540
+#define HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE    0x4522
 #define HIDPP20_FEAT_CENTURION_RGB            0x0600
 #define HIDPP20_FEAT_CENTURION_DEVICE_INFO   0x0100
 #define HIDPP20_FEAT_CENTURION_DEVICE_NAME   0x0101
@@ -176,6 +177,7 @@ struct HIDPP20DeviceCapabilities
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
     uint8_t         idx_wireless_status;
+    uint8_t         idx_disable_keys_by_usage;  /* 0x4522 — keyboard-family handshake */
     uint16_t        rgb_feature_page;
 
     /*-------------------------------------------------*\
@@ -485,6 +487,14 @@ public:
     void            SetHostMode();
     bool            ClaimSWControlIfNeeded();
     void            UpgradeSwControlAfterFirstPaint();
+
+    /*-------------------------------------------------*\
+    | Keyboard-family handshake (0x4522 fn3 + fn1).     |
+    | G815 / G915 / G Pro send this before any mode     |
+    | write. Feature-gated no-op on devices (G502 /     |
+    | G515) that don't enumerate 0x4522.                |
+    \*-------------------------------------------------*/
+    void            DoDisableKeysByUsageHandshake();
 
     /*-------------------------------------------------*\
     | Wake-repaint flag. Set by Wake() before calling    |

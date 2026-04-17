@@ -2281,8 +2281,9 @@ bool LogitechHIDPP20Controller::Probe()
     /*---------------------------------------------------------*\
     | Discover profile management features                      |
     \*---------------------------------------------------------*/
-    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_profile_management     = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles       = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_disable_keys_by_usage  = GetFeatureIndex(HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE);
 
     /*---------------------------------------------------------*\
     | Discover RGB capabilities                                 |
@@ -2559,6 +2560,14 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
         return false;
     }
 
+    /*---------------------------------------------------------*\
+    | Keyboard-family handshake on feature 0x4522               |
+    | (DisableKeysByUsage). G815 / G915 / G Pro send this fn3 + |
+    | fn1 empty-payload pair between SetSWControl and the first |
+    | mode write. Feature-gated inside — no-op on G502 / G515.  |
+    \*---------------------------------------------------------*/
+    DoDisableKeysByUsageHandshake();
+
     SetRGBPowerMode(1);
     WritePowerConfig(idle_timeout_s, sleep_timeout_s);
     SetHostMode();
@@ -2613,6 +2622,36 @@ void LogitechHIDPP20Controller::UpgradeSwControlAfterFirstPaint()
                   LOG_TAG, result);
         /* Leave the flag set so the next frame will retry. */
     }
+}
+
+void LogitechHIDPP20Controller::DoDisableKeysByUsageHandshake()
+{
+    /*---------------------------------------------------------*\
+    | G815 / G915 / G Pro keyboards send this two-call           |
+    | handshake on feature 0x4522 (DisableKeysByUsage) before   |
+    | any mode change or per-key write. The original OpenRGB    |
+    | G815 + G915 controllers both do it in their BeginModeSet  |
+    | and InitializeDirect paths. Both payloads are empty —     |
+    | bare function calls — suggesting they're state reads      |
+    | used as a firmware sync point, not actual disable-keys    |
+    | writes (those would require a keyset in the payload).     |
+    |                                                           |
+    | Feature-gated: caps.idx_disable_keys_by_usage is only     |
+    | non-zero on devices that enumerate 0x4522. G502 and G515  |
+    | do not enumerate it, so this is a no-op on those.         |
+    \*---------------------------------------------------------*/
+    if(caps.idx_disable_keys_by_usage == 0 || !device_online.load())
+    {
+        return;
+    }
+
+    blankFAPmessage response;
+    SendAckedIntoFAP(caps.idx_disable_keys_by_usage, 0x30,
+                     nullptr, 0, response, HIDPP20_POLICY_PROBE);
+    SendAckedIntoFAP(caps.idx_disable_keys_by_usage, 0x10,
+                     nullptr, 0, response, HIDPP20_POLICY_PROBE);
+
+    LOG_DEBUG("%s 0x4522 DisableKeysByUsage handshake sent (fn3 + fn1)", LOG_TAG);
 }
 
 /*---------------------------------------------------------*\
@@ -3421,12 +3460,13 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     caps.effect_card_template[1] = 0;
     caps.zone_clusters.clear();
     caps.perkey_zone_ids.clear();
-    caps.idx_rgb_effects       = 0;
-    caps.idx_perkey_v2          = 0;
-    caps.idx_perkey_v1          = 0;
-    caps.idx_profile_management = 0;
-    caps.idx_onboard_profiles   = 0;
-    caps.fn_set_effect          = 0;
+    caps.idx_rgb_effects           = 0;
+    caps.idx_perkey_v2              = 0;
+    caps.idx_perkey_v1              = 0;
+    caps.idx_profile_management     = 0;
+    caps.idx_onboard_profiles       = 0;
+    caps.idx_disable_keys_by_usage  = 0;
+    caps.fn_set_effect              = 0;
     caps.fn_sw_control          = 0;
     caps.fn_pwr_config          = 0;
     caps.fn_pwr_mode            = 0;
@@ -3473,8 +3513,9 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     /*---------------------------------------------------------*\
     | Discover RGB features                                     |
     \*---------------------------------------------------------*/
-    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_profile_management     = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles       = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_disable_keys_by_usage  = GetFeatureIndex(HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE);
 
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
@@ -3616,13 +3657,14 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     caps.effect_card_template[1] = 0;
     caps.zone_clusters.clear();
     caps.perkey_zone_ids.clear();
-    caps.idx_rgb_effects        = 0;
-    caps.idx_perkey_v2           = 0;
-    caps.idx_perkey_v1           = 0;
-    caps.idx_wireless_status     = 0;
-    caps.idx_profile_management  = 0;
-    caps.idx_onboard_profiles    = 0;
-    caps.fn_set_effect           = 0;
+    caps.idx_rgb_effects            = 0;
+    caps.idx_perkey_v2               = 0;
+    caps.idx_perkey_v1               = 0;
+    caps.idx_wireless_status         = 0;
+    caps.idx_profile_management      = 0;
+    caps.idx_onboard_profiles        = 0;
+    caps.idx_disable_keys_by_usage   = 0;
+    caps.fn_set_effect               = 0;
     caps.fn_sw_control           = 0;
     caps.fn_pwr_config           = 0;
     caps.fn_pwr_mode             = 0;
@@ -3665,9 +3707,10 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     DiscoverDeviceType();
     DiscoverFirmwareInfo();
 
-    caps.idx_profile_management = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
-    caps.idx_onboard_profiles   = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
-    caps.idx_wireless_status    = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
+    caps.idx_profile_management     = GetFeatureIndex(HIDPP20_FEAT_PROFILE_MANAGEMENT);
+    caps.idx_onboard_profiles       = GetFeatureIndex(HIDPP20_FEAT_ONBOARD_PROFILES);
+    caps.idx_wireless_status        = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
+    caps.idx_disable_keys_by_usage  = GetFeatureIndex(HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE);
 
     DiscoverRGBEffects();
     DiscoverPerKeyZones();
