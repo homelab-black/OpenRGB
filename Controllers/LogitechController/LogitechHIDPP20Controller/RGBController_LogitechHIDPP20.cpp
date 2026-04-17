@@ -960,11 +960,25 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
 
         if(needs_prep && caps.has_zone_effects)
         {
+            bool shape_matches_keyboard_family =
+                caps.idx_disable_keys_by_usage != 0
+                && caps.idx_perkey_v2 != 0
+                && caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS;
+
             bool shape_matches_observed_prep =
                 caps.has_effect_cards
                 && caps.rgb_feature_page == HIDPP20_FEAT_RGB_EFFECTS;
 
-            if(shape_matches_observed_prep)
+            if(shape_matches_keyboard_family)
+            {
+                /*---------------------------------------------*\
+                | G815 / G915 / G Pro: per-cluster Off + primer |
+                | key + FrameEnd. Matches their legacy          |
+                | InitializeDirect wire sequence.               |
+                \*---------------------------------------------*/
+                controller->DoKeyboardFamilyPerKeyPrep();
+            }
+            else if(shape_matches_observed_prep)
             {
                 controller->DoObservedPerKeyPrep();
             }

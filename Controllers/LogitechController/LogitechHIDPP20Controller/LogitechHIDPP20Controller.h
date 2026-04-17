@@ -497,6 +497,15 @@ public:
     void            DoDisableKeysByUsageHandshake();
 
     /*-------------------------------------------------*\
+    | Keyboard-family per-key takeover prep.             |
+    | Per-cluster SetEffectByIndex(effectIdx=0=Off,     |
+    | persist=1) + primer key via SetIndividualRgbZones |
+    | + FrameEnd. Matches G815 / G915 InitializeDirect. |
+    | Gated on 0x4522 + per-key V2 presence.            |
+    \*-------------------------------------------------*/
+    void            DoKeyboardFamilyPerKeyPrep();
+
+    /*-------------------------------------------------*\
     | Wake-repaint flag. Set by Wake() before calling    |
     | request_repaint_fn so the repaint callback knows   |
     | to invalidate sent_colors (force a full per-key    |
