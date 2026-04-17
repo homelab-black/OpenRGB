@@ -1535,6 +1535,25 @@ void LogitechHIDPP20Controller::DiscoverFirmwareInfo()
 
             LOG_DEBUG("%s unitId=%s PID1=0x%04X PID2=0x%04X",
                       LOG_TAG, caps.unit_id.c_str(), caps.pid_wireless, caps.pid_wired);
+
+            /*-------------------------------------------------*\
+            | Resolve per-model quirks from the PID pair.        |
+            \*-------------------------------------------------*/
+            caps.quirks = 0;
+
+            for(const auto& q : HIDPP20_DEVICE_QUIRK_TABLE)
+            {
+                if((q.pid_wireless != 0 && q.pid_wireless == caps.pid_wireless) ||
+                   (q.pid_wired    != 0 && q.pid_wired    == caps.pid_wired))
+                {
+                    caps.quirks |= q.quirks;
+                }
+            }
+
+            if(caps.quirks != 0)
+            {
+                LOG_DEBUG("%s Device quirks: 0x%08X", LOG_TAG, caps.quirks);
+            }
         }
     }
 
@@ -2541,7 +2560,12 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     }
 
     SetRGBPowerMode(1);
+    WritePowerConfig(idle_timeout_s, sleep_timeout_s);
     SetHostMode();
+    WritePowerConfig(idle_timeout_s, sleep_timeout_s);
+
+    written_idle_s  = idle_timeout_s;
+    written_sleep_s = sleep_timeout_s;
 
     sw_control_claimed            = true;
     sw_control_needs_upgrade_to_5 = true;
@@ -4515,6 +4539,17 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
         ps_dim_target_pct = DIM_TARGET_PCT;
         ps_sleep_enabled  = true;
 
+        /*-----------------------------------------------------*\
+        | Restore firmware defaults on the device if we          |
+        | previously wrote custom values from a plugin profile.  |
+        \*-----------------------------------------------------*/
+        if(written_idle_s != fw_idle_timeout_s || written_sleep_s != fw_sleep_timeout_s)
+        {
+            WritePowerConfig(fw_idle_timeout_s, fw_sleep_timeout_s);
+            written_idle_s  = fw_idle_timeout_s;
+            written_sleep_s = fw_sleep_timeout_s;
+        }
+
         if(prev_dim   != ps_dim_enabled      || prev_sleep != ps_sleep_enabled ||
            ps_last_logged_pct      != ps_dim_target_pct    ||
            ps_last_logged_idle     != (int)idle_timeout_s  ||
@@ -4562,6 +4597,19 @@ void LogitechHIDPP20Controller::ApplyPowerSavingProfile()
         | branch of PowerThreadFunc gates on sleep_timeout_s>0.  |
         \*-----------------------------------------------------*/
         sleep_timeout_s = 0;
+    }
+
+    /*---------------------------------------------------------*\
+    | Write our timer values to the device RAM so the firmware's |
+    | idle detection aligns with our host-side state machine.    |
+    | Only writes when values actually change to avoid spamming  |
+    | the bus on every 500ms poll tick.                          |
+    \*---------------------------------------------------------*/
+    if(idle_timeout_s != written_idle_s || sleep_timeout_s != written_sleep_s)
+    {
+        WritePowerConfig(idle_timeout_s, sleep_timeout_s);
+        written_idle_s  = idle_timeout_s;
+        written_sleep_s = sleep_timeout_s;
     }
 
     if(prev_dim   != ps_dim_enabled      || prev_sleep != ps_sleep_enabled ||
@@ -4781,15 +4829,29 @@ void LogitechHIDPP20Controller::StartSleep()
     /*---------------------------------------------------------*\
     | SetRgbPowerMode(3) = firmware-managed fade to off.         |
     | The firmware handles the fade internally.                  |
+    |                                                           |
+    | Set power_state BEFORE sending the command so that         |
+    | DeviceUpdateLEDs sees SLEEPING and stops pushing frames    |
+    | before the sleep command hits the wire. On devices with    |
+    | SLEEP_SUPPRESSES_FRAMES (e.g. G502 X PLUS), a per-key     |
+    | write arriving after SetRgbPowerMode(3) would immediately  |
+    | wake the device, cancelling the sleep.                     |
     \*---------------------------------------------------------*/
     LOG_DEBUG("%s Entering sleep (SetRgbPowerMode 3)", LOG_TAG);
 
+    power_state = HIDPP20_POWER_SLEEPING;
+
     uint8_t data[3] = { 0x01, 0x03, 0x00 };
     blankFAPmessage response;
-    SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
-                     data, 3, response);
+    int result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_pwr_mode,
+                                  data, 3, response);
 
-    power_state = HIDPP20_POWER_SLEEPING;
+    if(result <= 0)
+    {
+        LOG_DEBUG("%s SetRgbPowerMode(3) failed after retries (result=%d), "
+                  "reverting to IDLE", LOG_TAG, result);
+        power_state = HIDPP20_POWER_IDLE;
+    }
 }
 
 void LogitechHIDPP20Controller::Wake()
@@ -4910,10 +4972,16 @@ void LogitechHIDPP20Controller::ReadFirmwareTimers()
             fw_sleep_timeout_s = sleep;
         }
 
+        written_idle_s  = idle;
+        written_sleep_s = sleep;
+
         LOG_TRACE("%s Firmware timers: idle=%us sleep=%us", LOG_TAG, idle_timeout_s, sleep_timeout_s);
     }
     else
     {
+        written_idle_s  = idle_timeout_s;
+        written_sleep_s = sleep_timeout_s;
+
         LOG_DEBUG("%s Failed to read firmware timers, using defaults (idle=%us sleep=%us)",
                   LOG_TAG, idle_timeout_s, sleep_timeout_s);
     }

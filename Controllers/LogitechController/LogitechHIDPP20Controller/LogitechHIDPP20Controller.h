@@ -124,6 +124,28 @@ struct HIDPP20ZoneCluster
 };
 
 /*-----------------------------------------------------*\
+| Per-model device quirks — behavioral differences that |
+| can't be detected via feature probing.                |
+\*-----------------------------------------------------*/
+enum HIDPP20DeviceQuirks : uint32_t
+{
+    HIDPP20_QUIRK_NONE                    = 0,
+    HIDPP20_QUIRK_SLEEP_SUPPRESSES_FRAMES = (1 << 0),  // per-key writes during firmware fade wake the device
+};
+
+struct HIDPP20DeviceQuirkEntry
+{
+    uint16_t    pid_wireless;
+    uint16_t    pid_wired;
+    uint32_t    quirks;
+};
+
+static constexpr HIDPP20DeviceQuirkEntry HIDPP20_DEVICE_QUIRK_TABLE[] =
+{
+    { 0x4099, 0xC095, HIDPP20_QUIRK_SLEEP_SUPPRESSES_FRAMES },  // G502 X PLUS
+};
+
+/*-----------------------------------------------------*\
 | Device capabilities discovered via feature probing    |
 \*-----------------------------------------------------*/
 struct HIDPP20DeviceCapabilities
@@ -135,6 +157,7 @@ struct HIDPP20DeviceCapabilities
     std::string     unit_id;            // stable hardware ID (from FirmwareInfo fn0)
     uint16_t        pid_wireless;       // wireless virtual PID (from FirmwareInfo fn0)
     uint16_t        pid_wired;          // wired USB PID (from FirmwareInfo fn0)
+    uint32_t        quirks;             // resolved from HIDPP20_DEVICE_QUIRK_TABLE after PID discovery
 
     /*-------------------------------------------------*\
     | Complete feature map (feature_id → runtime index) |
@@ -756,6 +779,8 @@ private:
     \*-------------------------------------------------*/
     uint16_t        fw_idle_timeout_s   = 60;
     uint16_t        fw_sleep_timeout_s  = 300;
+    uint16_t        written_idle_s      = 0;    // last value written to device RAM (0 = not written yet)
+    uint16_t        written_sleep_s     = 0;
 
     /*-------------------------------------------------*\
     | Host-side idle/dim/sleep state.                    |
