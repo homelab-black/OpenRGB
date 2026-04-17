@@ -2778,6 +2778,75 @@ void LogitechHIDPP20Controller::DoObservedPerKeyPrep()
               num_effects, num_effects);
 }
 
+void LogitechHIDPP20Controller::DoKeyboardFamilyPerKeyPrep()
+{
+    /*---------------------------------------------------------*\
+    | G815 / G915 / G Pro per-key takeover prep, cloned from    |
+    | the InitializeDirect sequence in their legacy OpenRGB     |
+    | controllers. Three steps after the claim-time 0x4522      |
+    | handshake (which fires from ClaimSWControlIfNeeded):      |
+    |                                                           |
+    |   1. For each enumerated cluster, SetEffectByIndex with   |
+    |      effectIdx=0 (Off) and persist=1. This deactivates    |
+    |      the firmware effect engine per-cluster — different   |
+    |      from the G515 static-black fallback, which leaves    |
+    |      the effect engine running with a black static color. |
+    |                                                           |
+    |   2. Send a primer SetIndividualRgbZones write covering   |
+    |      one zone (the first enumerated) at black. G915 uses  |
+    |      Escape specifically; we use the first enumerated     |
+    |      zone for portability.                                |
+    |                                                           |
+    |   3. FrameEnd, so the primer write commits and the        |
+    |      per-key layer becomes the visible output.            |
+    |                                                           |
+    | Gate (caller's responsibility): feature 0x4522 present    |
+    | AND per-key V2 feature present. G502 / G515 fail the      |
+    | 0x4522 side; older keyboards without 0x8081 fail the      |
+    | per-key side.                                             |
+    \*---------------------------------------------------------*/
+    if(caps.idx_rgb_effects == 0 || caps.idx_perkey_v2 == 0 || !device_online.load())
+    {
+        return;
+    }
+
+    for(size_t i = 0; i < caps.zone_clusters.size(); i++)
+    {
+        uint8_t cluster_off[16] =
+        {
+            caps.zone_clusters[i].index, 0x00,          /* cluster, effectIdx=0 (Off) */
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+            0x01,                                       /* persist */
+            0x00, 0x00, 0x00
+        };
+        blankFAPmessage cluster_resp;
+        SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
+                         cluster_off, 16, cluster_resp);
+    }
+
+    if(caps.perkey_zone_ids.empty())
+    {
+        LOG_DEBUG("%s DoKeyboardFamilyPerKeyPrep: no per-key zones enumerated, "
+                  "skipping primer key", LOG_TAG);
+        return;
+    }
+
+    uint8_t primer_zone = (uint8_t)(caps.perkey_zone_ids[0] & 0xFF);
+    uint8_t primer[4]   = { primer_zone, 0x00, 0x00, 0x00 };
+
+    std::vector<uint8_t> primer_zones;
+    primer_zones.push_back(primer_zone);
+    SendPerKeyData(caps.idx_perkey_v2, FN_8081_SET_INDIVIDUAL,
+                   primer, 4, primer_zones);
+
+    PerKeyFrameEnd();
+
+    LOG_DEBUG("%s DoKeyboardFamilyPerKeyPrep: %zu clusters -> Off, "
+              "primer zone=0x%02X, FrameEnd committed",
+              LOG_TAG, caps.zone_clusters.size(), primer_zone);
+}
+
 /*---------------------------------------------------------*\
 | Retry-paint scheduling                                    |
 |                                                           |
