@@ -52,6 +52,7 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->frame_counter                = 0;
     this->retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
     this->retry_paint_attempt_.store(0);
+    this->wake_full_repaint_pending_.store(false);
     this->init_generation      = 0;
     this->log_tag              = "[HID++ " + std::string(path) + "]";
     this->reader_thread        = nullptr;
@@ -4827,10 +4828,17 @@ void LogitechHIDPP20Controller::Wake()
     | reconnects where the device was fully re-enumerated and    |
     | needs the complete claim + prep + mode re-establishment.   |
     \*---------------------------------------------------------*/
+    wake_full_repaint_pending_.store(true);
+
     if(request_repaint_fn)
     {
         request_repaint_fn();
     }
+}
+
+bool LogitechHIDPP20Controller::ConsumeWakeFullRepaint()
+{
+    return wake_full_repaint_pending_.exchange(false);
 }
 
 void LogitechHIDPP20Controller::ReadFirmwareTimers()
