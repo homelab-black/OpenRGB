@@ -1,11 +1,11 @@
-/*---------------------------------------------------------*\
+/*-----------------------------------------------------------*\
 | RGBController_LogitechHIDPP20.cpp                           |
-|                                                           |
-|   RGBController for unified Logitech HID++ 2.0 devices   |
-|                                                           |
-|   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-or-later               |
-\*---------------------------------------------------------*/
+|                                                             |
+|   RGBController for unified Logitech HID++ 2.0 devices      |
+|                                                             |
+|   This file is part of the OpenRGB project                  |
+|   SPDX-License-Identifier: GPL-2.0-or-later                 |
+\*-----------------------------------------------------------*/
 
 #include <map>
 #include <set>
@@ -16,15 +16,15 @@
 #include "KeyboardLayoutManager.h"
 #include "LogManager.h"
 
-/*---------------------------------------------------------*\
-| Sentinel for "this LED's last write didn't ACK".          |
-| Stored in sent_colors[i] to force the next frame to       |
-| re-push the LED regardless of color delta. The high byte  |
-| 0xFF is unreachable from any ToRGBColor(r,g,b) value      |
-| (those have high byte 0), so the sentinel never collides  |
-| with a real color including black (0x00000000) or         |
+/*----------------------------------------------------------*\
+| Sentinel for "this LED's last write didn't ACK".           |
+| Stored in sent_colors[i] to force the next frame to        |
+| re-push the LED regardless of color delta. The high byte   |
+| 0xFF is unreachable from any ToRGBColor(r,g,b) value       |
+| (those have high byte 0), so the sentinel never collides   |
+| with a real color including black (0x00000000) or          |
 | white (0x00FFFFFF).                                        |
-\*---------------------------------------------------------*/
+\*----------------------------------------------------------*/
 static constexpr RGBColor HIDPP20_UNCOMMITTED = 0xFF000000;
 
 /*---------------------------------------------------------*\
@@ -205,10 +205,10 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
     { KEY_EN_RIGHT_FUNCTION, 111  },
     { KEY_EN_MENU,            98  },
 
-    /*-----------------------------------------------------*\
+    /*------------------------------------------------------*\
     | Numpad zones (Solaar KEYCODES 80-96).                  |
     | Required for any full-size HID++ keyboard.             |
-    \*-----------------------------------------------------*/
+    \*------------------------------------------------------*/
     { KEY_EN_NUMPAD_LOCK,     80  },
     { KEY_EN_NUMPAD_DIVIDE,   81  },
     { KEY_EN_NUMPAD_TIMES,    82  },
@@ -236,12 +236,12 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
     { KEY_EN_RIGHT_ALT,      110  },
     { KEY_EN_RIGHT_WINDOWS,  111  },
 
-    /*-----------------------------------------------------*\
+    /*------------------------------------------------------*\
     | G915 (and similar) out-of-KLM LEDs.                    |
     | Zone IDs from Solaar KEYCODES. Names match the legacy  |
     | G915 controller so existing users don't see their LED  |
     | labels change when they move onto the unified driver.  |
-    \*-----------------------------------------------------*/
+    \*------------------------------------------------------*/
     { "Key: Brightness",            153 },
     { KEY_EN_MEDIA_PLAY_PAUSE,      155 },
     { KEY_EN_MEDIA_MUTE,            156 },
@@ -295,7 +295,7 @@ static const MouseLayout known_mouse_layouts[] =
     { "G502 X",  3, 7, 8, g502x_map, g502x_led_names },
     /*-------------------------------------------------------*\
     | Add new mice here:                                      |
-    | { "G PRO X", rows, cols, count, map_ptr, names_ptr },  |
+    | { "G PRO X", rows, cols, count, map_ptr, names_ptr },   |
     \*-------------------------------------------------------*/
     { nullptr, 0, 0, 0, nullptr, nullptr }
 };
@@ -346,13 +346,13 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
             break;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Build mode list from discovered capabilities               |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Direct mode: per-key control via 0x8081                    |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     if(caps.has_perkey)
     {
         mode Direct;
@@ -363,9 +363,9 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         modes.push_back(Direct);
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Off mode: always available                                 |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     {
         mode Off;
         Off.name       = "Off";
@@ -375,11 +375,11 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         modes.push_back(Off);
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Effect modes from zone cluster discovery                   |
-    | Scan effects from the first cluster (effects are usually  |
+    | Scan effects from the first cluster (effects are usually   |
     | the same across clusters)                                  |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     if(caps.has_zone_effects && !caps.zone_clusters.empty())
     {
         const HIDPP20ZoneCluster& cluster = caps.zone_clusters[0];
@@ -543,11 +543,11 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
 
     SetupZones();
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Register repaint callback and start power manager.         |
     | The callback triggers DeviceUpdateLEDs from the power      |
     | thread for dim/wake when no animation is driving updates.  |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     controller->SetRepaintCallback(
         [this]()
         {
@@ -595,11 +595,11 @@ void RGBController_LogitechHIDPP20::SetupZones()
     {
         if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
         {
-            /*-------------------------------------------------*\
+            /*--------------------------------------------------*\
             | Keyboard: use KeyboardLayoutManager for matrix     |
             | layout. Derive size from numpad presence, layout   |
             | from 0x4540 KeyboardLayout feature.                |
-            \*-------------------------------------------------*/
+            \*--------------------------------------------------*/
             KEYBOARD_SIZE kb_size = caps.has_numpad
                                   ? KEYBOARD_SIZE_FULL
                                   : KEYBOARD_SIZE_TKL;
@@ -693,17 +693,17 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 }
             }
 
-            /*-------------------------------------------------*\
-            | Extras candidates: zones reported by the device   |
-            | that aren't claimed by KLM AND have a known name  |
+            /*---------------------------------------------------*\
+            | Extras candidates: zones reported by the device     |
+            | that aren't claimed by KLM AND have a known name    |
             | in hidpp20_key_name_to_zone. We deliberately DROP   |
-            | unnamed zones — firmware-side GetInfo bitmaps     |
-            | enumerate phantom/reserved slots (G515 reports    |
-            | 47, 97, 99-103, 254 among others) that aren't    |
-            | wired to physical LEDs. Exposing them as "LED N"  |
-            | created ghost entries in the GUI. Treat           |
+            | unnamed zones — firmware-side GetInfo bitmaps       |
+            | enumerate phantom/reserved slots (G515 reports      |
+            | 47, 97, 99-103, 254 among others) that aren't       |
+            | wired to physical LEDs. Exposing them as "LED N"    |
+            | created ghost entries in the GUI. Treat             |
             | hidpp20_key_name_to_zone as the curated allowlist.  |
-            \*-------------------------------------------------*/
+            \*---------------------------------------------------*/
             std::vector<std::pair<uint16_t, std::string>> extras;
             for(uint16_t zid : caps.perkey_zone_ids)
             {
@@ -756,9 +756,9 @@ void RGBController_LogitechHIDPP20::SetupZones()
         }
         else if(const MouseLayout* ml = FindMouseLayout(caps.device_name))
         {
-            /*-------------------------------------------------*\
+            /*--------------------------------------------------*\
             | Known mouse: use table-defined matrix layout       |
-            \*-------------------------------------------------*/
+            \*--------------------------------------------------*/
             zone perkey_zone;
             perkey_zone.name       = "Mouse LEDs";
             perkey_zone.type       = ZONE_TYPE_MATRIX;
@@ -811,9 +811,9 @@ void RGBController_LogitechHIDPP20::SetupZones()
     }
     else if(caps.has_zone_effects)
     {
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | No per-key: create one zone per cluster                |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         for(size_t i = 0; i < caps.zone_clusters.size(); i++)
         {
             const HIDPP20ZoneCluster& cluster = caps.zone_clusters[i];
@@ -840,7 +840,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
     | Build the zone_id -> LED index reverse map. Indexed       |
     | 0..255 (zone IDs are bytes); -1 marks "no LED for this    |
     | zone". Used by the FrameEnd commit step to translate the  |
-    | acked_zones list back into LED indices for sent_colors.  |
+    | acked_zones list back into LED indices for sent_colors.   |
     \*---------------------------------------------------------*/
     zone_id_to_led_idx.assign(256, -1);
 
@@ -867,33 +867,33 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         return;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Ensure SW control is claimed on first actual color push.   |
     | Safe here because we have real colors in the buffer.       |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     controller->ClaimSWControlIfNeeded();
 
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Frame suppression during SLEEPING has two layers:          |
-    |                                                           |
-    | 1. Quirk-based: devices with SLEEP_SUPPRESSES_FRAMES     |
-    |    (e.g. G502 X PLUS) wake on per-key writes during the  |
-    |    firmware fade, cancelling SetRgbPowerMode(3) before    |
-    |    the fade completes. For these devices we suppress      |
-    |    frames immediately when power_state == SLEEPING.       |
-    |                                                           |
-    | 2. Deep-sleep: devices WITHOUT the quirk (e.g. G515 LS   |
-    |    TKL) tolerate per-key writes during the fade — frames  |
-    |    flow through without disrupting it. But once the fade  |
-    |    completes and the device enters deep sleep, it returns |
-    |    BUSY to every FrameEnd. The controller tracks          |
-    |    consecutive failures and sets deep_sleep once the      |
-    |    threshold is hit.                                      |
-    |                                                           |
-    | Both paths suppress until Wake() clears the state.        |
-    \*---------------------------------------------------------*/
+    |                                                            |
+    | 1. Quirk-based: devices with SLEEP_SUPPRESSES_FRAMES       |
+    |    (e.g. G502 X PLUS) wake on per-key writes during the    |
+    |    firmware fade, cancelling SetRgbPowerMode(3) before     |
+    |    the fade completes. For these devices we suppress       |
+    |    frames immediately when power_state == SLEEPING.        |
+    |                                                            |
+    | 2. Deep-sleep: devices WITHOUT the quirk (e.g. G515 LS     |
+    |    TKL) tolerate per-key writes during the fade — frames   |
+    |    flow through without disrupting it. But once the fade   |
+    |    completes and the device enters deep sleep, it returns  |
+    |    BUSY to every FrameEnd. The controller tracks           |
+    |    consecutive failures and sets deep_sleep once the       |
+    |    threshold is hit.                                       |
+    |                                                            |
+    | Both paths suppress until Wake() clears the state.         |
+    \*----------------------------------------------------------*/
     if(controller->IsDeepSleep())
     {
         return;
@@ -910,10 +910,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     {
         uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Detect re-initialization (reconnect, wake from sleep). |
         | Device state is unknown — force full resend.           |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         uint32_t gen = controller->GetInitGeneration();
 
         if(gen != last_init_gen)
@@ -922,40 +922,40 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             last_init_gen = gen;
         }
 
-        /*-----------------------------------------------------*\
-        | Per-key prep call. Two paths, selected by a runtime   |
-        | capability probe at feature-discovery time:           |
-        |                                                       |
-        | (A) Observed prep via DoObservedPerKeyPrep — two       |
-        |     SetEffectByIndex calls on 0x8071 cloned from       |
-        |     LGHUB's wire behavior. The template bytes at      |
-        |     prep1 params[6..7] and the effectIdx at prep2 are  |
-        |     parameterized from device-discovery results       |
-        |     (caps.effect_card_template[], and                  |
-        |     caps.zone_clusters[0].effects.size() respectively)|
-        |     so the same code adapts to any device that shares  |
-        |     the G502-family prep pattern.                      |
-        |                                                       |
-        |     Gated on caps.has_effect_cards, which is set by   |
-        |     DiscoverEffectCards iff the device responds       |
-        |     successfully to GetEffectSpecificInfo. Devices    |
-        |     without firmware effect cards leave this false     |
-        |     and fall through to path (B).                      |
-        |                                                       |
-        | (B) Static-pass-through prep (original fork behavior, |
-        |     doc-verified on G515) — applied when the device   |
-        |     has no effect cards or uses 0x8070 / 0x0600       |
-        |     instead of 0x8071. SetEffect cluster=0xFF,         |
-        |     effect=Static, RGB=(0,0,0), no fixed-color marker,|
-        |     persist=1.                                         |
-        |                                                       |
-        | An earlier revision used `effects.size() < 5` as a     |
-        | heuristic proxy for "G502-shaped" devices. The proxy   |
-        | accidentally correlated with "has effect cards" on    |
-        | the two devices we knew about but had no principled   |
-        | meaning — it's been replaced with the direct capability|
-        | probe.                                                 |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------------*\
+        | Per-key prep call. Two paths, selected by a runtime     |
+        | capability probe at feature-discovery time:             |
+        |                                                         |
+        | (A) Observed prep via DoObservedPerKeyPrep — two        |
+        |     SetEffectByIndex calls on 0x8071 cloned from        |
+        |     LGHUB's wire behavior. The template bytes at        |
+        |     prep1 params[6..7] and the effectIdx at prep2 are   |
+        |     parameterized from device-discovery results         |
+        |     (caps.effect_card_template[], and                   |
+        |     caps.zone_clusters[0].effects.size() respectively)  |
+        |     so the same code adapts to any device that shares   |
+        |     the G502-family prep pattern.                       |
+        |                                                         |
+        |     Gated on caps.has_effect_cards, which is set by     |
+        |     DiscoverEffectCards iff the device responds         |
+        |     successfully to GetEffectSpecificInfo. Devices      |
+        |     without firmware effect cards leave this false      |
+        |     and fall through to path (B).                       |
+        |                                                         |
+        | (B) Static-pass-through prep (original fork behavior,   |
+        |     doc-verified on G515) — applied when the device     |
+        |     has no effect cards or uses 0x8070 / 0x0600         |
+        |     instead of 0x8071. SetEffect cluster=0xFF,          |
+        |     effect=Static, RGB=(0,0,0), no fixed-color marker,  |
+        |     persist=1.                                          |
+        |                                                         |
+        | An earlier revision used `effects.size() < 5` as a      |
+        | heuristic proxy for "G502-shaped" devices. The proxy    |
+        | accidentally correlated with "has effect cards" on      |
+        | the two devices we knew about but had no principled     |
+        | meaning — it's been replaced with the direct capability |
+        | probe.                                                  |
+        \*-------------------------------------------------------*/
         bool needs_prep = controller->NeedsPrepSequence();
 
         if(needs_prep && caps.has_zone_effects)
@@ -1006,17 +1006,17 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Snapshot colors to avoid races with effects updating   |
         | the colors array while we're sending.                  |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         std::vector<RGBColor> snapshot(colors.begin(), colors.end());
 
-        /*-----------------------------------------------------*\
-        | Apply dim brightness scaling if not at full brightness.|
-        | This modifies the OUTPUT only — the internal colors[]  |
-        | buffer stays at full brightness for the animation.     |
-        \*-----------------------------------------------------*/
+        /*-------------------------------------------------------*\
+        | Apply dim brightness scaling if not at full brightness. |
+        | This modifies the OUTPUT only — the internal colors[]   |
+        | buffer stays at full brightness for the animation.      |
+        \*-------------------------------------------------------*/
         int brightness = controller->GetDimBrightness();
 
         if(brightness < 100)
@@ -1030,10 +1030,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Compute delta against last committed state.            |
         | First call (sent_colors empty) sends everything.       |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         bool full_update = (sent_colors.size() != snapshot.size());
 
         std::map<RGBColor, std::vector<uint8_t>> color_to_zones;
@@ -1064,7 +1064,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         \*-----------------------------------------------------*/
         controller->FlushResponseQueue();
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Batch changed keys for efficient wire encoding.        |
         |                                                        |
         | For same-color groups (>= 2 keys):                     |
@@ -1075,8 +1075,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         |     [R, G, B, zid, zid, ...] up to 13 per packet       |
         |                                                        |
         | For single-occurrence colors:                          |
-        |   fn1 (SET_INDIVIDUAL): [zid,R,G,B] × 4 per packet    |
-        \*-----------------------------------------------------*/
+        |   fn1 (SET_INDIVIDUAL): [zid,R,G,B] × 4 per packet     |
+        \*------------------------------------------------------*/
         std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
 
         for(auto& entry : color_to_zones)
@@ -1090,9 +1090,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                 uint8_t g = RGBGetGValue(color);
                 uint8_t b = RGBGetBValue(color);
 
-                /*-------------------------------------------------*\
+                /*--------------------------------------------------*\
                 | Sort zone IDs and extract contiguous runs for fn5  |
-                \*-------------------------------------------------*/
+                \*--------------------------------------------------*/
                 std::sort(zone_ids.begin(), zone_ids.end());
 
                 std::vector<std::pair<uint8_t, uint8_t>> ranges;
@@ -1123,11 +1123,11 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                     run_start = i;
                 }
 
-                /*-------------------------------------------------*\
+                /*--------------------------------------------------*\
                 | fn5 (SET_RANGE): 3 range entries per packet.       |
                 | Track every zone in each packet's ranges so the    |
                 | FrameEnd ACK matcher can mark them committed.      |
-                \*-------------------------------------------------*/
+                \*--------------------------------------------------*/
                 for(size_t i = 0; i < ranges.size(); i += 3)
                 {
                     uint8_t              data[16] = {};
@@ -1154,10 +1154,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                                                data, batch * 5, packet_zones);
                 }
 
-                /*-------------------------------------------------*\
+                /*--------------------------------------------------*\
                 | fn6 (SET_SINGLE_VALUE) for remaining scattered.    |
                 | Track the listed zone IDs in each packet.          |
-                \*-------------------------------------------------*/
+                \*--------------------------------------------------*/
                 for(size_t i = 0; i < scattered.size(); i += 13)
                 {
                     uint8_t              data[16] = {};
@@ -1228,8 +1228,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             controller->UpgradeSwControlAfterFirstPaint();
         }
 
-        /*-----------------------------------------------------*\
-        | Retry scheduling — ONLY on the critical first paint   |
+        /*------------------------------------------------------*\
+        | Retry scheduling — ONLY on the critical first paint    |
         | after a fresh claim (needs_prep == true). Streaming    |
         | animation frames regularly partial-commit due to       |
         | fire-and-forget timing, and the delta carry-over       |
@@ -1239,12 +1239,12 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         | TickRetryPaintIfPending to fire request_repaint_fn     |
         | between animation frames, colliding with the animation |
         | loop and producing visible stalls.                     |
-        |                                                       |
+        |                                                        |
         | For the first-paint-after-claim case (needs_prep),     |
         | there IS no "next animation frame" guaranteed, so the  |
         | retry is the only mechanism to recover from a partial  |
         | commit during the reconnect-transient window.          |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         if(full_commit || !needs_prep)
         {
             controller->CancelRetryPaint();
@@ -1254,18 +1254,18 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             controller->ScheduleRetryPaint();
         }
 
-        /*-----------------------------------------------------*\
-        | Ensure sent_colors is sized to the snapshot before    |
-        | the commit loop writes by index. On the first frame   |
-        | (or after a reinit clear) sent_colors is empty, and   |
-        | the per-zone writes below would silently no-op,       |
-        | leaving sent_colors empty and re-firing the prep call |
-        | on every subsequent frame.                            |
-        |                                                       |
+        /*-------------------------------------------------------*\
+        | Ensure sent_colors is sized to the snapshot before      |
+        | the commit loop writes by index. On the first frame     |
+        | (or after a reinit clear) sent_colors is empty, and     |
+        | the per-zone writes below would silently no-op,         |
+        | leaving sent_colors empty and re-firing the prep call   |
+        | on every subsequent frame.                              |
+        |                                                         |
         | Initial fill is HIDPP20_UNCOMMITTED so any LED that we  |
-        | did not touch this frame stays "uncommitted" and gets |
-        | scheduled for the next delta.                         |
-        \*-----------------------------------------------------*/
+        | did not touch this frame stays "uncommitted" and gets   |
+        | scheduled for the next delta.                           |
+        \*-------------------------------------------------------*/
         if(sent_colors.size() != snapshot.size())
         {
             sent_colors.assign(snapshot.size(), HIDPP20_UNCOMMITTED);
@@ -1279,13 +1279,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
 
         if(commit.frame_end_acked)
         {
-            /*-------------------------------------------------*\
-            | Frame end ACKed: any zone whose write packet also  |
-            | ACKed is now committed — advance sent_colors for   |
-            | that LED. Any zone we attempted but never saw an   |
+            /*----------------------------------------------------*\
+            | Frame end ACKed: any zone whose write packet also    |
+            | ACKed is now committed — advance sent_colors for     |
+            | that LED. Any zone we attempted but never saw an     |
             | ACK for goes to HIDPP20_UNCOMMITTED so the next      |
-            | frame's delta picks it up.                         |
-            \*-------------------------------------------------*/
+            | frame's delta picks it up.                           |
+            \*----------------------------------------------------*/
             for(uint8_t zid : commit.attempted_zones)
             {
                 int led_idx = zone_id_to_led_idx[zid];
@@ -1306,14 +1306,14 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         }
         else
         {
-            /*-------------------------------------------------*\
-            | Frame end timed out: we don't know what the device |
+            /*---------------------------------------------------*\
+            | Frame end timed out: we don't know what the device  |
             | committed. Mark every attempted LED uncommitted so  |
-            | the next frame re-pushes them all. Don't bother    |
-            | with the per-zone ACK info here — if FrameEnd      |
-            | didn't land, the per-key writes that did ACK still |
-            | sit in the staging buffer un-swapped.              |
-            \*-------------------------------------------------*/
+            | the next frame re-pushes them all. Don't bother     |
+            | with the per-zone ACK info here — if FrameEnd       |
+            | didn't land, the per-key writes that did ACK still  |
+            | sit in the staging buffer un-swapped.               |
+            \*---------------------------------------------------*/
             for(uint8_t zid : commit.attempted_zones)
             {
                 int led_idx = zone_id_to_led_idx[zid];
@@ -1344,21 +1344,21 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         return;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Drop mode changes while the firmware is fading to off.     |
-    | The device owns its own power state — we don't force-wake |
-    | it from software. active_mode stays tracked framework-    |
-    | side, and the next wake (firmware onUserActivity) or      |
-    | reconnect will re-apply it through the reinit callback.   |
-    \*---------------------------------------------------------*/
+    | The device owns its own power state — we don't force-wake  |
+    | it from software. active_mode stays tracked framework-     |
+    | side, and the next wake (firmware onUserActivity) or       |
+    | reconnect will re-apply it through the reinit callback.    |
+    \*----------------------------------------------------------*/
     if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
     {
         return;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Claim SW control on first mode set (deferred from init).   |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     controller->ClaimSWControlIfNeeded();
 
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
@@ -1370,19 +1370,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 
     const mode& current = modes[active_mode];
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Direct mode: invalidate delta tracking so the next         |
     | DeviceUpdateLEDs sends a full frame with actual colors.    |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     if(current.name == "Direct")
     {
         sent_colors.clear();
         DeviceUpdateLEDs();
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Start power manager (reader + power threads) if not    |
         | already running.                                       |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         controller->StartPowerManager();
 
         if(caps.idx_wireless_status != 0 && !caps.has_power_mgmt)
@@ -1395,20 +1395,20 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 
     sent_colors.clear();
 
-    /*---------------------------------------------------------*\
-    | On per-key devices, single-color non-animated modes (Off, |
-    | Static) are applied through the per-key path so the LEDs  |
-    | track the mode color cleanly. Animated effects (anything  |
-    | with HAS_SPEED — Breathing, Cycle, Wave, Ripple) fall     |
-    | through to the zone-effect path below; in practice zone   |
-    | effects render correctly alongside per-key on the devices |
+    /*----------------------------------------------------------*\
+    | On per-key devices, single-color non-animated modes (Off,  |
+    | Static) are applied through the per-key path so the LEDs   |
+    | track the mode color cleanly. Animated effects (anything   |
+    | with HAS_SPEED — Breathing, Cycle, Wave, Ripple) fall      |
+    | through to the zone-effect path below; in practice zone    |
+    | effects render correctly alongside per-key on the devices  |
     | we have data for.                                          |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     if(caps.has_perkey)
     {
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Off mode via per-key: set all LEDs to black            |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         if(current.value == 0xFF)
         {
             controller->SetAllPerKeyColor(ToRGBColor(0, 0, 0));
@@ -1416,7 +1416,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             return;
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Static mode via per-key: only used as a fallback when  |
         | the device exposes per-key but no zone effects. When   |
         | both are available we prefer the zone-effect path      |
@@ -1426,7 +1426,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         | until something else (e.g. Cycle) force-claims.        |
         | Gated on !HAS_SPEED so animated colored effects like   |
         | Breathing don't get clipped to a static color.         |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         if(!caps.has_zone_effects
            && current.color_mode == MODE_COLORS_MODE_SPECIFIC
            && current.colors.size() > 0
@@ -1437,28 +1437,28 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             return;
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Animated effects (Breathing, Cycle, Wave, Ripple) on   |
         | per-key devices fall through to the zone effect path.  |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Zone effect modes (devices without per-key, or animated    |
     | effects that can't be done via per-key)                    |
-    |                                                           |
+    |                                                            |
     | persist branching:                                         |
     |   0x8070: ephemeral by default; becomes persist=true       |
     |           only when DeviceSaveMode has set save_pending.   |
     |   0x8071/0x0600: keeps the pre-existing per-branch         |
     |           hardcoded values (Off=false, Effect=true)        |
     |           pending 0x8071 save research.                    |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     const bool is_8070 = (caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS);
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Off mode: set static black on all clusters                 |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     if(current.value == 0xFF)
     {
         const bool off_persist = is_8070 ? save_pending : false;
@@ -1481,9 +1481,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         return;
     }
 
-    /*---------------------------------------------------------*\
+    /*----------------------------------------------------------*\
     | Effect mode: apply to all clusters.                        |
-    |                                                           |
+    |                                                            |
     | Color source per cluster:                                  |
     |   MODE_COLORS_PER_LED        — current.colors[i] maps to   |
     |                                caps.zone_clusters[i]       |
@@ -1491,7 +1491,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     |                                0x8070 zone path)           |
     |   MODE_COLORS_MODE_SPECIFIC  — current.colors[0] for all   |
     |   MODE_COLORS_NONE           — zero (effect ignores RGB)   |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     uint16_t period = SpeedSliderToPeriodMs(current.speed);
 
     /*---------------------------------------------------------*\
@@ -1532,10 +1532,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             b = RGBGetBValue(current.colors[0]);
         }
 
-        /*-----------------------------------------------------*\
+        /*------------------------------------------------------*\
         | Ripple wants a narrower, much faster period range      |
         | (2..200ms) than the breathing/wave baseline of 1..20s. |
-        \*-----------------------------------------------------*/
+        \*------------------------------------------------------*/
         uint16_t cluster_period = (eff_id == 0x000B)
                                 ? RippleSpeedSliderToPeriodMs(current.speed)
                                 : period;
@@ -1561,31 +1561,31 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
             eff_id, r, g, b, cluster_period, brightness, effect_persist);
     }
 
-    /*---------------------------------------------------------*\
-    | The zone effects are now committed — safe to upgrade from  |
-    | flags=6 to flags=5. Without this, devices that only use    |
-    | zone effects (no per-key Direct path) would stay at        |
+    /*-----------------------------------------------------------*\
+    | The zone effects are now committed — safe to upgrade from   |
+    | flags=6 to flags=5. Without this, devices that only use     |
+    | zone effects (no per-key Direct path) would stay at         |
     | flags=6 forever and the firmware would never send           |
     | onUserActivity events for idle/sleep.                       |
-    \*---------------------------------------------------------*/
+    \*-----------------------------------------------------------*/
     controller->UpgradeSwControlAfterFirstPaint();
 }
 
 void RGBController_LogitechHIDPP20::DeviceSaveMode()
 {
-    /*---------------------------------------------------------*\
-    | 0x8071/0x0600 already write persist=true on every mode    |
-    | change, so the Save button isn't exposed on those pages   |
-    | (MODE_FLAG_MANUAL_SAVE is only set for 0x8070 modes in    |
-    | the constructor). If a save ever lands here from those    |
-    | pages anyway, nothing needs doing — the active mode is    |
-    | already committed to NVM.                                 |
-    |                                                           |
-    | 0x8070: replay the active mode through DeviceUpdateMode   |
-    | with save_pending true so the zone effect writes go out   |
-    | with persist=true, committing the currently-live effect  |
+    /*----------------------------------------------------------*\
+    | 0x8071/0x0600 already write persist=true on every mode     |
+    | change, so the Save button isn't exposed on those pages    |
+    | (MODE_FLAG_MANUAL_SAVE is only set for 0x8070 modes in     |
+    | the constructor). If a save ever lands here from those     |
+    | pages anyway, nothing needs doing — the active mode is     |
+    | already committed to NVM.                                  |
+    |                                                            |
+    | 0x8070: replay the active mode through DeviceUpdateMode    |
+    | with save_pending true so the zone effect writes go out    |
+    | with persist=true, committing the currently-live effect    |
     | to flash.                                                  |
-    \*---------------------------------------------------------*/
+    \*----------------------------------------------------------*/
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
     if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
@@ -1599,29 +1599,29 @@ void RGBController_LogitechHIDPP20::DeviceSaveMode()
 
 bool RGBController_LogitechHIDPP20::ReapplyActiveMode()
 {
-    /*---------------------------------------------------------*\
-    | Re-establish the current active_mode on the device. Used   |
-    | by the wake path (after SetRgbPowerMode(1) cancels the     |
-    | firmware fade) and by the reconnect path (after a wireless |
-    | or USB reconnect). Handles both per-key Direct and zone    |
-    | effect modes:                                              |
-    |                                                           |
-    |   1. Claim SW control (host mode + flags + power mode).   |
-    |      Retried internally; returns true iff the final claim |
-    |      ACKed. ReconnectDevice's fast-backoff loop uses this |
-    |      as the accept signal.                                 |
-    |   2. Clear sent_colors so the next frame is full-push.    |
-    |      Per the 0x8071 lifecycle, the device's LED buffer may |
-    |      not survive mode 3→1 or a full reconnect, so we don't |
-    |      trust it to remember any prior state.                 |
-    |   3. Route through DeviceUpdateMode so both per-key Direct |
-    |      (full per-key frame via DeviceUpdateLEDs) and zone    |
-    |      effects (SetEffect per cluster) re-establish          |
-    |      correctly. Covers the case where the active_mode was  |
-    |      changed in the GUI while the device was fading — that |
-    |      mode change was dropped at the time and needs to land |
+    /*-----------------------------------------------------------*\
+    | Re-establish the current active_mode on the device. Used    |
+    | by the wake path (after SetRgbPowerMode(1) cancels the      |
+    | firmware fade) and by the reconnect path (after a wireless  |
+    | or USB reconnect). Handles both per-key Direct and zone     |
+    | effect modes:                                               |
+    |                                                             |
+    |   1. Claim SW control (host mode + flags + power mode).     |
+    |      Retried internally; returns true iff the final claim   |
+    |      ACKed. ReconnectDevice's fast-backoff loop uses this   |
+    |      as the accept signal.                                  |
+    |   2. Clear sent_colors so the next frame is full-push.      |
+    |      Per the 0x8071 lifecycle, the device's LED buffer may  |
+    |      not survive mode 3→1 or a full reconnect, so we don't  |
+    |      trust it to remember any prior state.                  |
+    |   3. Route through DeviceUpdateMode so both per-key Direct  |
+    |      (full per-key frame via DeviceUpdateLEDs) and zone     |
+    |      effects (SetEffect per cluster) re-establish           |
+    |      correctly. Covers the case where the active_mode was   |
+    |      changed in the GUI while the device was fading — that  |
+    |      mode change was dropped at the time and needs to land  |
     |      here on wake.                                          |
-    \*---------------------------------------------------------*/
+    \*-----------------------------------------------------------*/
     bool claimed = controller->ClaimSWControlIfNeeded();
     sent_colors.clear();
     DeviceUpdateMode();

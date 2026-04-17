@@ -1,15 +1,15 @@
-/*---------------------------------------------------------*\
+/*-----------------------------------------------------------*\
 | LogitechHIDPP20Controller.h                                 |
-|                                                           |
-|   Unified Logitech HID++ 2.0 controller                  |
-|                                                           |
-|   Uses feature discovery (IRoot 0x0000) to dynamically    |
-|   determine device capabilities and adapt to any HID++    |
-|   2.0 device with RGB lighting support.                   |
-|                                                           |
-|   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-or-later               |
-\*---------------------------------------------------------*/
+|                                                             |
+|   Unified Logitech HID++ 2.0 controller                     |
+|                                                             |
+|   Uses feature discovery (IRoot 0x0000) to dynamically      |
+|   determine device capabilities and adapt to any HID++      |
+|   2.0 device with RGB lighting support.                     |
+|                                                             |
+|   This file is part of the OpenRGB project                  |
+|   SPDX-License-Identifier: GPL-2.0-or-later                 |
+\*-----------------------------------------------------------*/
 
 #pragma once
 
@@ -160,11 +160,11 @@ struct HIDPP20DeviceCapabilities
     uint16_t        pid_wired;          // wired USB PID (from FirmwareInfo fn0)
     uint32_t        quirks;             // resolved from HIDPP20_DEVICE_QUIRK_TABLE after PID discovery
 
-    /*-------------------------------------------------*\
-    | Complete feature map (feature_id → runtime index) |
-    | Built once by EnumerateFeatures, used by all      |
+    /*--------------------------------------------------*\
+    | Complete feature map (feature_id → runtime index)  |
+    | Built once by EnumerateFeatures, used by all       |
     | subsequent GetFeatureIndex lookups (no wire).      |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     std::map<uint16_t, uint8_t> feature_map;
     bool        feature_map_complete;   // true after bulk enumeration
 
@@ -180,10 +180,10 @@ struct HIDPP20DeviceCapabilities
     uint8_t         idx_disable_keys_by_usage;  /* 0x4522 — keyboard-family handshake */
     uint16_t        rgb_feature_page;
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Resolved function IDs for the RGB effects feature  |
     | Varies between 0x8070, 0x8071, 0x0600              |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     uint8_t         fn_set_effect;
     uint8_t         fn_sw_control;
     uint8_t         fn_pwr_config;
@@ -191,34 +191,34 @@ struct HIDPP20DeviceCapabilities
     bool            has_power_mgmt;
     bool            sw_control_simple;
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Persistent NV settings read from RGBEffects fn3    |
     | (FN_8071_NV_CONFIG). Capability 0x0020 is the      |
     | sleep ramp / off-ramp transition (enabled +        |
     | ramp_seconds).                                     |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     bool            nv_sleep_ramp_known;
     bool            nv_sleep_ramp_enabled;
     uint8_t         nv_sleep_ramp_seconds;
 
-    /*-------------------------------------------------*\
-    | Device-firmware effect cards (0x8071 fn0          |
+    /*---------------------------------------------------*\
+    | Device-firmware effect cards (0x8071 fn0            |
     | GetEffectSpecificInfo). Populated by                |
-    | DiscoverEffectCards at feature-discovery time.    |
-    |                                                    |
-    | has_effect_cards — probe returned a valid response |
-    |   for firmware card 0 page 1 (no InvalidArgument). |
-    | effect_card_template[0..1] — device-wide constant  |
+    | DiscoverEffectCards at feature-discovery time.      |
+    |                                                     |
+    | has_effect_cards — probe returned a valid response  |
+    |   for firmware card 0 page 1 (no InvalidArgument).  |
+    | effect_card_template[0..1] — device-wide constant   |
     |   bytes read from that response at data[10..11].    |
     |   Echoed back into prep1 of DoObservedPerKeyPrep    |
     |   at SetEffectByIndex params[6..7].                 |
-    |                                                    |
-    | Gate for the observed per-key prep is now          |
+    |                                                     |
+    | Gate for the observed per-key prep is now           |
     | has_effect_cards — replaces the earlier             |
-    | "effects.size() < 5" heuristic, which was a proxy  |
-    | that correlated with "has cards" on the devices we |
+    | "effects.size() < 5" heuristic, which was a proxy   |
+    | that correlated with "has cards" on the devices we  |
     | happened to know but had no principled meaning.     |
-    \*-------------------------------------------------*/
+    \*---------------------------------------------------*/
     bool            has_effect_cards;
     uint8_t         effect_card_template[2];
 
@@ -233,9 +233,9 @@ struct HIDPP20DeviceCapabilities
     uint8_t                         keyboard_layout_code;
 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | Transport type — determines wire framing               |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 enum HIDPP20TransportType
 {
     HIDPP20_TRANSPORT_STANDARD,       // 0xFF00/0xFF43: report IDs 0x10/0x11, 7/20 bytes
@@ -243,14 +243,14 @@ enum HIDPP20TransportType
                                     // with CPL framing and CentPPBridge sub-device routing
 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | Transport layer — abstracts wire format differences    |
 |                                                        |
 | Standard HID++ and Centurion both carry the same       |
 | feature/function/data payload, but with different      |
 | report framing. This struct holds transport state      |
 | so SendMessage/ReadMessage can adapt.                  |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 struct HIDPP20Transport
 {
     HIDPP20TransportType  type;
@@ -288,13 +288,13 @@ struct HIDPP20RawMessage
     int     result;
 };
 
-/*-----------------------------------------------------*\
-| Per-key write tracking. SendPerKeyData is fire-and-   |
-| forget at the wire layer; we track which zones each   |
-| outstanding write covers so PerKeyFrameEnd can match  |
-| ACKs back by FIFO order and report which zones the   |
+/*------------------------------------------------------*\
+| Per-key write tracking. SendPerKeyData is fire-and-    |
+| forget at the wire layer; we track which zones each    |
+| outstanding write covers so PerKeyFrameEnd can match   |
+| ACKs back by FIFO order and report which zones the     |
 | firmware actually committed.                           |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 struct OutstandingPerKeyWrite
 {
     uint8_t              function;     // FN_8081_* (high nibble carries the type)
@@ -306,7 +306,7 @@ struct OutstandingPerKeyWrite
 | these to update its delta-tracking state:             |
 |   - frame_end_acked: did the FrameEnd packet ACK?     |
 |   - acked_zones:    zones whose write packet ACKed    |
-|   - attempted_zones: every zone written this frame   |
+|   - attempted_zones: every zone written this frame    |
 \*-----------------------------------------------------*/
 struct PerKeyFrameResult
 {
@@ -315,23 +315,23 @@ struct PerKeyFrameResult
     std::vector<uint8_t> attempted_zones;
 };
 
-/*-----------------------------------------------------*\
-| Retry policy for SendAcked.                            |
-|                                                        |
-| Controls the send/read/retry loop for a single HID++   |
-| request. Three canned policies cover all use cases:    |
-|                                                        |
-|   Reliable: probe/discovery/set/get  (~6s worst case)  |
-|   FrameEnd: per-key commit gate      (~230ms worst)    |
-|   Streaming: per-key write inside the animation loop   |
+/*-------------------------------------------------------*\
+| Retry policy for SendAcked.                             |
+|                                                         |
+| Controls the send/read/retry loop for a single HID++    |
+| request. Three canned policies cover all use cases:     |
+|                                                         |
+|   Reliable: probe/discovery/set/get  (~6s worst case)   |
+|   FrameEnd: per-key commit gate      (~230ms worst)     |
+|   Streaming: per-key write inside the animation loop    |
 |              (~80ms worst)                              |
-|                                                        |
-| backoff_ms[i] is the delay applied BEFORE the i-th     |
-| attempt. backoff_ms[0] is normally 0 (no delay before  |
-| the first send). The schedule mirrors the firmware's   |
-| own event burst pattern (63→125→250→500→1000→2000ms,   |
-| "catch at least one of N").                            |
-\*-----------------------------------------------------*/
+|                                                         |
+| backoff_ms[i] is the delay applied BEFORE the i-th      |
+| attempt. backoff_ms[0] is normally 0 (no delay before   |
+| the first send). The schedule mirrors the firmware's    |
+| own event burst pattern (63→125→250→500→1000→2000ms,    |
+| "catch at least one of N").                             |
+\*-------------------------------------------------------*/
 struct HIDPP20RetryPolicy
 {
     const uint16_t* backoff_ms;     // schedule[i] = delay before attempt i
@@ -342,35 +342,35 @@ struct HIDPP20RetryPolicy
     const char*     name;           // for logging ("reliable", etc.)
 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | Canned backoff schedules.                              |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 static constexpr uint16_t HIDPP20_BACKOFF_RELIABLE[] =
     { 0, 63, 125, 250, 500, 1000, 2000 };
 static constexpr uint16_t HIDPP20_BACKOFF_PROBE[] =
     { 0, 100 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | SW-control reclaim backoff. Used by ReconnectDevice    |
 | to retry the claim+push sequence after a wireless      |
 | reconnect, racing the firmware boot animation. GHUB    |
 | typically lands control in ~50ms; this schedule fits   |
 | 6 attempts inside ~620ms so the animation never gets   |
 | a chance to become visible.                            |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 static constexpr uint16_t HIDPP20_RECLAIM_BACKOFF_MS[] =
     { 0, 20, 40, 80, 160, 320 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | FrameEnd BUSY retry backoff. Used by PerKeyFrameEnd    |
-| when the firmware returns HID++ error 0x08 (BUSY)     |
-| because it's still draining the per-key write queue.  |
-| First retry is fast (~2 USB round trips) for the      |
-| common case where BUSY was transient; subsequent      |
-| retries give actual drain headroom. Total worst case  |
-| ~180ms, fits inside the PerKeyFrameEnd 300ms deadline |
-| with margin for the eventual ACK to land.             |
-\*-----------------------------------------------------*/
+| when the firmware returns HID++ error 0x08 (BUSY)      |
+| because it's still draining the per-key write queue.   |
+| First retry is fast (~2 USB round trips) for the       |
+| common case where BUSY was transient; subsequent       |
+| retries give actual drain headroom. Total worst case   |
+| ~180ms, fits inside the PerKeyFrameEnd 300ms deadline  |
+| with margin for the eventual ACK to land.              |
+\*------------------------------------------------------*/
 static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
     { 30, 60, 90 };
 
@@ -384,22 +384,22 @@ static constexpr uint16_t HIDPP20_FRAME_END_BUSY_BACKOFF_MS[] =
 \*-----------------------------------------------------*/
 static constexpr int HIDPP20_DEEP_SLEEP_FAILURE_THRESHOLD = 5;
 
-/*-----------------------------------------------------*\
-| Per-key frame retry backoff. Used when a full         |
-| DeviceUpdateLEDs pass completes with some zones       |
-| unacked (partial commit). The retry re-runs a whole   |
-| frame from the power thread, so the backoff is        |
-| between full frames, not individual packets.          |
+/*------------------------------------------------------*\
+| Per-key frame retry backoff. Used when a full          |
+| DeviceUpdateLEDs pass completes with some zones        |
+| unacked (partial commit). The retry re-runs a whole    |
+| frame from the power thread, so the backoff is         |
+| between full frames, not individual packets.           |
 |                                                        |
-| First value aligned to the power thread's 50ms poll   |
-| cadence — anything shorter rounds up anyway, and      |
-| matching the tick makes latency predictable.          |
+| First value aligned to the power thread's 50ms poll    |
+| cadence — anything shorter rounds up anyway, and       |
+| matching the tick makes latency predictable.           |
 |                                                        |
-| Worst case: 5 retries, cumulative ~1550ms. This       |
-| covers the reconnect-transient window where the G502  |
-| firmware silently drops per-key writes for several    |
-| hundred ms after the wireless link re-establishes.    |
-\*-----------------------------------------------------*/
+| Worst case: 5 retries, cumulative ~1550ms. This        |
+| covers the reconnect-transient window where the G502   |
+| firmware silently drops per-key writes for several     |
+| hundred ms after the wireless link re-establishes.     |
+\*------------------------------------------------------*/
 static constexpr uint16_t HIDPP20_REPAINT_RETRY_BACKOFF_MS[] =
     { 50, 100, 200, 400, 800 };
 
@@ -412,14 +412,14 @@ static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_RELIABLE = {
     "reliable"
 };
 
-/*-----------------------------------------------------*\
+/*------------------------------------------------------*\
 | Probe policy: tight budget for is-this-HID++ checks    |
 | during initial discovery. ~500ms worst case for dead   |
 | devices, vs ~6s for reliable. One retry handles a      |
 | transient hiccup on the first IRoot call (e.g. on a    |
 | busy mouse), but we bail fast on truly non-responsive  |
 | or non-HID++ hidraws so probe latency stays bounded.   |
-\*-----------------------------------------------------*/
+\*------------------------------------------------------*/
 static constexpr HIDPP20RetryPolicy HIDPP20_POLICY_PROBE = {
     HIDPP20_BACKOFF_PROBE,
     sizeof(HIDPP20_BACKOFF_PROBE) / sizeof(uint16_t),
@@ -453,16 +453,16 @@ public:
     std::string     GetSerialString();
     uint32_t        GetInitGeneration() const;
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Per-key lighting (0x8081)                          |
     |                                                    |
-    | Per-key writes are fire-and-forget at the wire    |
-    | layer. SendPerKeyData enqueues an outstanding     |
-    | write entry; PerKeyFrameEnd drains the response   |
-    | queue, matches ACKs by FIFO, and returns which   |
-    | zones the firmware actually committed plus       |
-    | whether the FrameEnd itself ACKed.               |
-    \*-------------------------------------------------*/
+    | Per-key writes are fire-and-forget at the wire     |
+    | layer. SendPerKeyData enqueues an outstanding      |
+    | write entry; PerKeyFrameEnd drains the response    |
+    | queue, matches ACKs by FIFO, and returns which     |
+    | zones the firmware actually committed plus         |
+    | whether the FrameEnd itself ACKed.                 |
+    \*--------------------------------------------------*/
     void              SetPerKeyColors(const std::vector<std::pair<uint16_t, RGBColor>>& zone_colors);
     void              SetAllPerKeyColor(RGBColor color);
     void              SendPerKeyData(uint8_t perkey_idx, uint8_t function,
@@ -496,47 +496,47 @@ public:
     \*-------------------------------------------------*/
     void            DoDisableKeysByUsageHandshake();
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Keyboard-family per-key takeover prep.             |
-    | Per-cluster SetEffectByIndex(effectIdx=0=Off,     |
-    | persist=1) + primer key via SetIndividualRgbZones |
-    | + FrameEnd. Matches G815 / G915 InitializeDirect. |
-    | Gated on 0x4522 + per-key V2 presence.            |
-    \*-------------------------------------------------*/
+    | Per-cluster SetEffectByIndex(effectIdx=0=Off,      |
+    | persist=1) + primer key via SetIndividualRgbZones  |
+    | + FrameEnd. Matches G815 / G915 InitializeDirect.  |
+    | Gated on 0x4522 + per-key V2 presence.             |
+    \*--------------------------------------------------*/
     void            DoKeyboardFamilyPerKeyPrep();
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Wake-repaint flag. Set by Wake() before calling    |
     | request_repaint_fn so the repaint callback knows   |
     | to invalidate sent_colors (force a full per-key    |
     | push) without triggering the claim/prep sequence.  |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     bool            ConsumeWakeFullRepaint();
     bool            NeedsPrepSequence() const  { return sw_control_needs_upgrade_to_5; }
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Per-key retry scheduling. Called by the RGB        |
     | controller's DeviceUpdateLEDs on partial-commit    |
     | frames; the power thread polls and fires           |
     | request_repaint_fn when a retry deadline expires.  |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     void            ScheduleRetryPaint();
     void            CancelRetryPaint();
     void            TickRetryPaintIfPending();
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Observed per-key prep sequence. Two                |
     | SetEffectByIndex calls cloned byte-for-byte from a |
     | G Hub pcap on a G502 X PLUS (frames 2297 & 2321).  |
     | Used in place of the Static-pass-through prep when |
     | the device's RGBEffects enumeration matches the    |
     | G502 shape — see DeviceUpdateLEDs for gating.      |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     void            DoObservedPerKeyPrep();
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Power management (idle/dim/sleep/wake)             |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     void            StartPowerManager();
     void            StopPowerManager();
     void            StartEventWatcher();
@@ -567,62 +567,62 @@ private:
     bool                        sw_control_needs_upgrade_to_5;
     uint32_t                    frame_counter;
 
-    /*-------------------------------------------------*\
-    | Retry-paint state (partial-commit recovery).      |
-    | retry_paint_deadline_ zero = no retry pending.    |
+    /*--------------------------------------------------*\
+    | Retry-paint state (partial-commit recovery).       |
+    | retry_paint_deadline_ zero = no retry pending.     |
     | retry_paint_attempt_ indexes into                  |
-    | HIDPP20_REPAINT_RETRY_BACKOFF_MS; once it reaches |
-    | the array length, we give up for this sequence.   |
-    | Atomic so both the paint thread (RGB controller)  |
-    | and the power thread can access without locks.    |
-    \*-------------------------------------------------*/
+    | HIDPP20_REPAINT_RETRY_BACKOFF_MS; once it reaches  |
+    | the array length, we give up for this sequence.    |
+    | Atomic so both the paint thread (RGB controller)   |
+    | and the power thread can access without locks.     |
+    \*--------------------------------------------------*/
     std::atomic<std::chrono::steady_clock::time_point>  retry_paint_deadline_;
     std::atomic<uint8_t>                                retry_paint_attempt_;
     std::atomic<bool>                                   wake_full_repaint_pending_;
     uint32_t                    init_generation;
     std::string                 log_tag;
 
-    /*-------------------------------------------------*\
-    | Transport-layer I/O                               |
-    |                                                   |
-    | SendMessage/ReadMessage handle wire framing based  |
-    | on transport.type. Upper layers pass feature index,|
-    | function ID, and payload — the transport layer     |
-    | wraps them in the correct report format.           |
-    \*-------------------------------------------------*/
+    /*---------------------------------------------------*\
+    | Transport-layer I/O                                 |
+    |                                                     |
+    | SendMessage/ReadMessage handle wire framing based   |
+    | on transport.type. Upper layers pass feature index, |
+    | function ID, and payload — the transport layer      |
+    | wraps them in the correct report format.            |
+    \*---------------------------------------------------*/
     int             SendMessage(uint8_t feat_idx, uint8_t function,
                                 const uint8_t* data, size_t len);
     int             ReadMessage(uint8_t* feat_idx_out, uint8_t* function_out,
                                 uint8_t* data_out, size_t data_max,
                                 int timeout_ms = LOGITECH_PROTOCOL_TIMEOUT);
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Standard HID++ transport (0xFF00/0xFF43)           |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     int             SendStandard(uint8_t feat_idx, uint8_t function,
                                  const uint8_t* data, size_t len);
     int             ReadStandardDirect(uint8_t* feat_idx_out, uint8_t* function_out,
                                        uint8_t* data_out, size_t data_max,
                                        int timeout_ms);
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Centurion transport (0xFFA0)                       |
     | Wraps messages in CPL framing, routes through      |
     | CentPPBridge for sub-device access.                |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     int             SendCenturion(uint8_t feat_idx, uint8_t function,
                                   const uint8_t* data, size_t len);
     int             ReadCenturionDirect(uint8_t* feat_idx_out, uint8_t* function_out,
                                         uint8_t* data_out, size_t data_max,
                                         int timeout_ms);
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Reader thread dispatch layer                       |
     | ReadHIDDirect: raw HID read (used by reader thread |
     |   and during Probe before reader starts).          |
     | ReadFromQueue: waits on response queue filled by   |
     |   the reader thread.                               |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     int             ReadHIDDirect(uint8_t* feat_idx_out, uint8_t* function_out,
                                   uint8_t* data_out, size_t data_max,
                                   int timeout_ms);
@@ -630,38 +630,38 @@ private:
                                   uint8_t* data_out, size_t data_max,
                                   int timeout_ms);
 
-    /*-------------------------------------------------*\
-    | High-level helpers                                 |
-    | SendAndReceive is retained as a thin wrapper       |
-    | around SendAcked with the reliable policy, for     |
+    /*---------------------------------------------------*\
+    | High-level helpers                                  |
+    | SendAndReceive is retained as a thin wrapper        |
+    | around SendAcked with the reliable policy, for      |
     | call-site stability.                                |
-    \*-------------------------------------------------*/
+    \*---------------------------------------------------*/
     int             SendAndReceive(uint8_t feat_idx, uint8_t function,
                                    const uint8_t* send_data, size_t send_len,
                                    uint8_t* recv_data, size_t recv_max);
 
-    /*-------------------------------------------------*\
-    | Unified send-and-ack primitive with retry policy. |
-    | All command paths converge here. Returns:         |
-    |   >0 : bytes copied into recv_data                 |
-    |    0 : timeout / BUSY exhaustion                   |
-    |   -1 : non-BUSY HID++ error                        |
-    |   -2 : wire error (SendMessage failed)             |
+    /*---------------------------------------------------*\
+    | Unified send-and-ack primitive with retry policy.   |
+    | All command paths converge here. Returns:           |
+    |   >0 : bytes copied into recv_data                  |
+    |    0 : timeout / BUSY exhaustion                    |
+    |   -1 : non-BUSY HID++ error                         |
+    |   -2 : wire error (SendMessage failed)              |
     | If hidpp20_error_out is non-null and return is -1,  |
-    | the HID++ error code is stored there.             |
-    \*-------------------------------------------------*/
+    | the HID++ error code is stored there.               |
+    \*---------------------------------------------------*/
     int             SendAcked(uint8_t feat_idx, uint8_t function,
                               const uint8_t* send_data, size_t send_len,
                               uint8_t* recv_data, size_t recv_max,
                               const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE,
                               uint8_t* hidpp20_error_out = nullptr);
 
-    /*-------------------------------------------------*\
-    | Compatibility shim: same as SendAcked but writes  |
+    /*--------------------------------------------------*\
+    | Compatibility shim: same as SendAcked but writes   |
     | the response into a blankFAPmessage. Used by       |
     | callers that inherited the SendLong+ReadResponse   |
     | interface and inspect response.data[] downstream.  |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     int             SendAckedIntoFAP(uint8_t feat_idx, uint8_t function,
                                      const uint8_t* send_data, size_t send_len,
                                      blankFAPmessage& response,
@@ -701,7 +701,7 @@ private:
     void            ReconnectDevice();
     void            FullReprobe();
     void            RediscoverFeatures();
-    /*---------------------------------------------------*\
+    /*----------------------------------------------------*\
     | Platform-specific. ScanForDevice walks the OS-level  |
     | HID enumeration to find the same physical device on  |
     | a new path (USB<->wireless transitions). Linux uses  |
@@ -709,15 +709,15 @@ private:
     | matching. Bodies live in                             |
     | LogitechHIDPP20Controller_Linux.cpp and              |
     | LogitechHIDPP20Controller_Windows_MacOS.cpp.         |
-    \*---------------------------------------------------*/
+    \*----------------------------------------------------*/
     bool            ScanForDevice(bool force = false);
 
-    /*---------------------------------------------------*\
+    /*----------------------------------------------------*\
     | Platform-specific. Returns the friendly name for a   |
     | Centurion sub-device at the given hidapi path, or "" |
     | if no name is available. Linux reads HID_NAME from   |
     | sysfs; Windows uses hid_device_info::product_string. |
-    \*---------------------------------------------------*/
+    \*----------------------------------------------------*/
     std::string     GetCenturionSubDeviceName(const std::string& path);
 
     void            SwapHIDHandle(hid_device* new_dev, const std::string& new_path);
@@ -770,13 +770,13 @@ private:
     \*-------------------------------------------------*/
     std::chrono::steady_clock::time_point sleep_deadline;
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Last idle-settings re-read timestamp. Drives the   |
     | 500ms poll in PowerThreadFunc that re-reads the    |
     | LogitechHIDPP20IdleSettings JSON key so updates    |
     | from the plugin (or manual edits) apply within     |
     | about half a second without any callback plumbing. |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     std::chrono::steady_clock::time_point last_idle_poll;
 
     /*-------------------------------------------------*\
@@ -788,24 +788,24 @@ private:
     uint16_t        idle_timeout_s;
     uint16_t        sleep_timeout_s;
 
-    /*-------------------------------------------------*\
-    | Firmware-configured timer snapshot. Read at init  |
-    | (and on reconnect) by ReadFirmwareTimers and      |
-    | never overwritten by profile application, so      |
-    | that the unconfigured fallback path and transition|
-    | back from a user profile both have a clean set    |
-    | of defaults to return to.                         |
-    \*-------------------------------------------------*/
+    /*--------------------------------------------------*\
+    | Firmware-configured timer snapshot. Read at init   |
+    | (and on reconnect) by ReadFirmwareTimers and       |
+    | never overwritten by profile application, so       |
+    | that the unconfigured fallback path and transition |
+    | back from a user profile both have a clean set     |
+    | of defaults to return to.                          |
+    \*--------------------------------------------------*/
     uint16_t        fw_idle_timeout_s   = 60;
     uint16_t        fw_sleep_timeout_s  = 300;
     uint16_t        written_idle_s      = 0;    // last value written to device RAM (0 = not written yet)
     uint16_t        written_sleep_s     = 0;
 
-    /*-------------------------------------------------*\
+    /*--------------------------------------------------*\
     | Host-side idle/dim/sleep state.                    |
     | Populated from LogitechHIDPP20IdleSettings on each |
     | ApplyPowerSavingProfile() invocation.              |
-    \*-------------------------------------------------*/
+    \*--------------------------------------------------*/
     bool            ps_dim_enabled          = false;
     int             ps_dim_target_pct       = DIM_TARGET_PCT;
     bool            ps_sleep_enabled        = false;
