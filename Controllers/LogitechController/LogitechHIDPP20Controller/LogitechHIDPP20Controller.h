@@ -454,6 +454,15 @@ public:
     void            UpgradeSwControlAfterFirstPaint();
 
     /*-------------------------------------------------*\
+    | Wake-repaint flag. Set by Wake() before calling    |
+    | request_repaint_fn so the repaint callback knows   |
+    | to invalidate sent_colors (force a full per-key    |
+    | push) without triggering the claim/prep sequence.  |
+    \*-------------------------------------------------*/
+    bool            ConsumeWakeFullRepaint();
+    bool            NeedsPrepSequence() const  { return sw_control_needs_upgrade_to_5; }
+
+    /*-------------------------------------------------*\
     | Per-key retry scheduling. Called by the RGB        |
     | controller's DeviceUpdateLEDs on partial-commit    |
     | frames; the power thread polls and fires           |
@@ -516,6 +525,7 @@ private:
     \*-------------------------------------------------*/
     std::atomic<std::chrono::steady_clock::time_point>  retry_paint_deadline_;
     std::atomic<uint8_t>                                retry_paint_attempt_;
+    std::atomic<bool>                                   wake_full_repaint_pending_;
     uint32_t                    init_generation;
     std::string                 log_tag;
 

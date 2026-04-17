@@ -481,6 +481,21 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     controller->SetRepaintCallback(
         [this]()
         {
+            /*-------------------------------------------------*\
+            | If Wake() signaled a full repaint, invalidate     |
+            | sent_colors so DeviceUpdateLEDs pushes every zone |
+            | regardless of delta. Uses HIDPP20_UNCOMMITTED     |
+            | rather than clear() so sent_colors is non-empty — |
+            | that avoids the first_frame / prep trigger while  |
+            | still forcing a full push.                        |
+            \*-------------------------------------------------*/
+            if(controller->ConsumeWakeFullRepaint())
+            {
+                for(auto& c : sent_colors)
+                {
+                    c = HIDPP20_UNCOMMITTED;
+                }
+            }
             DeviceUpdateLEDs();
         }
     );
@@ -852,7 +867,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         | meaning — it's been replaced with the direct capability|
         | probe.                                                 |
         \*-----------------------------------------------------*/
-        if(sent_colors.empty() && caps.has_zone_effects)
+        bool needs_prep = controller->NeedsPrepSequence();
+
+        if(needs_prep && caps.has_zone_effects)
         {
             bool shape_matches_observed_prep =
                 caps.has_effect_cards
