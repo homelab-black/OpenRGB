@@ -180,6 +180,7 @@ struct HIDPP20DeviceCapabilities
     | subsequent GetFeatureIndex lookups (no wire).      |
     \*--------------------------------------------------*/
     std::map<uint16_t, uint8_t> feature_map;
+    std::map<uint16_t, uint8_t> feature_versions;  /* feature_id -> version byte */
     bool        feature_map_complete;   // true after bulk enumeration
 
     /*-------------------------------------------------*\
@@ -699,6 +700,7 @@ private:
     \*-------------------------------------------------*/
     uint8_t         GetFeatureIndex(uint16_t feature_page,
                                     const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE);
+    uint8_t         GetFeatureVersion(uint16_t feature_page) const;
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();
