@@ -1117,8 +1117,8 @@ uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
             caps.feature_versions[feature_page] = version;
         }
 
-        LOG_DEBUG("%s Feature 0x%04X -> index 0x%02X v%u",
-                  LOG_TAG, feature_page, index, version);
+        LOG_DEBUG("%s Feature 0x%04X V%u -> index 0x%02X",
+                  LOG_TAG, feature_page, version, index);
         return index;
     }
 
@@ -1486,8 +1486,8 @@ void LogitechHIDPP20Controller::EnumerateFeatures(uint8_t feature_set_idx)
                 caps.feature_map[feat_id]      = feat_idx;
                 caps.feature_versions[feat_id] = feat_version;
 
-                LOG_DEBUG("%s   [%2d] Feature 0x%04X type=0x%02X v%u",
-                          LOG_TAG, feat_idx, feat_id, feat_type, feat_version);
+                LOG_DEBUG("%s   [%2d] Feature 0x%04X V%u type=0x%02X",
+                          LOG_TAG, feat_idx, feat_id, feat_version, feat_type);
             }
 
             caps.feature_map_complete = true;
@@ -1803,14 +1803,14 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
         uint16_t effect_blocks = ((uint16_t)response.data[5] << 8) | response.data[6];
         uint8_t  supported_idx = response.data[7];
 
-        LOG_INFO("%s RGBEffects 0x8071 v%u GetInfo: zones=%u extCaps=0x%04X effectBlocks=%u supportedClusterIdx=%u",
+        LOG_INFO("%s RGBEffects 0x8071 V%u GetInfo: zones=%u extCaps=0x%04X effectBlocks=%u supportedClusterIdx=%u",
                  LOG_TAG, GetFeatureVersion(caps.rgb_feature_page),
                  cluster_count, ext_caps, effect_blocks, supported_idx);
     }
     else
     {
         cluster_count = response.data[0];
-        LOG_INFO("%s RGB feature page=0x%04X v%u cluster_count=%u",
+        LOG_INFO("%s RGB feature page=0x%04X V%u cluster_count=%u",
                  LOG_TAG, caps.rgb_feature_page,
                  GetFeatureVersion(caps.rgb_feature_page), cluster_count);
     }
@@ -2002,9 +2002,10 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
         return;
     }
 
-    LOG_INFO("%s 0x0620 Headset RGB Hostmode present at feature index %u v%u",
-             LOG_TAG, caps.idx_headset_rgb_hostmode,
-             GetFeatureVersion(HIDPP20_FEAT_HEADSET_RGB_HOSTMODE));
+    LOG_INFO("%s 0x0620 V%u Headset RGB Hostmode present at feature index %u",
+             LOG_TAG,
+             GetFeatureVersion(HIDPP20_FEAT_HEADSET_RGB_HOSTMODE),
+             caps.idx_headset_rgb_hostmode);
 
     /*---------------------------------------------------------*\
     | fn1 GetRGBZoneInfo — empty request, returns a zone list.  |
