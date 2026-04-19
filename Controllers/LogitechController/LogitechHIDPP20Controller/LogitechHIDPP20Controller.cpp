@@ -31,6 +31,15 @@ using namespace std::chrono_literals;
 \*----------------------------------------------------------*/
 static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 
+/*----------------------------------------------------------*\
+| Per-candidate read timeout (ms) for the Centurion 0x50     |
+| device-address probe. USB round-trip is <1ms; 5ms gives    |
+| 5x margin. Worst case (no device responds) 256 × 5 =       |
+| ~1.3s; typical G522 at addr 0x23 is ~180ms. Matches        |
+| Solaar's probe_centurion_device_addr constant.             |
+\*----------------------------------------------------------*/
+static const int CENTURION_PROBE_PER_ADDR_TIMEOUT_MS = 5;
+
 LogitechHIDPP20Controller::LogitechHIDPP20Controller
     (
     hid_device*                 dev,
@@ -1283,30 +1292,74 @@ void LogitechHIDPP20Controller::DiscoverTransport()
         transport.addressed = true;
         transport.device_address = 0x00;
 
+        LOG_DEBUG("%s Centurion 0x50 (addressed) from descriptor", LOG_TAG);
+
         /*-----------------------------------------------------*\
-        | Read the device address from the first response.      |
-        | Send a CenturionRoot probe and read back.             |
+        | Device-address sweep. 0x50 frames carry a device      |
+        | address byte; the device silently drops frames        |
+        | addressed to the wrong ID, so we brute-force probe    |
+        | every candidate with an IRoot fn1 GetProtocolVersion  |
+        | ping. First response wins — real address lives in     |
+        | resp_buf[1] of the reply. Mirrors Solaar's            |
+        | probe_centurion_device_addr; see                      |
+        | CENTURION_PROBE_PER_ADDR_TIMEOUT_MS above for timing. |
+        |                                                       |
+        | Wire format per candidate:                            |
+        |   [0x50, addr, 0x06, 0x00, 0x00, 0x10, 0x00, 0x00,    |
+        |    0x00, zero-pad to 64]                              |
+        | where 0x06 = cpl_length (flags+payload), 0x10 = fn1   |
+        | GetProtocolVersion with sw_id=0.                      |
         \*-----------------------------------------------------*/
-        uint8_t probe_buf[64] = {};
-        probe_buf[0] = 0x50;
-        probe_buf[1] = 0x00;
-        probe_buf[2] = 3;
-        probe_buf[3] = 0x00;
-        probe_buf[4] = 0x00;
-        probe_buf[5] = 0x00 | HIDPP20_SW_ID;
+        bool     addr_found       = false;
+        unsigned probe_count      = 0;
+        unsigned write_errors     = 0;
 
-        if(hid_write(dev, probe_buf, 64) > 0)
+        for(unsigned addr = 0; addr < 256; addr++)
         {
-            uint8_t resp_buf[64] = {};
+            uint8_t probe_buf[64] = {};
+            probe_buf[0] = 0x50;
+            probe_buf[1] = (uint8_t)addr;
+            probe_buf[2] = 0x06;
+            probe_buf[3] = 0x00;
+            probe_buf[4] = 0x00;
+            probe_buf[5] = 0x10;
 
-            if(hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500) > 0)
+            int wr = hid_write(dev, probe_buf, 64);
+            probe_count++;
+
+            if(wr <= 0)
+            {
+                write_errors++;
+                if(write_errors > 3)
+                {
+                    LOG_DEBUG("%s Centurion 0x50 probe: too many write failures, aborting", LOG_TAG);
+                    break;
+                }
+                continue;
+            }
+
+            uint8_t resp_buf[64] = {};
+            int     rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf),
+                                          CENTURION_PROBE_PER_ADDR_TIMEOUT_MS);
+
+            if(rd >= 2 && resp_buf[0] == 0x50)
             {
                 transport.device_address = resp_buf[1];
+                addr_found = true;
+                break;
             }
         }
 
-        LOG_DEBUG("%s Centurion 0x50 (addressed) from descriptor, device_addr=0x%02X",
-                  LOG_TAG, transport.device_address);
+        if(addr_found)
+        {
+            LOG_INFO("%s Centurion 0x50 device_addr=0x%02X (after %u candidates)",
+                     LOG_TAG, transport.device_address, probe_count);
+        }
+        else
+        {
+            LOG_DEBUG("%s Centurion 0x50 probe: no response from any of 256 candidates",
+                      LOG_TAG);
+        }
     }
     else
     {
