@@ -88,6 +88,8 @@ using namespace std::chrono_literals;
 #define LOGITECH_G502_LIGHTSPEED_PID                0xC08D
 #define LOGITECH_G502_X_PLUS_PID                    0xC095
 #define LOGITECH_G515_LS_TKL_PID                    0xC355
+#define LOGITECH_G522_LIGHTSPEED_USB_PID            0x0B19
+#define LOGITECH_G522_LIGHTSPEED_DONGLE_PID         0x0B18
 #define LOGITECH_G600_PID                           0xC24A
 #define LOGITECH_G703_LIGHTSPEED_PID                0xC087
 #define LOGITECH_G703_HERO_LIGHTSPEED_PID           0xC090
@@ -860,6 +862,15 @@ REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wireless)",          
 #if defined(_WIN32) || defined(__APPLE__)
 REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, 0xC547, 2, 0xFF00, 2);
 #endif
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| Centurion-transport devices (63-byte reports on usage page 0xFFA0, 0x50 addressed or 0x51 direct).                                                |
+|   Centurion receivers are not DJ-style Lightspeed receivers and are not split by hid-logitech-dj — the dongle PID enumerates as a single hidraw   |
+|   on all platforms. The controller's DiscoverTransport parses the report descriptor to pick the 0x50/0x51 variant and runs a 0x00..0xFF address   |
+|   sweep for the 0x50 (addressed) variant, so the detector only needs VID/PID + usage page 0xFFA0.                                                 |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_P("Logitech HID++ 2.0 G522 Lightspeed (wired)",              DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G522_LIGHTSPEED_USB_PID,    0xFFA0);
+REGISTER_HID_DETECTOR_P("Logitech HID++ 2.0 G522 Lightspeed (dongle)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G522_LIGHTSPEED_DONGLE_PID, 0xFFA0);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |
