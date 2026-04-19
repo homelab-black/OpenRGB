@@ -1825,13 +1825,12 @@ void LogitechHIDPP20Controller::DiscoverEffectCards()
     | effect cards via 0x8071 fn0 GetEffectSpecificInfo. On     |
     | devices that have them (observed on G502 X PLUS), every   |
     | valid card returns a device-wide template byte pair at a  |
-    | fixed position in page 1 of the response — G Hub reads    |
-    | those bytes and echoes them into the per-key prep call's  |
-    | `SetEffectByIndex` params[6..7]. Our implementation does  |
-    | the same.                                                 |
+    | fixed position in page 1 of the response — the vendor app |
+    | reads those bytes and echoes them into the per-key prep   |
+    | call's `SetEffectByIndex` params[6..7]. Our               |
+    | implementation does the same.                             |
     |                                                           |
-    | Request format (from LOGITECH_HIDPP2_PROTOCOL.md          |
-    | "GetEffectSpecificInfo" under 0x8071 fn0):                |
+    | Request format for GetEffectSpecificInfo (0x8071 fn0):    |
     |   [0xFF, effectIdHi, 0x01, effectIdLo, pageIndex]         |
     |                                                           |
     | Response layout in blankFAPmessage::data[] terms (i.e.    |
@@ -1905,6 +1904,110 @@ void LogitechHIDPP20Controller::DiscoverEffectCards()
              response.data[9], response.data[10], response.data[11],
              response.data[12], response.data[13], response.data[14],
              response.data[15]);
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x0620 Headset RGB Hostmode (Centurion G522 /     |
+| PRO X 2). Separate feature from 0x8071/0x0600/0x8070 —    |
+| no effect cards, no SetSWControl, no power management.    |
+|                                                           |
+| Zone enumeration is best-effort from fn1 GetRGBZoneInfo.  |
+| Falls back to {0x00, 0x01} (two earcups) if decode fails. |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
+{
+    caps.idx_headset_rgb_hostmode = GetFeatureIndex(HIDPP20_FEAT_HEADSET_RGB_HOSTMODE);
+
+    if(caps.idx_headset_rgb_hostmode == 0)
+    {
+        return;
+    }
+
+    LOG_INFO("%s 0x0620 Headset RGB Hostmode present at feature index %u",
+             LOG_TAG, caps.idx_headset_rgb_hostmode);
+
+    /*---------------------------------------------------------*\
+    | fn1 GetRGBZoneInfo — empty request, returns a zone list.  |
+    | Exact packing is not fully pinned down by the protocol    |
+    | doc; log the raw response so a tester's log is enough to  |
+    | refine the decoder.                                       |
+    \*---------------------------------------------------------*/
+    blankFAPmessage response;
+    int result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                                  FN_0620_GET_RGB_ZONE_INFO,
+                                  nullptr, 0, response);
+
+    caps.headset_rgb_hostmode_zone_ids.clear();
+
+    if(result > 0)
+    {
+        LOG_INFO("%s 0x0620 fn1 GetRGBZoneInfo raw: "
+                 "%02X %02X %02X %02X %02X %02X %02X %02X "
+                 "%02X %02X %02X %02X %02X %02X %02X %02X",
+                 LOG_TAG,
+                 response.data[0], response.data[1], response.data[2],
+                 response.data[3], response.data[4], response.data[5],
+                 response.data[6], response.data[7], response.data[8],
+                 response.data[9], response.data[10], response.data[11],
+                 response.data[12], response.data[13], response.data[14],
+                 response.data[15]);
+
+        /*------------------------------------------------------*\
+        | First-pass decode: byte 0 = zone count, bytes 1..N =   |
+        | zone IDs. Bounds-check against the 16-byte data        |
+        | window. Refine once we see real G522 output.           |
+        \*------------------------------------------------------*/
+        uint8_t zone_count = response.data[0];
+
+        if(zone_count > 0 && zone_count <= 15)
+        {
+            for(uint8_t i = 0; i < zone_count; i++)
+            {
+                caps.headset_rgb_hostmode_zone_ids.push_back(response.data[1 + i]);
+            }
+        }
+    }
+    else
+    {
+        LOG_DEBUG("%s 0x0620 fn1 GetRGBZoneInfo failed (result=%d)",
+                  LOG_TAG, result);
+    }
+
+    if(caps.headset_rgb_hostmode_zone_ids.empty())
+    {
+        LOG_INFO("%s 0x0620 zone decode produced 0 zones — falling back to "
+                 "{0x00, 0x01} (two-earcup layout)", LOG_TAG);
+        caps.headset_rgb_hostmode_zone_ids.push_back(0x00);
+        caps.headset_rgb_hostmode_zone_ids.push_back(0x01);
+    }
+
+    /*---------------------------------------------------------*\
+    | Synthesize a single zone cluster so the existing          |
+    | RGBController zone UI lights up with no special-casing.   |
+    | The 0x0620 path is static-color-only; no effect cards, no |
+    | per-key. One cluster, one LED per discovered zone.        |
+    \*---------------------------------------------------------*/
+    HIDPP20ZoneCluster cluster;
+    cluster.index        = 0;
+    cluster.location     = 0;
+    cluster.effect_count = 0;
+    caps.zone_clusters.clear();
+    caps.zone_clusters.push_back(cluster);
+
+    caps.is_headset_rgb_hostmode  = true;
+    caps.has_zone_effects         = true;
+    caps.rgb_feature_page         = HIDPP20_FEAT_HEADSET_RGB_HOSTMODE;
+
+    /*---------------------------------------------------------*\
+    | Pin device type to HEADSET. 0x0620 presence is a headset  |
+    | signal and Centurion sub-devices otherwise show type=0.   |
+    | DiscoverDeviceType ran earlier in the probe sequence, so  |
+    | pin it here where we have the evidence.                   |
+    \*---------------------------------------------------------*/
+    caps.device_type = LOGITECH_DEVICE_TYPE_HEADSET;
+
+    LOG_INFO("%s 0x0620 ready: %zu zone(s), transient (FrameEnd 0x01) mode",
+             LOG_TAG, caps.headset_rgb_hostmode_zone_ids.size());
 }
 
 void LogitechHIDPP20Controller::DiscoverPerKeyZones()
@@ -2130,8 +2233,9 @@ bool LogitechHIDPP20Controller::Probe()
 
             /*---------------------------------------------------*\
             | Pre-check sub-device availability via               |
-            | getConnectionInfo (CentPPBridge fn0). LGHUB does    |
-            | this and refuses to call sendFragment when MTU=0.   |
+            | getConnectionInfo (CentPPBridge fn0). The vendor    |
+            | app does this and refuses to call sendFragment      |
+            | when MTU=0.                                         |
             |                                                     |
             | Response format (from protocol doc line 910-917):   |
             |   Byte 0: high nibble = connection type/state       |
@@ -2289,6 +2393,10 @@ bool LogitechHIDPP20Controller::Probe()
     | Discover RGB capabilities                                 |
     \*---------------------------------------------------------*/
     DiscoverRGBEffects();
+    if(caps.idx_rgb_effects == 0)
+    {
+        DiscoverHeadsetRGBHostmode();
+    }
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
 
@@ -2368,6 +2476,19 @@ void LogitechHIDPP20Controller::Shutdown()
         blankFAPmessage response;
         SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
                          data, 1, response);
+    }
+
+    /*---------------------------------------------------------*\
+    | Release 0x0620 Headset RGB hostmode claim. Best-effort;   |
+    | mirrors the SetHostMode() additive branch.                |
+    \*---------------------------------------------------------*/
+    if(caps.idx_headset_rgb_hostmode != 0)
+    {
+        uint8_t         off          = 0x00;
+        blankFAPmessage release_response;
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_HOST_MODE_STATE,
+                         &off, 1, release_response);
     }
 
     initialized = false;
@@ -2465,22 +2586,20 @@ void LogitechHIDPP20Controller::SetHostMode()
     else if(caps.idx_onboard_profiles != 0)
     {
         /*-------------------------------------------------------*\
-        | Clone G Hub's wire pattern: unconditional               |
-        | SetOnboardMode(host) followed by a GetOnboardMode       |
-        | verify read. G Hub never reads first — in the G502 X    |
-        | PLUS pcap frames 2223/2227 it writes fn1 with 0x02      |
-        | then immediately re-queries fn2, ignoring the           |
-        | response value (no retry logic, no branching on it).    |
-        | The verify appears to be a state-settle / sync point    |
-        | rather than a check, but since we don't know what       |
-        | firmware-side effect it has, we mirror it.              |
+        | Observed vendor-app wire pattern on G502 X PLUS:        |
+        | unconditional SetOnboardMode(host) immediately          |
+        | followed by a GetOnboardMode verify read. The vendor    |
+        | app never reads first — it writes fn1 with 0x02 then    |
+        | re-queries fn2, ignoring the response value (no retry   |
+        | logic, no branching on it). The verify appears to be a  |
+        | state-settle / sync point rather than a check, but      |
+        | since we don't know its firmware-side effect, we mirror |
+        | it.                                                     |
         |                                                         |
         | An earlier revision of this function added a pre-Set    |
         | GetOnboardMode guard to skip the write when already     |
-        | in host mode. That was written against a misread of     |
-        | the pcap (I initially thought G Hub did Get-then-Set)   |
-        | and deviated from G Hub's actual wire behavior, so it   |
-        | has been removed. See feedback_clone_ghub_first.md.     |
+        | in host mode. That deviated from the observed wire      |
+        | behavior, so it has been removed.                       |
         \*-------------------------------------------------------*/
         uint8_t         set_data[1] = { 0x02 };
         blankFAPmessage set_response;
@@ -2493,6 +2612,24 @@ void LogitechHIDPP20Controller::SetHostMode()
 
         LOG_DEBUG("%s OnboardProfiles set to host mode, verify=0x%02X",
                   LOG_TAG, verify_response.data[0]);
+    }
+
+    /*-------------------------------------------------------*\
+    | 0x0620 Headset RGB hostmode claim. Additive — a headset |
+    | exposing 0x0620 typically won't also have 0x8100/0x8101 |
+    | but we don't assume mutual exclusion. Sticky claim, not |
+    | re-issued per write; wake path re-enters SetHostMode    |
+    | after reconnect which reinstates it for free.           |
+    \*-------------------------------------------------------*/
+    if(caps.idx_headset_rgb_hostmode != 0)
+    {
+        uint8_t         on           = 0x01;
+        blankFAPmessage claim_response;
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_HOST_MODE_STATE,
+                         &on, 1, claim_response);
+
+        LOG_DEBUG("%s 0x0620 SetHostModeState(1) sent", LOG_TAG);
     }
 }
 
@@ -2513,19 +2650,19 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     | flash (warm-white ~3000K, ~50ms) visible on G502 X PLUS.   |
     |                                                            |
     | The SW Control `flags` bits are not "Zone/Power/Effect"    |
-    | as the overview doc labels them — the detail section       |
-    | (LOGITECH_HIDPP2_PROTOCOL.md:16201, derived from a G502    |
-    | pcap) uses bit 0 = effect control, bit 1 = power           |
-    | management, bit 2 = NV config. Setting the effect bit      |
-    | suspends the firmware's autonomous effect engine, and      |
-    | anything the host hasn't explicitly painted since that     |
-    | moment shows as the firmware's default LED buffer — on     |
-    | the G502 X PLUS that default is warm-white.                |
+    | as the overview labels them — derived from a G502 wire     |
+    | capture, bit 0 = effect control, bit 1 = power management, |
+    | bit 2 = NV config. Setting the effect bit suspends the     |
+    | firmware's autonomous effect engine, and anything the host |
+    | hasn't explicitly painted since that moment shows as the   |
+    | firmware's default LED buffer — on the G502 X PLUS that    |
+    | default is warm-white.                                     |
     |                                                            |
-    | G Hub paints the G502 with flags=6 (power+NV, NOT effect)  |
-    | the entire time, so the firmware effect engine keeps       |
-    | rendering the onboard profile's output right up to the     |
-    | moment SetEffectByIndex replaces it — no visible gap.      |
+    | The observed vendor-app behavior paints the G502 with      |
+    | flags=6 (power+NV, NOT effect) the entire time, so the     |
+    | firmware effect engine keeps rendering the onboard         |
+    | profile's output right up to the moment SetEffectByIndex   |
+    | replaces it — no visible gap.                              |
     |                                                            |
     | We can't just stay on flags=6 forever: the idle/wake       |
     | state machine in OnUserActivity uses flags=5/3 as its      |
@@ -2538,18 +2675,18 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     | invisible.                                                 |
     |                                                            |
     | The previous sequence wrote `(3,7)` then `(3,5)` to mimic  |
-    | G Hub's *keyboard first-contact* behavior. That was right  |
-    | for the initial G515 bring-up but wrong for the mouse —    |
-    | on the G502 X PLUS the effect bit at claim time is the     |
-    | root cause of the startup flash.                           |
+    | the vendor app's *keyboard first-contact* behavior. That   |
+    | was right for the initial G515 bring-up but wrong for the  |
+    | mouse — on the G502 X PLUS the effect bit at claim time    |
+    | is the root cause of the startup flash.                    |
     |                                                            |
-    | GHUB's claim sequence does two WritePowerConfig calls      |
-    | around SetHostMode, writing (a) its profile's sleep value  |
-    | then (b) that value minus the firmware off-ramp. We don't  |
-    | write timers at all: we don't have a profile we want to    |
-    | impose on the device, and our host-side StartSleep trigger |
-    | already fires SetRgbPowerMode(3) explicitly at the moment  |
-    | we want the fade to begin.                                 |
+    | The vendor-app claim sequence does two WritePowerConfig    |
+    | calls around SetHostMode, writing (a) its profile's sleep  |
+    | value then (b) that value minus the firmware off-ramp.     |
+    | We don't write timers at all: we don't have a profile we   |
+    | want to impose on the device, and our host-side StartSleep |
+    | trigger already fires SetRgbPowerMode(3) explicitly at the |
+    | moment we want the fade to begin.                          |
     \*----------------------------------------------------------*/
     int claim_result = SetSWControl(3, 6);
 
@@ -2658,9 +2795,9 @@ void LogitechHIDPP20Controller::DoDisableKeysByUsageHandshake()
 | Observed per-key prep sequence                            |
 |                                                           |
 | Two SetEffectByIndex calls cloned byte-for-byte from a    |
-| G Hub pcap on a G502 X PLUS (wired-ish connection via     |
-| Lightspeed receiver; see ~/orgb/G502-capture-1.pcap).     |
-| The two frames are:                                       |
+| wire capture of the vendor app talking to a G502 X PLUS   |
+| (wired-ish connection via Lightspeed receiver). The two   |
+| frames are:                                               |
 |                                                           |
 |   Frame 2297 (17.348s, ~262ms after SetOnboardMode(02)):  |
 |     1101091a ff 02 00 00 00 00 00 00 20 64 00 00 01 …     |
@@ -2672,8 +2809,9 @@ void LogitechHIDPP20Controller::DoDisableKeysByUsageHandshake()
 |         Breathing effect parameter layout documented in   |
 |         the protocol reference has period/brightness in   |
 |         those slots, but the exact meaning of these two   |
-|         values in this context is NOT understood. G Hub   |
-|         sends them verbatim on every claim; we mirror.    |
+|         values in this context is NOT understood. The    |
+|         vendor app sends them verbatim on every claim; we |
+|         mirror.                                           |
 |       persist=0x01                                        |
 |                                                           |
 |   Frame 2321 (17.443s, ~95ms after frame 2297):           |
@@ -2712,12 +2850,12 @@ void LogitechHIDPP20Controller::DoObservedPerKeyPrep()
     |                                                            |
     | The template bytes are discovered at feature-discovery     |
     | time via GetEffectSpecificInfo on any firmware effect      |
-    | card; LGHUB does the same read-then-echo pattern, and on   |
-    | a G502 X PLUS the read value is 0x20 0x64 across every     |
-    | card. We don't know what those bytes mean semantically —   |
-    | just that the device expects to see them echoed back       |
-    | verbatim in this position when LGHUB primes the firmware   |
-    | effect engine for per-key takeover.                        |
+    | card; the vendor app does the same read-then-echo         |
+    | pattern, and on a G502 X PLUS the read value is 0x20 0x64 |
+    | across every card. We don't know what those bytes mean    |
+    | semantically — just that the device expects to see them   |
+    | echoed back verbatim in this position when priming the    |
+    | firmware effect engine for per-key takeover.              |
     \*----------------------------------------------------------*/
     uint8_t prep1[16] =
     {
@@ -3116,8 +3254,9 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
     | frame failure means the next frame's delta will pick up   |
     | the missed keys, and we don't want to delay that frame.   |
     |                                                           |
-    | Format (matches GHUB capture): LONG message (0x11), 16    |
-    | bytes of zeros. The firmware expects long-format FrameEnd |
+    | Format (matches observed wire capture): LONG message      |
+    | (0x11), 16 bytes of zeros. Firmware expects long-format   |
+    | FrameEnd                                                  |
     | — short-format hits intermittent BUSY.                    |
     \*---------------------------------------------------------*/
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -3353,7 +3492,7 @@ void LogitechHIDPP20Controller::SetZoneEffect
 
     /*----------------------------------------------------------*\
     | Build 10-byte params (data[2..11]) per effect type         |
-    | Layouts from protocol docs and LGHUB captures              |
+    | Layouts from protocol docs and observed wire captures      |
     \*----------------------------------------------------------*/
     switch(effect_id)
     {
@@ -3442,6 +3581,116 @@ void LogitechHIDPP20Controller::SetZoneEffect
     blankFAPmessage response;
     SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_set_effect,
                      data, 16, response);
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x0620 Headset RGB Hostmode — static color write. |
+|                                                           |
+| Claim is sticky from SetHostMode(); this function only    |
+| writes colors + FrameEnd. Picks fn5 SetRgbZonesSingleValue|
+| when all zones share a color, else fn2                    |
+| SetIndividualRgbZones. FrameEnd byte 0 is always 0x01     |
+| (transient) — 0x02 was tested and does not work on G522   |
+| firmware.                                                 |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::SetHeadsetRGBHostmodeColors
+    (
+    const std::vector<RGBColor>& zone_colors
+    )
+{
+    if(caps.idx_headset_rgb_hostmode == 0 || !device_online.load())
+    {
+        return;
+    }
+
+    const std::vector<uint8_t>& zones = caps.headset_rgb_hostmode_zone_ids;
+    if(zones.empty())
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | If fewer colors than zones, fill the tail with the last   |
+    | provided color. If zero colors, nothing to write.         |
+    \*---------------------------------------------------------*/
+    if(zone_colors.empty())
+    {
+        return;
+    }
+
+    /*---------------------------------------------------------*\
+    | Uniformity check: same color across every zone?           |
+    \*---------------------------------------------------------*/
+    RGBColor first = zone_colors[0];
+    bool all_same  = true;
+    for(size_t i = 1; i < zones.size(); i++)
+    {
+        RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
+        if(c != first)
+        {
+            all_same = false;
+            break;
+        }
+    }
+
+    uint8_t         payload[16];
+    size_t          payload_len = 0;
+    uint8_t         function    = 0;
+    blankFAPmessage response;
+
+    if(all_same)
+    {
+        /*------------------------------------------------------*\
+        | fn5 SetRgbZonesSingleValue: [R, G, B, count, zones...] |
+        \*------------------------------------------------------*/
+        function    = FN_0620_SET_RGB_ZONES_SINGLE_VALUE;
+        payload[0]  = RGBGetRValue(first);
+        payload[1]  = RGBGetGValue(first);
+        payload[2]  = RGBGetBValue(first);
+        payload[3]  = (uint8_t)zones.size();
+
+        size_t n = zones.size();
+        if(n > sizeof(payload) - 4) n = sizeof(payload) - 4;
+        for(size_t i = 0; i < n; i++)
+        {
+            payload[4 + i] = zones[i];
+        }
+        payload_len = 4 + n;
+    }
+    else
+    {
+        /*------------------------------------------------------*\
+        | fn2 SetIndividualRgbZones: [zone, R, G, B] × N         |
+        | Each entry is 4 bytes; 16-byte payload fits 4 entries. |
+        \*------------------------------------------------------*/
+        function = FN_0620_SET_INDIVIDUAL_RGB_ZONES;
+        size_t n = zones.size();
+        if(n > sizeof(payload) / 4) n = sizeof(payload) / 4;
+        for(size_t i = 0; i < n; i++)
+        {
+            RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
+            payload[i * 4 + 0] = zones[i];
+            payload[i * 4 + 1] = RGBGetRValue(c);
+            payload[i * 4 + 2] = RGBGetGValue(c);
+            payload[i * 4 + 3] = RGBGetBValue(c);
+        }
+        payload_len = n * 4;
+    }
+
+    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, function,
+                     payload, payload_len, response);
+
+    /*---------------------------------------------------------*\
+    | fn6 FrameEnd — byte 0 = 0x01 (transient commit). Never    |
+    | 0x00 (silently discarded) and never 0x02 (tested broken   |
+    | on G522 firmware).                                        |
+    \*---------------------------------------------------------*/
+    uint8_t frame_end[4] = { 0x01, 0x00, 0x00, 0x00 };
+    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, FN_0620_FRAME_END,
+                     frame_end, sizeof(frame_end), response);
+
+    LOG_TRACE("%s 0x0620 wrote %zu zone(s), fn=0x%02X, FrameEnd[0x01]",
+              LOG_TAG, zones.size(), function);
 }
 
 /*---------------------------------------------------------*\
@@ -3587,6 +3836,10 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     caps.idx_disable_keys_by_usage  = GetFeatureIndex(HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE);
 
     DiscoverRGBEffects();
+    if(caps.idx_rgb_effects == 0)
+    {
+        DiscoverHeadsetRGBHostmode();
+    }
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
 
@@ -3619,8 +3872,8 @@ void LogitechHIDPP20Controller::ReconnectDevice()
     | Called by power thread when a WirelessStatus reconnect     |
     | event arrives. Race the firmware boot animation: hammer    |
     | the SW-control claim + per-key push on a fast-backoff      |
-    | schedule until the claim ACKs (matches GHUB, which lands   |
-    | control in ~50ms).                                         |
+    | schedule until the claim ACKs (matches the vendor app,     |
+    | which lands control in ~50ms).                             |
     |                                                            |
     | Previously this code split work across the two firmware    |
     | events (reconnect=1/config_needed=1 then config_needed=0)  |
@@ -3782,6 +4035,10 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     caps.idx_disable_keys_by_usage  = GetFeatureIndex(HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE);
 
     DiscoverRGBEffects();
+    if(caps.idx_rgb_effects == 0)
+    {
+        DiscoverHeadsetRGBHostmode();
+    }
     DiscoverPerKeyZones();
     DiscoverKeyboardLayout();
 }
@@ -4962,9 +5219,9 @@ void LogitechHIDPP20Controller::Wake()
     | initiate the fade, so we have to explicitly cancel it      |
     | with SetRgbPowerMode(1) first.                             |
     |                                                            |
-    | Per the 0x8071 protocol lifecycle (LOGITECH_HIDPP2_        |
-    | PROTOCOL.md §0x8071), a proper wake is: power mode 1 (if   |
-    | we were sleeping), then SetSWControl(3,5) to re-claim      |
+    | Per the 0x8071 protocol lifecycle, a proper wake is: power |
+    | mode 1 (if we were sleeping), then SetSWControl(3,5) to    |
+    | re-claim                                                   |
     | rendering from the firmware's idle-monitor mode, then      |
     | re-push the current lighting state at full brightness.     |
     |                                                            |
@@ -5091,14 +5348,14 @@ void LogitechHIDPP20Controller::ReadNvSleepRampConfig()
     | RGBEffects fn3 NV_CONFIG (0x30) read of capability 0x0020  |
     | (Off Ramp / Sleep Transition).                             |
     |                                                            |
-    | Wire format (matches GHUB capture line 901):               |
+    | Wire format (matches observed wire capture):               |
     |   request:  short msg, data = [0x00, cap_hi, cap_lo]       |
     |             where 0x00 = sub-function GET                  |
     |   response: long msg, data = [echo (3 bytes), enabled,     |
     |             ramp_seconds, ...]                             |
     |                                                            |
-    | G515 default observed in GHUB: enabled=0x01, seconds=0x1E  |
-    | (= 30 seconds dim ramp before sleep).                      |
+    | G515 default observed from vendor app: enabled=0x01,       |
+    | seconds=0x1E (= 30 seconds dim ramp before sleep).         |
     \*----------------------------------------------------------*/
     if(caps.idx_rgb_effects == 0 || !caps.has_power_mgmt)
     {
@@ -5185,16 +5442,17 @@ void LogitechHIDPP20Controller::ReadActiveProfileSector()
     | act on the contents — just log them so we can see what     |
     | the device thinks its persisted state is.                  |
     |                                                            |
-    | Wire format mirrors GHUB capture lines 670 (load) and      |
-    | 672-685 (7× readBuffer):                                   |
+    | Wire format mirrors observed wire capture (load followed   |
+    | by 7× readBuffer):                                         |
     |   load:        long msg, [partition=0x01, sector=0x01,     |
     |                           size_hi=0x00, size_lo=0x63,      |
     |                           padding to 16 bytes]             |
     |   readBuffer:  short msg, [offset_hi, offset_lo, 0]        |
     |                returns long msg with 16 bytes of data      |
     |                                                            |
-    | Sector size 0x63 = 99 bytes is what GHUB requested for     |
-    | the G515 active profile. Other devices may differ — we     |
+    | Sector size 0x63 = 99 bytes is what the vendor app         |
+    | requested for the G515 active profile. Other devices may   |
+    | differ — we                                                |
     | hardcode it for now since this is diagnostic-only.         |
     \*----------------------------------------------------------*/
     if(caps.idx_profile_management == 0)

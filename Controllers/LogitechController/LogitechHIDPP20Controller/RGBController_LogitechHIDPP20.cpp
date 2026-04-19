@@ -30,7 +30,8 @@ static constexpr RGBColor HIDPP20_UNCOMMITTED = 0xFF000000;
 /*---------------------------------------------------------*\
 | Effect period range, in milliseconds. Matches the         |
 | 1000..20000ms range Logitech firmware tests against and   |
-| LGHUB clamps to in capture data. Out-of-band values can   |
+| the vendor app clamps to in observed wire captures.       |
+| Out-of-band values can                                    |
 | produce flashy / invisible animations on real hardware,   |
 | so the slider stays clamped here on our side.             |
 \*---------------------------------------------------------*/
@@ -376,11 +377,27 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     }
 
     /*----------------------------------------------------------*\
+    | 0x0620 Headset RGB Hostmode has no effect cards. Provide   |
+    | a single Direct mode that maps every LED to the frame      |
+    | buffer; SetHeadsetRGBHostmodeColors writes them straight   |
+    | to the earcup zones.                                       |
+    \*----------------------------------------------------------*/
+    if(caps.is_headset_rgb_hostmode)
+    {
+        mode Direct;
+        Direct.name       = "Direct";
+        Direct.value      = 0;
+        Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+        Direct.color_mode = MODE_COLORS_PER_LED;
+        modes.push_back(Direct);
+    }
+
+    /*----------------------------------------------------------*\
     | Effect modes from zone cluster discovery                   |
     | Scan effects from the first cluster (effects are usually   |
     | the same across clusters)                                  |
     \*----------------------------------------------------------*/
-    if(caps.has_zone_effects && !caps.zone_clusters.empty())
+    if(caps.has_zone_effects && !caps.zone_clusters.empty() && !caps.is_headset_rgb_hostmode)
     {
         const HIDPP20ZoneCluster& cluster = caps.zone_clusters[0];
 
@@ -809,6 +826,35 @@ void RGBController_LogitechHIDPP20::SetupZones()
             }
         }
     }
+    else if(caps.is_headset_rgb_hostmode)
+    {
+        /*------------------------------------------------------*\
+        | Headset RGB hostmode (0x0620): single linear zone with |
+        | one LED per discovered earcup zone ID.                 |
+        \*------------------------------------------------------*/
+        size_t led_count = caps.headset_rgb_hostmode_zone_ids.size();
+
+        zone headset_zone;
+        headset_zone.name       = "Headset";
+        headset_zone.type       = ZONE_TYPE_LINEAR;
+        headset_zone.leds_min   = (unsigned int)led_count;
+        headset_zone.leds_max   = (unsigned int)led_count;
+        headset_zone.leds_count = (unsigned int)led_count;
+        headset_zone.matrix_map = nullptr;
+        zones.push_back(headset_zone);
+
+        for(size_t i = 0; i < led_count; i++)
+        {
+            led new_led;
+            new_led.name  = (i == 0) ? "Left Earcup"
+                          : (i == 1) ? "Right Earcup"
+                          : "Zone " + std::to_string(i);
+            new_led.value = caps.headset_rgb_hostmode_zone_ids[i];
+            leds.push_back(new_led);
+
+            led_to_zone_id.push_back(caps.headset_rgb_hostmode_zone_ids[i]);
+        }
+    }
     else if(caps.has_zone_effects)
     {
         /*------------------------------------------------------*\
@@ -905,6 +951,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         return;
     }
 
+    /*----------------------------------------------------------*\
+    | Feature 0x0620 Headset RGB Hostmode (Centurion G522 /      |
+    | PRO X 2). Static-color only, two earcup zones. Bypasses    |
+    | per-key, SetZoneEffect, and effect-card paths entirely —   |
+    | 0x0620 has none of that. Claim was made once in            |
+    | SetHostMode(); we just write colors + FrameEnd[0x01].      |
+    \*----------------------------------------------------------*/
+    if(caps.is_headset_rgb_hostmode)
+    {
+        controller->SetHeadsetRGBHostmodeColors(colors);
+        return;
+    }
+
     if(caps.has_perkey && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
@@ -928,7 +987,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         |                                                         |
         | (A) Observed prep via DoObservedPerKeyPrep — two        |
         |     SetEffectByIndex calls on 0x8071 cloned from        |
-        |     LGHUB's wire behavior. The template bytes at        |
+        |     the observed vendor-app wire behavior. The          |
+        |     template bytes at                                   |
         |     prep1 params[6..7] and the effectIdx at prep2 are   |
         |     parameterized from device-discovery results         |
         |     (caps.effect_card_template[], and                   |
@@ -1541,8 +1601,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                                 : period;
 
         /*-----------------------------------------------------*\
-        | 0x8071/0x0600: persist=true matches what the captured |
-        | GHUB packet replay does for every mode-set on these   |
+        | 0x8071/0x0600: persist=true matches what the observed |
+        | vendor-app wire capture does for every mode-set on    |
+        | these                                                 |
         | devices. With persist=false the firmware appears to   |
         | accept the command without actually committing the    |
         | new effect, which is consistent with Static (which    |

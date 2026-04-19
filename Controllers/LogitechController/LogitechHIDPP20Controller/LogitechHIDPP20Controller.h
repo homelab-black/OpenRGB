@@ -45,6 +45,7 @@
 #define HIDPP20_FEAT_KEYBOARD_LAYOUT          0x4540
 #define HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE    0x4522
 #define HIDPP20_FEAT_CENTURION_RGB            0x0600
+#define HIDPP20_FEAT_HEADSET_RGB_HOSTMODE     0x0620
 #define HIDPP20_FEAT_CENTURION_DEVICE_INFO   0x0100
 #define HIDPP20_FEAT_CENTURION_DEVICE_NAME   0x0101
 #define HIDPP20_FEAT_UNIFIED_BATTERY          0x1004
@@ -56,7 +57,7 @@
 \*-----------------------------------------------------*/
 /*-----------------------------------------------------*\
 | HID++ Software ID — identifies our responses.         |
-| Must avoid: 0x00 (firmware), 0x01 (GHUB),             |
+| Must avoid: 0x00 (firmware), 0x01 (vendor app),       |
 | 0x02-0x0F (Solaar cycles these).                      |
 | There are only 16 values (4-bit field), and all are   |
 | claimed. We pick a fixed value and will coordinate    |
@@ -88,6 +89,19 @@
 #define FN_8081_SET_RANGE                   0x50
 #define FN_8081_SET_SINGLE_VALUE            0x60
 #define FN_8081_FRAME_END                   0x70
+
+/*-----------------------------------------------------*\
+| Feature 0x0620 functions (headset RGB hostmode)       |
+\*-----------------------------------------------------*/
+#define FN_0620_GET_INFO                    0x00
+#define FN_0620_GET_RGB_ZONE_INFO           0x10
+#define FN_0620_SET_INDIVIDUAL_RGB_ZONES    0x20
+#define FN_0620_SET_CONSECUTIVE_RGB_ZONES   0x30
+#define FN_0620_SET_RANGE_RGB_ZONES         0x40
+#define FN_0620_SET_RGB_ZONES_SINGLE_VALUE  0x50
+#define FN_0620_FRAME_END                   0x60
+#define FN_0620_GET_HOST_MODE_STATE         0x70
+#define FN_0620_SET_HOST_MODE_STATE         0x80
 
 /*-----------------------------------------------------*\
 | Feature 0x8100 functions                              |
@@ -174,6 +188,7 @@ struct HIDPP20DeviceCapabilities
     uint8_t         idx_onboard_profiles;
     uint8_t         idx_profile_management;
     uint8_t         idx_rgb_effects;
+    uint8_t         idx_headset_rgb_hostmode;   /* 0x0620 — Centurion headset RGB */
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
     uint8_t         idx_wireless_status;
@@ -227,8 +242,10 @@ struct HIDPP20DeviceCapabilities
     \*-------------------------------------------------*/
     std::vector<HIDPP20ZoneCluster>   zone_clusters;
     std::vector<uint16_t>           perkey_zone_ids;
+    std::vector<uint8_t>            headset_rgb_hostmode_zone_ids;  /* 0x0620 fn1 result */
     bool                            has_perkey;
     bool                            has_zone_effects;
+    bool                            is_headset_rgb_hostmode;        /* 0x0620 path selected */
     bool                            has_numpad;
     uint8_t                         keyboard_layout_code;
 };
@@ -353,8 +370,9 @@ static constexpr uint16_t HIDPP20_BACKOFF_PROBE[] =
 /*------------------------------------------------------*\
 | SW-control reclaim backoff. Used by ReconnectDevice    |
 | to retry the claim+push sequence after a wireless      |
-| reconnect, racing the firmware boot animation. GHUB    |
-| typically lands control in ~50ms; this schedule fits   |
+| reconnect, racing the firmware boot animation. The     |
+| vendor app typically lands control in ~50ms; this      |
+| schedule fits                                          |
 | 6 attempts inside ~620ms so the animation never gets   |
 | a chance to become visible.                            |
 \*------------------------------------------------------*/
@@ -479,6 +497,15 @@ public:
                                   uint16_t period, unsigned char brightness,
                                   bool persist);
 
+    /*---------------------------------------------------*\
+    | Headset RGB hostmode (0x0620).                      |
+    | Sticky-claim model: SetHostMode() claims once via   |
+    | fn8, then each write is fn5 (single-value) or fn2   |
+    | (individual) + fn6 FrameEnd[0x01]. 0x02 persist was |
+    | tested and does not work on G522 firmware.          |
+    \*---------------------------------------------------*/
+    void            SetHeadsetRGBHostmodeColors(const std::vector<RGBColor>& zone_colors);
+
     /*-------------------------------------------------*\
     | SW control management                             |
     \*-------------------------------------------------*/
@@ -527,7 +554,7 @@ public:
     /*--------------------------------------------------*\
     | Observed per-key prep sequence. Two                |
     | SetEffectByIndex calls cloned byte-for-byte from a |
-    | G Hub pcap on a G502 X PLUS (frames 2297 & 2321).  |
+    | wire capture on a G502 X PLUS.                     |
     | Used in place of the Static-pass-through prep when |
     | the device's RGBEffects enumeration matches the    |
     | G502 shape — see DeviceUpdateLEDs for gating.      |
@@ -679,6 +706,7 @@ private:
     void            DiscoverFirmwareInfo();
     void            DiscoverRGBEffects();
     void            DiscoverEffectCards();
+    void            DiscoverHeadsetRGBHostmode();
     void            DiscoverPerKeyZones();
     void            DiscoverKeyboardLayout();
 
