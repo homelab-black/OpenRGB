@@ -1,15 +1,15 @@
-/*-----------------------------------------------------------*\
-| LogitechHIDPP20Controller.h                                 |
-|                                                             |
-|   Unified Logitech HID++ 2.0 controller                     |
-|                                                             |
-|   Uses feature discovery (IRoot 0x0000) to dynamically      |
-|   determine device capabilities and adapt to any HID++      |
-|   2.0 device with RGB lighting support.                     |
-|                                                             |
-|   This file is part of the OpenRGB project                  |
-|   SPDX-License-Identifier: GPL-2.0-or-later                 |
-\*-----------------------------------------------------------*/
+/*---------------------------------------------------------*\
+| LogitechHIDPP20Controller.h                               |
+|                                                           |
+|   Unified Logitech HID++ 2.0 controller                   |
+|                                                           |
+|   Uses feature discovery (IRoot 0x0000) to dynamically    |
+|   determine device capabilities and adapt to any HID++    |
+|   2.0 device with RGB lighting support.                   |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #pragma once
 
