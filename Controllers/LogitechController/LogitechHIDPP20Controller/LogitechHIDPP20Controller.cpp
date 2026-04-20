@@ -1177,14 +1177,21 @@ uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
             caps.feature_versions[feature_page] = version;
         }
 
-        LOG_DEBUG("%s Feature 0x%04X V%u -> index 0x%02X",
-                  LOG_TAG, feature_page, version, index);
-
-        if(index != 0 && !FeatureVersionIsObserved(feature_page, version))
+        if(index != 0)
         {
-            LOG_INFO("%s Feature 0x%04X V%u not previously observed — "
-                     "tripwire for version-gated behavior",
-                     LOG_TAG, feature_page, version);
+            LOG_DEBUG("%s Feature 0x%04X V%u -> index 0x%02X",
+                      LOG_TAG, feature_page, version, index);
+
+            if(!FeatureVersionIsObserved(feature_page, version))
+            {
+                LOG_INFO("%s Feature 0x%04X V%u not previously observed — "
+                         "tripwire for version-gated behavior",
+                         LOG_TAG, feature_page, version);
+            }
+        }
+        else
+        {
+            LOG_DEBUG("%s Feature 0x%04X not present", LOG_TAG, feature_page);
         }
 
         return index;
