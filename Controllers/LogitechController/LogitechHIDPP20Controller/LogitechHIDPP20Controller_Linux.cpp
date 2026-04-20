@@ -378,8 +378,8 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
             | matching our probe. Skip stray reports from unrelated |
             | firmware events that might be queued on the hidraw.   |
             \*-----------------------------------------------------*/
-            auto deadline = std::chrono::steady_clock::now() +
-                            std::chrono::milliseconds(100);
+            std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() +
+                                                             std::chrono::milliseconds(100);
 
             while(std::chrono::steady_clock::now() < deadline)
             {
