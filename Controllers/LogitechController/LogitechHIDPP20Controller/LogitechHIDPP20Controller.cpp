@@ -79,7 +79,7 @@ static constexpr HIDPP20FeatureVersionSet HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
 \*----------------------------------------------------------*/
 static bool FeatureVersionIsObserved(uint16_t feature_id, uint8_t version)
 {
-    for(const auto& row : HIDPP20_FEATURE_OBSERVED_VERSIONS)
+    for(const HIDPP20FeatureVersionSet& row : HIDPP20_FEATURE_OBSERVED_VERSIONS)
     {
         if(row.feature_id != feature_id)
         {
@@ -252,8 +252,8 @@ int LogitechHIDPP20Controller::ReadFromQueue
 {
     std::unique_lock<std::mutex> lock(response_mutex);
 
-    auto deadline = std::chrono::steady_clock::now()
-                  + std::chrono::milliseconds(timeout_ms);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now()
+                                                    + std::chrono::milliseconds(timeout_ms);
 
     while(response_queue.empty())
     {
@@ -400,13 +400,13 @@ int LogitechHIDPP20Controller::SendAcked
         | commands. Only retry the send if the window expires   |
         | with no match (lost on wire) or we got BUSY.          |
         \*-----------------------------------------------------*/
-        auto window_deadline = std::chrono::steady_clock::now()
-                             + std::chrono::milliseconds(policy.read_window_ms);
+        std::chrono::steady_clock::time_point window_deadline = std::chrono::steady_clock::now()
+                                                               + std::chrono::milliseconds(policy.read_window_ms);
         bool need_resend = false;
 
         while(!need_resend)
         {
-            auto now = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
             if(now >= window_deadline)
             {
@@ -701,13 +701,13 @@ int LogitechHIDPP20Controller::ReadStandardDirect
     | loop the synchronous probe path can never get past them   |
     | to find its response.                                     |
     \*---------------------------------------------------------*/
-    auto deadline = std::chrono::steady_clock::now()
-                  + std::chrono::milliseconds(timeout_ms);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now()
+                                                    + std::chrono::milliseconds(timeout_ms);
     int  drained  = 0;
 
     while(true)
     {
-        auto now = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
         if(now >= deadline)
         {
@@ -924,14 +924,14 @@ int LogitechHIDPP20Controller::ReadCenturionDirect
     | Drain non-Centurion report IDs within the remaining window |
     | rather than bailing on the first non-matching frame.       |
     \*----------------------------------------------------------*/
-    auto deadline = std::chrono::steady_clock::now()
-                  + std::chrono::milliseconds(timeout_ms);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now()
+                                                    + std::chrono::milliseconds(timeout_ms);
     int  drained  = 0;
     int  result   = 0;
 
     while(true)
     {
-        auto now = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
         if(now >= deadline)
         {
@@ -1024,7 +1024,7 @@ int LogitechHIDPP20Controller::ReadCenturionDirect
             \*---------------------------------------------------*/
             while(true)
             {
-                auto now = std::chrono::steady_clock::now();
+                std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
                 if(now >= deadline)
                 {
@@ -1138,7 +1138,7 @@ uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
     | Check cache first — both Centurion bulk and HID++ on-demand |
     | lookups store results here.                                 |
     \*-----------------------------------------------------------*/
-    auto it = caps.feature_map.find(feature_page);
+    std::map<uint16_t, uint8_t>::const_iterator it = caps.feature_map.find(feature_page);
 
     if(it != caps.feature_map.end())
     {
@@ -1215,7 +1215,7 @@ uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
 \*---------------------------------------------------------*/
 uint8_t LogitechHIDPP20Controller::GetFeatureVersion(uint16_t feature_page) const
 {
-    auto it = caps.feature_versions.find(feature_page);
+    std::map<uint16_t, uint8_t>::const_iterator it = caps.feature_versions.find(feature_page);
 
     if(it != caps.feature_versions.end())
     {
@@ -1700,7 +1700,7 @@ void LogitechHIDPP20Controller::DiscoverFirmwareInfo()
             \*-------------------------------------------------*/
             caps.quirks = 0;
 
-            for(const auto& q : HIDPP20_DEVICE_QUIRK_TABLE)
+            for(const HIDPP20DeviceQuirkEntry& q : HIDPP20_DEVICE_QUIRK_TABLE)
             {
                 if((q.pid_wireless != 0 && q.pid_wireless == caps.pid_wireless) ||
                    (q.pid_wired    != 0 && q.pid_wired    == caps.pid_wired))
@@ -3190,8 +3190,8 @@ void LogitechHIDPP20Controller::ScheduleRetryPaint()
     }
 
     uint16_t delay_ms = HIDPP20_REPAINT_RETRY_BACKOFF_MS[attempt];
-    auto     deadline = std::chrono::steady_clock::now()
-                      + std::chrono::milliseconds(delay_ms);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now()
+                                                    + std::chrono::milliseconds(delay_ms);
 
     retry_paint_deadline_.store(deadline);
 
@@ -3214,7 +3214,7 @@ void LogitechHIDPP20Controller::TickRetryPaintIfPending()
     | the power thread's context — not recursively from inside  |
     | another DeviceUpdateLEDs call.                            |
     \*---------------------------------------------------------*/
-    auto deadline = retry_paint_deadline_.load();
+    std::chrono::steady_clock::time_point deadline = retry_paint_deadline_.load();
 
     if(deadline == std::chrono::steady_clock::time_point{})
     {
@@ -3390,7 +3390,7 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
     | up front so the caller can use it for both the success    |
     | and failure paths.                                        |
     \*---------------------------------------------------------*/
-    for(const auto& w : outstanding_writes)
+    for(const OutstandingPerKeyWrite& w : outstanding_writes)
     {
         for(uint8_t z : w.zone_ids)
         {
@@ -3448,13 +3448,13 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
     | much time on healthy devices — the loop exits the moment  |
     | the FrameEnd response shows up.                           |
     \*---------------------------------------------------------*/
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
     size_t outstanding_idx = 0;
     int    busy_retries    = 0;
 
     while(true)
     {
-        auto now = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if(now >= deadline)
         {
             LOG_DEBUG("%s FrameEnd timed out waiting for ACK (matched %zu/%zu writes)",
@@ -4588,7 +4588,7 @@ void LogitechHIDPP20Controller::ReaderThreadFunc()
             | never send commands (deadlock risk).                |
             \*---------------------------------------------------*/
             {
-                auto it = caps.feature_map.find(0x1D4B);
+                std::map<uint16_t, uint8_t>::const_iterator it = caps.feature_map.find(0x1D4B);
                 uint8_t ws_idx = (it != caps.feature_map.end()) ? it->second : 0;
 
                 if(ws_idx != 0 && feat == ws_idx &&
@@ -4701,7 +4701,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
     | Handles power state machine and sends commands.            |
     | Reads responses from the queue (filled by reader thread).  |
     \*----------------------------------------------------------*/
-    auto last_probe_time = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last_probe_time = std::chrono::steady_clock::now();
 
     while(power_thread_running.load())
     {
@@ -4711,7 +4711,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         \*------------------------------------------------------*/
         if(watcher_mode.load())
         {
-            auto now = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
             if(now - last_probe_time >= std::chrono::seconds(5))
             {
@@ -4786,13 +4786,13 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         \*-------------------------------------------------------*/
         if(!caps.unit_id.empty())
         {
-            auto now          = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
             int  path_retries = pending_path_check.load();
             bool online       = device_online.load();
 
-            auto interval = (online && path_retries == 0)
-                          ? std::chrono::milliseconds(2000)
-                          : std::chrono::milliseconds(200);
+            std::chrono::milliseconds interval = (online && path_retries == 0)
+                                                ? std::chrono::milliseconds(2000)
+                                                : std::chrono::milliseconds(200);
 
             if(now - last_probe_time >= interval)
             {
@@ -4825,7 +4825,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
             {
                 case HIDPP20_POWER_DIMMING:
                 {
-                    auto now = std::chrono::steady_clock::now();
+                    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
                     if(now >= next_dim_time)
                     {
                         DimRampStep();
@@ -4880,7 +4880,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         \*------------------------------------------------------*/
         if(caps.has_power_mgmt)
         {
-            auto now = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
             if(now - last_idle_poll >= std::chrono::milliseconds(500))
             {
                 last_idle_poll = now;

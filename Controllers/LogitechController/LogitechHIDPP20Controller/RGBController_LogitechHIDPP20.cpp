@@ -549,7 +549,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     \*---------------------------------------------------------*/
     if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
-        for(auto& m : modes)
+        for(mode& m : modes)
         {
             if(m.name != "Direct")
             {
@@ -578,7 +578,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
             \*-------------------------------------------------*/
             if(controller->ConsumeWakeFullRepaint())
             {
-                for(auto& c : sent_colors)
+                for(RGBColor& c : sent_colors)
                 {
                     c = HIDPP20_UNCOMMITTED;
                 }
@@ -686,7 +686,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 /*---------------------------------------------*\
                 | Look up zone ID by key name                   |
                 \*---------------------------------------------*/
-                auto it = hidpp20_key_name_to_zone.find(key_name);
+                std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_zone.find(key_name);
                 unsigned int zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
                 new_led.value = zone_id;
                 leds.push_back(new_led);
@@ -730,7 +730,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 }
 
                 std::string label;
-                for(const auto& kv : hidpp20_key_name_to_zone)
+                for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_zone)
                 {
                     if(kv.second == zid)
                     {
@@ -761,7 +761,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 extras_zone.matrix_map = nullptr;
                 zones.push_back(extras_zone);
 
-                for(const auto& e : extras)
+                for(const std::pair<uint16_t, std::string>& e : extras)
                 {
                     led new_led;
                     new_led.name  = e.second;
@@ -1137,7 +1137,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         \*------------------------------------------------------*/
         std::vector<std::pair<uint16_t, RGBColor>> individual_pairs;
 
-        for(auto& entry : color_to_zones)
+        for(std::pair<const RGBColor, std::vector<uint8_t>>& entry : color_to_zones)
         {
             RGBColor color = entry.first;
             std::vector<uint8_t>& zone_ids = entry.second;
@@ -1566,7 +1566,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     {
         uint16_t eff_id = 0;
 
-        for(const auto& fx : caps.zone_clusters[i].effects)
+        for(const HIDPP20Effect& fx : caps.zone_clusters[i].effects)
         {
             if(fx.index == (uint8_t)current.value)
             {
