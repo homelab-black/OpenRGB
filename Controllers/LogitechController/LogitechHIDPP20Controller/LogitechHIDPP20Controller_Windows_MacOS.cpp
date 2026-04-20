@@ -13,7 +13,6 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cstring>
 #include <string>
@@ -23,41 +22,6 @@
 #include "StringUtils.h"
 
 #define LOG_TAG log_tag.c_str()
-
-/*---------------------------------------------------------*\
-| Helper: wchar_t* -> std::string (UTF-8).                  |
-| hidapi returns wchar_t* for strings on Windows; we need   |
-| std::string for comparison and logging.                   |
-\*---------------------------------------------------------*/
-static std::string hidpp20_wchar_to_std(const wchar_t* w)
-{
-    if(w == nullptr)
-    {
-        return std::string();
-    }
-
-    return StringUtils::wstring_to_string(std::wstring(w));
-}
-
-/*----------------------------------------------------------*\
-| Helper: normalize a hex-ish identity string for comparison |
-| (strip dashes, lowercase).                                 |
-\*----------------------------------------------------------*/
-static std::string hidpp20_normalize_id(const std::string& s)
-{
-    std::string out;
-    out.reserve(s.size());
-
-    for(char c : s)
-    {
-        if(c != '-')
-        {
-            out += (char)tolower((unsigned char)c);
-        }
-    }
-
-    return out;
-}
 
 std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::string& path)
 {
@@ -89,7 +53,7 @@ std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::stri
             continue;
         }
 
-        friendly = hidpp20_wchar_to_std(d->product_string);
+        friendly = StringUtils::wchar_to_string(d->product_string);
         break;
     }
 
@@ -133,7 +97,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
         return false;
     }
 
-    std::string target_norm = hidpp20_normalize_id(caps.unit_id);
+    std::string target_norm = StringUtils::normalize_hex_id(caps.unit_id);
 
     /*---------------------------------------------------------*\
     | Candidate = {path, pid, has_serial_match}. Serial matches |
@@ -208,8 +172,8 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 
         if(d->serial_number != nullptr && d->serial_number[0] != L'\0')
         {
-            std::string sn      = hidpp20_wchar_to_std(d->serial_number);
-            std::string sn_norm = hidpp20_normalize_id(sn);
+            std::string sn      = StringUtils::wchar_to_string(d->serial_number);
+            std::string sn_norm = StringUtils::normalize_hex_id(sn);
 
             if(!sn_norm.empty() && sn_norm == target_norm)
             {
