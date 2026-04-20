@@ -79,8 +79,13 @@ static constexpr HIDPP20FeatureVersionSet HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
 \*----------------------------------------------------------*/
 static bool FeatureVersionIsObserved(uint16_t feature_id, uint8_t version)
 {
-    for(const HIDPP20FeatureVersionSet& row : HIDPP20_FEATURE_OBSERVED_VERSIONS)
+    size_t table_len = sizeof(HIDPP20_FEATURE_OBSERVED_VERSIONS)
+                     / sizeof(HIDPP20_FEATURE_OBSERVED_VERSIONS[0]);
+
+    for(size_t r = 0; r < table_len; r++)
     {
+        const HIDPP20FeatureVersionSet& row = HIDPP20_FEATURE_OBSERVED_VERSIONS[r];
+
         if(row.feature_id != feature_id)
         {
             continue;
@@ -1700,12 +1705,17 @@ void LogitechHIDPP20Controller::DiscoverFirmwareInfo()
             \*-------------------------------------------------*/
             caps.quirks = 0;
 
-            for(const HIDPP20DeviceQuirkEntry& q : HIDPP20_DEVICE_QUIRK_TABLE)
+            size_t quirk_table_len = sizeof(HIDPP20_DEVICE_QUIRK_TABLE)
+                                   / sizeof(HIDPP20_DEVICE_QUIRK_TABLE[0]);
+
+            for(size_t q = 0; q < quirk_table_len; q++)
             {
-                if((q.pid_wireless != 0 && q.pid_wireless == caps.pid_wireless) ||
-                   (q.pid_wired    != 0 && q.pid_wired    == caps.pid_wired))
+                const HIDPP20DeviceQuirkEntry& entry = HIDPP20_DEVICE_QUIRK_TABLE[q];
+
+                if((entry.pid_wireless != 0 && entry.pid_wireless == caps.pid_wireless) ||
+                   (entry.pid_wired    != 0 && entry.pid_wired    == caps.pid_wired))
                 {
-                    caps.quirks |= q.quirks;
+                    caps.quirks |= entry.quirks;
                 }
             }
 
@@ -3390,11 +3400,13 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
     | up front so the caller can use it for both the success    |
     | and failure paths.                                        |
     \*---------------------------------------------------------*/
-    for(const OutstandingPerKeyWrite& w : outstanding_writes)
+    for(size_t w = 0; w < outstanding_writes.size(); w++)
     {
-        for(uint8_t z : w.zone_ids)
+        const std::vector<uint8_t>& zone_ids = outstanding_writes[w].zone_ids;
+
+        for(size_t z = 0; z < zone_ids.size(); z++)
         {
-            result.attempted_zones.push_back(z);
+            result.attempted_zones.push_back(zone_ids[z]);
         }
     }
 
