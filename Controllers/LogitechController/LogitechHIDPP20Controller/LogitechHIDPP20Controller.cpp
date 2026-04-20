@@ -18,7 +18,6 @@
 
 #include "LogitechHIDPP20IdleSettings.h"
 
-using namespace std::chrono_literals;
 
 #define LOG_TAG log_tag.c_str()
 
@@ -3936,7 +3935,7 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     | Give the sub-device a moment to settle after connection    |
     | before sending commands through the bridge.                |
     \*----------------------------------------------------------*/
-    std::this_thread::sleep_for(500ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     FlushResponseQueue();
 
@@ -4545,7 +4544,7 @@ void LogitechHIDPP20Controller::ReaderThreadFunc()
                 device_online.store(false);
             }
 
-            std::this_thread::sleep_for(100ms);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
@@ -4738,7 +4737,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
                 }
             }
 
-            std::this_thread::sleep_for(50ms);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
             continue;
         }
 
@@ -4908,7 +4907,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         \*------------------------------------------------------*/
         TickRetryPaintIfPending();
 
-        std::this_thread::sleep_for(50ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }
 
