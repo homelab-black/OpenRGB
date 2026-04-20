@@ -922,21 +922,21 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     /*----------------------------------------------------------*\
-    | Frame suppression during SLEEPING has two layers:          |
+    | Frame handling during SLEEPING has two layers:             |
     |                                                            |
-    | 1. Quirk-based: devices with SLEEP_SUPPRESSES_FRAMES       |
-    |    (e.g. G502 X PLUS) wake on per-key writes during the    |
-    |    firmware fade, cancelling SetRgbPowerMode(3) before     |
-    |    the fade completes. For these devices we suppress       |
-    |    frames immediately when power_state == SLEEPING.        |
+    | 1. Default: per-key writes during the firmware fade wake   |
+    |    the device and cancel SetRgbPowerMode(3) before the     |
+    |    fade completes. This is the observed Logitech baseline  |
+    |    (G502 X PLUS and every other tested device except the   |
+    |    G515 family), so we suppress frames immediately when    |
+    |    power_state == SLEEPING.                                |
     |                                                            |
-    | 2. Deep-sleep: devices WITHOUT the quirk (e.g. G515 LS     |
-    |    TKL) tolerate per-key writes during the fade — frames   |
-    |    flow through without disrupting it. But once the fade   |
-    |    completes and the device enters deep sleep, it returns  |
-    |    BUSY to every FrameEnd. The controller tracks           |
-    |    consecutive failures and sets deep_sleep once the       |
-    |    threshold is hit.                                       |
+    | 2. Quirk-gated: devices with FADE_ACCEPTS_WRITES (G515 LS  |
+    |    TKL) decouple their fade animation from host traffic.   |
+    |    We let frames flow through SLEEPING so UI updates       |
+    |    remain responsive up until deep sleep starts BUSY-      |
+    |    NACKing every FrameEnd; consecutive-failure tracking    |
+    |    then sets deep_sleep and suppression takes over.        |
     |                                                            |
     | Both paths suppress until Wake() clears the state.         |
     \*----------------------------------------------------------*/
@@ -945,8 +945,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         return;
     }
 
-    if((caps.quirks & HIDPP20_QUIRK_SLEEP_SUPPRESSES_FRAMES)
-       && controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
+    if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING
+       && !(caps.quirks & HIDPP20_QUIRK_FADE_ACCEPTS_WRITES))
     {
         return;
     }
