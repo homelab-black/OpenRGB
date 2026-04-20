@@ -31,11 +31,11 @@ private:
     LogitechHIDPP20Controller*    controller;
 
     /*---------------------------------------------------------*\
-    | When true, the next DeviceUpdateMode cycle sends its       |
-    | SetZoneEffect calls with persist=true instead of the       |
-    | default ephemeral write. Used by DeviceSaveMode to replay  |
-    | the active mode as a NVM-committed effect on 0x8070        |
-    | devices, which default to non-persistent live writes.      |
+    | When true, the next DeviceUpdateMode cycle sends its      |
+    | SetZoneEffect calls with persist=true instead of the      |
+    | default ephemeral write. Used by DeviceSaveMode to replay |
+    | the active mode as a NVM-committed effect on 0x8070       |
+    | devices, which default to non-persistent live writes.     |
     \*---------------------------------------------------------*/
     bool                        save_pending = false;
 
@@ -54,7 +54,7 @@ private:
 
     /*---------------------------------------------------------*\
     | Last successfully committed colors for delta updates.     |
-    | An entry of HIDPP20_UNCOMMITTED (0xFF000000) marks an LED   |
+    | An entry of HIDPP20_UNCOMMITTED (0xFF000000) marks an LED |
     | whose last write didn't ACK and which therefore needs to  |
     | be re-pushed in the next frame regardless of color delta. |
     | The high byte (0xFF) is impossible for any value produced |

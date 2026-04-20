@@ -2981,7 +2981,7 @@ void LogitechHIDPP20Controller::DoDisableKeysByUsageHandshake()
 |         Breathing effect parameter layout documented in   |
 |         the protocol reference has period/brightness in   |
 |         those slots, but the exact meaning of these two   |
-|         values in this context is NOT understood. The    |
+|         values in this context is NOT understood. The     |
 |         vendor app sends them verbatim on every claim; we |
 |         mirror.                                           |
 |       persist=0x01                                        |
@@ -3022,12 +3022,12 @@ void LogitechHIDPP20Controller::DoObservedPerKeyPrep()
     |                                                            |
     | The template bytes are discovered at feature-discovery     |
     | time via GetEffectSpecificInfo on any firmware effect      |
-    | card; the vendor app does the same read-then-echo         |
-    | pattern, and on a G502 X PLUS the read value is 0x20 0x64 |
-    | across every card. We don't know what those bytes mean    |
-    | semantically — just that the device expects to see them   |
-    | echoed back verbatim in this position when priming the    |
-    | firmware effect engine for per-key takeover.              |
+    | card; the vendor app does the same read-then-echo          |
+    | pattern, and on a G502 X PLUS the read value is 0x20 0x64  |
+    | across every card. We don't know what those bytes mean     |
+    | semantically — just that the device expects to see them    |
+    | echoed back verbatim in this position when priming the     |
+    | firmware effect engine for per-key takeover.               |
     \*----------------------------------------------------------*/
     uint8_t prep1[16] =
     {
