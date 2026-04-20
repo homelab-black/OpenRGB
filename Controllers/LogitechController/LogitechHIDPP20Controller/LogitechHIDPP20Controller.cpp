@@ -41,62 +41,63 @@ static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 static const int CENTURION_PROBE_PER_ADDR_TIMEOUT_MS = 5;
 
 /*----------------------------------------------------------*\
-| Observed HID++ 2.0 feature versions. When feature          |
-| discovery reports a (feature_id, version) pair that is not |
-| in this table, we log a one-shot INFO tripwire so a tester |
-| with a new device immediately tells us whether we're in    |
-| uncharted territory.                                       |
+| Observed HID++ 2.0 feature versions. Each row is a feature |
+| ID plus the versions we've empirically verified working.   |
+| When feature discovery reports a version outside this set, |
+| we log a one-shot INFO tripwire so a tester with new       |
+| hardware immediately surfaces unknown firmware revs.       |
 |                                                            |
 | Purely observational — no behavior branches on version.    |
 | Solaar has effectively zero version gating for the RGB     |
 | features we implement, so we don't either; the table is a  |
 | "have we seen this combination work" ledger, not a         |
-| compatibility matrix. Add rows as new devices report.      |
+| compatibility matrix. Add versions as devices report them. |
 |                                                            |
-| A feature_id absent from this table means every version is |
-| treated as unknown silently (no tripwire). Only the        |
-| features we actually exercise are worth flagging.          |
+| A feature_id absent from this table is silent (no          |
+| tripwire). Only features we actually exercise are worth    |
+| flagging.                                                  |
 \*----------------------------------------------------------*/
-struct HIDPP20FeatureObservedVersion
+struct HIDPP20FeatureVersionSet
 {
     uint16_t    feature_id;
-    uint8_t     version;
-    const char* note;
+    uint8_t     versions[8];        /* approved versions; first `count` valid */
+    uint8_t     count;
 };
 
-static constexpr HIDPP20FeatureObservedVersion HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
+static constexpr HIDPP20FeatureVersionSet HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
 {
-    { 0x0620, 1, "G522 LIGHTSPEED" },
-    { 0x1D4B, 0, "G515 LS TKL" },
-    { 0x4540, 1, "G515 LS TKL" },
-    { 0x8071, 4, "G515 LS TKL" },
-    { 0x8081, 0, "G515 LS TKL" },
+    { 0x0620, { 1 }, 1 },
+    { 0x1D4B, { 0 }, 1 },
+    { 0x4540, { 1 }, 1 },
+    { 0x8071, { 4 }, 1 },
+    { 0x8081, { 0 }, 1 },
 };
 
 /*----------------------------------------------------------*\
-| Returns true if the (feature_id, version) pair is in the   |
-| observed-versions table, or if feature_id isn't listed at  |
-| all (we only flag ids we've chosen to monitor).            |
+| Returns true if feature_id is not tracked (silent) or if   |
+| version appears in the tracked feature's approved set.     |
 \*----------------------------------------------------------*/
 static bool FeatureVersionIsObserved(uint16_t feature_id, uint8_t version)
 {
-    bool feature_tracked = false;
-
     for(const auto& row : HIDPP20_FEATURE_OBSERVED_VERSIONS)
     {
         if(row.feature_id != feature_id)
         {
             continue;
         }
-        feature_tracked = true;
 
-        if(row.version == version)
+        for(uint8_t i = 0; i < row.count; i++)
         {
-            return true;
+            if(row.versions[i] == version)
+            {
+                return true;
+            }
         }
+
+        return false;   /* tracked feature, unknown version */
     }
 
-    return !feature_tracked;
+    return true;        /* feature not tracked — silent */
 }
 
 LogitechHIDPP20Controller::LogitechHIDPP20Controller
