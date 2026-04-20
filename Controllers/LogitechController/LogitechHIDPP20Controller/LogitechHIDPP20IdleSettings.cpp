@@ -1,6 +1,12 @@
 /*---------------------------------------------------------*\
 | LogitechHIDPP20IdleSettings.cpp                           |
 |                                                           |
+|   Host-side idle/dim/sleep settings storage helper for    |
+|   Logitech HID++ 2.0 devices. Loads the configuration     |
+|   block from SettingsManager JSON, caches it, and writes  |
+|   changes back through SettingsManager::SetSettings().    |
+|                                                           |
+|   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 

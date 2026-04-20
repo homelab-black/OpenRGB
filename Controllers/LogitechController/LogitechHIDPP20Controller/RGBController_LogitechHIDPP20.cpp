@@ -1,11 +1,11 @@
-/*-----------------------------------------------------------*\
-| RGBController_LogitechHIDPP20.cpp                           |
-|                                                             |
-|   RGBController for unified Logitech HID++ 2.0 devices      |
-|                                                             |
-|   This file is part of the OpenRGB project                  |
-|   SPDX-License-Identifier: GPL-2.0-or-later                 |
-\*-----------------------------------------------------------*/
+/*---------------------------------------------------------*\
+| RGBController_LogitechHIDPP20.cpp                         |
+|                                                           |
+|   RGBController for unified Logitech HID++ 2.0 devices    |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #include <map>
 #include <set>
