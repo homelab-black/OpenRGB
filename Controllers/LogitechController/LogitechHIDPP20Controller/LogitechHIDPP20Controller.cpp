@@ -5350,11 +5350,12 @@ void LogitechHIDPP20Controller::StartSleep()
     |                                                            |
     | Set power_state BEFORE sending the command so that         |
     | DeviceUpdateLEDs sees SLEEPING and stops pushing frames    |
-    | before the sleep command hits the wire. On the default     |
-    | path (every device except the FADE_ACCEPTS_WRITES quirk —  |
-    | i.e. G515 LS TKL), a per-key write arriving after          |
-    | SetRgbPowerMode(3) would immediately wake the device,      |
-    | cancelling the sleep.                                      |
+    | before the sleep command hits the wire. Suppression is     |
+    | the safe default: a write arriving after SetRgbPowerMode   |
+    | (3) can otherwise wake the device and cancel the sleep.    |
+    | Devices carrying FADE_ACCEPTS_WRITES opt out of            |
+    | suppression — their firmware tolerates writes during the   |
+    | fade.                                                      |
     \*----------------------------------------------------------*/
     LOG_DEBUG("%s Entering sleep (SetRgbPowerMode 3)", LOG_TAG);
 

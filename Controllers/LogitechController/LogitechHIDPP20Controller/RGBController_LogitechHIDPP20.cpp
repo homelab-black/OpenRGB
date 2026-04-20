@@ -922,21 +922,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     /*----------------------------------------------------------*\
-    | Frame handling during SLEEPING has two layers:             |
+    | Frame handling during SLEEPING:                            |
     |                                                            |
-    | 1. Default: per-key writes during the firmware fade wake   |
-    |    the device and cancel SetRgbPowerMode(3) before the     |
-    |    fade completes. This is the observed Logitech baseline  |
-    |    (G502 X PLUS and every other tested device except the   |
-    |    G515 family), so we suppress frames immediately when    |
-    |    power_state == SLEEPING.                                |
+    | Default — suppress frames. A suppressed frame cannot       |
+    | wake a device that treats writes as activity, so this is   |
+    | the safe choice when we don't know how a particular        |
+    | firmware handles host traffic during its fade.             |
     |                                                            |
-    | 2. Quirk-gated: devices with FADE_ACCEPTS_WRITES (G515 LS  |
-    |    TKL) decouple their fade animation from host traffic.   |
-    |    We let frames flow through SLEEPING so UI updates       |
-    |    remain responsive up until deep sleep starts BUSY-      |
-    |    NACKing every FrameEnd; consecutive-failure tracking    |
-    |    then sets deep_sleep and suppression takes over.        |
+    | Quirk-gated — devices flagged FADE_ACCEPTS_WRITES opt out  |
+    | of suppression because their firmware accepts writes       |
+    | without cancelling sleep. Frames flow through SLEEPING     |
+    | until deep sleep starts BUSY-NACKing every FrameEnd;       |
+    | consecutive-failure tracking then sets deep_sleep and the  |
+    | top IsDeepSleep() check takes over.                        |
     |                                                            |
     | Both paths suppress until Wake() clears the state.         |
     \*----------------------------------------------------------*/

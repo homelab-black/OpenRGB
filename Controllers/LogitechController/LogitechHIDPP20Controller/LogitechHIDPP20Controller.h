@@ -145,7 +145,7 @@ struct HIDPP20ZoneCluster
 enum HIDPP20DeviceQuirks : uint32_t
 {
     HIDPP20_QUIRK_NONE                = 0,
-    HIDPP20_QUIRK_FADE_ACCEPTS_WRITES = (1 << 0),  // firmware ignores host frames during sleep fade (G515 family)
+    HIDPP20_QUIRK_FADE_ACCEPTS_WRITES = (1 << 0),  // firmware accepts host frames during sleep fade without waking
 };
 
 struct HIDPP20DeviceQuirkEntry
@@ -156,11 +156,11 @@ struct HIDPP20DeviceQuirkEntry
 };
 
 /*---------------------------------------------------------*\
-| Default sleep-fade behavior: per-key writes cancel the    |
-| fade and re-wake the device. Only the G515 family has     |
-| been observed to decouple its fade animation from host    |
-| traffic, so it carries the quirk flag allowing frames to  |
-| continue flowing through SLEEPING.                        |
+| Default: suppress frames while SLEEPING. Safe everywhere  |
+| — it cannot wake a device that treats writes as activity. |
+| Devices listed here opt out of suppression because their  |
+| firmware accepts writes during the fade without           |
+| cancelling sleep.                                         |
 \*---------------------------------------------------------*/
 static constexpr HIDPP20DeviceQuirkEntry HIDPP20_DEVICE_QUIRK_TABLE[] =
 {
