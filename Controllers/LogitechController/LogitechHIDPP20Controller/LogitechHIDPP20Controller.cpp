@@ -40,6 +40,65 @@ static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 \*----------------------------------------------------------*/
 static const int CENTURION_PROBE_PER_ADDR_TIMEOUT_MS = 5;
 
+/*----------------------------------------------------------*\
+| Observed HID++ 2.0 feature versions. When feature          |
+| discovery reports a (feature_id, version) pair that is not |
+| in this table, we log a one-shot INFO tripwire so a tester |
+| with a new device immediately tells us whether we're in    |
+| uncharted territory.                                       |
+|                                                            |
+| Purely observational — no behavior branches on version.    |
+| Solaar has effectively zero version gating for the RGB     |
+| features we implement, so we don't either; the table is a  |
+| "have we seen this combination work" ledger, not a         |
+| compatibility matrix. Add rows as new devices report.      |
+|                                                            |
+| A feature_id absent from this table means every version is |
+| treated as unknown silently (no tripwire). Only the        |
+| features we actually exercise are worth flagging.          |
+\*----------------------------------------------------------*/
+struct HIDPP20FeatureObservedVersion
+{
+    uint16_t    feature_id;
+    uint8_t     version;
+    const char* note;
+};
+
+static constexpr HIDPP20FeatureObservedVersion HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
+{
+    { 0x0620, 1, "G522 LIGHTSPEED" },
+    { 0x1D4B, 0, "G515 LS TKL" },
+    { 0x4540, 1, "G515 LS TKL" },
+    { 0x8071, 4, "G515 LS TKL" },
+    { 0x8081, 0, "G515 LS TKL" },
+};
+
+/*----------------------------------------------------------*\
+| Returns true if the (feature_id, version) pair is in the   |
+| observed-versions table, or if feature_id isn't listed at  |
+| all (we only flag ids we've chosen to monitor).            |
+\*----------------------------------------------------------*/
+static bool FeatureVersionIsObserved(uint16_t feature_id, uint8_t version)
+{
+    bool feature_tracked = false;
+
+    for(const auto& row : HIDPP20_FEATURE_OBSERVED_VERSIONS)
+    {
+        if(row.feature_id != feature_id)
+        {
+            continue;
+        }
+        feature_tracked = true;
+
+        if(row.version == version)
+        {
+            return true;
+        }
+    }
+
+    return !feature_tracked;
+}
+
 LogitechHIDPP20Controller::LogitechHIDPP20Controller
     (
     hid_device*                 dev,
@@ -1119,6 +1178,14 @@ uint8_t LogitechHIDPP20Controller::GetFeatureIndex(uint16_t feature_page,
 
         LOG_DEBUG("%s Feature 0x%04X V%u -> index 0x%02X",
                   LOG_TAG, feature_page, version, index);
+
+        if(index != 0 && !FeatureVersionIsObserved(feature_page, version))
+        {
+            LOG_INFO("%s Feature 0x%04X V%u not previously observed — "
+                     "tripwire for version-gated behavior",
+                     LOG_TAG, feature_page, version);
+        }
+
         return index;
     }
 
@@ -1488,6 +1555,13 @@ void LogitechHIDPP20Controller::EnumerateFeatures(uint8_t feature_set_idx)
 
                 LOG_DEBUG("%s   [%2d] Feature 0x%04X V%u type=0x%02X",
                           LOG_TAG, feat_idx, feat_id, feat_version, feat_type);
+
+                if(!FeatureVersionIsObserved(feat_id, feat_version))
+                {
+                    LOG_INFO("%s Feature 0x%04X V%u not previously observed — "
+                             "tripwire for version-gated behavior",
+                             LOG_TAG, feat_id, feat_version);
+                }
             }
 
             caps.feature_map_complete = true;
