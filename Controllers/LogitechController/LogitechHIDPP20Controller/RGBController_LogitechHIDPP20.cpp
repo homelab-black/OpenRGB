@@ -549,11 +549,11 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     \*---------------------------------------------------------*/
     if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
-        for(mode& m : modes)
+        for(size_t i = 0; i < modes.size(); i++)
         {
-            if(m.name != "Direct")
+            if(modes[i].name != "Direct")
             {
-                m.flags |= MODE_FLAG_MANUAL_SAVE;
+                modes[i].flags |= MODE_FLAG_MANUAL_SAVE;
             }
         }
     }
@@ -578,9 +578,9 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
             \*-------------------------------------------------*/
             if(controller->ConsumeWakeFullRepaint())
             {
-                for(RGBColor& c : sent_colors)
+                for(size_t i = 0; i < sent_colors.size(); i++)
                 {
-                    c = HIDPP20_UNCOMMITTED;
+                    sent_colors[i] = HIDPP20_UNCOMMITTED;
                 }
             }
             DeviceUpdateLEDs();
@@ -761,13 +761,13 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 extras_zone.matrix_map = nullptr;
                 zones.push_back(extras_zone);
 
-                for(const std::pair<uint16_t, std::string>& e : extras)
+                for(size_t i = 0; i < extras.size(); i++)
                 {
                     led new_led;
-                    new_led.name  = e.second;
-                    new_led.value = e.first;
+                    new_led.name  = extras[i].second;
+                    new_led.value = extras[i].first;
                     leds.push_back(new_led);
-                    led_to_zone_id.push_back(e.first);
+                    led_to_zone_id.push_back(extras[i].first);
                 }
             }
         }
@@ -1566,11 +1566,12 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     {
         uint16_t eff_id = 0;
 
-        for(const HIDPP20Effect& fx : caps.zone_clusters[i].effects)
+        const std::vector<HIDPP20Effect>& cluster_effects = caps.zone_clusters[i].effects;
+        for(size_t j = 0; j < cluster_effects.size(); j++)
         {
-            if(fx.index == (uint8_t)current.value)
+            if(cluster_effects[j].index == (uint8_t)current.value)
             {
-                eff_id = fx.effect_id;
+                eff_id = cluster_effects[j].effect_id;
                 break;
             }
         }

@@ -303,8 +303,10 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
     std::string found_path;
     hid_device* found_dev  = nullptr;
 
-    for(const Candidate& cand : candidates)
+    for(size_t c = 0; c < candidates.size(); c++)
     {
+        const Candidate& cand = candidates[c];
+
         LOG_DEBUG("%s Scan: migration candidate at %s (pid=0x%04X, current=%s pid=0x%04X)",
                   LOG_TAG, cand.dev_path.c_str(), cand.pid,
                   location.c_str(), current_pid);
