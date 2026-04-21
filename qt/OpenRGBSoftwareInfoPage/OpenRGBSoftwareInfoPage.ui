@@ -90,7 +90,7 @@
       <item row="12" column="1">
        <widget class="QLabel" name="WebsiteLinkValue">
         <property name="text">
-         <string>&lt;a href=&quot;https://openrgb.org&quot;&gt;https://openrgb.org&lt;/a&gt;</string>
+         <string notr="true">&lt;a href=&quot;https://openrgb.org&quot;&gt;https://openrgb.org&lt;/a&gt;</string>
         </property>
         <property name="textFormat">
          <enum>Qt::RichText</enum>
@@ -117,7 +117,7 @@
       <item row="11" column="1">
        <widget class="QLabel" name="GitlabLinkValue">
         <property name="text">
-         <string>&lt;a href=&quot;https://gitlab.com/CalcProgrammer1/OpenRGB&quot;&gt;https://gitlab.com/CalcProgrammer1/OpenRGB&lt;/a&gt;</string>
+         <string notr="true">&lt;a href=&quot;https://gitlab.com/CalcProgrammer1/OpenRGB&quot;&gt;https://gitlab.com/CalcProgrammer1/OpenRGB&lt;/a&gt;</string>
         </property>
         <property name="textFormat">
          <enum>Qt::RichText</enum>
@@ -185,7 +185,7 @@
       <item row="4" column="1">
        <widget class="QLabel" name="QtVersionValue">
         <property name="text">
-         <string>Qt Version Value</string>
+         <string notr="true">Qt Version Value</string>
         </property>
        </widget>
       </item>
@@ -199,7 +199,7 @@
       <item row="5" column="1">
        <widget class="QLabel" name="OsVersionValue">
         <property name="text">
-         <string>OS Version Value</string>
+         <string notr="true">OS Version Value</string>
         </property>
        </widget>
       </item>
@@ -213,7 +213,7 @@
       <item row="6" column="1">
        <widget class="QLabel" name="HIDHotplugValue">
         <property name="text">
-         <string>HID Hotplug Value</string>
+         <string notr="true">HID Hotplug Value</string>
         </property>
        </widget>
       </item>
