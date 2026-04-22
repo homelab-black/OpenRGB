@@ -19,13 +19,7 @@ AsusAuraRyuoAIOController::AsusAuraRyuoAIOController(hid_device* dev_handle, con
     |    Manually adding device info for now                |
     |    TODO: Implement config table accurately            |
     \*-----------------------------------------------------*/
-    uint8_t leds = 12;
-
-    // Our Ryujin (Gen1) is detected via the Ryuo controller; it has fewer LEDs.
-    if(dev_name.find("Ryujin") != std::string::npos)
-    {
-        leds = 5; // adjust if needed
-    }
+    uint8_t leds = (dev_name.find("Ryujin") != std::string::npos) ? 5 : 12;
 
     device_info.push_back({0x00, 0x00, leds, 0, AuraDeviceType::FIXED});
 
