@@ -14,6 +14,7 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
     this->key       = key;
     this->schema    = schema;
     this->settings  = settings;
+    callback = nullptr;
 
     /*-----------------------------------------------------*\
     | Ensure each schema entry has a title and type         |
@@ -24,6 +25,7 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
         | Create main layout                                |
         \*-------------------------------------------------*/
         layout                              = new QHBoxLayout(this);
+        layout->setMargin(0);
 
         /*-------------------------------------------------*\
         | Get schema title and type, check if it is an enum |
@@ -260,7 +262,10 @@ void OpenRGBDynamicSettingsWidget::OnSettingChanged()
         }
     }
 
-    callback(callback_arg, key, settings_change);
+    if(callback)
+    {
+        callback(callback_arg, key, settings_change);
+    }
 }
 
 void OpenRGBDynamicSettingsWidget::SetCallback(OpenRGBDynamicSettingsCallback callback, void* callback_arg)
