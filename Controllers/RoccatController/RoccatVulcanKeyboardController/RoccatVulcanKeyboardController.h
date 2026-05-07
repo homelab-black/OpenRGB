@@ -61,6 +61,7 @@ enum
 struct device_info
 {
     std::string     version;
+    float           version_float;
     int             layout_type;
 };
 
@@ -89,6 +90,7 @@ public:
     void            AwaitResponse(int ms);
     void            ClearResponses();
 
+
     uint16_t        device_pid;
 
 private:
@@ -97,4 +99,6 @@ private:
     device_info     dev_info;
     std::string     location;
     std::string     name;
+
+    bool            IsBigEndianDirectMode();
 };

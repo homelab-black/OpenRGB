@@ -90,6 +90,7 @@ device_info RoccatVulcanKeyboardController::InitDeviceInfo()
     snprintf(version, 5, "%d.%02d", buf[2] / 100, buf[2] % 100);
 
     dev_info.version = version;
+    dev_info.version_float = buf[2] / 100.0f;
 
     if(device_pid == ROCCAT_MAGMA_PID || device_pid == ROCCAT_MAGMA_MINI_PID)
     {
@@ -114,6 +115,11 @@ device_info RoccatVulcanKeyboardController::InitDeviceInfo()
 device_info RoccatVulcanKeyboardController::GetDeviceInfo()
 {
     return dev_info;
+}
+
+bool RoccatVulcanKeyboardController::IsBigEndianDirectMode()
+{
+    return (dev_info.version_float >= 1.16f);
 }
 
 void RoccatVulcanKeyboardController::EnableDirect(bool on_off_switch)
@@ -218,8 +224,16 @@ void RoccatVulcanKeyboardController::SendColors(std::vector<led_color> colors)
     }
     else
     {
-        bufs[0][3] = packet_length & 0xFF;
-        bufs[0][4] = (packet_length >> 8) & 0xFF;
+        if(IsBigEndianDirectMode())
+        {
+            bufs[0][3] = (packet_length >> 8) & 0xFF;
+            bufs[0][4] = packet_length & 0xFF;
+        }
+        else
+        {
+            bufs[0][3] = packet_length & 0xFF;
+            bufs[0][4] = (packet_length >> 8) & 0xFF;
+        }
     }
 
     unsigned int data_length_packet = 64 - header_length_first;
