@@ -352,9 +352,9 @@ void RGBController_XPGSummoner::DeviceUpdateLEDs()
     else if(modes[active_mode].color_mode == MODE_COLORS_MODE_SPECIFIC && modes[active_mode].value == XPG_SUMMONER_MODE_STARS)
     {
         unsigned int speed = modes[active_mode].speed;
-        speed = (speed < 1) ? 1 : speed;
-        speed = (speed > 100) ? 100 : speed;
-        int delay_ms = (101 - speed) * 5 + 50;
+        speed              = (speed < 1) ? 1 : speed;
+        speed              = (speed > 100) ? 100 : speed;
+        int delay_ms       = (101 - speed) * 5 + 50;
 
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         long long elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_stars_update).count();
@@ -364,12 +364,15 @@ void RGBController_XPGSummoner::DeviceUpdateLEDs()
             return;
         }
 
-        last_stars_update = now;
+        last_stars_update        = now;
 
-        int rows                = 6;
-        int cols                = 21;
-        int center_row          = rand() % rows;
-        int center_col          = rand() % cols;
+        /*---------------------------------------------------*\
+        | Select a random central LED in the physical matrix  |
+        \*---------------------------------------------------*/
+        int rows                 = 6;
+        int cols                 = 21;
+        int center_row           = rand() % rows;
+        int center_col           = rand() % cols;
         unsigned int center_led  = matrix_map[center_row][center_col];
 
         if(center_led != NA)
@@ -379,7 +382,11 @@ void RGBController_XPGSummoner::DeviceUpdateLEDs()
             frame_buf[(center_led * 4) + 2] = RGBGetGValue(modes[active_mode].colors[0]);
             frame_buf[(center_led * 4) + 3] = RGBGetBValue(modes[active_mode].colors[0]);
         }
+ 	
 
+        /*---------------------------------------------------*\
+        | Neighbors (fade effect)                             |
+        \*---------------------------------------------------*/
         unsigned char fade_brightness = 0x32;
         int neighbor_offsets[4][2]    = { {0, -1}, {0, +1}, {-1, 0}, {+1, 0} };
 
