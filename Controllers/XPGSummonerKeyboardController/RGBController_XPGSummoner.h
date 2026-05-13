@@ -13,6 +13,7 @@
 
 #include "RGBController.h"
 #include "XPGSummonerController.h"
+#include <chrono>
 
 class RGBController_XPGSummoner : public RGBController
 {
@@ -29,4 +30,5 @@ public:
 
 private:
     XPGSummonerController* controller;
+    std::chrono::steady_clock::time_point last_stars_update;
 };
