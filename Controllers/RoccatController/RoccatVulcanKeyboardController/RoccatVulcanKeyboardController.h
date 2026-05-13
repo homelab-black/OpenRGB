@@ -61,7 +61,8 @@ enum
 struct device_info
 {
     std::string     version;
-    float           version_float;
+    int             version_major;
+    int             version_minor;
     int             layout_type;
 };
 
