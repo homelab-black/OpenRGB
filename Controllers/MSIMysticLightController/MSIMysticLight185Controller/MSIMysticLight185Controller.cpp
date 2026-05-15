@@ -760,12 +760,18 @@ void MSIMysticLight185Controller::SetZoneColor
         return;
     }
 
-    zone_data->color.R  = red1;
-    zone_data->color.G  = grn1;
-    zone_data->color.B  = blu1;
-    zone_data->color2.R = red2;
-    zone_data->color2.G = grn2;
-    zone_data->color2.B = blu2;
+    /*---------------------------------------------------------------------*\
+    | JRainbow2 controller treats the lower 2 bits of each color byte as   |
+    | control flags rather than color data, causing color bleeding between  |
+    | channels. Mask them out to prevent this.                              |
+    \*---------------------------------------------------------------------*/
+    unsigned char mask = (zone == MSI_ZONE_J_RAINBOW_2) ? 0xFC : 0xFF;
+    zone_data->color.R  = red1 & mask;
+    zone_data->color.G  = grn1 & mask;
+    zone_data->color.B  = blu1 & mask;
+    zone_data->color2.R = red2 & mask;
+    zone_data->color2.G = grn2 & mask;
+    zone_data->color2.B = blu2 & mask;
 
     if(no_onboards && ((zone == MSI_ZONE_J_RGB_1) || (zone == MSI_ZONE_J_RGB_2) || (zone == MSI_ZONE_J_PIPE_1) || (zone == MSI_ZONE_J_PIPE_2)))
     {
@@ -836,9 +842,15 @@ void MSIMysticLight185Controller::SetLedColor
 
             if(index < maxSize)
             {
-                zone_data[index].R = red;
-                zone_data[index].G = grn;
-                zone_data[index].B = blu;
+                /*---------------------------------------------------------*\
+                | JRainbow2 controller treats the lower 2 bits of each color  |
+                | byte as control flags rather than color data, causing color  |
+                | bleeding between channels. Mask them out to prevent this.   |
+                \*---------------------------------------------------------*/
+                unsigned char mask = (zone == MSI_ZONE_J_RAINBOW_2) ? 0xFC : 0xFF;
+                zone_data[index].R = red & mask;
+                zone_data[index].G = grn & mask;
+                zone_data[index].B = blu & mask;
             }
         }
     }
