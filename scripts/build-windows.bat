@@ -40,10 +40,11 @@
 :bits_done
 
 @SET VC_DIR="C:\Program Files (x86)\Microsoft Visual Studio\%MSVC_VER%\BuildTools\VC\"
-@IF not defined $4 SET VC_DIR=%4
+@IF NOT [%4] == [] SET VC_DIR=%4
 
 @SET QT_DIR="C:\Qt\"
-@IF not defined $5 SET QT_DIR=%5
+@IF NOT [%5] == [] SET QT_DIR=%5
+
 
 
 ::---------------------------------------------------------::
