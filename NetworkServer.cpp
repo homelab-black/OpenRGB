@@ -1066,7 +1066,7 @@ void NetworkServer::ControllerListenThread(NetworkServerControllerThread* this_t
 
 void NetworkServer::ProfileManagerListenThread(NetworkServerControllerThread* this_thread)
 {
-    while(this_thread->online ==  true)
+    while(this_thread->online == true)
     {
         std::unique_lock<std::mutex> start_lock(this_thread->start_mutex);
         this_thread->start_cv.wait(start_lock);
