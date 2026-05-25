@@ -24,20 +24,31 @@ RGBController_Virtual::~RGBController_Virtual()
 
 }
 
-void RGBController_Virtual::SetupLEDs()
+void RGBController_Virtual::SetupLEDs(RGBController_Setup* setup)
 {
     leds.clear();
 
+    unsigned int led_idx = 0;
+
     for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
-        for(std::size_t led_idx = 0; led_idx < zones[zone_idx].leds_count; led_idx++)
+        for(std::size_t zone_led_idx = 0; zone_led_idx < zones[zone_idx].leds_count; zone_led_idx++)
         {
-            led new_led;
+            if(led_idx < setup->leds.size())
+            {
+                leds.push_back(setup->leds[led_idx]);
+            }
+            else
+            {
+                led new_led;
 
-            new_led.name    = "Zone " + std::to_string(zone_idx) + ", LED " + std::to_string(led_idx);
-            new_led.value   = 0;
+                new_led.name    = "Zone " + std::to_string(zone_idx) + ", LED " + std::to_string(zone_led_idx);
+                new_led.value   = 0;
 
-            leds.push_back(new_led);
+                leds.push_back(new_led);
+            }
+
+            led_idx++;
         }
     }
 }
@@ -72,7 +83,7 @@ void RGBController_Virtual::UpdateVirtualController(RGBController_Setup* setup)
 
     object_ptr                                      = setup->object_ptr;
 
-    SetupLEDs();
+    SetupLEDs(setup);
     SetupColors();
     AccessMutex.unlock();
 }
