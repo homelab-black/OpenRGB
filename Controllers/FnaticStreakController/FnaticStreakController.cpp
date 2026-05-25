@@ -230,6 +230,29 @@ void FnaticStreakController::SetLEDsDirect(std::vector<led> leds, std::vector<RG
 
 void FnaticStreakController::SendRGBToDevice()
 {
+    if(keyboard_type == FNATIC_STREAK_TYPE_65)
+    {
+    unsigned char data[64];
+    memset(data, 0x00, sizeof(data));
+
+    data[0]  = 0x0F;
+    data[1]  = 0x15;
+
+    data[7]  = 0x0F;
+    data[8]  = 0x03;
+
+    for(unsigned int i = 9; i < 25; i++)
+    {
+        data[i] = 0xFF;
+    }
+
+    data[25] = color_buf[0];
+    data[26] = color_buf[1];
+    data[27] = color_buf[2];
+
+    hid_write(dev, data, sizeof(data));
+    return;
+    }
     unsigned int total_leds = GetLEDCount();
     unsigned int data_size = total_leds * 3;
 
