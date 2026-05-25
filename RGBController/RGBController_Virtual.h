@@ -58,5 +58,5 @@ private:
     void                (*DeviceUpdateDeviceSpecificConfiguration_ptr)(void*);
     void                (*DeviceUpdateDeviceSpecificZoneConfiguration_ptr)(void*, int);
 
-    void                SetupLEDs();
+    void                SetupLEDs(RGBController_Setup* setup);
 };
