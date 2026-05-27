@@ -37,12 +37,12 @@ void DetectFnaticStreakKeyboard(hid_device_info* info, const std::string& name)
         FnaticStreakType kb_type;
 
         if(info->product_id == FNATIC_MINISTREAK_PID)
-	{
-    	    kb_type = FNATIC_STREAK_TYPE_MINI;
+        {
+            kb_type = FNATIC_STREAK_TYPE_MINI;
         }
         else if(info->product_id == FNATIC_STREAK65_PID)
         {
-        kb_type = FNATIC_STREAK_TYPE_65;
+            kb_type = FNATIC_STREAK_TYPE_65;
         }
         else
         {
