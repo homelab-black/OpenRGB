@@ -13,17 +13,7 @@ using namespace std::chrono_literals;
 
 #define HYPERX_EVE_1800_BRIGHTNESS_MIN 0x00
 #define HYPERX_EVE_1800_BRIGHTNESS_MAX 0xFF
-#define HYPERX_EVE_1800_ZONE_COUNT     10
-
-static RGBColor ApplyBrightness(RGBColor color, unsigned int brightness)
-{
-    return ToRGBColor
-        (
-        (RGBGetRValue(color) * brightness) / HYPERX_EVE_1800_BRIGHTNESS_MAX,
-        (RGBGetGValue(color) * brightness) / HYPERX_EVE_1800_BRIGHTNESS_MAX,
-        (RGBGetBValue(color) * brightness) / HYPERX_EVE_1800_BRIGHTNESS_MAX
-        );
-}
+#define HYPERX_EVE_1800_ZONE_COUNT 10
 
 /**------------------------------------------------------------------*\
     @name HyperX Eve 1800
@@ -101,18 +91,7 @@ void RGBController_HyperXEve1800::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_HyperXEve1800::DeviceUpdateLEDs()
 {
-    std::vector<RGBColor> scaled_colors = colors;
-
-    /*---------------------------------------------------------*\
-    | Brightness is applied in software, as no hardware         |
-    | brightness command has been identified for this device.   |
-    \*---------------------------------------------------------*/
-    for(unsigned int color_idx = 0; color_idx < scaled_colors.size(); color_idx++)
-    {
-        scaled_colors[color_idx] = ApplyBrightness(scaled_colors[color_idx], modes[active_mode].brightness);
-    }
-
-    controller->SetLEDsDirect(scaled_colors);
+    controller->SetLEDsDirect(colors);
     last_update_time = std::chrono::steady_clock::now();
 }
 
@@ -128,6 +107,7 @@ void RGBController_HyperXEve1800::UpdateSingleLED(int /*led*/)
 
 void RGBController_HyperXEve1800::DeviceUpdateMode()
 {
+    controller->SetBrightness(modes[active_mode].brightness);
     DeviceUpdateLEDs();
 }
 

@@ -25,7 +25,7 @@ HyperXEve1800Controller::~HyperXEve1800Controller()
 
 std::string HyperXEve1800Controller::GetDeviceLocation()
 {
-    return("HID " + location);
+    return("HID: " + location);
 }
 
 std::string HyperXEve1800Controller::GetNameString()
@@ -44,6 +44,21 @@ std::string HyperXEve1800Controller::GetSerialString()
     }
 
     return(StringUtils::wstring_to_string(serial_string));
+}
+
+void HyperXEve1800Controller::SetBrightness(unsigned int brightness)
+{
+    unsigned char buf[65];
+
+    memset(buf, 0x00, sizeof(buf));
+
+    buf[0x00]   = 0x40;
+    buf[0x01]   = 0x01;
+    buf[0x02]   = 0x00;
+    buf[0x03]   = 0x00;
+    buf[0x04]   = brightness & 0xFF;
+
+    hid_write(dev, buf, 65);
 }
 
 void HyperXEve1800Controller::SetLEDsDirect(std::vector<RGBColor> colors)

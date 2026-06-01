@@ -23,6 +23,7 @@ public:
     std::string     GetNameString();
     std::string     GetSerialString();
 
+    void            SetBrightness(unsigned int brightness);
     void            SetLEDsDirect(std::vector<RGBColor> colors);
 
 private:
