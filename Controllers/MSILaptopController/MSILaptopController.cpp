@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MSILaptopController.cpp                           |
+| MSILaptopController.cpp                                   |
 |                                                           |
 |   Driver for MSI laptop SteelSeries KLC/ALC RGB devices   |
 |                                                           |
