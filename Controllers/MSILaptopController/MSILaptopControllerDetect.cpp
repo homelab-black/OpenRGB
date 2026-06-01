@@ -1,29 +1,30 @@
 /*---------------------------------------------------------*\
-| RGBController_SteelSeriesMSIRGB.cpp                       |
+| MSILaptopControllerDetect.cpp                             |
 |                                                           |
-|   RGBController for MSI laptop SteelSeries RGB devices    |
+|   Detector for MSI laptop SteelSeries RGB devices         |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include "Detector.h"
 #include "RGBControllerKeyNames.h"
-#include "RGBController_SteelSeriesMSIRGB.h"
+#include "RGBController_MSILaptop.h"
+#include "MSILaptopController.h"
+#include "dmiinfo.h"
+
+#define MSI_LAPTOP_ARRAY_SIZE(x)      (sizeof(x) / sizeof((x)[0]))
+
+#define STEELSERIES_VID                             0x1038
+#define STEELSERIES_MSI_RAIDER_A18_KLC_PID          0x1122
+#define STEELSERIES_MSI_RAIDER_A18_ALC_PID          0x1161
 
 #define NA                                      0xFFFFFFFF
-#define STEELSERIES_MSI_RGB_ARRAY_SIZE(x)      (sizeof(x) / sizeof((x)[0]))
-#define STEELSERIES_MSI_RGB_KLC_MATRIX_HEIGHT  6
-#define STEELSERIES_MSI_RGB_KLC_MATRIX_WIDTH   23
-#define STEELSERIES_MSI_RGB_ALC_LIGHTBAR_LEDS  5
+#define MSI_LAPTOP_KLC_MATRIX_HEIGHT  6
+#define MSI_LAPTOP_KLC_MATRIX_WIDTH   23
+#define MSI_LAPTOP_ALC_LIGHTBAR_LEDS  5
 
-typedef struct
-{
-    const char*     name;
-    unsigned char   id;
-
-} steelseries_msi_rgb_led;
-
-static const steelseries_msi_rgb_led klc_leds[] =
+static const msi_laptop_led msi_raider_a18_klc_leds[] =
 {
     { KEY_EN_A,                 0x04 },
     { KEY_EN_B,                 0x05 },
@@ -129,7 +130,7 @@ static const steelseries_msi_rgb_led klc_leds[] =
     { KEY_EN_RIGHT_ALT,         0xE6 },
 };
 
-static unsigned int klc_matrix_map[STEELSERIES_MSI_RGB_KLC_MATRIX_HEIGHT][STEELSERIES_MSI_RGB_KLC_MATRIX_WIDTH] =
+static unsigned int msi_raider_a18_klc_matrix_map[MSI_LAPTOP_KLC_MATRIX_HEIGHT][MSI_LAPTOP_KLC_MATRIX_WIDTH] =
 {
     { 36, NA, 50, 51, 52, 53, NA, 54, 55, 56, 57, NA, 58, 59, 60, 61, 62, 63, NA, NA, NA, NA, 89 },
     { 45, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 39, 40, 97, NA, 64, 65, NA, 72, 73, 74, 75, NA },
@@ -139,7 +140,7 @@ static unsigned int klc_matrix_map[STEELSERIES_MSI_RGB_KLC_MATRIX_HEIGHT][STEELS
     { 90, 93, 92, NA, NA, NA, 38, NA, NA, NA,101, 94, 95, NA, 69, 70, 68, NA, 87, NA, 88, NA, NA },
 };
 
-static const steelseries_msi_rgb_led alc_leds[] =
+static const msi_laptop_led msi_raider_a18_alc_leds[] =
 {
     { "Lightbar 1", 0x00 },
     { "Lightbar 2", 0x01 },
@@ -149,130 +150,76 @@ static const steelseries_msi_rgb_led alc_leds[] =
     { "Logo",       0x05 },
 };
 
-/**------------------------------------------------------------------*\
-    @name MSI Raider A18 HX A9WJG SteelSeries RGB
-    @category Keyboard
-    @type USB
-    @save :x:
-    @direct :white_check_mark:
-    @effects :x:
-    @detectors DetectSteelSeriesMSIRGBKeyboard, DetectSteelSeriesMSIRGBLightbar
-    @comment
-\*-------------------------------------------------------------------*/
-
-RGBController_SteelSeriesMSIRGB::RGBController_SteelSeriesMSIRGB(SteelSeriesMSIRGBController* controller_ptr)
+static const MSILaptopModel msi_laptop_models[] =
 {
-    controller          = controller_ptr;
-
-    name                = controller->GetDeviceName();
-    vendor              = "SteelSeries";
-    description         = "MSI Raider A18 HX A9WJG SteelSeries RGB Device";
-    location            = controller->GetDeviceLocation();
-    serial              = controller->GetSerialString();
-    type                = (controller->GetDeviceType() == STEELSERIES_MSI_RGB_KLC) ? DEVICE_TYPE_KEYBOARD : DEVICE_TYPE_LEDSTRIP;
-
-    mode Direct;
-    Direct.name         = "Direct";
-    Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
-    Direct.color_mode   = MODE_COLORS_PER_LED;
-    modes.push_back(Direct);
-
-    SetupZones();
-}
-
-RGBController_SteelSeriesMSIRGB::~RGBController_SteelSeriesMSIRGB()
-{
-    for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
-        if(zones[zone_idx].matrix_map != NULL)
+        "Micro-Star International Co., Ltd.",
+        "Raider A18 HX A9WJG",
+        
+        /* Keyboard layout */
+        msi_raider_a18_klc_leds,
+        MSI_LAPTOP_ARRAY_SIZE(msi_raider_a18_klc_leds),
+        MSI_LAPTOP_KLC_MATRIX_HEIGHT,
+        MSI_LAPTOP_KLC_MATRIX_WIDTH,
+        (const unsigned int*)msi_raider_a18_klc_matrix_map,
+        
+        /* Lightbar layout */
+        msi_raider_a18_alc_leds,
+        MSI_LAPTOP_ARRAY_SIZE(msi_raider_a18_alc_leds),
+        MSI_LAPTOP_ALC_LIGHTBAR_LEDS,
+    },
+};
+
+static const MSILaptopModel* GetMSILaptopModelDMI()
+{
+    DMIInfo dmi;
+
+    for(unsigned int i = 0; i < MSI_LAPTOP_ARRAY_SIZE(msi_laptop_models); i++)
+    {
+        if((dmi.getManufacturer() == msi_laptop_models[i].sys_vendor) &&
+           (dmi.getProductName() == msi_laptop_models[i].product_name))
         {
-            delete zones[zone_idx].matrix_map;
+            return &msi_laptop_models[i];
         }
     }
 
-    delete controller;
+    return nullptr;
 }
 
-void RGBController_SteelSeriesMSIRGB::SetupZones()
+void DetectMSILaptop(hid_device_info* info, const std::string& name)
 {
-    if(controller->GetDeviceType() == STEELSERIES_MSI_RGB_KLC)
+    const MSILaptopModel* model = GetMSILaptopModelDMI();
+    if(!model)
     {
-        zone keyboard_zone;
+        return;
+    }
 
-        keyboard_zone.name                   = ZONE_EN_KEYBOARD;
-        keyboard_zone.type                   = ZONE_TYPE_MATRIX;
-        keyboard_zone.leds_min               = STEELSERIES_MSI_RGB_ARRAY_SIZE(klc_leds);
-        keyboard_zone.leds_max               = STEELSERIES_MSI_RGB_ARRAY_SIZE(klc_leds);
-        keyboard_zone.leds_count             = STEELSERIES_MSI_RGB_ARRAY_SIZE(klc_leds);
-        keyboard_zone.matrix_map             = new matrix_map_type;
-        keyboard_zone.matrix_map->height     = STEELSERIES_MSI_RGB_KLC_MATRIX_HEIGHT;
-        keyboard_zone.matrix_map->width      = STEELSERIES_MSI_RGB_KLC_MATRIX_WIDTH;
-        keyboard_zone.matrix_map->map        = (unsigned int *)&klc_matrix_map;
+    msi_laptop_device device_type;
 
-        zones.push_back(keyboard_zone);
-
-        for(unsigned int led_idx = 0; led_idx < STEELSERIES_MSI_RGB_ARRAY_SIZE(klc_leds); led_idx++)
-        {
-            led new_led;
-            new_led.name  = klc_leds[led_idx].name;
-            new_led.value = klc_leds[led_idx].id;
-            leds.push_back(new_led);
-        }
+    if(info->product_id == STEELSERIES_MSI_RAIDER_A18_KLC_PID)
+    {
+        device_type = MSI_LAPTOP_KLC;
+    }
+    else if(info->product_id == STEELSERIES_MSI_RAIDER_A18_ALC_PID)
+    {
+        device_type = MSI_LAPTOP_ALC;
     }
     else
     {
-        zone lightbar_zone;
-        lightbar_zone.name       = "Lightbar";
-        lightbar_zone.type       = ZONE_TYPE_LINEAR;
-        lightbar_zone.start_idx  = 0;
-        lightbar_zone.leds_min   = STEELSERIES_MSI_RGB_ALC_LIGHTBAR_LEDS;
-        lightbar_zone.leds_max   = STEELSERIES_MSI_RGB_ALC_LIGHTBAR_LEDS;
-        lightbar_zone.leds_count = STEELSERIES_MSI_RGB_ALC_LIGHTBAR_LEDS;
-        lightbar_zone.matrix_map = NULL;
-        zones.push_back(lightbar_zone);
-
-        zone logo_zone;
-        logo_zone.name           = "Logo";
-        logo_zone.type           = ZONE_TYPE_SINGLE;
-        logo_zone.start_idx      = STEELSERIES_MSI_RGB_ALC_LIGHTBAR_LEDS;
-        logo_zone.leds_min       = 1;
-        logo_zone.leds_max       = 1;
-        logo_zone.leds_count     = 1;
-        logo_zone.matrix_map     = NULL;
-        zones.push_back(logo_zone);
-
-        for(unsigned int led_idx = 0; led_idx < STEELSERIES_MSI_RGB_ARRAY_SIZE(alc_leds); led_idx++)
-        {
-            led new_led;
-            new_led.name  = alc_leds[led_idx].name;
-            new_led.value = alc_leds[led_idx].id;
-            leds.push_back(new_led);
-        }
+        return;
     }
 
-    SetupColors();
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        MSILaptopController*     controller     = new MSILaptopController(dev, info->path, name, device_type);
+        RGBController_MSILaptop* rgb_controller = new RGBController_MSILaptop(controller, model);
+
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
 }
 
-void RGBController_SteelSeriesMSIRGB::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-}
+REGISTER_HID_DETECTOR_I("MSI Laptop Keyboard", DetectMSILaptop, STEELSERIES_VID, STEELSERIES_MSI_RAIDER_A18_KLC_PID, 0);
+REGISTER_HID_DETECTOR_I("MSI Laptop Lightbar", DetectMSILaptop, STEELSERIES_VID, STEELSERIES_MSI_RAIDER_A18_ALC_PID, 0);
 
-void RGBController_SteelSeriesMSIRGB::DeviceUpdateLEDs()
-{
-    controller->SetLEDs(leds, colors);
-}
-
-void RGBController_SteelSeriesMSIRGB::UpdateZoneLEDs(int /*zone*/)
-{
-    DeviceUpdateLEDs();
-}
-
-void RGBController_SteelSeriesMSIRGB::UpdateSingleLED(int /*led*/)
-{
-    DeviceUpdateLEDs();
-}
-
-void RGBController_SteelSeriesMSIRGB::DeviceUpdateMode()
-{
-    DeviceUpdateLEDs();
-}

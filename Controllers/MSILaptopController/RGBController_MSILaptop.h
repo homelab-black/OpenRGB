@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_SteelSeriesMSIRGB.h                         |
+| RGBController_MSILaptop.h                         |
 |                                                           |
 |   RGBController for MSI laptop SteelSeries RGB devices    |
 |                                                           |
@@ -10,13 +10,13 @@
 #pragma once
 
 #include "RGBController.h"
-#include "SteelSeriesMSIRGBController.h"
+#include "MSILaptopController.h"
 
-class RGBController_SteelSeriesMSIRGB : public RGBController
+class RGBController_MSILaptop : public RGBController
 {
 public:
-    RGBController_SteelSeriesMSIRGB(SteelSeriesMSIRGBController* controller_ptr);
-    ~RGBController_SteelSeriesMSIRGB();
+    RGBController_MSILaptop(MSILaptopController* controller_ptr, const MSILaptopModel* model_ptr);
+    ~RGBController_MSILaptop();
 
     void    SetupZones();
 
@@ -29,5 +29,6 @@ public:
     void    DeviceUpdateMode();
 
 private:
-    SteelSeriesMSIRGBController* controller;
+    MSILaptopController* controller;
+    const MSILaptopModel* model;
 };

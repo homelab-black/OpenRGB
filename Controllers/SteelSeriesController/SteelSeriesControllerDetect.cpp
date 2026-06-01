@@ -9,7 +9,6 @@
 
 #include <hidapi.h>
 #include "Detector.h"
-#include "dmiinfo.h"
 #include "SteelSeriesGeneric.h"
 #include "SteelSeriesAeroxWirelessController.h"
 #include "SteelSeriesAerox5Controller.h"
@@ -19,7 +18,6 @@
 #include "SteelSeriesApexController.h"
 #include "SteelSeriesApexMController.h"
 #include "SteelSeriesApexTZoneController.h"
-#include "SteelSeriesMSIRGBController.h"
 #include "SteelSeriesOldApexController.h"
 #include "SteelSeriesQCKMatController.h"
 #include "SteelSeriesRivalController.h"
@@ -29,7 +27,6 @@
 #include "RGBController_SteelSeriesArctis5.h"
 #include "RGBController_SteelSeriesApex.h"
 #include "RGBController_SteelSeriesApex3.h"
-#include "RGBController_SteelSeriesMSIRGB.h"
 #include "RGBController_SteelSeriesOldApex.h"
 #include "RGBController_SteelSeriesQCKMat.h"
 #include "RGBController_SteelSeriesRival.h"
@@ -130,17 +127,6 @@
 #define STEELSERIES_APEX_PRO_TKL_GEN3_PID           0x1642
 #define STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_1      0x1644
 #define STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_2      0x1646
-#define STEELSERIES_MSI_RAIDER_A18_KLC_PID          0x1122
-#define STEELSERIES_MSI_RAIDER_A18_ALC_PID          0x1161
-
-static bool SteelSeriesMSIRGBSupportedDMI()
-{
-    DMIInfo dmi;
-
-    return((dmi.getManufacturer() == "Micro-Star International Co., Ltd.") &&
-           (dmi.getProductName() == "Raider A18 HX A9WJG") &&
-           (dmi.getMainboard() == "MS-182L"));
-}
 
 void DetectSteelSeriesAerox3(hid_device_info* info, const std::string& name)
 {
@@ -344,34 +330,6 @@ void DetectSteelSeriesMousemat(hid_device_info* info, const std::string& name)
     }
 }
 
-void DetectSteelSeriesMSIRGB(hid_device_info* info, const std::string& name, steelseries_msi_rgb_device device_type)
-{
-    if(!SteelSeriesMSIRGBSupportedDMI())
-    {
-        return;
-    }
-
-    hid_device* dev = hid_open_path(info->path);
-
-    if(dev)
-    {
-        SteelSeriesMSIRGBController*     controller     = new SteelSeriesMSIRGBController(dev, info->path, name, device_type);
-        RGBController_SteelSeriesMSIRGB* rgb_controller = new RGBController_SteelSeriesMSIRGB(controller);
-
-        ResourceManager::get()->RegisterRGBController(rgb_controller);
-    }
-}
-
-void DetectSteelSeriesMSIRGBKeyboard(hid_device_info* info, const std::string& name)
-{
-    DetectSteelSeriesMSIRGB(info, name, STEELSERIES_MSI_RGB_KLC);
-}
-
-void DetectSteelSeriesMSIRGBLightbar(hid_device_info* info, const std::string& name)
-{
-    DetectSteelSeriesMSIRGB(info, name, STEELSERIES_MSI_RGB_ALC);
-}
-
 void DetectSteelSeriesRival100(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
@@ -546,7 +504,6 @@ REGISTER_HID_DETECTOR_I("SteelSeries QCK Prism Cloth 5XL",                      
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                                                 |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_I  ("MSI Raider A18 HX A9WJG Keyboard",             DetectSteelSeriesMSIRGBKeyboard, STEELSERIES_VID, STEELSERIES_MSI_RAIDER_A18_KLC_PID,          0  );
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex 3",                             DetectSteelSeriesApex3Full, STEELSERIES_VID, STEELSERIES_APEX_3_PID,                    	3  );
 REGISTER_HID_DETECTOR_IPU("SteelSeries Apex 3 TKL",                         DetectSteelSeriesApex3TKL,  STEELSERIES_VID, STEELSERIES_APEX_3_TKL_PID,    1,  0xFFC0,     1  );
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex 5",                             DetectSteelSeriesApex,      STEELSERIES_VID, STEELSERIES_APEX_5_PID,                    	1  );
@@ -566,8 +523,3 @@ REGISTER_HID_DETECTOR_I  ("SteelSeries Apex Pro 3",                         Dete
 REGISTER_HID_DETECTOR_I  ("SteelSeries Apex Pro TKL Gen 3",                DetectSteelSeriesApex,      STEELSERIES_VID, STEELSERIES_APEX_PRO_TKL_GEN3_PID,             1  );
 REGISTER_HID_DETECTOR_IPU("SteelSeries Apex Pro TKL Gen 3 Wireless",       DetectSteelSeriesApex,      STEELSERIES_VID, STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_1, 3, 0xFFC0, 1);
 REGISTER_HID_DETECTOR_IPU("SteelSeries Apex Pro TKL Gen 3 Wireless",       DetectSteelSeriesApex,      STEELSERIES_VID, STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_2, 3, 0xFFC0, 1);
-
-/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Laptop lighting                                                                                                                                                           |
-\*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_I  ("MSI Raider A18 HX A9WJG Lightbar",             DetectSteelSeriesMSIRGBLightbar, STEELSERIES_VID, STEELSERIES_MSI_RAIDER_A18_ALC_PID,          0  );

@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| SteelSeriesMSIRGBController.cpp                           |
+| MSILaptopController.cpp                           |
 |                                                           |
 |   Driver for MSI laptop SteelSeries KLC/ALC RGB devices   |
 |                                                           |
@@ -8,17 +8,17 @@
 \*---------------------------------------------------------*/
 
 #include <cstring>
-#include "SteelSeriesMSIRGBController.h"
+#include "MSILaptopController.h"
 #include "StringUtils.h"
 
-#define STEELSERIES_MSI_RGB_REPORT_ID       0x00
-#define STEELSERIES_MSI_RGB_COMMAND         0x0C
-#define STEELSERIES_MSI_RGB_KLC_PACKET_ID   0x66
-#define STEELSERIES_MSI_RGB_ALC_PACKET_ID   0x06
-#define STEELSERIES_MSI_RGB_PACKET_SIZE     525
-#define STEELSERIES_MSI_RGB_PAYLOAD_OFFSET  5
+#define MSI_LAPTOP_REPORT_ID       0x00
+#define MSI_LAPTOP_COMMAND         0x0C
+#define MSI_LAPTOP_KLC_PACKET_ID   0x66
+#define MSI_LAPTOP_ALC_PACKET_ID   0x06
+#define MSI_LAPTOP_PACKET_SIZE     525
+#define MSI_LAPTOP_PAYLOAD_OFFSET  5
 
-SteelSeriesMSIRGBController::SteelSeriesMSIRGBController(hid_device* dev_handle, const char* path, std::string dev_name, steelseries_msi_rgb_device device_type)
+MSILaptopController::MSILaptopController(hid_device* dev_handle, const char* path, std::string dev_name, msi_laptop_device device_type)
 {
     dev         = dev_handle;
     location    = path;
@@ -26,22 +26,22 @@ SteelSeriesMSIRGBController::SteelSeriesMSIRGBController(hid_device* dev_handle,
     type        = device_type;
 }
 
-SteelSeriesMSIRGBController::~SteelSeriesMSIRGBController()
+MSILaptopController::~MSILaptopController()
 {
     hid_close(dev);
 }
 
-std::string SteelSeriesMSIRGBController::GetDeviceLocation()
+std::string MSILaptopController::GetDeviceLocation()
 {
     return("HID: " + location);
 }
 
-std::string SteelSeriesMSIRGBController::GetDeviceName()
+std::string MSILaptopController::GetDeviceName()
 {
     return(name);
 }
 
-std::string SteelSeriesMSIRGBController::GetSerialString()
+std::string MSILaptopController::GetSerialString()
 {
     wchar_t serial_string[128];
     int ret = hid_get_serial_number_string(dev, serial_string, 128);
@@ -54,25 +54,25 @@ std::string SteelSeriesMSIRGBController::GetSerialString()
     return(StringUtils::wstring_to_string(serial_string));
 }
 
-steelseries_msi_rgb_device SteelSeriesMSIRGBController::GetDeviceType()
+msi_laptop_device MSILaptopController::GetDeviceType()
 {
     return(type);
 }
 
-void SteelSeriesMSIRGBController::SetLEDs(std::vector<led> leds, std::vector<RGBColor> colors)
+void MSILaptopController::SetLEDs(std::vector<led> leds, std::vector<RGBColor> colors)
 {
-    unsigned char buf[STEELSERIES_MSI_RGB_PACKET_SIZE];
+    unsigned char buf[MSI_LAPTOP_PACKET_SIZE];
     unsigned int led_count = (leds.size() < colors.size()) ? leds.size() : colors.size();
 
     memset(buf, 0x00, sizeof(buf));
 
-    buf[0x00] = STEELSERIES_MSI_RGB_REPORT_ID;
-    buf[0x01] = STEELSERIES_MSI_RGB_COMMAND;
-    buf[0x03] = (type == STEELSERIES_MSI_RGB_KLC) ? STEELSERIES_MSI_RGB_KLC_PACKET_ID : STEELSERIES_MSI_RGB_ALC_PACKET_ID;
+    buf[0x00] = MSI_LAPTOP_REPORT_ID;
+    buf[0x01] = MSI_LAPTOP_COMMAND;
+    buf[0x03] = (type == MSI_LAPTOP_KLC) ? MSI_LAPTOP_KLC_PACKET_ID : MSI_LAPTOP_ALC_PACKET_ID;
 
     for(unsigned int led_idx = 0; led_idx < led_count; led_idx++)
     {
-        unsigned int offset = STEELSERIES_MSI_RGB_PAYLOAD_OFFSET + (led_idx * 4);
+        unsigned int offset = MSI_LAPTOP_PAYLOAD_OFFSET + (led_idx * 4);
 
         if((offset + 3) >= sizeof(buf))
         {
