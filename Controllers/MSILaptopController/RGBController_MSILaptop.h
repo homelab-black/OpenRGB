@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_MSILaptop.h                         |
+| RGBController_MSILaptop.h                                 |
 |                                                           |
 |   RGBController for MSI laptop SteelSeries RGB devices    |
 |                                                           |
