@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MSILaptopController.h                             |
+| MSILaptopController.h                                     |
 |                                                           |
 |   Driver for MSI laptop SteelSeries KLC/ALC RGB devices   |
 |                                                           |
