@@ -318,6 +318,30 @@ int RealtekARGBController::get_fix_grps()
     return fix_grps;
 }
 
+bool RealtekARGBController::get_zone_enable(int grp_num)
+{
+    bool got_custled = false;
+    bool en = false;
+
+    if(custled[0])
+    {
+        got_custled = true;
+    }
+    else
+    {
+        if(!get_custled(custled, sizeof(custled)))
+        {
+            got_custled = true;
+        }
+    }
+
+    if(got_custled)
+    {
+        en = (custled[5] & (0x1 << grp_num)) ? true : false;
+    }
+    return en;
+}
+
 int RealtekARGBController::get_argb_num(int grp_num)
 {
     int num_rgb = 0;

@@ -323,7 +323,7 @@ void RGBController_RealtekARGB::SetupZones()
 
     for(int grp_num = 0; grp_num < REALTEK_ARGB_NUM_ARGB_GRP; grp_num++)
     {
-        if(controller->get_argb_num(grp_num) > 0)
+        if(controller->get_zone_enable(grp_num))
         {
             valid_grp.push_back(grp_num);
             if(fix_grps & (0x1 << grp_num))
@@ -341,11 +341,6 @@ void RGBController_RealtekARGB::SetupZones()
     for(int grp_num : valid_grp)
     {
         argb_num = controller->get_argb_num(grp_num);
-        if(argb_num <= 0)
-        {
-            continue;
-        }
-
         zones[idx].name = "strip " + std::to_string(idx + 1);
         zones[idx].type = ZONE_TYPE_LINEAR;
         if(fix_grps & (0x1 << grp_num))
@@ -365,7 +360,7 @@ void RGBController_RealtekARGB::SetupZones()
                 zones[idx].leds_count = argb_num;
             }
 
-            zones[idx].leds_min = 1;
+            zones[idx].leds_min = 0;
             zones[idx].leds_max = (REALTEK_ARGB_MAX - argb_num_fixgrp) / ((int)valid_grp.size() - num_fixgrp);
         }
         zones[idx].matrix_map = NULL;

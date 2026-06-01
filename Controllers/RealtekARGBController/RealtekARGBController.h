@@ -129,6 +129,7 @@ public:
     std::string get_ic_uuid();
     std::string get_dev_name();
     int get_fix_grps();
+    bool get_zone_enable(int grp_num);
     int get_argb_num(int grp_num);
     int get_argb_brightness(int grp_num);
     int set_argb_brightness(int grp_num, unsigned short bright);
