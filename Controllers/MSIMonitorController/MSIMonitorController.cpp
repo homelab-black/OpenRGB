@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for MSI monitor (gaming controller)       |
 |                                                           |
-|   Andy Herbert                              2026 May 16   |
+|   Andy Herbert                              2026 June  1  |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -51,11 +51,6 @@ std::string MSIMonitorController::GetSerialString()
 void MSIMonitorController::Set(uint8_t mode_value, const std::vector<RGBColor> colors, uint8_t last_bit)
 {
     /*---------------------------------------------------------*\
-    | set up HID SET_REPORT                                     |
-    \*---------------------------------------------------------*/
-
-
-    /*---------------------------------------------------------*\
     | Prepare the colors data                                   |
     \*---------------------------------------------------------*/
     uint8_t data[MSI_MONITOR_PACKET_SIZE];
@@ -80,19 +75,22 @@ void MSIMonitorController::Set(uint8_t mode_value, const std::vector<RGBColor> c
     \*---------------------------------------------------------*/
     data[offset++] = mode_value;
 
-    //0x00'00'00'01'64'00'00'00'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00'ff'00'00;
-
-    for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < 3; i++)
+    {
         data[offset++] = 0x00;
     }
     data[offset++] = 0x01;
     data[offset++] = 0x64;
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < 5; i++)
+    {
         data[offset++] = 0x00;
     }
 
-    //this data might be placeholder for additional LEDs in other monitors, idk
-    for(int i = 0; i < 9; i++) {
+    /*-----------------------------------------------------------------------*\
+    | this data looks like placeholder for additional LEDs in other monitors  |
+    \*-----------------------------------------------------------------------*/
+    for(int i = 0; i < 9; i++)
+    {
         data[offset++] = 0xff;
         data[offset++] = 0x00;
         data[offset++] = 0x00;
@@ -106,8 +104,11 @@ void MSIMonitorController::Set(uint8_t mode_value, const std::vector<RGBColor> c
         data[offset++] = RGBGetBValue(color);
     }
 
-    //last bit is probably a write to device bit- 0x01 saves to device, 0x00 doesn't.
-    //For direct mode, bit is set to 0x00, otherwise lights will flicker
+    /*-------------------------------------------------------------------------------*\
+    | last bit is probably a write to device bit- 0x01 saves to device, 0x00 doesn't. |
+    | For direct mode, bit is set to 0x00, otherwise lights will flicker              |
+    \*-------------------------------------------------------------------------------*/
+
     data[offset++] = last_bit;
 
     /*---------------------------------------------------------*\
