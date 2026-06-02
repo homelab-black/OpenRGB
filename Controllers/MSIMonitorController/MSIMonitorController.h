@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for MSI monitor (gaming controller)       |
 |                                                           |
-|   Andy Herbert                              2026 May 16   |
+|   Andy Herbert                              2026 June 1   |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -20,15 +20,15 @@
 
 enum
 {
-    MSI_MONITOR_OFF_MODE_VALUE = 0x00,
-    MSI_MONITOR_STATIC_MODE_VALUE = 0x01,
+    MSI_MONITOR_OFF_MODE_VALUE       = 0x00,
+    MSI_MONITOR_STATIC_MODE_VALUE    = 0x01,
     MSI_MONITOR_BREATHING_MODE_VALUE = 0x02,
-    MSI_MONITOR_FLASHING_MODE_VALUE = 0x03,
+    MSI_MONITOR_FLASHING_MODE_VALUE  = 0x03,
     MSI_MONITOR_LIGHTNING_MODE_VALUE = 0x05,
-    MSI_MONITOR_MARQUEE_MODE_VALUE = 0x06,
-    MSI_MONITOR_METEOR_MODE_VALUE = 0x08,
-    MSI_MONITOR_RAINBOW_MODE_VALUE = 0x1a,
-    MSI_MONITOR_RANDOM_MODE_VALUE = 0x1f
+    MSI_MONITOR_MARQUEE_MODE_VALUE   = 0x06,
+    MSI_MONITOR_METEOR_MODE_VALUE    = 0x08,
+    MSI_MONITOR_RAINBOW_MODE_VALUE   = 0x1A,
+    MSI_MONITOR_RANDOM_MODE_VALUE    = 0x1F
 };
 
 class MSIMonitorController

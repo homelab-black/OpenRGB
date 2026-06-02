@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for MSI monitor (gaming controller)       |
 |                                                           |
-|   Andy Herbert                              2026 May 16   |
+|   Andy Herbert                              2026 June 1   |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -36,7 +36,6 @@ RGBController_MSIMonitor::RGBController_MSIMonitor(MSIMonitorController* control
     location                            = controller->GetDeviceLocation();
     serial                              = controller->GetSerialString();
 
-    //direct is static but with the last bit set to 0
     mode Direct;
     Direct.name                         = "Direct";
     Direct.value                        = MSI_MONITOR_STATIC_MODE_VALUE;
@@ -53,52 +52,52 @@ RGBController_MSIMonitor::RGBController_MSIMonitor(MSIMonitorController* control
 
 
     mode Breathing;
-    Breathing.name                  = "Breathing";
-    Breathing.value                 = MSI_MONITOR_BREATHING_MODE_VALUE;
-    Breathing.flags                 = MODE_FLAG_HAS_PER_LED_COLOR;
-    Breathing.color_mode            = MODE_COLORS_PER_LED;
+    Breathing.name                      = "Breathing";
+    Breathing.value                     = MSI_MONITOR_BREATHING_MODE_VALUE;
+    Breathing.flags                     = MODE_FLAG_HAS_PER_LED_COLOR;
+    Breathing.color_mode                = MODE_COLORS_PER_LED;
     modes.push_back(Breathing);
 
     mode Flashing;
-    Flashing.name                  = "Flashing";
-    Flashing.value                 = MSI_MONITOR_FLASHING_MODE_VALUE;
-    Flashing.flags                 = MODE_FLAG_HAS_PER_LED_COLOR;
-    Flashing.color_mode            = MODE_COLORS_PER_LED;
+    Flashing.name                       = "Flashing";
+    Flashing.value                      = MSI_MONITOR_FLASHING_MODE_VALUE;
+    Flashing.flags                      = MODE_FLAG_HAS_PER_LED_COLOR;
+    Flashing.color_mode                 = MODE_COLORS_PER_LED;
     modes.push_back(Flashing);
 
     mode Lightning;
-    Lightning.name                  = "Lightning";
-    Lightning.value                 = MSI_MONITOR_LIGHTNING_MODE_VALUE;
-    Lightning.flags                 = MODE_FLAG_HAS_PER_LED_COLOR;
-    Lightning.color_mode            = MODE_COLORS_PER_LED;
+    Lightning.name                      = "Lightning";
+    Lightning.value                     = MSI_MONITOR_LIGHTNING_MODE_VALUE;
+    Lightning.flags                     = MODE_FLAG_HAS_PER_LED_COLOR;
+    Lightning.color_mode                = MODE_COLORS_PER_LED;
     modes.push_back(Lightning);
 
     mode Marquee;
-    Marquee.name                  = "Marquee";
-    Marquee.value                 = MSI_MONITOR_MARQUEE_MODE_VALUE;
-    Marquee.flags                 = MODE_FLAG_AUTOMATIC_SAVE;
-    Marquee.color_mode            = MODE_COLORS_NONE;
+    Marquee.name                        = "Marquee";
+    Marquee.value                       = MSI_MONITOR_MARQUEE_MODE_VALUE;
+    Marquee.flags                       = MODE_FLAG_AUTOMATIC_SAVE;
+    Marquee.color_mode                  = MODE_COLORS_NONE;
     modes.push_back(Marquee);
 
     mode Meteor;
-    Meteor.name                  = "Meteor";
-    Meteor.value                 = MSI_MONITOR_METEOR_MODE_VALUE;
-    Meteor.flags                 = MODE_FLAG_AUTOMATIC_SAVE;
-    Meteor.color_mode            = MODE_COLORS_NONE;
+    Meteor.name                         = "Meteor";
+    Meteor.value                        = MSI_MONITOR_METEOR_MODE_VALUE;
+    Meteor.flags                        = MODE_FLAG_AUTOMATIC_SAVE;
+    Meteor.color_mode                   = MODE_COLORS_NONE;
     modes.push_back(Meteor);
 
     mode Rainbow;
-    Rainbow.name                  = "Rainbow";
-    Rainbow.value                 = MSI_MONITOR_RAINBOW_MODE_VALUE;
-    Rainbow.flags                 = MODE_FLAG_AUTOMATIC_SAVE;
-    Rainbow.color_mode            = MODE_COLORS_NONE;
+    Rainbow.name                        = "Rainbow";
+    Rainbow.value                       = MSI_MONITOR_RAINBOW_MODE_VALUE;
+    Rainbow.flags                       = MODE_FLAG_AUTOMATIC_SAVE;
+    Rainbow.color_mode                  = MODE_COLORS_NONE;
     modes.push_back(Rainbow);
 
     mode Random;
-    Random.name                  = "Random";
-    Random.value                 = MSI_MONITOR_RANDOM_MODE_VALUE;
-    Random.flags                 = MODE_FLAG_AUTOMATIC_SAVE;
-    Random.color_mode            = MODE_COLORS_RANDOM;
+    Random.name                         = "Random";
+    Random.value                        = MSI_MONITOR_RANDOM_MODE_VALUE;
+    Random.flags                        = MODE_FLAG_AUTOMATIC_SAVE;
+    Random.color_mode                   = MODE_COLORS_RANDOM;
     modes.push_back(Random);
 
     mode Off;
