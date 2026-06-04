@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for MSI monitor (gaming controller)       |
 |                                                           |
-|   Andy Herbert                              2026 June  1  |
+|   Andy Herbert                              2026 June  4  |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -51,22 +51,24 @@ std::string MSIMonitorController::GetSerialString()
 void MSIMonitorController::Set(uint8_t mode_value, const std::vector<RGBColor> colors, uint8_t last_bit)
 {
     /*---------------------------------------------------------*\
-    | Prepare the colors data                                   |
+    | Prepare color data                                        |
     \*---------------------------------------------------------*/
     uint8_t data[MSI_MONITOR_PACKET_SIZE];
     memset(data, 0x00, MSI_MONITOR_PACKET_SIZE);
 
     unsigned int offset = 0;
 
-    //0x71'01'00'00'00'01'64'00'00'00'00'00
     data[offset++] = 0x71;
     data[offset++] = 0x01;
-    for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < 3; i++)
+    {
         data[offset++] = 0x00;
     }
+
     data[offset++] = 0x01;
     data[offset++] = 0x64;
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < 5; i++)
+    {
         data[offset++] = 0x00;
     }
 
