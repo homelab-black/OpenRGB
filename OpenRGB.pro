@@ -199,6 +199,7 @@ HEADERS +=                                                                      
     serial_port/find_usb_serial_port.h                                                          \
     serial_port/serial_port.h                                                                   \
     super_io/super_io.h                                                                         \
+    MathUtils.h                                                                                 \
     StringUtils.h                                                                               \
     SuspendResume/SuspendResume.h                                                               \
     AutoStart/AutoStart.h                                                                       \
@@ -265,6 +266,7 @@ SOURCES +=                                                                      
     interop/DeviceGuardManager.cpp                                                              \
     net_port/net_port.cpp                                                                       \
     serial_port/serial_port.cpp                                                                 \
+    MathUtils.cpp                                                                               \
     StringUtils.cpp                                                                             \
     AutoStart/AutoStart.cpp                                                                     \
     KeyboardLayoutManager/KeyboardLayoutManager.cpp                                             \
@@ -437,6 +439,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusPIIX4.bin               )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusI801.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusNCT6793.bin             )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusIntelSkylakeIMC.bin     )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/LpcIO.bin                    )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     first.depends = $(first) copydata
     export(first.depends)
