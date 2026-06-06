@@ -29,7 +29,9 @@
 
 static void RegisterZotacBlackwellGPUController(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name, const std::vector<std::string>& zone_names)
 {
-    if(bus->i2c_smbus_read_byte_data(i2c_addr, 0x10) >= 0)
+    s32 result = bus->i2c_smbus_read_byte_data(i2c_addr, 0x10);
+
+    if(result >= 0)
     {
         ZotacBlackwellGPUController*     controller     = new ZotacBlackwellGPUController(bus, i2c_addr, name);
         RGBController_ZotacBlackwellGPU* rgb_controller = new RGBController_ZotacBlackwellGPU(controller, zone_names);
