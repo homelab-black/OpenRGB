@@ -45,7 +45,7 @@ void DetectZotacBlackwellGPUControllersPCI(i2c_smbus_interface* bus, u8 i2c_addr
 
 void DetectZotacBlackwellSolidGPUControllersPCI(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name)
 {
-    RegisterZotacBlackwellGPUController(bus, i2c_addr, name, { "Zone 1", "Zone 2" });
+    RegisterZotacBlackwellGPUController(bus, i2c_addr, name, { "ZOTAC Gaming", "Logo" });
 }
 
 REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 5080 AMP Extreme INFINITY",  DetectZotacBlackwellGPUControllersPCI,      NVIDIA_VEN, NVIDIA_RTX5080_DEV, ZOTAC_SUB_VEN, ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV, 0x4B);
