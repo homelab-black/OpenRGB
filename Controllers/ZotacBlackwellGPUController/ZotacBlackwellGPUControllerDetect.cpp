@@ -21,9 +21,9 @@
 *                                                                                          *
 *   RegisterZotacBlackwellGPUController                                                    *
 *                                                                                          *
-*       Probe register 0x10; if the controller answers, register an RGBController with      *
-*       the card's zone layout. The zone names are positional - each name's index is        *
-*       written verbatim to the zone register (0x21).                                       *
+*       Probe register 0x10; if the controller answers, register an RGBController with     *
+*       the card's zone layout. The zone names are positional - each name's index is       *
+*       written verbatim to the zone register (0x21).                                      *
 *                                                                                          *
 \******************************************************************************************/
 

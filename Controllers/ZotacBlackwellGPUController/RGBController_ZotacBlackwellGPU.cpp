@@ -256,7 +256,7 @@ void RGBController_ZotacBlackwellGPU::SetupZones()
 {
     /*---------------------------------------------------------*\
     | One single-LED zone per name supplied by the detector.    |
-    | The zone's index is its position here, which is written    |
+    | The zone's index is its position here, which is written   |
     | verbatim to the zone register (0x21) on update.           |
     \*---------------------------------------------------------*/
     for(const std::string& zone_name : zone_names)
