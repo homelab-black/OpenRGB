@@ -22,8 +22,8 @@
 *   RegisterZotacBlackwellGPUController                                                    *
 *                                                                                          *
 *       Probe register 0x10; if the controller answers, register an RGBController with     *
-*       the card's zone layout. The zone names are positional - each name's index is       *
-*       written verbatim to the zone register (0x21).                                      *
+*       the card's zone layout. The zone names are positional; each name's index is        *
+*       written as it was to the zone register (0x21).                                     *
 *                                                                                          *
 \******************************************************************************************/
 
@@ -40,6 +40,17 @@ static void RegisterZotacBlackwellGPUController(i2c_smbus_interface* bus, u8 i2c
     }
 }
 
+/******************************************************************************************\
+*                                                                                          *
+*   DetectZotacBlackwellGPUControllersPCI                                                    *
+*                                                                                          *
+*       Detect ZOTAC Blackwell (RTX 50 series) RGB controllers on the enumerated           *
+*       I2C busses at address 0x4B.                                                        *
+*                                                                                          *
+*           bus - pointer to i2c_smbus_interface where RGB device is connected             *
+*           dev - I2C address of RGB device                                                *
+*                                                                                          *
+\******************************************************************************************/
 void DetectZotacBlackwellGPUControllersPCI(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name)
 {
     RegisterZotacBlackwellGPUController(bus, i2c_addr, name, { "Logo", "Side Bar", "Infinity Mirror" });
