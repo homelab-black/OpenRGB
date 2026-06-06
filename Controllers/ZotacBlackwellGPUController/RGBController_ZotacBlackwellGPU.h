@@ -11,13 +11,15 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
 #include "RGBController.h"
 #include "ZotacBlackwellGPUController.h"
 
 class RGBController_ZotacBlackwellGPU : public RGBController
 {
 public:
-    RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr);
+    RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr, const std::vector<std::string>& zone_names);
     ~RGBController_ZotacBlackwellGPU();
 
     void SetupZones();
@@ -33,4 +35,5 @@ public:
 
 private:
     ZotacBlackwellGPUController* controller;
+    std::vector<std::string>    zone_names;
 };
