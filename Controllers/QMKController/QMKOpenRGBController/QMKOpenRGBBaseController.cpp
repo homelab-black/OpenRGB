@@ -53,9 +53,6 @@ QMKOpenRGBBaseController::QMKOpenRGBBaseController(hid_device *dev_handle, const
 
     dev         = dev_handle;
     location    = path;
-
-    GetDeviceInfo();
-    GetModeInfo();
 }
 
 QMKOpenRGBBaseController::~QMKOpenRGBBaseController()
@@ -168,7 +165,7 @@ std::string QMKOpenRGBBaseController::GetQMKVersion()
 
     std::string qmk_version;
     int i = 1;
-    while (usb_buf[i] != 0)
+    while (i < QMK_OPENRGB_PACKET_SIZE && usb_buf[i] != 0)
     {
         qmk_version.push_back(usb_buf[i]);
         i++;
@@ -235,9 +232,10 @@ void QMKOpenRGBBaseController::GetModeInfo()
     int bytes_read = 0;
     do
     {
-        hid_write(dev, usb_buf, 65);
-        bytes_read = hid_read_timeout(dev, usb_buf, 65, QMK_OPENRGB_HID_READ_TIMEOUT);
+        hid_write(dev, usb_buf, QMK_OPENRGB_PACKET_SIZE);
+        bytes_read = hid_read_timeout(dev, usb_buf, QMK_OPENRGB_PACKET_SIZE, QMK_OPENRGB_HID_READ_TIMEOUT);
     } while(bytes_read <= 0);
+
 
     mode = usb_buf[QMK_OPENRGB_MODE_BYTE];
     mode_speed = usb_buf[QMK_OPENRGB_SPEED_BYTE];
@@ -287,6 +285,6 @@ void QMKOpenRGBBaseController::SetMode(hsv_t hsv_color, unsigned char mode, unsi
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-    hid_read_timeout(dev, usb_buf, 65, QMK_OPENRGB_HID_READ_TIMEOUT);
+    hid_write(dev, usb_buf, QMK_OPENRGB_PACKET_SIZE);
+    hid_read_timeout(dev, usb_buf, QMK_OPENRGB_PACKET_SIZE, QMK_OPENRGB_HID_READ_TIMEOUT);
 }

@@ -20,6 +20,7 @@
 #include "RGBController_QMKOpenRGBRevB.h"
 #include "RGBController_QMKOpenRGBRevD.h"
 #include "RGBController_QMKOpenRGBRevE.h"
+#include "RGBController_QMKOpenRGBRevF.h"
 #include "LogManager.h"
 #include "SettingsManager.h"
 
@@ -31,6 +32,7 @@
 #define QMK_OPENRGB_PROTOCOL_VERSION_C          0x0C
 #define QMK_OPENRGB_PROTOCOL_VERSION_D          0x0D
 #define QMK_OPENRGB_PROTOCOL_VERSION_E          0x0E
+#define QMK_OPENRGB_PROTOCOL_VERSION_F          0x0F
 
 /*-----------------------------------------------------*\
 | Usage and Usage Page                                  |
@@ -113,6 +115,13 @@ void DetectQMKOpenRGBControllers(hid_device_info *info, const std::string&)
                 ResourceManager::get()->RegisterRGBController(rgb_controller);
                 }
                 break;
+            case QMK_OPENRGB_PROTOCOL_VERSION_F:
+                {
+                    QMKOpenRGBRevFController*     controller     = new QMKOpenRGBRevFController(dev, info->path, info->product_string, info->manufacturer_string);
+                    RGBController_QMKOpenRGBRevF* rgb_controller = new RGBController_QMKOpenRGBRevF(controller);
+                    ResourceManager::get()->RegisterRGBController(rgb_controller);
+                }
+                break;
             default:
                 if (version == 0)
                 {
@@ -125,7 +134,7 @@ void DetectQMKOpenRGBControllers(hid_device_info *info, const std::string&)
                     "For officaly supported QMK boards grab <a href=\"https://github.com/Kasper24/QMK-OpenRGB\">url</a> \n"
                     "For Sonix boards grab <a href=\"https://github.com/SonixQMK/qmk_firmware/tree/sn32_openrgb\">url</a>", version);
                 }
-                else if (version > QMK_OPENRGB_PROTOCOL_VERSION_E)
+                else if (version > QMK_OPENRGB_PROTOCOL_VERSION_F)
                 {
                     LOG_WARNING("[QMK OpenRGB] Detection failed - the detected keyboard is using version protocol %i which is not supported by this OpenRGB build. Please update OpenRGB!", version);
                 }

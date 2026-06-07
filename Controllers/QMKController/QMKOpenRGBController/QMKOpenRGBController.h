@@ -5,6 +5,7 @@
 |                                                           |
 |   Kasper                                      10 Oct 2020 |
 |   Jath03                                      28 May 2021 |
+|   reklrekl                                    06 Jun 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -35,6 +36,11 @@ enum CommandsId
     QMK_OPENRGB_SET_MODE,
     QMK_OPENRGB_DIRECT_MODE_SET_SINGLE_LED,
     QMK_OPENRGB_DIRECT_MODE_SET_LEDS,
+
+    QMK_OPENRGB_GET_EFFECT_NAME,
+    QMK_OPENRGB_GET_LED_COLOR,
+
+
 };
 
 enum Modes
@@ -84,6 +90,15 @@ enum Modes
     QMK_OPENRGB_MODE_PIXEL_RAIN,
     QMK_OPENRGB_MODE_PIXEL_FLOW,
     QMK_OPENRGB_MODE_PIXEL_FRACTAL,
+    QMK_OPENRGB_MODE_FLOWER_BLOOMING,
+    QMK_OPENRGB_MODE_STARLIGHT_SMOOTH,
+    QMK_OPENRGB_MODE_STARLIGHT,
+    QMK_OPENRGB_MODE_STARLIGHT_DUAL_SAT,
+    QMK_OPENRGB_MODE_STARLIGHT_DUAL_HUE,
+    QMK_OPENRGB_MODE_RIVERFLOW,
+
+
+    QMK_OPENRGB_MODE_CUSTOM = 0xFF
 };
 
 enum SpeedCommands
@@ -125,6 +140,89 @@ enum
     QMK_OPENRGB_B_COLOR_BYTE    = 6,
     QMK_OPENRGB_KEYCODE_BYTE    = 7
 };
+
+enum
+{
+    QMK_OPENRGB_FEATURE_SAVE          = (1 << 0),
+    QMK_OPENRGB_FEATURE_EFFECT_NAMES  = (1 << 1),
+    QMK_OPENRGB_FEATURE_READ              = (1 << 2),
+};
+
+
+// Community/custom effects (unknown IDs) fall back to GetEffectName() over HID.
+static const struct { uint8_t id; const char* name; uint8_t flags; } qmk_mode_table[] =
+{
+    { QMK_OPENRGB_MODE_OPENRGB_DIRECT,         "Direct",                       MODE_FLAG_HAS_PER_LED_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_COLOR,            "Static",                       MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_ALPHA_MOD,              "Alphamods",                    MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_GRADIENT_UP_DOWN,       "Gradient Up Down",             MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_GRADIENT_LEFT_RIGHT,    "Gradient Left Right",          MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BREATHING,              "Breathing",                    MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_SAT,               "Band Sat",                     MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_VAL,               "Band Val",                     MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_PINWHEEL_SAT,      "Band Pinwheel Sat",            MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_PINWHEEL_VAL,      "Band Pinwheel Val",            MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_SPIRAL_SAT,        "Band Spiral Sat",              MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_BAND_SPIRAL_VAL,        "Band Spiral Val",              MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_CYCLE_ALL,              "Cycle All",                    MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_LEFT_RIGHT,       "Cycle Left Right",             MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_UP_DOWN,          "Cycle Up Down",                MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_RAINBOW_MOVING_CHEVRON, "Rainbow Moving Chevron",       MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_OUT_IN,           "Cycle Out In",                 MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_OUT_IN_DUAL,      "Cycle Out In Dual",            MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_PINWHEEL,         "Cycle Pinwheel",               MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_CYCLE_SPIRAL,           "Cycle Spiral",                 MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_DUAL_BEACON,            "Dual Beacon",                  MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_RAINBOW_BEACON,         "Rainbow Beacon",               MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_RAINBOW_PINWHEELS,      "Rainbow Pinwheels",            MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_FLOWER_BLOOMING,        "Flower Blooming",              MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_RAINDROPS,              "Raindrops",                    MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_JELLYBEAN_RAINDROPS,    "Jellybean Raindrops",          MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_HUE_BREATHING,          "Hue Breathing",                MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_HUE_PENDULUM,           "Hue Pendulum",                 MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_HUE_WAVE,               "Hue Wave",                     MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_TYPING_HEATMAP,         "Typing Heatmap",               0 },
+    { QMK_OPENRGB_MODE_DIGITAL_RAIN,           "Digital Rain",                 0 },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_SIMPLE,  "Solid Reactive Simple",        MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE,         "Solid Reactive",               MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_WIDE,    "Solid Reactive Wide",          MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_MULTIWIDE,"Solid Reactive Multiwide",    MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_CROSS,   "Solid Reactive Cross",         MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_MULTICROSS,"Solid Reactive Multicross",  MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_NEXUS,   "Solid Reactive Nexus",         MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_REACTIVE_MULTINEXUS,"Solid Reactive Multinexus",  MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SPLASH,                 "Splash",                       MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_MULTISPLASH,            "Multisplash",                  MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_SOLID_SPLASH,           "Solid Splash",                 MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_SOLID_MULTISPLASH,      "Solid Multisplash",            MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_PIXEL_RAIN,             "Pixel Rain",                   MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_PIXEL_FLOW,             "Pixel Flow",                   MODE_FLAG_HAS_SPEED },
+    { QMK_OPENRGB_MODE_PIXEL_FRACTAL,          "Pixel Fractal",                MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_STARLIGHT,              "Starlight",                    MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_STARLIGHT_SMOOTH,       "Starlight Smooth",             MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_STARLIGHT_DUAL_HUE,     "Starlight Dual Hue",           MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_STARLIGHT_DUAL_SAT,     "Starlight Dual Sat",           MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR },
+    { QMK_OPENRGB_MODE_RIVERFLOW,              "Riverflow",                    MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR},
+    { QMK_OPENRGB_MODE_CUSTOM,                 "Custom ",                      MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR  },
+};
+
+struct QMKOpenRGBModeLookup
+{
+    const char* name;
+    uint8_t     flags;
+};
+
+inline QMKOpenRGBModeLookup QMKOpenRGBLookupMode(uint8_t openrgb_id)
+{
+    for (const auto& entry : qmk_mode_table)
+    {
+        if (entry.id == openrgb_id)
+        {
+            return { entry.name, entry.flags };
+        }
+    }
+    return { nullptr, 0};
+}
 
 typedef struct
 {

@@ -17,6 +17,8 @@ using namespace std::chrono_literals;
 QMKOpenRGBRevDController::QMKOpenRGBRevDController(hid_device *dev_handle, const char *path) :
     QMKOpenRGBBaseController(dev_handle, path, 15)
 {
+    GetDeviceInfo();
+    GetModeInfo();
 }
 
 QMKOpenRGBRevDController::~QMKOpenRGBRevDController()
