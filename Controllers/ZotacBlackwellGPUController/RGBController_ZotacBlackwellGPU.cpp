@@ -10,6 +10,8 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_ZotacBlackwellGPU.h"
+#include "LogManager.h"
+#include "pci_ids.h"
 
 /**------------------------------------------------------------------*\
     @name ZOTAC RTX 50 series GPU
@@ -21,9 +23,10 @@
     @detectors DetectZotacBlackwellGPUControllersPCI
     @comment
         Supports ZOTAC Blackwell (RTX 50 series) GPUs. The zone layout
-        varies per card and is resolved from a static table inside this
-        controller: the RTX 5080 AMP Extreme INFINITY has 3 zones (Logo,
-        Side Bar, Infinity Mirror); the RTX 5090 SOLID OC has 2 zones.
+        varies per card and is resolved from a static table keyed on
+        PCI device and sub-device IDs: the RTX 5080 AMP Extreme INFINITY
+        has 3 zones (Logo, Side Bar, Infinity Mirror); the RTX 5090
+        SOLID OC has 2 zones.
 
         The controller uses individual SMBus byte writes (registers
         0x20-0x2F) with a 3ms delay between each transaction.
@@ -36,16 +39,16 @@
 
 const RGBController_ZotacBlackwellGPU::DeviceZoneConfig RGBController_ZotacBlackwellGPU::device_zone_configs[] =
 {
-    { "ZOTAC GAMING GeForce RTX 5080 AMP Extreme INFINITY", { "Logo", "Side Bar", "Infinity Mirror" }, 3 },
-    { "ZOTAC GAMING GeForce RTX 5090 SOLID OC",             { "ZOTAC Gaming", "Logo" },                2 },
-    { nullptr, { nullptr }, 0 }
+    { NVIDIA_RTX5080_DEV, ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV, { "Logo", "Side Bar", "Infinity Mirror" }, 3 },
+    { NVIDIA_RTX5090_DEV, ZOTAC_RTX5090_SOLID_OC_SUB_DEV,     { "ZOTAC Gaming", "Logo" },                2 },
+    { 0, 0, { nullptr }, 0 }
 };
 
-const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlackwellGPU::FindZoneConfig(const std::string& device_name)
+const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlackwellGPU::FindZoneConfig(uint16_t device, uint16_t subdevice)
 {
-    for(const DeviceZoneConfig* cfg = device_zone_configs; cfg->name != nullptr; cfg++)
+    for(const DeviceZoneConfig* cfg = device_zone_configs; cfg->zone_count != 0; cfg++)
     {
-        if(cfg->name == device_name)
+        if(cfg->device == device && cfg->subdevice == subdevice)
         {
             return cfg;
         }
@@ -53,14 +56,16 @@ const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlac
     return nullptr;
 }
 
-RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr)
+RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr,
+                                                                   uint16_t device, uint16_t subdevice)
 {
     controller              = controller_ptr;
 
-    const DeviceZoneConfig* cfg = FindZoneConfig(controller->GetName());
+    const DeviceZoneConfig* cfg = FindZoneConfig(device, subdevice);
     if(cfg == nullptr)
     {
-        /* Unknown device name; fall back to three generic zones */
+        LOG_ERROR("[%s] Unrecognized PCI device/subdevice: %04X/%04X. Falling back to three generic zones.",
+                  controller->GetName().c_str(), device, subdevice);
         zone_names.push_back("Zone 0");
         zone_names.push_back("Zone 1");
         zone_names.push_back("Zone 2");
