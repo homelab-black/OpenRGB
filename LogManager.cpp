@@ -290,10 +290,11 @@ void LogManager::_append(const char* filename, int line, unsigned int level, con
     /*-----------------------------------------------------*\
     | If the message is within the current verbosity, print |
     | it on the screen                                      |
-    | TODO: Put the timestamp here                          |
     \*-----------------------------------------------------*/
     if(level <= verbosity || level == LL_DIALOG)
     {
+        std::chrono::milliseconds counter = std::chrono::duration_cast<std::chrono::milliseconds>(mes->counted_second);
+        std::cout << std::left << std::setw(6) << counter.count()  << "|";
         std::cout << mes->buffer;
         if(print_source)
         {
