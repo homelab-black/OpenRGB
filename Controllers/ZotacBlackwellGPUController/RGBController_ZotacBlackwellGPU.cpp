@@ -24,9 +24,7 @@
     @comment
         Supports ZOTAC Blackwell (RTX 50 series) GPUs. The zone layout
         varies per card and is resolved from a static table keyed on
-        PCI device and sub-device IDs: the RTX 5080 AMP Extreme INFINITY
-        has 3 zones (Logo, Side Bar, Infinity Mirror); the RTX 5090
-        SOLID OC has 2 zones.
+        PCI device and sub-device IDs.
 
         The controller uses individual SMBus byte writes (registers
         0x20-0x2F) with a 3ms delay between each transaction.
