@@ -18,25 +18,60 @@
     @save :robot:
     @direct :x:
     @effects :tools:
-    @detectors DetectZotacBlackwellGPUControllersPCI, DetectZotacBlackwellSolidGPUControllersPCI
+    @detectors DetectZotacBlackwellGPUControllersPCI
     @comment
         Supports ZOTAC Blackwell (RTX 50 series) GPUs. The zone layout
-        varies per card and is supplied by the detector:
-        the RTX 5080 AMP Extreme INFINITY has 3 zones (Logo, Side Bar,
-        Infinity Mirror); the RTX 5090 SOLID OC has 2 zones.
+        varies per card and is resolved from a static table inside this
+        controller: the RTX 5080 AMP Extreme INFINITY has 3 zones (Logo,
+        Side Bar, Infinity Mirror); the RTX 5090 SOLID OC has 2 zones.
 
         The controller uses individual SMBus byte writes (registers
         0x20-0x2F) with a 3ms delay between each transaction.
 
-        To add new cards, add PCI ID entries in `pci_ids/pci_ids.h`
-        and detection entries in
+        To add new cards, add PCI ID entries in `pci_ids/pci_ids.h`,
+        a zone config entry in `device_zone_configs` below, and a
+        `REGISTER_I2C_PCI_DETECTOR` line in
         `Controllers/ZotacBlackwellGPUController/ZotacBlackwellGPUControllerDetect.cpp`.
 \*-------------------------------------------------------------------*/
 
-RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr, const std::vector<std::string>& zone_names)
+const RGBController_ZotacBlackwellGPU::DeviceZoneConfig RGBController_ZotacBlackwellGPU::device_zone_configs[] =
+{
+    { "ZOTAC GAMING GeForce RTX 5080 AMP Extreme INFINITY", { "Logo", "Side Bar", "Infinity Mirror" }, 3 },
+    { "ZOTAC GAMING GeForce RTX 5090 SOLID OC",             { "ZOTAC Gaming", "Logo" },                2 },
+    { nullptr, { nullptr }, 0 }
+};
+
+const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlackwellGPU::FindZoneConfig(const std::string& device_name)
+{
+    for(const DeviceZoneConfig* cfg = device_zone_configs; cfg->name != nullptr; cfg++)
+    {
+        if(cfg->name == device_name)
+        {
+            return cfg;
+        }
+    }
+    return nullptr;
+}
+
+RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr)
 {
     controller              = controller_ptr;
-    this->zone_names        = zone_names;
+
+    const DeviceZoneConfig* cfg = FindZoneConfig(controller->GetName());
+    if(cfg == nullptr)
+    {
+        /* Unknown device name; fall back to three generic zones */
+        zone_names.push_back("Zone 0");
+        zone_names.push_back("Zone 1");
+        zone_names.push_back("Zone 2");
+    }
+    else
+    {
+        for(uint8_t z = 0; z < cfg->zone_count; z++)
+        {
+            zone_names.push_back(cfg->zones[z]);
+        }
+    }
 
     name                    = controller->GetName();
     vendor                  = "ZOTAC";
@@ -255,9 +290,9 @@ RGBController_ZotacBlackwellGPU::~RGBController_ZotacBlackwellGPU()
 void RGBController_ZotacBlackwellGPU::SetupZones()
 {
     /*---------------------------------------------------------*\
-    | One single-LED zone per name supplied by the detector.    |
-    | The zone's index is its position here, which is written   |
-    | verbatim to the zone register (0x21) on update.           |
+    | One single-LED zone per name from the device_zone_configs |
+    | table.  The zone's index is its position here, which is   |
+    | written verbatim to the zone register (0x21) on update.   |
     \*---------------------------------------------------------*/
     for(const std::string& zone_name : zone_names)
     {

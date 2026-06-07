@@ -19,7 +19,7 @@
 class RGBController_ZotacBlackwellGPU : public RGBController
 {
 public:
-    RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr, const std::vector<std::string>& zone_names);
+    RGBController_ZotacBlackwellGPU(ZotacBlackwellGPUController* controller_ptr);
     ~RGBController_ZotacBlackwellGPU();
 
     void SetupZones();
@@ -35,5 +35,16 @@ public:
 
 private:
     ZotacBlackwellGPUController* controller;
-    std::vector<std::string>    zone_names;
+    std::vector<std::string>     zone_names;
+
+    struct DeviceZoneConfig
+    {
+        const char* name;
+        const char* zones[4];
+        uint8_t     zone_count;
+    };
+
+    static const DeviceZoneConfig device_zone_configs[];
+
+    static const DeviceZoneConfig* FindZoneConfig(const std::string& device_name);
 };
