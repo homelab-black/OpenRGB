@@ -503,7 +503,7 @@ public:
                                   uint16_t effect_id,
                                   unsigned char r, unsigned char g, unsigned char b,
                                   uint16_t period, unsigned char brightness,
-                                  bool persist);
+                                  unsigned char direction, bool persist);
 
     /*---------------------------------------------------*\
     | Headset RGB hostmode (0x0620).                      |
