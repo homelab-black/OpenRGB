@@ -127,7 +127,7 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->retry_paint_attempt_.store(0);
     this->wake_full_repaint_pending_.store(false);
     this->init_generation      = 0;
-    this->log_tag              = "[HID++ " + std::string(path) + "]";
+    this->log_tag              = "[LogitechHID++ " + std::string(path) + "]";
     this->reader_thread        = nullptr;
     this->reader_running       = false;
     this->power_thread         = nullptr;
@@ -489,7 +489,7 @@ int LogitechHIDPP20Controller::SendAcked
                     }
 
                     /* Non-BUSY HID++ error: hard fail */
-                    LOG_DEBUG("%s SendAcked[%s] HID++ error 0x%02X "
+                    LOG_DEBUG("%s SendAcked[%s] LogitechHID++ error 0x%02X "
                               "feat=0x%02X func=0x%02X",
                               LOG_TAG, policy.name, err_code, feat_idx, function);
 
@@ -2550,7 +2550,7 @@ bool LogitechHIDPP20Controller::Probe()
     | (headset) through the bridge, not the dongle.              |
     \*----------------------------------------------------------*/
     DiscoverDeviceName();
-    log_tag = "[HID++ " + caps.device_name + "]";
+    log_tag = "[LogitechHID++ " + caps.device_name + "]";
     DiscoverDeviceType();
     DiscoverFirmwareInfo();
 
@@ -4047,7 +4047,7 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
 
         if(caps.device_name != old_name)
         {
-            log_tag = "[HID++ " + caps.device_name + "]";
+            log_tag = "[LogitechHID++ " + caps.device_name + "]";
         }
     }
 
@@ -4251,7 +4251,7 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
     | enumeration needed. Just re-discover everything.          |
     \*---------------------------------------------------------*/
     DiscoverDeviceName();
-    log_tag = "[HID++ " + caps.device_name + "]";
+    log_tag = "[LogitechHID++ " + caps.device_name + "]";
     DiscoverDeviceType();
     DiscoverFirmwareInfo();
 
@@ -4376,7 +4376,7 @@ void LogitechHIDPP20Controller::SwapHIDHandle
     hid_close(dev);
     dev       = new_dev;
     location  = new_path;
-    log_tag   = "[HID++ " + caps.device_name + "]";
+    log_tag   = "[LogitechHID++ " + caps.device_name + "]";
 
     /*----------------------------------------------------------*\
     | Re-discover transport (might change between Centurion and  |
@@ -4726,7 +4726,7 @@ void LogitechHIDPP20Controller::ReaderThreadFunc()
                 | A subsequent DJ notification before timeout resets |
                 | the counter to 75, extending the retry window.     |
                 \*--------------------------------------------------*/
-                LOG_DEBUG("%s HID++1.0 connection notification sub_id=0x%02X "
+                LOG_DEBUG("%s LogitechHID++1.0 connection notification sub_id=0x%02X "
                           "flags=0x%02X (path change — forcing scan retries)",
                           LOG_TAG, feat, func);
                 pending_path_check.store(75);

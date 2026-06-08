@@ -340,7 +340,7 @@ bool LogitechHIDPP20Controller::ScanForDevice(bool force)
 
         if(hidpp20_path.empty())
         {
-            LOG_DEBUG("%s Scan: %s no matching HID++ interface in enum",
+            LOG_DEBUG("%s Scan: %s no matching LogitechHID++ interface in enum",
                       LOG_TAG, cand.dev_path.c_str());
             continue;
         }
