@@ -838,7 +838,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
 
                 if(label.empty())
                 {
-                    LOG_DEBUG("[HID++2.0 %s] Dropping unnamed per-key zone %u "
+                    LOG_DEBUG("[LogitechHID++2.0 %s] Dropping unnamed per-key zone %u "
                               "(not in hidpp20_key_name_to_zone)",
                               name.c_str(), (unsigned)zid);
                     continue;
