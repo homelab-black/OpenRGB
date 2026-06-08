@@ -77,6 +77,27 @@ static uint16_t RippleSpeedSliderToPeriodMs(int slider)
     return SliderToPeriodMs(slider, HIDPP20_RIPPLE_PERIOD_MIN_MS, HIDPP20_RIPPLE_PERIOD_MAX_MS);
 }
 
+/*---------------------------------------------------------*\
+| Color Wave 0x0016 carries a direction byte. Map OpenRGB's |
+| 6 direction slots onto the Logitech wire values (Solaar   |
+| LedDirectionChoices). Logitech defines 8 directions; the  |
+| G515 uses 6 of them, which line up 1:1 with OpenRGB's set |
+| (In / Out are not exposed on this keyboard).              |
+\*---------------------------------------------------------*/
+static uint8_t WaveDirectionToWire(unsigned int dir)
+{
+    switch(dir)
+    {
+        case MODE_DIRECTION_LEFT:       return 6;   /* Left       */
+        case MODE_DIRECTION_RIGHT:      return 1;   /* Right      */
+        case MODE_DIRECTION_UP:         return 7;   /* Up         */
+        case MODE_DIRECTION_DOWN:       return 2;   /* Down       */
+        case MODE_DIRECTION_HORIZONTAL: return 3;   /* Center Out */
+        case MODE_DIRECTION_VERTICAL:   return 8;   /* Center In  */
+        default:                        return 1;  /* Right      */
+    }
+}
+
 /**------------------------------------------------------------------*\
     @name Logitech HID++ 2.0
     @category Keyboard,Mouse,Headset
@@ -523,6 +544,82 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     Ripple.brightness_min = 1;
                     Ripple.brightness_max = 100;
                     Ripple.brightness     = 100;
+                    Ripple.colors_min     = 1;
+                    Ripple.colors_max     = 1;
+                    Ripple.color_mode     = MODE_COLORS_MODE_SPECIFIC;
+                    Ripple.colors.resize(1);
+                    modes.push_back(Ripple);
+                    break;
+                }
+
+                case 0x0015:    // Cycle (saturation variant)
+                {
+                    /*-----------------------------------------------*\
+                    | Saturation-bearing variant of 0x0003. Same UI   |
+                    | (speed = period, brightness = intensity); the   |
+                    | saturation byte is hardcoded full on the wire.  |
+                    \*-----------------------------------------------*/
+                    mode Cycle;
+                    Cycle.name           = "Spectrum Cycle";
+                    Cycle.value          = fx.index;
+                    Cycle.flags          = MODE_FLAG_HAS_SPEED
+                                         | MODE_FLAG_HAS_BRIGHTNESS;
+                    Cycle.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Cycle.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Cycle.speed          = 80;     /* ~4.9s, lively medium */
+                    Cycle.brightness_min = 1;
+                    Cycle.brightness_max = 100;
+                    Cycle.brightness     = 100;
+                    Cycle.color_mode     = MODE_COLORS_NONE;
+                    modes.push_back(Cycle);
+                    break;
+                }
+
+                case 0x0016:    // Wave (saturation variant)
+                {
+                    /*-----------------------------------------------*\
+                    | Saturation-bearing variant of 0x0004. Period    |
+                    | is a BE16 ms value on the standard 1..20s range |
+                    | (Solaar's LEDEffects table has no period range  |
+                    | override for Wave); saturation is hardcoded on  |
+                    | the wire.                                       |
+                    \*-----------------------------------------------*/
+                    mode Wave;
+                    Wave.name           = "Color Wave";
+                    Wave.value          = fx.index;
+                    Wave.flags          = MODE_FLAG_HAS_SPEED
+                                        | MODE_FLAG_HAS_BRIGHTNESS
+                                        | MODE_FLAG_HAS_DIRECTION_LR
+                                        | MODE_FLAG_HAS_DIRECTION_UD
+                                        | MODE_FLAG_HAS_DIRECTION_HV;
+                    Wave.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Wave.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Wave.speed          = 80;     /* ~4.9s, lively medium */
+                    Wave.brightness_min = 1;
+                    Wave.brightness_max = 100;
+                    Wave.brightness     = 100;
+                    Wave.direction      = MODE_DIRECTION_RIGHT;
+                    Wave.color_mode     = MODE_COLORS_NONE;
+                    modes.push_back(Wave);
+                    break;
+                }
+
+                case 0x0017:    // Ripple (saturation variant)
+                {
+                    /*-----------------------------------------------*\
+                    | Saturation-bearing variant of 0x000B. Carries   |
+                    | color + period only — no intensity param, so    |
+                    | no brightness slider. Saturation is hardcoded   |
+                    | full on the wire.                               |
+                    \*-----------------------------------------------*/
+                    mode Ripple;
+                    Ripple.name           = "Ripple";
+                    Ripple.value          = fx.index;
+                    Ripple.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                                          | MODE_FLAG_HAS_SPEED;
+                    Ripple.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Ripple.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Ripple.speed          = 70;     /* mid, fast ripple range */
                     Ripple.colors_min     = 1;
                     Ripple.colors_max     = 1;
                     Ripple.color_mode     = MODE_COLORS_MODE_SPECIFIC;
@@ -1060,6 +1157,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                     0, 0, 0,             /* black — no fixed-color marker */
                     0,
                     100,                 /* brightness — unused for static */
+                    0,                   /* direction — unused for static */
                     true                 /* persist=true */);
             }
         }
@@ -1530,7 +1628,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                     controller->SetZoneEffect(
                         caps.zone_clusters[i].index,
                         caps.zone_clusters[i].effects[j].index,
-                        0x0001, 0, 0, 0, 0, 100, off_persist);
+                        0x0001, 0, 0, 0, 0, 100, 0, off_persist);
                     break;
                 }
             }
@@ -1594,8 +1692,14 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         /*------------------------------------------------------*\
         | Ripple wants a narrower, much faster period range      |
         | (2..200ms) than the breathing/wave baseline of 1..20s. |
+        | Both Ripple variants — 0x000B and the saturation       |
+        | 0x0017 — use the fast range; this mirrors Solaar's     |
+        | LEDEffects table, where only Ripple carries a period   |
+        | range override. Cycle (0x0003/0x0015) and Wave         |
+        | (0x0004/0x0016) stay on the standard 1..20s range.     |
         \*------------------------------------------------------*/
-        uint16_t cluster_period = (eff_id == 0x000B)
+        uint16_t cluster_period = (eff_id == 0x000B
+                                || eff_id == 0x0017)
                                 ? RippleSpeedSliderToPeriodMs(current.speed)
                                 : period;
 
@@ -1618,7 +1722,8 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         controller->SetZoneEffect(
             caps.zone_clusters[i].index,
             current.value,
-            eff_id, r, g, b, cluster_period, brightness, effect_persist);
+            eff_id, r, g, b, cluster_period, brightness,
+            WaveDirectionToWire(current.direction), effect_persist);
     }
 
     /*-----------------------------------------------------------*\

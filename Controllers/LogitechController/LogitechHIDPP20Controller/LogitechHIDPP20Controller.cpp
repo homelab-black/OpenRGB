@@ -3642,6 +3642,7 @@ void LogitechHIDPP20Controller::SetZoneEffect
     unsigned char   b,
     uint16_t        period,
     unsigned char   brightness,
+    unsigned char   direction,
     bool            persist
     )
 {
@@ -3725,6 +3726,57 @@ void LogitechHIDPP20Controller::SetZoneEffect
             data[4] = b;
             data[6] = (period >> 8) & 0xFF;
             data[7] = period & 0xFF;
+            break;
+
+        case 0x0015:    // Cycle (saturation variant)
+            /*------------------------------------------------------*\
+            | Saturation-bearing variant of 0x0003. Param block      |
+            | (10 bytes, indices into data[]):                       |
+            |   data[3]     = saturation 0..255 (hardcoded full)     |
+            |   data[8..9]  = periodHi, periodLo (BE16 milliseconds) |
+            |   data[10]    = intensity 0..100                       |
+            | Layout from Solaar LEDEffects 0x15 (saturation@1,      |
+            | period@6, intensity@8 in the param block).             |
+            \*------------------------------------------------------*/
+            data[3]  = 0xFF;
+            data[8]  = (period >> 8) & 0xFF;
+            data[9]  = period & 0xFF;
+            data[10] = brightness;
+            break;
+
+        case 0x0016:    // Wave (saturation variant)
+            /*------------------------------------------------------*\
+            | Saturation-bearing variant of 0x0004. Param block:     |
+            |   data[3]     = saturation 0..255 (hardcoded full)     |
+            |   data[8..9]  = periodHi, periodLo (BE16 milliseconds) |
+            |   data[10]    = intensity 0..100                       |
+            |   data[11]    = direction (Logitech wire value)        |
+            | Layout from Solaar LEDEffects 0x16 (saturation@1,      |
+            | period@6, intensity@8, direction@9). The caller maps   |
+            | OpenRGB's 6 direction slots to the wire values.        |
+            \*------------------------------------------------------*/
+            data[3]  = 0xFF;
+            data[8]  = (period >> 8) & 0xFF;
+            data[9]  = period & 0xFF;
+            data[10] = brightness;
+            data[11] = direction;
+            break;
+
+        case 0x0017:    // Ripple (saturation variant)
+            /*------------------------------------------------------*\
+            | Saturation-bearing variant of 0x000B. Param block:     |
+            |   data[2..4]  = R, G, B                                |
+            |   data[5]     = saturation 0..255 (hardcoded full)     |
+            |   data[8..9]  = periodHi, periodLo (BE16 milliseconds) |
+            | Layout from Solaar LEDEffects 0x17 (color@0,           |
+            | saturation@3, period@6). No intensity param.           |
+            \*------------------------------------------------------*/
+            data[2] = r;
+            data[3] = g;
+            data[4] = b;
+            data[5] = 0xFF;
+            data[8] = (period >> 8) & 0xFF;
+            data[9] = period & 0xFF;
             break;
 
         default:        // Unknown — best-effort
