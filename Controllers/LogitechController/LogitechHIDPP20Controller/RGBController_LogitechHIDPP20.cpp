@@ -11,6 +11,7 @@
 #include <set>
 #include <chrono>
 #include <algorithm>
+#include <functional>
 #include "RGBController_LogitechHIDPP20.h"
 #include "RGBControllerKeyNames.h"
 #include "KeyboardLayoutManager.h"
@@ -663,33 +664,34 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     | thread for dim/wake when no animation is driving updates.  |
     \*----------------------------------------------------------*/
     controller->SetRepaintCallback(
-        [this]()
-        {
-            /*-------------------------------------------------*\
-            | If Wake() signaled a full repaint, invalidate     |
-            | sent_colors so DeviceUpdateLEDs pushes every zone |
-            | regardless of delta. Uses HIDPP20_UNCOMMITTED     |
-            | rather than clear() so sent_colors is non-empty — |
-            | that avoids the first_frame / prep trigger while  |
-            | still forcing a full push.                        |
-            \*-------------------------------------------------*/
-            if(controller->ConsumeWakeFullRepaint())
-            {
-                for(size_t i = 0; i < sent_colors.size(); i++)
-                {
-                    sent_colors[i] = HIDPP20_UNCOMMITTED;
-                }
-            }
-            DeviceUpdateLEDs();
-        }
-    );
+        std::bind(&RGBController_LogitechHIDPP20::OnRepaintRequest, this));
 
     controller->SetReapplyActiveModeCallback(
-        [this]()
+        std::bind(&RGBController_LogitechHIDPP20::ReapplyActiveMode, this));
+}
+
+/*---------------------------------------------------------------*\
+| Repaint callback handler (request_repaint_fn). Invoked from the |
+| power thread for dim/wake when no animation is driving updates. |
+\*---------------------------------------------------------------*/
+void RGBController_LogitechHIDPP20::OnRepaintRequest()
+{
+    /*-------------------------------------------------*\
+    | If Wake() signaled a full repaint, invalidate     |
+    | sent_colors so DeviceUpdateLEDs pushes every zone |
+    | regardless of delta. Uses HIDPP20_UNCOMMITTED     |
+    | rather than clear() so sent_colors is non-empty — |
+    | that avoids the first_frame / prep trigger while  |
+    | still forcing a full push.                        |
+    \*-------------------------------------------------*/
+    if(controller->ConsumeWakeFullRepaint())
+    {
+        for(size_t i = 0; i < sent_colors.size(); i++)
         {
-            return ReapplyActiveMode();
+            sent_colors[i] = HIDPP20_UNCOMMITTED;
         }
-    );
+    }
+    DeviceUpdateLEDs();
 }
 
 RGBController_LogitechHIDPP20::~RGBController_LogitechHIDPP20()

@@ -31,6 +31,13 @@ private:
     LogitechHIDPP20Controller*    controller;
 
     /*---------------------------------------------------------*\
+    | Repaint callback handler. Registered with the controller  |
+    | as request_repaint_fn and invoked from the power thread   |
+    | for dim/wake when no animation is driving updates.        |
+    \*---------------------------------------------------------*/
+    void                        OnRepaintRequest();
+
+    /*---------------------------------------------------------*\
     | When true, the next DeviceUpdateMode cycle sends its      |
     | SetZoneEffect calls with persist=true instead of the      |
     | default ephemeral write. Used by DeviceSaveMode to replay |
