@@ -1247,7 +1247,7 @@ void OpenRGBDevicePage::on_SwatchBox_swatchChanged(const QColor color)
 void OpenRGBDevicePage::on_ColorWheelBox_colorChanged(const QColor color)
 {
     /*-----------------------------------------------------*\
-    | Store the wheel color to the current color QColor     |
+    | Store the selected color to the current color QColor  |
     \*-----------------------------------------------------*/
     current_color = color;
 
@@ -1671,7 +1671,7 @@ void OpenRGBDevicePage::colorChanged()
 void OpenRGBDevicePage::updateColorUi()
 {
     /*-----------------------------------------------------*\
-    | Update colorwheel                                     |
+    | Update color picker                                   |
     \*-----------------------------------------------------*/
     ui->ColorWheelBox->blockSignals(true);
     ui->ColorWheelBox->setColor(current_color);
