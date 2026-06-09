@@ -142,8 +142,8 @@ CONTROLLER_CPP         -= $$CONTROLLER_CPP_MACOS
 INCLUDEPATH +=                                                                                  \
     $$CONTROLLER_INCLUDES                                                                       \
     $$GUI_INCLUDES                                                                              \
-    dependencies/CRCpp/                                                                         \
     dependencies/ColorWheel                                                                     \
+    dependencies/CRCpp/                                                                         \
     dependencies/hueplusplus-1.2.0/include                                                      \
     dependencies/hueplusplus-1.2.0/include/hueplusplus                                          \
     dependencies/httplib                                                                        \
