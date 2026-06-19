@@ -71,7 +71,7 @@ void DetectEVisionV2Keyboards(hid_device_info* info, const std::string& name)
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
 
-        if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
+        if((!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true) && info->product_id != SKILLKORP_K5_PID)
         {
             rgb_controller                             = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_LOGO);
 
@@ -119,7 +119,7 @@ REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:502A",      DetectEVisionKeyboar
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 0C45:7698",      DetectEVisionKeyboards,   EVISION_KEYBOARD_VID,  WOMIER_K66_PID,            1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5064",      DetectEVisionKeyboards,   EVISION_KEYBOARD2_VID, GLORIOUS_GMMK_TKL_PID,     1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5084",      DetectEVisionKeyboards,   EVISION_KEYBOARD2_VID, DEXP_BLAZE_PID,            1, EVISION_KEYBOARD_USAGE_PAGE);
-REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:505B",      DetectEVisionKeyboards,   EVISION_KEYBOARD2_VID, SKILLKORP_K5_PID,          1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:505B",      DetectEVisionV2Keyboards,   EVISION_KEYBOARD2_VID, SKILLKORP_K5_PID,          1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("Endorfy Omnis",                   DetectEndorfyKeyboards,   EVISION_KEYBOARD3_VID, ENDORFY_OMNIS_PID,         1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("CSB/ICL01 Keyboard",              DetectEVisionV2Keyboards, EVISION_KEYBOARD2_VID, BYGG_CSB_ICL01_PID,        1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("Gamepower Ogre RGB 0C45:7672",    DetectEVisionKeyboards,   EVISION_KEYBOARD_VID,  GAMEPOWER_OGRE_RGB_PID,    1, EVISION_KEYBOARD_USAGE_PAGE);
