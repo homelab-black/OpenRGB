@@ -23,6 +23,9 @@
 #define EVISION_V2_MATRIX_HEIGHT                      6
 #define EVISION_V2_MATRIX_WIDTH                      21
 
+#define KOORUI_MK104_MATRIX_HEIGHT                    8
+#define KOORUI_MK104_MATRIX_WIDTH                    16
+
 enum
 {
     EVISION_V2_MODE_COLOR_WAVE_SHORT                = 0x01, /* "Go with the stream"     */
@@ -133,6 +136,7 @@ enum EVisionV2KeyboardLayout
 {
     EVISION_V2_KEYBOARD_LAYOUT,
     ENDORFY_KEYBOARD_LAYOUT,
+    KOORUI_MK104_KEYBOARD_LAYOUT,   /* KOORUI MK104 / Skillkorp K5 (320F:505B) */
 };
 
 enum EVisionV2KeyboardPart
