@@ -211,6 +211,7 @@ static const std::map<std::string, led_label> led_label_lookup =
     { KEY_DE_DIAERESIS_A,       { "Ä"     , "\xC3\x84",         }},
     { KEY_DE_DIAERESIS_O,       { "Ö"     , "\xC3\x96",         }},
     { KEY_DE_DIAERESIS_U,       { "Ü"     , "\xC3\x9C"          }},
+    { KEY_DE_DEAD_ACUTE,        { "´"     , "\xc2\xb4",         }},
     { KEY_FR_SUPER_2,           { "²"     , "\xc2\xb2"          }},
     { KEY_FR_AMPERSAND,         { "&"     , "&"                 }},
     { KEY_FR_ACUTE_E,           { "é"     , "\xc3\xa9"          }},
