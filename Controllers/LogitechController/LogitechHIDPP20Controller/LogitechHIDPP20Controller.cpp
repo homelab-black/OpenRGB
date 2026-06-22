@@ -1353,175 +1353,116 @@ void LogitechHIDPP20Controller::DiscoverTransport()
     }
 
     /*---------------------------------------------------------*\
-    | Centurion transport — determine variant from the report   |
-    | descriptor. 0x51 = direct (PRO X 2), 0x50 = addressed     |
-    | (G522). Parse the descriptor to find which report IDs     |
-    | are available with 63-byte payload.                       |
+    | Centurion transport — determine variant by probing.       |
+    | 0x51 = direct (PRO X 2), 0x50 = addressed (G522). The     |
+    | report descriptor would tell us which report IDs exist,   |
+    | but hid_get_report_descriptor is hidapi 0.14.0+ only, so  |
+    | we probe instead: try 0x51 direct first, then fall back   |
+    | to the robust 0x50 device-address sweep.                  |
     \*---------------------------------------------------------*/
     transport.type = HIDPP20_TRANSPORT_CENTURION;
 
     /*---------------------------------------------------------*\
-    | Parse report descriptor to find Centurion report IDs      |
+    | Probe 0x51 (direct). If the device answers a 0x51 frame   |
+    | it speaks the direct variant — no device address needed.  |
     \*---------------------------------------------------------*/
-    uint8_t desc[4096];
-    int desc_len = hid_get_report_descriptor(dev, desc, sizeof(desc));
+    transport.report_id = 0x51;
+    transport.addressed = false;
 
-    bool has_0x51 = false;
-    bool has_0x50 = false;
+    uint8_t probe_buf[64] = {};
+    probe_buf[0] = 0x51;
+    probe_buf[1] = 3;
+    probe_buf[2] = 0x00;
+    probe_buf[3] = 0x00;
+    probe_buf[4] = 0x00 | HIDPP20_SW_ID;
 
-    if(desc_len > 0)
+    int wr = hid_write(dev, probe_buf, 64);
+
+    if(wr > 0)
     {
-        for(int i = 0; i < desc_len; i++)
+        uint8_t resp_buf[64] = {};
+        int rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500);
+
+        if(rd > 0 && resp_buf[0] == 0x51)
         {
-            if(desc[i] == 0x85 && i + 1 < desc_len)
-            {
-                if(desc[i + 1] == 0x51) has_0x51 = true;
-                if(desc[i + 1] == 0x50) has_0x50 = true;
-            }
+            LOG_DEBUG("%s Centurion 0x51 (direct) from probe", LOG_TAG);
+            return;
         }
     }
 
-    if(has_0x51)
+    /*---------------------------------------------------------*\
+    | No 0x51 reply — assume 0x50 (addressed) and find the      |
+    | device address.                                           |
+    \*---------------------------------------------------------*/
+    transport.report_id = 0x50;
+    transport.addressed = true;
+    transport.device_address = 0x00;
+
+    /*-----------------------------------------------------*\
+    | Device-address sweep. 0x50 frames carry a device      |
+    | address byte; the device silently drops frames        |
+    | addressed to the wrong ID, so we brute-force probe    |
+    | every candidate with an IRoot fn1 GetProtocolVersion  |
+    | ping. First response wins — real address lives in     |
+    | resp_buf[1] of the reply. Mirrors Solaar's            |
+    | probe_centurion_device_addr; see                      |
+    | CENTURION_PROBE_PER_ADDR_TIMEOUT_MS above for timing. |
+    |                                                       |
+    | Wire format per candidate:                            |
+    |   [0x50, addr, 0x06, 0x00, 0x00, 0x10, 0x00, 0x00,    |
+    |    0x00, zero-pad to 64]                              |
+    | where 0x06 = cpl_length (flags+payload), 0x10 = fn1   |
+    | GetProtocolVersion with sw_id=0.                      |
+    \*-----------------------------------------------------*/
+    bool     addr_found       = false;
+    unsigned probe_count      = 0;
+    unsigned write_errors     = 0;
+
+    for(unsigned addr = 0; addr < 256; addr++)
     {
-        transport.report_id = 0x51;
-        transport.addressed = false;
-        LOG_DEBUG("%s Centurion 0x51 (direct) from descriptor", LOG_TAG);
-    }
-    else if(has_0x50)
-    {
-        transport.report_id = 0x50;
-        transport.addressed = true;
-        transport.device_address = 0x00;
+        uint8_t sweep_buf[64] = {};
+        sweep_buf[0] = 0x50;
+        sweep_buf[1] = (uint8_t)addr;
+        sweep_buf[2] = 0x06;
+        sweep_buf[3] = 0x00;
+        sweep_buf[4] = 0x00;
+        sweep_buf[5] = 0x10;
 
-        LOG_DEBUG("%s Centurion 0x50 (addressed) from descriptor", LOG_TAG);
+        int swr = hid_write(dev, sweep_buf, 64);
+        probe_count++;
 
-        /*-----------------------------------------------------*\
-        | Device-address sweep. 0x50 frames carry a device      |
-        | address byte; the device silently drops frames        |
-        | addressed to the wrong ID, so we brute-force probe    |
-        | every candidate with an IRoot fn1 GetProtocolVersion  |
-        | ping. First response wins — real address lives in     |
-        | resp_buf[1] of the reply. Mirrors Solaar's            |
-        | probe_centurion_device_addr; see                      |
-        | CENTURION_PROBE_PER_ADDR_TIMEOUT_MS above for timing. |
-        |                                                       |
-        | Wire format per candidate:                            |
-        |   [0x50, addr, 0x06, 0x00, 0x00, 0x10, 0x00, 0x00,    |
-        |    0x00, zero-pad to 64]                              |
-        | where 0x06 = cpl_length (flags+payload), 0x10 = fn1   |
-        | GetProtocolVersion with sw_id=0.                      |
-        \*-----------------------------------------------------*/
-        bool     addr_found       = false;
-        unsigned probe_count      = 0;
-        unsigned write_errors     = 0;
-
-        for(unsigned addr = 0; addr < 256; addr++)
+        if(swr <= 0)
         {
-            uint8_t probe_buf[64] = {};
-            probe_buf[0] = 0x50;
-            probe_buf[1] = (uint8_t)addr;
-            probe_buf[2] = 0x06;
-            probe_buf[3] = 0x00;
-            probe_buf[4] = 0x00;
-            probe_buf[5] = 0x10;
-
-            int wr = hid_write(dev, probe_buf, 64);
-            probe_count++;
-
-            if(wr <= 0)
+            write_errors++;
+            if(write_errors > 3)
             {
-                write_errors++;
-                if(write_errors > 3)
-                {
-                    LOG_DEBUG("%s Centurion 0x50 probe: too many write failures, aborting", LOG_TAG);
-                    break;
-                }
-                continue;
-            }
-
-            uint8_t resp_buf[64] = {};
-            int     rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf),
-                                          CENTURION_PROBE_PER_ADDR_TIMEOUT_MS);
-
-            if(rd >= 2 && resp_buf[0] == 0x50)
-            {
-                transport.device_address = resp_buf[1];
-                addr_found = true;
+                LOG_DEBUG("%s Centurion 0x50 probe: too many write failures, aborting", LOG_TAG);
                 break;
             }
+            continue;
         }
 
-        if(addr_found)
+        uint8_t resp_buf[64] = {};
+        int     rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf),
+                                      CENTURION_PROBE_PER_ADDR_TIMEOUT_MS);
+
+        if(rd >= 2 && resp_buf[0] == 0x50)
         {
-            LOG_INFO("%s Centurion 0x50 device_addr=0x%02X (after %u candidates)",
-                     LOG_TAG, transport.device_address, probe_count);
+            transport.device_address = resp_buf[1];
+            addr_found = true;
+            break;
         }
-        else
-        {
-            LOG_DEBUG("%s Centurion 0x50 probe: no response from any of 256 candidates",
-                      LOG_TAG);
-        }
+    }
+
+    if(addr_found)
+    {
+        LOG_INFO("%s Centurion 0x50 device_addr=0x%02X (after %u candidates)",
+                 LOG_TAG, transport.device_address, probe_count);
     }
     else
     {
-        /*-----------------------------------------------------*\
-        | Descriptor didn't reveal report IDs — fall back to    |
-        | probing 0x51 then 0x50 by trial.                      |
-        \*-----------------------------------------------------*/
-        transport.report_id = 0x51;
-        transport.addressed = false;
-
-        uint8_t probe_buf[64] = {};
-        probe_buf[0] = 0x51;
-        probe_buf[1] = 3;
-        probe_buf[2] = 0x00;
-        probe_buf[3] = 0x00;
-        probe_buf[4] = 0x00 | HIDPP20_SW_ID;
-
-        int wr = hid_write(dev, probe_buf, 64);
-
-        if(wr > 0)
-        {
-            uint8_t resp_buf[64] = {};
-            int rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500);
-
-            if(rd > 0 && resp_buf[0] == 0x51)
-            {
-                LOG_DEBUG("%s Centurion 0x51 (direct) from probe", LOG_TAG);
-                return;
-            }
-        }
-
-        transport.report_id = 0x50;
-        transport.addressed = true;
-        transport.device_address = 0x00;
-
-        memset(probe_buf, 0, sizeof(probe_buf));
-        probe_buf[0] = 0x50;
-        probe_buf[1] = 0x00;
-        probe_buf[2] = 3;
-        probe_buf[3] = 0x00;
-        probe_buf[4] = 0x00;
-        probe_buf[5] = 0x00 | HIDPP20_SW_ID;
-
-        wr = hid_write(dev, probe_buf, 64);
-
-        if(wr > 0)
-        {
-            uint8_t resp_buf[64] = {};
-            int rd = hid_read_timeout(dev, resp_buf, sizeof(resp_buf), 500);
-
-            if(rd > 0 && resp_buf[0] == 0x50)
-            {
-                transport.device_address = resp_buf[1];
-                LOG_DEBUG("%s Centurion 0x50 (addressed) from probe, device_addr=0x%02X",
-                          LOG_TAG, transport.device_address);
-                return;
-            }
-        }
-
-        LOG_DEBUG("%s Centurion transport: no response (usage_page=0x%04X)",
-                  LOG_TAG, transport.usage_page);
+        LOG_DEBUG("%s Centurion 0x50 probe: no response from any of 256 candidates",
+                  LOG_TAG);
     }
 }
 
