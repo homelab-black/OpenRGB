@@ -798,7 +798,8 @@ int LogitechHIDPP20Controller::ReadStandardDirect
 |   params = [devId<<4|lenHi, lenLo, subCPL, subFeatIdx,    |
 |             subFunc|swid, subParams...]                   |
 |                                                           |
-| TODO: Full implementation — currently stubbed.            |
+| Selects direct (0x50/0x51) or bridge-wrapped framing      |
+| based on transport; routes sub-devices via CentPPBridge.  |
 \*---------------------------------------------------------*/
 
 int LogitechHIDPP20Controller::SendCenturion
