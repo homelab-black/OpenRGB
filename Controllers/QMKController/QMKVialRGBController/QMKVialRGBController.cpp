@@ -186,7 +186,7 @@ unsigned short QMKVialRGBController::GetLEDCount()
     return(number_leds);
 }
 
-vialrgb_led_info QMKVialRGBController::GetLEDInfo(unsigned short led_index)
+qmk_rgb_matrix_led_info QMKVialRGBController::GetLEDInfo(unsigned short led_index)
 {
     return(led_info[led_index]);
 }

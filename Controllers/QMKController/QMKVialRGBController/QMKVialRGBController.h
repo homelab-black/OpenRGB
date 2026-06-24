@@ -13,6 +13,7 @@
 
 #include <hidapi.h>
 #include "ResourceManager.h"
+#include "QMKCommon.h"
 #include "RGBController.h"
 
 #define MSG_LEN                         32
@@ -98,34 +99,25 @@ enum
     VIALRGB_EFFECT_SKIP                         = 0xFFFF
 };
 
-typedef struct
-{
-    unsigned char   x;
-    unsigned char   y;
-    unsigned char   flags;
-    unsigned char   row;
-    unsigned char   col;
-} vialrgb_led_info;
-
 class QMKVialRGBController
 {
 public:
     QMKVialRGBController(hid_device *dev_handle, const char *path);
     ~QMKVialRGBController();
 
-    std::string         GetLocation();
-    std::string         GetName();
-    std::string         GetSerial();
-    std::string         GetVendor();
-    std::string         GetVersion();
+    std::string             GetLocation();
+    std::string             GetName();
+    std::string             GetSerial();
+    std::string             GetVendor();
+    std::string             GetVersion();
 
-    bool                GetSupported();
+    bool                    GetSupported();
 
-    unsigned short      GetEffect(std::size_t effect_idx);
-    std::size_t         GetEffectCount();
-    unsigned short      GetKeycode(unsigned short led_index);
-    unsigned short      GetLEDCount();
-    vialrgb_led_info    GetLEDInfo(unsigned short led_index);
+    unsigned short          GetEffect(std::size_t effect_idx);
+    std::size_t             GetEffectCount();
+    unsigned short          GetKeycode(unsigned short led_index);
+    unsigned short          GetLEDCount();
+    qmk_rgb_matrix_led_info GetLEDInfo(unsigned short led_index);
 
     void GetMode
         (

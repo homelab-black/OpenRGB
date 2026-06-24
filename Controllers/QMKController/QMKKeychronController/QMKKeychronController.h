@@ -12,9 +12,10 @@
 
 #pragma once
 
-#include "RGBController.h"
 #include <string>
 #include <hidapi.h>
+#include "QMKCommon.h"
+#include "RGBController.h"
 
 /*---------------------------------------------------------*\
 | Keychron vendor ID                                        |
@@ -131,13 +132,6 @@ enum KeychronVIABacklightValueID
 #define KEYCHRON_QHE_MIN_SPEED                      0x00
 #define KEYCHRON_QHE_MAX_SPEED                      0xFF
 
-typedef struct
-{
-    bool            valid;
-    unsigned char   row;
-    unsigned char   col;
-} kc_led_info;
-
 class QMKKeychronController
 {
 public:
@@ -154,7 +148,7 @@ public:
 
     unsigned short                  GetKeycode(unsigned short led_index);
     unsigned short                  GetLEDCount();
-    kc_led_info                     GetLEDInfo(unsigned short led_index);
+    qmk_rgb_matrix_led_info         GetLEDInfo(unsigned short led_index);
 
     void                            SendLEDs(unsigned short number_leds, RGBColor* color_data);
     void                            SetMode(unsigned short mode, unsigned char speed, unsigned char hue, unsigned char sat, unsigned char val);
