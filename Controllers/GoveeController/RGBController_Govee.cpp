@@ -81,7 +81,7 @@ void RGBController_Govee::SetupZones()
     GoveeHardwareInfo hw = { GOVEE_FALLBACK_LED_COUNT, 0 };
     bool resizable = true;
 
-    auto it = govee_hardware_info.find(controller->GetSku());
+    std::map<std::string, GoveeHardwareInfo>::iterator it = govee_hardware_info.find(controller->GetSku());
     if(it != govee_hardware_info.end())
     {
         hw = it->second;
@@ -93,13 +93,14 @@ void RGBController_Govee::SetupZones()
     strip.leds_min   = resizable ? 0   : hw.led_count;
     strip.leds_max   = resizable ? 255 : hw.led_count;
 
-    if (hw.matrix_row_len == 0)
+    if(hw.matrix_row_len == 0)
     {
         strip.name       = "Govee Strip";
         strip.type       = ZONE_TYPE_LINEAR;
         strip.matrix_map = NULL;
     }
-    else {
+    else
+    {
         strip.name = "Govee Matrix";
         strip.type = ZONE_TYPE_MATRIX;
 
@@ -115,7 +116,7 @@ void RGBController_Govee::SetupZones()
         | On H6022, LEDs indexed bottom to top, alternating     |
         | clockwise and counterclockwise for each row.          |
         \*-----------------------------------------------------*/
-        for (unsigned int y = 0; y < height; y++)
+        for(unsigned int y = 0; y < height; y++)
         {
             /*-------------------------------------------------*\
             | LEDs numbered bottom to top, opposite of matrix   |
@@ -123,7 +124,7 @@ void RGBController_Govee::SetupZones()
             \*-------------------------------------------------*/
             unsigned int led_y = (height - 1) - y;
 
-            for (unsigned int x = 0; x < width; x++)
+            for(unsigned int x = 0; x < width; x++)
             {
                 /*---------------------------------------------*\
                 | LED is right-to-left for even rows, including |
