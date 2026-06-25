@@ -14,6 +14,7 @@
 #include "RGBController_SayoDevice.h"
 
 #define SAYO_USB_VID 0x8089
+#define SAYO_USB_PID_E1 0x0007
 
 /*----------------------------------------------------------*\
 |                                                            |
@@ -38,4 +39,4 @@ void DetectSayoDeviceController
     }
 }
 
-REGISTER_HID_DETECTOR_PU("SayoDevice E1", DetectSayoDeviceController, SAYO_USB_VID, 0x0007, 0xFF11, 0x0002);
+REGISTER_HID_DETECTOR_PU("SayoDevice E1", DetectSayoDeviceController, SAYO_USB_VID, SAYO_USB_PID_E1, 0xFF11, 0x0002);

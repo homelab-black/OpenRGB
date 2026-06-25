@@ -39,9 +39,6 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     Direct.value                    = SAYO_MODE_DIRECT;
     Direct.flags                    = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
     Direct.color_mode               = MODE_COLORS_PER_LED;
-    Direct.colors_min               = 1;
-    Direct.colors_max               = 1;
-    Direct.colors.resize(1);
     modes.push_back(Direct);
 
     /*-----------------------------------------------------*\
@@ -52,9 +49,6 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     Breathing.value                 = SAYO_MODE_BREATHING;
     Breathing.flags                 = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
     Breathing.color_mode            = MODE_COLORS_PER_LED;
-    Breathing.colors_min            = 1;
-    Breathing.colors_max            = 1;
-    Breathing.colors.resize(1);
     Breathing.speed_min             = 0;
     Breathing.speed_max             = 3;
     Breathing.speed                 = 1;
@@ -68,8 +62,6 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     Wave.value                      = SAYO_MODE_WAVE;
     Wave.flags                      = MODE_FLAG_HAS_SPEED | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
     Wave.color_mode                 = MODE_COLORS_NONE;
-    Wave.colors_min                 = 0;
-    Wave.colors_max                 = 0;
     Wave.speed_min                  = 0;
     Wave.speed_max                  = 3;
     Wave.speed                      = 1;
@@ -83,8 +75,6 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     Switch.value                    = SAYO_MODE_SWITCH;
     Switch.flags                    = MODE_FLAG_HAS_SPEED | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
     Switch.color_mode               = MODE_COLORS_NONE;
-    Switch.colors_min               = 0;
-    Switch.colors_max               = 0;
     Switch.speed_min                = 0;
     Switch.speed_max                = 3;
     Switch.speed                    = 1;
@@ -98,9 +88,6 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     Blink.value                     = SAYO_MODE_BLINK;
     Blink.flags                     = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
     Blink.color_mode                = MODE_COLORS_PER_LED;
-    Blink.colors_min                = 1;
-    Blink.colors_max                = 1;
-    Blink.colors.resize(1);
     Blink.speed_min                 = 0;
     Blink.speed_max                 = 3;
     Blink.speed                     = 1;
