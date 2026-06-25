@@ -33,23 +33,11 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     description                     = "SayoDevice E1 Knob";
     type                            = DEVICE_TYPE_KEYBOARD;
     location                        = controller->GetDeviceLocation();
-    serial                          = controller->GetSerialString();
-    version                         = controller->GetFirmwareVersion();
-
-    mode Static;
-    Static.name                     = "Static";
-    Static.value                    = SAYO_MODE_STATIC;
-    Static.flags                    = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_MANUAL_SAVE;
-    Static.color_mode               = MODE_COLORS_MODE_SPECIFIC;
-    Static.colors_min               = 1;
-    Static.colors_max               = 1;
-    Static.colors.resize(1);
-    modes.push_back(Static);
 
     mode Direct;
     Direct.name                     = "Direct";
     Direct.value                    = SAYO_MODE_DIRECT;
-    Direct.flags                    = MODE_FLAG_HAS_PER_LED_COLOR;
+    Direct.flags                    = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
     Direct.color_mode               = MODE_COLORS_PER_LED;
     Direct.colors_min               = 1;
     Direct.colors_max               = 1;
@@ -57,37 +45,66 @@ RGBController_SayoDevice::RGBController_SayoDevice(SayoDeviceController* control
     modes.push_back(Direct);
 
     /*-----------------------------------------------------*\
-    | Add dynamic modes                                     |
+    | Breathing - pulses a single color                     |
     \*-----------------------------------------------------*/
-    struct DynamicMode
-    {
-        const char* name;
-        int         value;
-    };
+    mode Breathing;
+    Breathing.name                  = "Breathing";
+    Breathing.value                 = SAYO_MODE_BREATHING;
+    Breathing.flags                 = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
+    Breathing.color_mode            = MODE_COLORS_PER_LED;
+    Breathing.colors_min            = 1;
+    Breathing.colors_max            = 1;
+    Breathing.colors.resize(1);
+    Breathing.speed_min             = 0;
+    Breathing.speed_max             = 3;
+    Breathing.speed                 = 1;
+    modes.push_back(Breathing);
 
-    DynamicMode dynamic_modes[] =
-    {
-        { "Breathing",              SAYO_MODE_BREATHING },
-        { "Wave",                   SAYO_MODE_WAVE      },
-        { "Switch",                 SAYO_MODE_SWITCH    },
-        { "Blink",                  SAYO_MODE_BLINK     },
-    };
+    /*-----------------------------------------------------*\
+    | Wave - fades through multiple colors                  |
+    \*-----------------------------------------------------*/
+    mode Wave;
+    Wave.name                       = "Wave";
+    Wave.value                      = SAYO_MODE_WAVE;
+    Wave.flags                      = MODE_FLAG_HAS_SPEED | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
+    Wave.color_mode                 = MODE_COLORS_NONE;
+    Wave.colors_min                 = 0;
+    Wave.colors_max                 = 0;
+    Wave.speed_min                  = 0;
+    Wave.speed_max                  = 3;
+    Wave.speed                      = 1;
+    modes.push_back(Wave);
 
-    for(unsigned int i = 0; i < (sizeof(dynamic_modes) / sizeof(DynamicMode)); i++)
-    {
-        mode new_mode;
-        new_mode.name           = dynamic_modes[i].name;
-        new_mode.value          = dynamic_modes[i].value;
-        new_mode.flags          = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_MANUAL_SAVE;
-        new_mode.color_mode     = MODE_COLORS_MODE_SPECIFIC;
-        new_mode.colors_min     = 1;
-        new_mode.colors_max     = 1;
-        new_mode.colors.resize(1);
-        new_mode.speed_min      = 0;
-        new_mode.speed_max      = 3;
-        new_mode.speed          = 1;
-        modes.push_back(new_mode);
-    }
+    /*-----------------------------------------------------*\
+    | Switch - alternates multiple colors                   |
+    \*-----------------------------------------------------*/
+    mode Switch;
+    Switch.name                     = "Switch";
+    Switch.value                    = SAYO_MODE_SWITCH;
+    Switch.flags                    = MODE_FLAG_HAS_SPEED | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
+    Switch.color_mode               = MODE_COLORS_NONE;
+    Switch.colors_min               = 0;
+    Switch.colors_max               = 0;
+    Switch.speed_min                = 0;
+    Switch.speed_max                = 3;
+    Switch.speed                    = 1;
+    modes.push_back(Switch);
+
+    /*-----------------------------------------------------*\
+    | Blink - blinks on and off                             |
+    \*-----------------------------------------------------*/
+    mode Blink;
+    Blink.name                      = "Blink";
+    Blink.value                     = SAYO_MODE_BLINK;
+    Blink.flags                     = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE | MODE_FLAG_HAS_RANDOM_COLOR;
+    Blink.color_mode                = MODE_COLORS_PER_LED;
+    Blink.colors_min                = 1;
+    Blink.colors_max                = 1;
+    Blink.colors.resize(1);
+    Blink.speed_min                 = 0;
+    Blink.speed_max                 = 3;
+    Blink.speed                     = 1;
+    modes.push_back(Blink);
 
     SetupZones();
 };
@@ -99,11 +116,11 @@ RGBController_SayoDevice::~RGBController_SayoDevice()
 
 void RGBController_SayoDevice::SetupZones()
 {
-    int led_count = controller->GetLEDCount();
+    const int led_count = 1;
 
     zone zone;
     zone.name       = "Underglow";
-    zone.type       = ZONE_TYPE_LINEAR;
+    zone.type       = ZONE_TYPE_SINGLE;
     zone.leds_count = led_count;
     zone.leds_min   = led_count;
     zone.leds_max   = led_count;
@@ -134,10 +151,11 @@ void RGBController_SayoDevice::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_SayoDevice::DeviceUpdateLEDs()
 {
-    if(modes[active_mode].value == SAYO_MODE_DIRECT)
-    {
-        controller->SetMode(SAYO_MODE_STATIC, SAYO_SPEED_1X, colors[0], false);
-    }
+    unsigned int hw_mode    = (modes[active_mode].value == SAYO_MODE_DIRECT) ? SAYO_MODE_STATIC : modes[active_mode].value;
+    bool         random     = (modes[active_mode].color_mode == MODE_COLORS_RANDOM);
+    unsigned int speed      = 3 - modes[active_mode].speed;
+
+    controller->SetMode(hw_mode, speed, colors[0], random);
 }
 
 void RGBController_SayoDevice::UpdateZoneLEDs(int /*zone*/)
@@ -152,29 +170,10 @@ void RGBController_SayoDevice::UpdateSingleLED(int /*led*/)
 
 void RGBController_SayoDevice::DeviceUpdateMode()
 {
-    unsigned int mode   = modes[active_mode].value;
-    bool random         = modes[active_mode].color_mode == MODE_COLORS_RANDOM;
-    RGBColor color      = modes[active_mode].colors[0];
-
-    switch(modes[active_mode].value)
-    {
-        case SAYO_MODE_STATIC:
-            controller->SetMode(mode, SAYO_SPEED_1X, color, random);
-            break;
-        case SAYO_MODE_DIRECT:
-            break;
-        case SAYO_MODE_BREATHING:
-        case SAYO_MODE_WAVE:
-        case SAYO_MODE_SWITCH:
-        case SAYO_MODE_BLINK:
-        {
-            unsigned int speed = 3 - modes[active_mode].speed;
-            controller->SetMode(mode, speed, color, random);
-            break;
-        }
-        default:
-            LOG_ERROR("[SayoDevice] Requested mode (%02x) is not supported", mode);
-    }
+    /*-----------------------------------------------------*\
+    | Mode and color are always set together.               |
+    \*-----------------------------------------------------*/
+    DeviceUpdateLEDs();
 }
 
 void RGBController_SayoDevice::DeviceSaveMode()

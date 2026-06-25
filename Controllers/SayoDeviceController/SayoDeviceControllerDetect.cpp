@@ -38,4 +38,4 @@ void DetectSayoDeviceController
     }
 }
 
-REGISTER_HID_DETECTOR_PU("SayoDevice E1", DetectSayoDeviceController, SAYO_USB_VID, 0x0007, 65297, 2);
+REGISTER_HID_DETECTOR_PU("SayoDevice E1", DetectSayoDeviceController, SAYO_USB_VID, 0x0007, 0xFF11, 0x0002);

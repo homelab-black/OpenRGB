@@ -49,11 +49,24 @@ enum
     SAYO_SPEED_8X                   = 0,
 };
 
-#define SAYO_MODE_PACK(speed, isRandom, isTable, mode) \
-    ((unsigned char)((((speed) & 0x3u) << 6) | \
-                    (((isRandom) & 1u) << 5) | \
-                    (((isTable)  & 1u) << 4) | \
-                    ((mode) & 0xFu)))
+/*-----------------------------------------*\
+| Animation color mode                      |
+| TABLE modes either loop through or pick   |
+| randomly from a palette of colors.        |
+| RANDOM is truly random.                   |
+\*-----------------------------------------*/
+enum
+{
+    SAYO_COLOR_STATIC               = 0,
+    SAYO_COLOR_LOOP_TABLE           = 1,
+    SAYO_COLOR_RANDOM_TABLE         = 2,
+    SAYO_COLOR_RANDOM               = 3,
+};
+
+#define SAYO_MODE_PACK(speed, color_mode, mode) \
+    ((unsigned char)((((speed) & 0x3) << 6) | \
+                    (((color_mode) & 0x3) << 4) | \
+                    ((mode) & 0xF)))
 
 /*-----------------------------------------*\
 | Commands                                  |
@@ -77,9 +90,6 @@ public:
 
     std::string GetDeviceLocation();
     std::string GetDeviceName();
-    std::string GetSerialString();
-    std::string GetFirmwareVersion();
-    int         GetLEDCount();
 
     void        SetMode(unsigned int mode, unsigned int speed, RGBColor color, bool random);
     void        Save();
@@ -88,9 +98,6 @@ private:
     hid_device*             dev;
     std::string             name;
     std::string             location;
-    std::string             uuid;
-    std::string             firmware_version;
-    unsigned char           led_count;
 
     void        SendPacket(const std::vector<unsigned char>& command, bool flush = true);
 };
