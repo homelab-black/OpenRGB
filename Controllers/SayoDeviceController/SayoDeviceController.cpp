@@ -41,7 +41,7 @@ void SayoDeviceController::SetMode(unsigned int mode, unsigned int speed, RGBCol
 {
     /*-----------------------------------------------------*\
     | Loop color table creates a rainbow effect which looks |
-    | looks better than truly random colors, so use that.   |
+    | better than truly random colors, so use that.         |
     \*-----------------------------------------------------*/
     unsigned int color_mode = random ? SAYO_COLOR_LOOP_TABLE : SAYO_COLOR_STATIC;
     unsigned char mode_byte = SAYO_MODE_PACK(speed, color_mode, mode);

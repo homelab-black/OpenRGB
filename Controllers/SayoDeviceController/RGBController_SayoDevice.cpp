@@ -151,9 +151,9 @@ void RGBController_SayoDevice::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_SayoDevice::DeviceUpdateLEDs()
 {
-    unsigned int hw_mode    = (modes[active_mode].value == SAYO_MODE_DIRECT) ? SAYO_MODE_STATIC : modes[active_mode].value;
-    bool         random     = (modes[active_mode].color_mode == MODE_COLORS_RANDOM);
-    unsigned int speed      = 3 - modes[active_mode].speed;
+    unsigned int hw_mode = (modes[active_mode].value == SAYO_MODE_DIRECT) ? SAYO_MODE_STATIC : modes[active_mode].value;
+    bool         random  = (modes[active_mode].color_mode == MODE_COLORS_RANDOM);
+    unsigned int speed   = 3 - modes[active_mode].speed;
 
     controller->SetMode(hw_mode, speed, colors[0], random);
 }
