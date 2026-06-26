@@ -708,6 +708,7 @@ private:
     uint8_t         GetFeatureIndex(uint16_t feature_page,
                                     const HIDPP20RetryPolicy& policy = HIDPP20_POLICY_RELIABLE);
     uint8_t         GetFeatureVersion(uint16_t feature_page) const;
+    void            LogFeatureSummary();
     void            DiscoverTransport();
     void            DiscoverDeviceName();
     void            DiscoverDeviceType();

@@ -1230,6 +1230,66 @@ uint8_t LogitechHIDPP20Controller::GetFeatureVersion(uint16_t feature_page) cons
     return 0;
 }
 
+/*-------------------------------------------------------------------*\
+| Diagnostic feature/version summary, scoped to the features this     |
+| controller actually uses or version-gates on. Logged like           |
+| `solaar show` so a device whose firmware has shifted a feature's    |
+| index or version away from what we assume can be identified from    |
+| the debug log alone — e.g. a per-key keyboard reporting 0x8080      |
+| (v1) instead of 0x8081 (v2), or an effects feature at an unexpected |
+| version. Each GetFeatureIndex call also runs the observed-version   |
+| tripwire (LOG_INFO) for versions we have not seen before.           |
+|                                                                     |
+| Most entries are already cached by the discovery above, so this     |
+| adds only a few extra IRoot queries (e.g. 0x8080 on a v2 device).   |
+| On Centurion the whole feature map is pre-enumerated, so no extra   |
+| wire traffic at all.                                                |
+\*-------------------------------------------------------------------*/
+void LogitechHIDPP20Controller::LogFeatureSummary()
+{
+    static const struct
+    {
+        uint16_t    page;
+        const char* name;
+    } relevant_features[] =
+    {
+        { HIDPP20_FEAT_FEATURE_SET,           "FEATURE_SET"           },
+        { HIDPP20_FEAT_FIRMWARE_INFO,         "FIRMWARE_INFO/BRIDGE"  },
+        { HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE, "DISABLE_KEYS_BY_USAGE" },
+        { HIDPP20_FEAT_COLOR_LED_EFFECTS,     "COLOR_LED_EFFECTS"     },
+        { HIDPP20_FEAT_RGB_EFFECTS,           "RGB_EFFECTS"           },
+        { HIDPP20_FEAT_PER_KEY_LIGHTING_V1,   "PER_KEY_LIGHTING_V1"   },
+        { HIDPP20_FEAT_PER_KEY_LIGHTING_V2,   "PER_KEY_LIGHTING_V2"   },
+        { HIDPP20_FEAT_KEYBOARD_LAYOUT,       "KEYBOARD_LAYOUT"       },
+        { HIDPP20_FEAT_ONBOARD_PROFILES,      "ONBOARD_PROFILES"      },
+        { HIDPP20_FEAT_PROFILE_MANAGEMENT,    "PROFILE_MANAGEMENT"    },
+        { HIDPP20_FEAT_CENTURION_RGB,         "CENTURION_RGB_0x0600"  },
+        { HIDPP20_FEAT_HEADSET_RGB_HOSTMODE,  "HEADSET_RGB_HOSTMODE"  },
+        { HIDPP20_FEAT_WIRELESS_STATUS,       "WIRELESS_STATUS"       },
+    };
+
+    LOG_DEBUG("%s ===== HID++ 2.0 feature summary (features OpenRGB uses) =====", LOG_TAG);
+
+    for(size_t i = 0; i < sizeof(relevant_features) / sizeof(relevant_features[0]); i++)
+    {
+        uint16_t page = relevant_features[i].page;
+        uint8_t  idx  = GetFeatureIndex(page);
+
+        if(idx != 0)
+        {
+            LOG_DEBUG("%s   feature 0x%04X %-22s present  idx=0x%02X V%u",
+                      LOG_TAG, page, relevant_features[i].name, idx, GetFeatureVersion(page));
+        }
+        else
+        {
+            LOG_DEBUG("%s   feature 0x%04X %-22s absent",
+                      LOG_TAG, page, relevant_features[i].name);
+        }
+    }
+
+    LOG_DEBUG("%s ============================================================", LOG_TAG);
+}
+
 void LogitechHIDPP20Controller::DiscoverDeviceName()
 {
     /*---------------------------------------------------------*\
@@ -2522,6 +2582,12 @@ bool LogitechHIDPP20Controller::Probe()
     | detect these events without sending commands.             |
     \*---------------------------------------------------------*/
     caps.idx_wireless_status = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
+
+    /*---------------------------------------------------------*\
+    | Diagnostic: log the OpenRGB-relevant feature/version map  |
+    | (solaar-show-style) for firmware-mismatch identification. |
+    \*---------------------------------------------------------*/
+    LogFeatureSummary();
 
     if(!caps.has_zone_effects && !caps.has_perkey)
     {
