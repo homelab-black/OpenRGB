@@ -2041,9 +2041,7 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
             |   0x8071/0x0600 GetEffectInfo — effectId at [2..3] |
             |     (bytes 0-1 echo cluster + effect index).       |
             |   0x8070 GetZoneEffectInfo (fn2) — effectId at     |
-            |     [0..1], caps [2..3], period [4..5] per the RE  |
-            |     doc. (0x8070 byte layout is binary-derived,    |
-            |     re-confirm on hardware.)                       |
+            |     [0..1], caps [2..3], period [4..5].            |
             \*--------------------------------------------------*/
             if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
             {
@@ -2473,12 +2471,11 @@ size_t LogitechHIDPP20Controller::ReadPerKey8080Colors
 | fn0 GetInfo returns only a keyTypeCount (cardinality) and |
 | a typeFlags word. So the keyType set is discovered        |
 | empirically — sweep fn1 GetKeyTypeInfo over the low byte  |
-| 0x00..0xFF, confirm each with the fn1<->fn2 cross-check   |
-| (a plausible fn1 echo AND a real keyId!=0 from fn2), use  |
-| keyTypeCount as the completeness oracle, and extend to    |
-| u16 high-bit candidates if the low-byte sweep falls       |
-| short. Every probe with a response is logged — the dump   |
-| is the source of truth. Nothing is hardcoded.             |
+| 0x00..0xFF, confirm each by requiring both a plausible    |
+| fn1 echo AND a real keyId != 0 from fn2 GetKeyColors,     |
+| stop once keyTypeCount keyTypes are confirmed, and extend |
+| to u16 high-bit candidates if the low-byte sweep falls    |
+| short.                                                    |
 |                                                           |
 | Read-only: this only issues fn0/fn1/fn2 (GetInfo /        |
 | GetKeyTypeInfo / GetKeyColors). All reads ride dev.       |
@@ -2561,13 +2558,13 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
     }
 
     /*-----------------------------------------------------*\
-    | Empirical sweep with the fn1<->fn2 cross-check.       |
+    | Sweep candidates, confirming each via fn1 then fn2.   |
     \*-----------------------------------------------------*/
     for(uint16_t key_type : candidates)
     {
         if(key_type_count != 0 && caps.perkey_8080_types.size() >= key_type_count)
         {
-            break;              /* completeness oracle satisfied */
+            break;              /* all advertised keyTypes confirmed */
         }
 
         /*-------------------------------------------------*\
@@ -2596,9 +2593,9 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
                   LOG_TAG, key_type, resp1[2], resp1[3], resp1[4]);
 
         /*-------------------------------------------------*\
-        | Cross-check: fn2 GetKeyColors must yield >=1      |
-        | live keyId before we trust the fn1 echo. This is  |
-        | essential — some firmware echoes any keyType.     |
+        | fn2 GetKeyColors must yield >= 1 live keyId       |
+        | before the fn1 echo is trusted; some firmware     |
+        | echoes any keyType.                               |
         \*-------------------------------------------------*/
         std::vector<uint8_t> key_ids;
         size_t live = ReadPerKey8080Colors(idx, key_type, max_key_count, key_ids, true);
@@ -3975,14 +3972,6 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
 /*---------------------------------------------------------*\
 | Feature 0x8080 (Per Key Lighting) set + commit            |
 |                                                           |
-| Wire format cloned byte-for-byte from the proven legacy   |
-| G810/G910 drivers (the source of truth — they light real  |
-| hardware today), confirmed against the RE spec where they |
-| overlap. The only intentional deviation is the software   |
-| ID (0xD -> HIDPP20_SW_ID): swid is the host's own         |
-| response-matching tag, echoed by the firmware, not a      |
-| protocol fact.                                            |
-|                                                           |
 | fn3 SetKeyColors rides the 0x12 very-long report on       |
 | dev_perkey_vl. Payload:                                   |
 |   [keyType u16 BE, count u16 BE, (keyId,R,G,B) x count]   |
@@ -4043,9 +4032,8 @@ void LogitechHIDPP20Controller::SetPerKey8080
 }
 
 /*---------------------------------------------------------*\
-| fn5 FlushLEDS — commit. Empty body (persist = default).   |
-| Rides the 0x11 long report on dev (SendAcked), mirroring  |
-| the legacy commit which reads the ACK on the long handle. |
+| fn5 FlushLEDS — commit. Empty body (persist = default),   |
+| sent on the 0x11 long report via dev.                     |
 \*---------------------------------------------------------*/
 void LogitechHIDPP20Controller::PerKeyCommit8080()
 {
@@ -4230,8 +4218,8 @@ void LogitechHIDPP20Controller::SetZoneEffect
     /*------------------------------------------------------*\
     | Inline persist byte at [12] — 0x8071/0x0600 only.      |
     | 0x8070 has no inline persist (NvConfig is funcs 4/5),  |
-    | so [12] there is a param byte; the legacy G810 left it |
-    | zero. Persist on 0x8070 rides SetSWControl's flag.     |
+    | so [12] there is a param byte; persist on 0x8070 rides |
+    | SetSWControl's flag.                                   |
     \*------------------------------------------------------*/
     if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {

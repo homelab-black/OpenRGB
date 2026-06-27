@@ -576,10 +576,10 @@ void DetectLogitechX56(hid_device_info* info, const std::string& name)
 }
 
 /*------------------------------------------------------------------------------*\
-| Shared post-construction Probe + register path for HID++ 2.0 controllers.      |
-|   Both the single-handle detector and the dual-handle (0x8080 very-long)        |
-|   diagnostic detector funnel through here so the registration, watcher, and     |
-|   power-manager logic lives in one place.                                       |
+| Shared post-construction Probe + register path for HID++ 2.0                   |
+| controllers. The single-handle and dual-handle (0x8080 very-long)              |
+| detection paths both funnel through here so the registration,                  |
+| watcher, and power-manager logic lives in one place.                           |
 \*------------------------------------------------------------------------------*/
 static void FinishLogitechHIDPP20Probe(LogitechHIDPP20Controller* controller, hid_device_info* info)
 {
@@ -704,14 +704,12 @@ void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
     /*--------------------------------------------------------------------------*\
     | Optional per-key very-long (report 0x12) handle.                           |
     |                                                                            |
-    | Feature 0x8080 (Per Key Lighting, the G810/G910 keyboard family) carries   |
-    | its SetKeyColors frame on a 64-byte report 0x12 that Windows HIDClass       |
-    | exposes as a separate Top-Level-Collection (usage 0x0604). Probe every      |
-    | device for that sibling collection and hand it to the controller. Devices   |
-    | that don't expose it (the G515/G915 and everything else) pass nullptr and   |
-    | are completely unaffected — the handle is only ever written if the device   |
-    | advertises 0x8080. This keeps a single universal detector for the whole     |
-    | Logitech HID++ 2.0 family rather than a per-feature variant.                |
+    | Feature 0x8080 (Per Key Lighting) carries its SetKeyColors frame           |
+    | on a 64-byte report 0x12 that Windows HIDClass exposes as a                |
+    | separate Top-Level-Collection (usage 0x0604). Scan for that                |
+    | sibling collection and pass it to the controller; devices without          |
+    | it pass nullptr. The handle is only written when the device                |
+    | advertises 0x8080.                                                         |
     \*--------------------------------------------------------------------------*/
     hid_device* dev_perkey_vl = nullptr;
 
@@ -744,9 +742,9 @@ void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
     }
 #else
     /*----------------------------------------------------------------*\
-    | No usage info on this platform (Linux without USE_HID_USAGE): a   |
-    | single hidraw node carries every report ID for the interface, so  |
-    | the same handle serves as the very-long transport.                |
+    | No usage info on this platform (Linux without USE_HID_USAGE): a  |
+    | single hidraw node carries every report ID for the interface, so |
+    | the same handle serves as the very-long transport.               |
     \*----------------------------------------------------------------*/
     dev_perkey_vl = dev;
 #endif
@@ -847,9 +845,9 @@ REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",      
 #endif
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Per-key keyboards (Feature 0x8080 Per Key Lighting) — G512 / G610 / G810 / G910 / G Pro. Usage page 0xFF43; the unified detector auto-discovers     |
-| the very-long (usage 0x0604, report 0x12) handle these boards use for SetKeyColors. They run through the same DetectLogitechHIDPP20 as every other  |
-| HID++ 2.0 device, which dumps the feature table and drives 0x8080 (set/commit + runtime keyType enumeration).                                       |
+| Per-key keyboards (Feature 0x8080 Per Key Lighting) — G512 / G610 / G810 / G910 / G Pro. Usage page 0xFF43; the unified detector auto-discovers   |
+| the very-long (usage 0x0604, report 0x12) handle these boards use for SetKeyColors. They run through the same DetectLogitechHIDPP20 as every other|
+| HID++ 2.0 device, which dumps the feature table and drives 0x8080 (set/commit + runtime keyType enumeration).                                     |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech G512",                                         DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_PID,            1, 0xFF43, 0x0602);
 REGISTER_HID_DETECTOR_IPU("Logitech G512 RGB",                                     DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_RGB_PID,        1, 0xFF43, 0x0602);

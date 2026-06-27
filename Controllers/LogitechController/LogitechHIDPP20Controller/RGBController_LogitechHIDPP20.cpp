@@ -401,8 +401,7 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_usage =
 | Reverse lookup over hidpp20_key_name_to_usage: HID usage  |
 | code -> key name, or nullptr when the code is not a       |
 | standard keyboard key (a vendor-local logo / G-key /      |
-| indicator id). Mirrors the reverse scan the 0x8081 Extras |
-| path does over hidpp20_key_name_to_zone.                  |
+| indicator id).                                            |
 \*---------------------------------------------------------*/
 static const char* hidpp20_key_name_for_usage(unsigned int usage)
 {
@@ -1445,11 +1444,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     }
 
     /*----------------------------------------------------------*\
-    | Feature 0x8080 (Per Key Lighting) — separate feature from  |
-    | 0x8081. Full repaint grouped by keyType, then one          |
-    | FlushLEDS, mirroring the legacy G810/G910 batch-and-commit |
-    | behavior. led_to_keytype_keyid_8080 (built in              |
-    | SetupZones8080) maps each LED to its wire (keyType,keyId). |
+    | Feature 0x8080 (Per Key Lighting). Full repaint grouped    |
+    | by keyType, then one FlushLEDS. led_to_keytype_keyid_8080  |
+    | (built in SetupZones8080) maps each LED to its wire        |
+    | (keyType, keyId).                                          |
     \*----------------------------------------------------------*/
     if(caps.has_perkey_8080 && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
@@ -2013,10 +2011,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | Feature 0x8080: Direct is handled above and Off blacks     |
     | every enumerated key via the per-key path. Any other mode  |
     | is a 0x8070/0x8071 zone effect (Static/Cycle/Breathing/..) |
-    | and falls through to the zone-effect path below — the same |
-    | mechanism the 0x8081 keyboards use. Those modes only exist |
-    | when the device actually advertises a zone-effect feature, |
-    | so there is nothing to fall through to otherwise.          |
+    | and falls through to the zone-effect path below. Those     |
+    | modes only exist when the device advertises a zone-effect  |
+    | feature, so there is nothing to fall through to otherwise. |
     \*----------------------------------------------------------*/
     if(caps.has_perkey_8080)
     {

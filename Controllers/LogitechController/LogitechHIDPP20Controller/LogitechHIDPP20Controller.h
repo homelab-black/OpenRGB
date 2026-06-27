@@ -163,12 +163,11 @@ struct HIDPP20ZoneCluster
 
 /*-----------------------------------------------------*\
 | One confirmed Feature 0x8080 keyType and the keyIds   |
-| enumerated under it. keyType is the legacy "zone"     |
+| enumerated under it. keyType is a zone selector       |
 | (KEYBOARD=0x01, MEDIA=0x02, GKEYS=0x04, LOGO=0x10,    |
 | INDICATORS=0x40); keyIds are USB HID usage codes on   |
 | the keyboard keyType and vendor-local indices on the  |
-| others. Built entirely from runtime probing — no      |
-| hardcoded key map. See DiscoverPerKey8080().          |
+| others. Populated by DiscoverPerKey8080().            |
 \*-----------------------------------------------------*/
 struct HIDPP20PerKey8080Type
 {
@@ -238,7 +237,7 @@ struct HIDPP20DeviceCapabilities
     uint8_t         idx_headset_rgb_hostmode;   /* 0x0620 — Centurion headset RGB */
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
-    uint8_t         idx_perkey_8080;            /* 0x8080 — Per Key Lighting (legacy G810/G910 family) */
+    uint8_t         idx_perkey_8080;            /* 0x8080 — Per Key Lighting (G810/G910 keyboard family) */
     uint8_t         idx_wireless_status;
     uint8_t         idx_disable_keys_by_usage;  /* 0x4522 — keyboard-family handshake */
     uint16_t        rgb_feature_page;
