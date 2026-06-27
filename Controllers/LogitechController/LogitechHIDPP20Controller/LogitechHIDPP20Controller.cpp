@@ -111,10 +111,12 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     uint8_t                     device_index,
     bool                        wireless,
     std::shared_ptr<std::mutex> mutex_ptr,
-    uint16_t                    usage_page
+    uint16_t                    usage_page,
+    hid_device*                 perkey_vl_dev
     )
 {
     this->dev           = dev;
+    this->dev_perkey_vl = perkey_vl_dev;
     this->location      = path;
     this->device_index  = device_index;
     this->wireless      = wireless;
@@ -172,6 +174,11 @@ LogitechHIDPP20Controller::~LogitechHIDPP20Controller()
     if(dev)
     {
         hid_close(dev);
+    }
+
+    if(dev_perkey_vl && dev_perkey_vl != dev)
+    {
+        hid_close(dev_perkey_vl);
     }
 }
 
@@ -678,6 +685,68 @@ int LogitechHIDPP20Controller::SendStandard
     else
     {
         result = hid_write(dev, buf, msg_len);
+    }
+
+    return result;
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x8080 very-long (report 0x12) frame.             |
+|                                                           |
+| The G810/G910 keyboard family carries fn3 SetKeyColors    |
+| on a 64-byte report 0x12 that the Windows HIDClass splits |
+| onto a second Top-Level-Collection (usage 0x0604). That   |
+| handle is dev_perkey_vl; everything else (IRoot, reads,   |
+| commit, ACK) stays on dev. Frame layout matches the long  |
+| report — [0x12, device_index, feat_idx, fn|swid, data…] — |
+| just on the wider report. Fire-and-forget: the firmware   |
+| ACKs on dev where the reader thread drains it.            |
+\*---------------------------------------------------------*/
+int LogitechHIDPP20Controller::SendVeryLongFrame
+    (
+    uint8_t         feat_idx,
+    uint8_t         function,
+    const uint8_t*  data,
+    size_t          len
+    )
+{
+    const size_t max_payload = LOGITECH_VERY_LONG_MESSAGE_LEN - 4;
+
+    if(dev_perkey_vl == nullptr)
+    {
+        return -1;
+    }
+
+    uint8_t buf[LOGITECH_VERY_LONG_MESSAGE_LEN];
+    memset(buf, 0, sizeof(buf));
+
+    buf[0] = LOGITECH_VERY_LONG_MESSAGE;
+    buf[1] = device_index;
+    buf[2] = feat_idx;
+    buf[3] = function | HIDPP20_SW_ID;
+
+    if(data && len > 0)
+    {
+        size_t copy_len = (len > max_payload) ? max_payload : len;
+        memcpy(buf + 4, data, copy_len);
+    }
+
+    int result;
+
+    if(mutex)
+    {
+        std::lock_guard<std::mutex> lock(*mutex);
+        result = hid_write(dev_perkey_vl, buf, sizeof(buf));
+    }
+    else
+    {
+        result = hid_write(dev_perkey_vl, buf, sizeof(buf));
+    }
+
+    if(result < 0)
+    {
+        LOG_DEBUG("%s 0x8080 very-long frame write failed (result=%d) "
+                  "feat=0x%02X func=0x%02X", LOG_TAG, result, feat_idx, function);
     }
 
     return result;
@@ -2304,6 +2373,254 @@ void LogitechHIDPP20Controller::DiscoverPerKeyZones()
                 caps.has_numpad ? "yes" : "no");
 }
 
+/*---------------------------------------------------------*\
+| fn2 GetKeyColors readback for one keyType, paginated by   |
+| HIDPP20_8080_KEYS_PER_FRAME. Skips the 4-byte header,     |
+| drops keyId==0 padding, appends the live keyIds to        |
+| out_ids (optionally logging current colors), and returns  |
+| the number collected. Used both for the enumeration       |
+| cross-check and for the full per-keyType key sweep.       |
+\*---------------------------------------------------------*/
+size_t LogitechHIDPP20Controller::ReadPerKey8080Colors
+    (
+    uint8_t                 feat_idx,
+    uint16_t                key_type,
+    uint16_t                max_key_count,
+    std::vector<uint8_t>&     out_ids,
+    bool                    log_colors
+    )
+{
+    size_t start_index = 0;
+    size_t guard_pages = (max_key_count / HIDPP20_8080_KEYS_PER_FRAME) + 4;
+
+    for(size_t page = 0; page < guard_pages; page++)
+    {
+        uint8_t query[5] =
+        {
+            (uint8_t)(key_type    >> 8), (uint8_t)(key_type    & 0xFF),
+            (uint8_t)(start_index >> 8), (uint8_t)(start_index & 0xFF),
+            0x00    /* persistenceOptions — default volatile */
+        };
+
+        uint8_t recv[60] = {};
+        int     result   = SendAcked(feat_idx, FN_8080_GET_KEY_COLORS, query, 5,
+                                     recv, sizeof(recv), HIDPP20_POLICY_PROBE);
+
+        if(result <= 4)
+        {
+            break;          /* header only / error / empty */
+        }
+
+        size_t entries = ((size_t)result - 4) / 4;
+        size_t found   = 0;
+
+        for(size_t e = 0; e < entries; e++)
+        {
+            const uint8_t* entry  = recv + 4 + e * 4;
+            uint8_t        key_id = entry[0];
+
+            if(key_id == 0)
+            {
+                continue;   /* padding / empty slot */
+            }
+
+            out_ids.push_back(key_id);
+            found++;
+
+            if(log_colors)
+            {
+                LOG_DEBUG("%s     keyType 0x%04X keyId 0x%02X = RGB(%02X,%02X,%02X)",
+                          LOG_TAG, key_type, key_id, entry[1], entry[2], entry[3]);
+            }
+        }
+
+        if(found == 0)
+        {
+            break;          /* exhausted this keyType */
+        }
+
+        start_index += HIDPP20_8080_KEYS_PER_FRAME;
+    }
+
+    return out_ids.size();
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) discovery + enumeration |
+|                                                           |
+| 0x8080 is a separate feature from 0x8081 — it addresses   |
+| keys by a (keyType u16 BE, keyId u8 = USB HID usage code) |
+| pair and carries SetKeyColors on the 0x12 very-long       |
+| report. There is NO device call that lists the keyTypes:  |
+| fn0 GetInfo returns only a keyTypeCount (cardinality) and |
+| a typeFlags word. So the keyType set is discovered        |
+| empirically — sweep fn1 GetKeyTypeInfo over the low byte  |
+| 0x00..0xFF, confirm each with the fn1<->fn2 cross-check   |
+| (a plausible fn1 echo AND a real keyId!=0 from fn2), use  |
+| keyTypeCount as the completeness oracle, and extend to    |
+| u16 high-bit candidates if the low-byte sweep falls       |
+| short. Every probe with a response is logged — the dump   |
+| is the source of truth. Nothing is hardcoded.             |
+|                                                           |
+| Read-only: this only issues fn0/fn1/fn2 (GetInfo /        |
+| GetKeyTypeInfo / GetKeyColors). All reads ride dev.       |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::DiscoverPerKey8080()
+{
+    caps.idx_perkey_8080           = 0;
+    caps.has_perkey_8080           = false;
+    caps.perkey_8080_type_flags    = 0;
+    caps.perkey_8080_type_count    = 0;
+    caps.perkey_8080_max_key_count = 0;
+    caps.perkey_8080_types.clear();
+
+    /*-----------------------------------------------------*\
+    | Discovery via IRoot — any version, no hardcoded index |
+    | fallback. If the device doesn't advertise 0x8080 the  |
+    | path simply doesn't engage.                           |
+    \*-----------------------------------------------------*/
+    uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V1);
+
+    if(idx == 0)
+    {
+        LOG_DEBUG("%s 0x8080 Per Key Lighting not advertised by this device", LOG_TAG);
+        return;
+    }
+
+    caps.idx_perkey_8080 = idx;
+
+    /*-----------------------------------------------------*\
+    | fn0 GetInfo: typeFlags(u16 BE)@0, reserved@2,         |
+    | keyTypeCount(u16 BE)@3, maxKeyCount(u16 BE)@5.        |
+    \*-----------------------------------------------------*/
+    uint8_t info[20] = {};
+    int r0 = SendAcked(idx, FN_8080_GET_INFO, nullptr, 0,
+                       info, sizeof(info), HIDPP20_POLICY_RELIABLE);
+
+    if(r0 <= 0)
+    {
+        LOG_DEBUG("%s 0x8080 idx=0x%02X fn0 GetInfo failed (r=%d) — "
+                  "feature advertised but unreadable", LOG_TAG, idx, r0);
+        return;
+    }
+
+    uint16_t type_flags     = (uint16_t)((info[0] << 8) | info[1]);
+    uint16_t key_type_count = (uint16_t)((info[3] << 8) | info[4]);
+    uint16_t max_key_count  = (uint16_t)((info[5] << 8) | info[6]);
+
+    /*-----------------------------------------------------*\
+    | Quirk — C32B (G910 Orion Spark) over-reports typeFlags|
+    | bit 0x2. GetInfo-only mask; does not affect keyType   |
+    | enumeration (which is empirical, not typeFlags-based).|
+    \*-----------------------------------------------------*/
+    if(caps.pid_wired == 0xC32B || caps.pid_wireless == 0xC32B)
+    {
+        type_flags &= ~0x0002;
+    }
+
+    caps.perkey_8080_type_flags    = type_flags;
+    caps.perkey_8080_type_count    = key_type_count;
+    caps.perkey_8080_max_key_count = max_key_count;
+
+    LOG_DEBUG("%s ===== 0x8080 Per Key Lighting structure dump =====", LOG_TAG);
+    LOG_DEBUG("%s   idx=0x%02X  typeFlags=0x%04X  keyTypeCount=%u  maxKeyCount=%u",
+              LOG_TAG, idx, type_flags, key_type_count, max_key_count);
+
+    /*-----------------------------------------------------*\
+    | Build the candidate keyType list: full low byte       |
+    | 0x00..0xFF, then the u16 high-bit candidates          |
+    | 0x0100,0x0200,...,0x8000 (only reached if the low-byte|
+    | sweep confirms fewer than keyTypeCount).              |
+    \*-----------------------------------------------------*/
+    std::vector<uint16_t> candidates;
+    for(uint16_t low = 0x0000; low <= 0x00FF; low++)
+    {
+        candidates.push_back(low);
+    }
+    for(int bit = 8; bit <= 15; bit++)
+    {
+        candidates.push_back((uint16_t)(1u << bit));
+    }
+
+    /*-----------------------------------------------------*\
+    | Empirical sweep with the fn1<->fn2 cross-check.       |
+    \*-----------------------------------------------------*/
+    for(uint16_t key_type : candidates)
+    {
+        if(key_type_count != 0 && caps.perkey_8080_types.size() >= key_type_count)
+        {
+            break;              /* completeness oracle satisfied */
+        }
+
+        /*-------------------------------------------------*\
+        | fn1 GetKeyTypeInfo(keyType u16 BE) → echo + 3     |
+        | param bytes. Reject responses < 4 bytes or that   |
+        | don't echo the requested keyType.                 |
+        \*-------------------------------------------------*/
+        uint8_t q1[2]     = { (uint8_t)(key_type >> 8), (uint8_t)(key_type & 0xFF) };
+        uint8_t resp1[16] = {};
+        int r1 = SendAcked(idx, FN_8080_GET_KEY_TYPE_INFO, q1, 2,
+                           resp1, sizeof(resp1), HIDPP20_POLICY_PROBE);
+
+        if(r1 < 4)
+        {
+            continue;           /* no usable response for this keyType */
+        }
+
+        uint16_t echo = (uint16_t)((resp1[0] << 8) | resp1[1]);
+
+        if(echo != key_type)
+        {
+            continue;           /* not a real echo */
+        }
+
+        LOG_DEBUG("%s   fn1 keyType 0x%04X echo OK params=%02X,%02X,%02X",
+                  LOG_TAG, key_type, resp1[2], resp1[3], resp1[4]);
+
+        /*-------------------------------------------------*\
+        | Cross-check: fn2 GetKeyColors must yield >=1      |
+        | live keyId before we trust the fn1 echo. This is  |
+        | essential — some firmware echoes any keyType.     |
+        \*-------------------------------------------------*/
+        std::vector<uint8_t> key_ids;
+        size_t live = ReadPerKey8080Colors(idx, key_type, max_key_count, key_ids, true);
+
+        if(live == 0)
+        {
+            LOG_DEBUG("%s   keyType 0x%04X rejected (fn1 echoed but fn2 "
+                      "returned no live keyId)", LOG_TAG, key_type);
+            continue;
+        }
+
+        HIDPP20PerKey8080Type entry;
+        entry.key_type = key_type;
+        entry.param[0] = resp1[2];
+        entry.param[1] = resp1[3];
+        entry.param[2] = resp1[4];
+        entry.key_ids  = key_ids;
+        caps.perkey_8080_types.push_back(entry);
+
+        LOG_DEBUG("%s   CONFIRMED keyType 0x%04X with %zu keyId(s)",
+                  LOG_TAG, key_type, key_ids.size());
+    }
+
+    caps.has_perkey_8080 = !caps.perkey_8080_types.empty();
+
+    if(key_type_count != 0 && caps.perkey_8080_types.size() < key_type_count)
+    {
+        LOG_DEBUG("%s 0x8080 enumeration incomplete: confirmed %zu of %u "
+                  "keyTypes (GetInfo oracle). The dump above is authoritative; "
+                  "missing keyTypes did not pass the fn1<->fn2 cross-check.",
+                  LOG_TAG, caps.perkey_8080_types.size(), key_type_count);
+    }
+
+    LOG_DEBUG("%s 0x8080 enumeration: %zu keyType(s) confirmed, has_perkey_8080=%s%s",
+              LOG_TAG, caps.perkey_8080_types.size(),
+              caps.has_perkey_8080 ? "yes" : "no",
+              (dev_perkey_vl == nullptr)
+                ? " (NOTE: no 0x12 very-long handle — read-only, cannot paint)" : "");
+}
+
 void LogitechHIDPP20Controller::DiscoverKeyboardLayout()
 {
     uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_KEYBOARD_LAYOUT);
@@ -2572,6 +2889,7 @@ bool LogitechHIDPP20Controller::Probe()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 
     /*---------------------------------------------------------*\
@@ -2589,7 +2907,7 @@ bool LogitechHIDPP20Controller::Probe()
     \*---------------------------------------------------------*/
     LogFeatureSummary();
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s %s: no RGB features found", LOG_TAG, caps.device_name.c_str());
 
@@ -3637,6 +3955,99 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
 }
 
 /*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) set + commit            |
+|                                                           |
+| Wire format cloned byte-for-byte from the proven legacy   |
+| G810/G910 drivers (the source of truth — they light real  |
+| hardware today), confirmed against the RE spec where they |
+| overlap. The only intentional deviation is the software   |
+| ID (0xD -> HIDPP20_SW_ID): swid is the host's own         |
+| response-matching tag, echoed by the firmware, not a      |
+| protocol fact.                                            |
+|                                                           |
+| fn3 SetKeyColors rides the 0x12 very-long report on       |
+| dev_perkey_vl. Payload:                                   |
+|   [keyType u16 BE, count u16 BE, (keyId,R,G,B) x count]   |
+| <=14 tuples per packet (60-byte payload cap). Larger      |
+| groups are split. Colors do not appear until fn5          |
+| FlushLEDS commits.                                        |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::SetPerKey8080
+    (
+    const std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>>& by_type
+    )
+{
+    if(caps.idx_perkey_8080 == 0 || dev_perkey_vl == nullptr)
+    {
+        return;
+    }
+
+    for(size_t t = 0; t < by_type.size(); t++)
+    {
+        uint16_t key_type = by_type[t].first;
+        const std::vector<std::pair<uint8_t, RGBColor>>& keys = by_type[t].second;
+
+        for(size_t off = 0; off < keys.size(); off += HIDPP20_8080_KEYS_PER_FRAME)
+        {
+            size_t count = keys.size() - off;
+            if(count > HIDPP20_8080_KEYS_PER_FRAME)
+            {
+                count = HIDPP20_8080_KEYS_PER_FRAME;
+            }
+
+            /*-------------------------------------------------*\
+            | Payload: keyType(u16 BE) + count(u16 BE) +        |
+            | count x (keyId, R, G, B). SendVeryLongFrame       |
+            | prepends the 4-byte HID++ header.                 |
+            \*-------------------------------------------------*/
+            uint8_t payload[LOGITECH_VERY_LONG_MESSAGE_LEN - 4];
+            memset(payload, 0, sizeof(payload));
+
+            payload[0] = (uint8_t)(key_type >> 8);
+            payload[1] = (uint8_t)(key_type & 0xFF);
+            payload[2] = (uint8_t)(count    >> 8);
+            payload[3] = (uint8_t)(count    & 0xFF);
+
+            size_t pos = 4;
+            for(size_t k = 0; k < count; k++)
+            {
+                RGBColor color = keys[off + k].second;
+                payload[pos++] = keys[off + k].first;       /* keyId (USB HID usage) */
+                payload[pos++] = RGBGetRValue(color);
+                payload[pos++] = RGBGetGValue(color);
+                payload[pos++] = RGBGetBValue(color);
+            }
+
+            SendVeryLongFrame(caps.idx_perkey_8080, FN_8080_SET_KEY_COLORS,
+                              payload, pos);
+        }
+    }
+}
+
+/*---------------------------------------------------------*\
+| fn5 FlushLEDS — commit. Empty body (persist = default).   |
+| Rides the 0x11 long report on dev (SendAcked), mirroring  |
+| the legacy commit which reads the ACK on the long handle. |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::PerKeyCommit8080()
+{
+    if(caps.idx_perkey_8080 == 0)
+    {
+        return;
+    }
+
+    uint8_t recv[20] = {};
+    int     result   = SendAcked(caps.idx_perkey_8080, FN_8080_FLUSH_LEDS, nullptr, 0,
+                                 recv, sizeof(recv), HIDPP20_POLICY_RELIABLE);
+
+    if(result <= 0)
+    {
+        LOG_DEBUG("%s 0x8080 FlushLEDS commit not acked (result=%d) — "
+                  "colors may not have latched", LOG_TAG, result);
+    }
+}
+
+/*---------------------------------------------------------*\
 | Zone effects (0x8071 / 0x8070)                            |
 \*---------------------------------------------------------*/
 
@@ -4075,9 +4486,10 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s Sub-device has no RGB features", LOG_TAG);
         return;
@@ -4274,6 +4686,7 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 }
 
@@ -4289,7 +4702,7 @@ void LogitechHIDPP20Controller::FullReprobe()
     FlushResponseQueue();
     RediscoverFeatures();
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s Device has no RGB features after re-probe", LOG_TAG);
         return;

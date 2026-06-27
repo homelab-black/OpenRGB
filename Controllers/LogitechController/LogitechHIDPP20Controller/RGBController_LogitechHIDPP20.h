@@ -19,6 +19,7 @@ public:
     ~RGBController_LogitechHIDPP20();
 
     void        SetupZones();
+    void        SetupZones8080();
     void        ResizeZone(int zone, int new_size);
     void        DeviceUpdateLEDs();
     void        UpdateZoneLEDs(int zone);
@@ -69,4 +70,14 @@ private:
     \*---------------------------------------------------------*/
     std::vector<RGBColor>       sent_colors;
     uint32_t                    last_init_gen = 0;
+
+    /*---------------------------------------------------------*\
+    | Feature 0x8080 per-key addressing: maps OpenRGB LED       |
+    | index -> (keyType, keyId) wire pair. Built in SetupZones  |
+    | from the runtime enumeration; an entry with keyType 0 +   |
+    | keyId 0 marks an LED that the device did not enumerate    |
+    | (present in the matrix but unaddressable). Parallel to    |
+    | led_to_zone_id, used only on the 0x8080 path.             |
+    \*---------------------------------------------------------*/
+    std::vector<std::pair<uint16_t, uint8_t>> led_to_keytype_keyid_8080;
 };

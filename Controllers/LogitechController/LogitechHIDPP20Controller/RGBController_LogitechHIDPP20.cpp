@@ -279,6 +279,145 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
 };
 
 /*---------------------------------------------------------*\
+| Maps OpenRGB key name -> USB HID Keyboard/Keypad usage    |
+| code (HID Usage Tables page 0x07). Used by the 0x8080     |
+| Per Key Lighting path, whose keyIds ARE these standard    |
+| usage codes — sibling to hidpp20_key_name_to_zone above,  |
+| which carries the 0x8081 sequential zone numbering        |
+| instead. This is the HID specification, not a device      |
+| table.                                                    |
+\*---------------------------------------------------------*/
+static const std::map<std::string, unsigned int> hidpp20_key_name_to_usage =
+{
+    { KEY_EN_A,                 0x04 },
+    { KEY_EN_B,                 0x05 },
+    { KEY_EN_C,                 0x06 },
+    { KEY_EN_D,                 0x07 },
+    { KEY_EN_E,                 0x08 },
+    { KEY_EN_F,                 0x09 },
+    { KEY_EN_G,                 0x0A },
+    { KEY_EN_H,                 0x0B },
+    { KEY_EN_I,                 0x0C },
+    { KEY_EN_J,                 0x0D },
+    { KEY_EN_K,                 0x0E },
+    { KEY_EN_L,                 0x0F },
+    { KEY_EN_M,                 0x10 },
+    { KEY_EN_N,                 0x11 },
+    { KEY_EN_O,                 0x12 },
+    { KEY_EN_P,                 0x13 },
+    { KEY_EN_Q,                 0x14 },
+    { KEY_EN_R,                 0x15 },
+    { KEY_EN_S,                 0x16 },
+    { KEY_EN_T,                 0x17 },
+    { KEY_EN_U,                 0x18 },
+    { KEY_EN_V,                 0x19 },
+    { KEY_EN_W,                 0x1A },
+    { KEY_EN_X,                 0x1B },
+    { KEY_EN_Y,                 0x1C },
+    { KEY_EN_Z,                 0x1D },
+    { KEY_EN_1,                 0x1E },
+    { KEY_EN_2,                 0x1F },
+    { KEY_EN_3,                 0x20 },
+    { KEY_EN_4,                 0x21 },
+    { KEY_EN_5,                 0x22 },
+    { KEY_EN_6,                 0x23 },
+    { KEY_EN_7,                 0x24 },
+    { KEY_EN_8,                 0x25 },
+    { KEY_EN_9,                 0x26 },
+    { KEY_EN_0,                 0x27 },
+    { KEY_EN_ANSI_ENTER,        0x28 },
+    { KEY_EN_ESCAPE,            0x29 },
+    { KEY_EN_BACKSPACE,         0x2A },
+    { KEY_EN_TAB,               0x2B },
+    { KEY_EN_SPACE,             0x2C },
+    { KEY_EN_MINUS,             0x2D },
+    { KEY_EN_EQUALS,            0x2E },
+    { KEY_EN_LEFT_BRACKET,      0x2F },
+    { KEY_EN_RIGHT_BRACKET,     0x30 },
+    { KEY_EN_ANSI_BACK_SLASH,   0x31 },     /* ANSI */
+    { KEY_EN_POUND,             0x32 },     /* ISO  */
+    { KEY_EN_SEMICOLON,         0x33 },
+    { KEY_EN_QUOTE,             0x34 },
+    { KEY_EN_BACK_TICK,         0x35 },
+    { KEY_EN_COMMA,             0x36 },
+    { KEY_EN_PERIOD,            0x37 },
+    { KEY_EN_FORWARD_SLASH,     0x38 },
+    { KEY_EN_CAPS_LOCK,         0x39 },
+    { KEY_EN_F1,                0x3A },
+    { KEY_EN_F2,                0x3B },
+    { KEY_EN_F3,                0x3C },
+    { KEY_EN_F4,                0x3D },
+    { KEY_EN_F5,                0x3E },
+    { KEY_EN_F6,                0x3F },
+    { KEY_EN_F7,                0x40 },
+    { KEY_EN_F8,                0x41 },
+    { KEY_EN_F9,                0x42 },
+    { KEY_EN_F10,               0x43 },
+    { KEY_EN_F11,               0x44 },
+    { KEY_EN_F12,               0x45 },
+    { KEY_EN_PRINT_SCREEN,      0x46 },
+    { KEY_EN_SCROLL_LOCK,       0x47 },
+    { KEY_EN_PAUSE_BREAK,       0x48 },
+    { KEY_EN_INSERT,            0x49 },
+    { KEY_EN_HOME,              0x4A },
+    { KEY_EN_PAGE_UP,           0x4B },
+    { KEY_EN_DELETE,            0x4C },
+    { KEY_EN_END,               0x4D },
+    { KEY_EN_PAGE_DOWN,         0x4E },
+    { KEY_EN_RIGHT_ARROW,       0x4F },
+    { KEY_EN_LEFT_ARROW,        0x50 },
+    { KEY_EN_DOWN_ARROW,        0x51 },
+    { KEY_EN_UP_ARROW,          0x52 },
+    { KEY_EN_NUMPAD_LOCK,       0x53 },
+    { KEY_EN_NUMPAD_DIVIDE,     0x54 },
+    { KEY_EN_NUMPAD_TIMES,      0x55 },
+    { KEY_EN_NUMPAD_MINUS,      0x56 },
+    { KEY_EN_NUMPAD_PLUS,       0x57 },
+    { KEY_EN_NUMPAD_ENTER,      0x58 },
+    { KEY_EN_NUMPAD_1,          0x59 },
+    { KEY_EN_NUMPAD_2,          0x5A },
+    { KEY_EN_NUMPAD_3,          0x5B },
+    { KEY_EN_NUMPAD_4,          0x5C },
+    { KEY_EN_NUMPAD_5,          0x5D },
+    { KEY_EN_NUMPAD_6,          0x5E },
+    { KEY_EN_NUMPAD_7,          0x5F },
+    { KEY_EN_NUMPAD_8,          0x60 },
+    { KEY_EN_NUMPAD_9,          0x61 },
+    { KEY_EN_NUMPAD_0,          0x62 },
+    { KEY_EN_NUMPAD_PERIOD,     0x63 },
+    { KEY_EN_ISO_BACK_SLASH,    0x64 },     /* ISO */
+    { KEY_EN_MENU,              0x65 },
+    { KEY_EN_LEFT_CONTROL,      0xE0 },
+    { KEY_EN_LEFT_SHIFT,        0xE1 },
+    { KEY_EN_LEFT_ALT,          0xE2 },
+    { KEY_EN_LEFT_WINDOWS,      0xE3 },
+    { KEY_EN_RIGHT_CONTROL,     0xE4 },
+    { KEY_EN_RIGHT_SHIFT,       0xE5 },
+    { KEY_EN_RIGHT_ALT,         0xE6 },
+    { KEY_EN_RIGHT_WINDOWS,     0xE7 },
+};
+
+/*---------------------------------------------------------*\
+| Reverse lookup over hidpp20_key_name_to_usage: HID usage  |
+| code -> key name, or nullptr when the code is not a       |
+| standard keyboard key (a vendor-local logo / G-key /      |
+| indicator id). Mirrors the reverse scan the 0x8081 Extras |
+| path does over hidpp20_key_name_to_zone.                  |
+\*---------------------------------------------------------*/
+static const char* hidpp20_key_name_for_usage(unsigned int usage)
+{
+    for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_usage)
+    {
+        if(kv.second == usage)
+        {
+            return kv.first.c_str();
+        }
+    }
+
+    return nullptr;
+}
+
+/*---------------------------------------------------------*\
 | Mouse LED layout table                                    |
 | Each entry defines a matrix layout for a known mouse.     |
 | Looked up by substring match on device name.              |
@@ -377,6 +516,19 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     | Direct mode: per-key control via 0x8081                    |
     \*----------------------------------------------------------*/
     if(caps.has_perkey)
+    {
+        mode Direct;
+        Direct.name       = "Direct";
+        Direct.value      = 0;
+        Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+        Direct.color_mode = MODE_COLORS_PER_LED;
+        modes.push_back(Direct);
+    }
+
+    /*----------------------------------------------------------*\
+    | Direct mode: per-key control via 0x8080 (separate feature) |
+    \*----------------------------------------------------------*/
+    if(caps.has_perkey_8080)
     {
         mode Direct;
         Direct.name       = "Direct";
@@ -700,12 +852,70 @@ RGBController_LogitechHIDPP20::~RGBController_LogitechHIDPP20()
     delete controller;
 }
 
+/*---------------------------------------------------------*\
+| Derive the KeyboardLayoutManager size + layout from the   |
+| discovered capabilities. Shared by the 0x8081 and 0x8080  |
+| per-key keyboard branches.                                |
+\*---------------------------------------------------------*/
+static void hidpp20_derive_keyboard_layout
+    (
+    const HIDPP20DeviceCapabilities&    caps,
+    KEYBOARD_SIZE&                      kb_size,
+    KEYBOARD_LAYOUT&                    kb_layout
+    )
+{
+    kb_size = caps.has_numpad ? KEYBOARD_SIZE_FULL : KEYBOARD_SIZE_TKL;
+
+    switch(caps.keyboard_layout_code)
+    {
+        case 3:     // German
+        case 7:     // Swiss
+            kb_layout = KEYBOARD_LAYOUT_ISO_QWERTZ;
+            break;
+
+        case 4:     // French
+            kb_layout = KEYBOARD_LAYOUT_ISO_AZERTY;
+            break;
+
+        case 2:     // UK
+        case 5:     // Spanish
+        case 0x0B:  // Italian
+        case 0x0D:  // Portuguese
+        case 0x0E:  // Belgian
+        case 0x0F:  // Scandinavian
+        case 8:     // Nordic
+        case 0x16:  // Nordic
+        case 0x1D:  // Nordic
+        case 0x21:  // Nordic
+        case 0x24:  // Belgian
+            kb_layout = KEYBOARD_LAYOUT_ISO_QWERTY;
+            break;
+
+        case 9:     // Japanese
+        case 0x3E:  // Japanese
+            kb_layout = KEYBOARD_LAYOUT_JIS;
+            break;
+
+        case 1:     // US
+        default:
+            kb_layout = KEYBOARD_LAYOUT_ANSI_QWERTY;
+            break;
+    }
+}
+
 void RGBController_LogitechHIDPP20::SetupZones()
 {
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     led_to_zone_id.clear();
+    led_to_keytype_keyid_8080.clear();
     sent_colors.clear();
+
+    if(caps.has_perkey_8080)
+    {
+        SetupZones8080();
+        return;
+    }
 
     if(caps.has_perkey)
     {
@@ -716,47 +926,9 @@ void RGBController_LogitechHIDPP20::SetupZones()
             | layout. Derive size from numpad presence, layout   |
             | from 0x4540 KeyboardLayout feature.                |
             \*--------------------------------------------------*/
-            KEYBOARD_SIZE kb_size = caps.has_numpad
-                                  ? KEYBOARD_SIZE_FULL
-                                  : KEYBOARD_SIZE_TKL;
-
+            KEYBOARD_SIZE   kb_size;
             KEYBOARD_LAYOUT kb_layout;
-
-            switch(caps.keyboard_layout_code)
-            {
-                case 3:     // German
-                case 7:     // Swiss
-                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTZ;
-                    break;
-
-                case 4:     // French
-                    kb_layout = KEYBOARD_LAYOUT_ISO_AZERTY;
-                    break;
-
-                case 2:     // UK
-                case 5:     // Spanish
-                case 0x0B:  // Italian
-                case 0x0D:  // Portuguese
-                case 0x0E:  // Belgian
-                case 0x0F:  // Scandinavian
-                case 8:     // Nordic
-                case 0x16:  // Nordic
-                case 0x1D:  // Nordic
-                case 0x21:  // Nordic
-                case 0x24:  // Belgian
-                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTY;
-                    break;
-
-                case 9:     // Japanese
-                case 0x3E:  // Japanese
-                    kb_layout = KEYBOARD_LAYOUT_JIS;
-                    break;
-
-                case 1:     // US
-                default:
-                    kb_layout = KEYBOARD_LAYOUT_ANSI_QWERTY;
-                    break;
-            }
+            hidpp20_derive_keyboard_layout(caps, kb_size, kb_layout);
 
             KeyboardLayoutManager klm(kb_layout, kb_size);
 
@@ -1001,6 +1173,217 @@ void RGBController_LogitechHIDPP20::SetupZones()
     SetupColors();
 }
 
+/*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) zone setup.             |
+|                                                           |
+| Fed entirely by the runtime enumeration in                |
+| DiscoverPerKey8080(): caps.perkey_8080_types holds the    |
+| confirmed keyTypes and their live keyIds. Nothing about   |
+| the key set is hardcoded.                                 |
+|                                                           |
+| For a keyboard we build the KeyboardLayoutManager matrix  |
+| and resolve each matrix key to a wire (keyType, keyId) by |
+| its standard HID keyboard usage code. The "keyboard"      |
+| keyType is identified as the enumerated keyType whose     |
+| keyIds best match the standard HID keyboard page — not by |
+| a hardcoded keyType value. Every enumerated (keyType,     |
+| keyId) the matrix doesn't claim is surfaced in an Extras  |
+| zone (logo, media, G-keys, indicators), named by the HID  |
+| usage where standard, generically otherwise.              |
+\*---------------------------------------------------------*/
+void RGBController_LogitechHIDPP20::SetupZones8080()
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    /*-----------------------------------------------------*\
+    | Identify the keyboard keyType: the enumerated keyType |
+    | whose keyIds overlap the standard HID keyboard page   |
+    | the most. Ties / no keyboard device -> none.          |
+    \*-----------------------------------------------------*/
+    int      kb_type_index   = -1;
+    size_t   kb_best_overlap = 0;
+
+    if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
+    {
+        for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+        {
+            size_t overlap = 0;
+
+            for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+            {
+                if(hidpp20_key_name_for_usage(key_id) != nullptr)
+                {
+                    overlap++;
+                }
+            }
+
+            if(overlap > kb_best_overlap)
+            {
+                kb_best_overlap = overlap;
+                kb_type_index   = (int)t;
+            }
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Track which (keyType, keyId) pairs the matrix claims  |
+    | so the Extras zone can pick up everything else.       |
+    \*-----------------------------------------------------*/
+    std::set<uint32_t> claimed;        /* (keyType << 8) | keyId */
+
+    size_t matrix_total  = 0;          /* KLM keys in the matrix       */
+    size_t matrix_mapped = 0;          /* matrix keys with a live keyId */
+
+    /*-----------------------------------------------------*\
+    | Keyboard matrix (when a keyboard keyType was found).  |
+    \*-----------------------------------------------------*/
+    if(kb_type_index >= 0)
+    {
+        const HIDPP20PerKey8080Type& kb_type = caps.perkey_8080_types[kb_type_index];
+
+        std::set<uint8_t> kb_key_ids(kb_type.key_ids.begin(), kb_type.key_ids.end());
+
+        KEYBOARD_SIZE   kb_size;
+        KEYBOARD_LAYOUT kb_layout;
+        hidpp20_derive_keyboard_layout(caps, kb_size, kb_layout);
+
+        KeyboardLayoutManager klm(kb_layout, kb_size);
+
+        zone perkey_zone;
+        perkey_zone.name       = ZONE_EN_KEYBOARD;
+        perkey_zone.type       = ZONE_TYPE_MATRIX;
+        perkey_zone.leds_min   = klm.GetKeyCount();
+        perkey_zone.leds_max   = klm.GetKeyCount();
+        perkey_zone.leds_count = klm.GetKeyCount();
+
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height          = klm.GetRowCount();
+        new_map->width           = klm.GetColumnCount();
+        new_map->map             = new unsigned int[new_map->height * new_map->width];
+        klm.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT,
+                      new_map->height, new_map->width);
+        perkey_zone.matrix_map = new_map;
+        zones.push_back(perkey_zone);
+
+        matrix_total = klm.GetKeyCount();
+
+        for(unsigned int i = 0; i < klm.GetKeyCount(); i++)
+        {
+            std::string key_name = klm.GetKeyNameAt(i);
+
+            led new_led;
+            new_led.name = key_name;
+
+            uint16_t key_type = 0;
+            uint8_t  key_id   = 0;
+
+            /*-----------------------------------------*\
+            | Resolve the key's standard HID usage code |
+            | and keep it only if the device enumerated |
+            | that keyId on the keyboard keyType.       |
+            \*-----------------------------------------*/
+            std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_usage.find(key_name);
+
+            if(it != hidpp20_key_name_to_usage.end()
+            && kb_key_ids.count((uint8_t)it->second) != 0)
+            {
+                key_type = kb_type.key_type;
+                key_id   = (uint8_t)it->second;
+                claimed.insert(((uint32_t)key_type << 8) | key_id);
+                matrix_mapped++;
+            }
+
+            new_led.value = ((uint32_t)key_type << 8) | key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(key_type, key_id);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Extras: every enumerated (keyType, keyId) the matrix  |
+    | did not claim. Named by HID usage where the keyId is a|
+    | standard keyboard code, generically otherwise.        |
+    \*-----------------------------------------------------*/
+    std::vector<std::pair<uint16_t, uint8_t>> extras;
+
+    for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+    {
+        uint16_t key_type = caps.perkey_8080_types[t].key_type;
+
+        for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+        {
+            uint32_t pair_key = ((uint32_t)key_type << 8) | key_id;
+
+            if(claimed.count(pair_key) != 0)
+            {
+                continue;
+            }
+
+            extras.emplace_back(key_type, key_id);
+        }
+    }
+
+    if(!extras.empty())
+    {
+        zone extras_zone;
+        extras_zone.name       = "Extras";
+        extras_zone.type       = ZONE_TYPE_LINEAR;
+        extras_zone.leds_min   = (unsigned int)extras.size();
+        extras_zone.leds_max   = (unsigned int)extras.size();
+        extras_zone.leds_count = (unsigned int)extras.size();
+        extras_zone.matrix_map = nullptr;
+        zones.push_back(extras_zone);
+
+        for(size_t i = 0; i < extras.size(); i++)
+        {
+            uint16_t    key_type = extras[i].first;
+            uint8_t     key_id   = extras[i].second;
+            const char* std_name = hidpp20_key_name_for_usage(key_id);
+
+            led new_led;
+
+            if(std_name != nullptr)
+            {
+                new_led.name = std_name;
+            }
+            else
+            {
+                char label[32];
+                snprintf(label, sizeof(label), "Zone 0x%04X Key 0x%02X",
+                         key_type, key_id);
+                new_led.name = label;
+            }
+
+            new_led.value = ((uint32_t)key_type << 8) | key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(key_type, key_id);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | One-shot summary of how the enumeration mapped onto   |
+    | the UI. If the structure dump looked right but nothing|
+    | lights, this line localises the break: no keyboard    |
+    | keyType, zero matrix keys mapped, or everything in    |
+    | Extras all point at distinct faults.                  |
+    \*-----------------------------------------------------*/
+    if(kb_type_index >= 0)
+    {
+        LOG_DEBUG("[LogitechHID++2.0 %s] 0x8080 zones: keyboard keyType 0x%04X, "
+                  "%zu/%zu matrix keys mapped, %zu extra LED(s)",
+                  name.c_str(), caps.perkey_8080_types[kb_type_index].key_type,
+                  matrix_mapped, matrix_total, extras.size());
+    }
+    else
+    {
+        LOG_DEBUG("[LogitechHID++2.0 %s] 0x8080 zones: no keyboard keyType "
+                  "identified, %zu extra LED(s) only",
+                  name.c_str(), extras.size());
+    }
+
+    SetupColors();
+}
+
 void RGBController_LogitechHIDPP20::ResizeZone(int /*zone*/, int /*new_size*/)
 {
 }
@@ -1058,6 +1441,70 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     if(caps.is_headset_rgb_hostmode)
     {
         controller->SetHeadsetRGBHostmodeColors(colors);
+        return;
+    }
+
+    /*----------------------------------------------------------*\
+    | Feature 0x8080 (Per Key Lighting) — separate feature from  |
+    | 0x8081. Full repaint grouped by keyType, then one          |
+    | FlushLEDS, mirroring the legacy G810/G910 batch-and-commit |
+    | behavior. led_to_keytype_keyid_8080 (built in              |
+    | SetupZones8080) maps each LED to its wire (keyType,keyId). |
+    \*----------------------------------------------------------*/
+    if(caps.has_perkey_8080 && (unsigned int)active_mode < modes.size() &&
+       modes[active_mode].color_mode == MODE_COLORS_PER_LED)
+    {
+        std::vector<RGBColor> snapshot(colors.begin(), colors.end());
+
+        int brightness = controller->GetDimBrightness();
+
+        /*------------------------------------------------------*\
+        | Group painted LEDs by keyType, preserving keyType      |
+        | order of first appearance. Skip unaddressable LEDs     |
+        | (keyType 0 + keyId 0 — present in the matrix but not   |
+        | enumerated on the device).                             |
+        \*------------------------------------------------------*/
+        std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>> by_type;
+        std::map<uint16_t, size_t> type_slot;
+
+        for(size_t i = 0; i < snapshot.size() && i < led_to_keytype_keyid_8080.size(); i++)
+        {
+            uint16_t key_type = led_to_keytype_keyid_8080[i].first;
+            uint8_t  key_id   = led_to_keytype_keyid_8080[i].second;
+
+            if(key_type == 0 && key_id == 0)
+            {
+                continue;
+            }
+
+            RGBColor color = snapshot[i];
+
+            if(brightness < 100)
+            {
+                uint8_t r = RGBGetRValue(color) * brightness / 100;
+                uint8_t g = RGBGetGValue(color) * brightness / 100;
+                uint8_t b = RGBGetBValue(color) * brightness / 100;
+                color = ToRGBColor(r, g, b);
+            }
+
+            std::map<uint16_t, size_t>::iterator slot = type_slot.find(key_type);
+
+            if(slot == type_slot.end())
+            {
+                type_slot[key_type] = by_type.size();
+                by_type.emplace_back(key_type, std::vector<std::pair<uint8_t, RGBColor>>());
+                slot = type_slot.find(key_type);
+            }
+
+            by_type[slot->second].second.emplace_back(key_id, color);
+        }
+
+        if(!by_type.empty())
+        {
+            controller->SetPerKey8080(by_type);
+            controller->PerKeyCommit8080();
+        }
+
         return;
     }
 
@@ -1562,6 +2009,40 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | effects render correctly alongside per-key on the devices  |
     | we have data for.                                          |
     \*----------------------------------------------------------*/
+    /*----------------------------------------------------------*\
+    | Feature 0x8080: Direct is handled above; the only other    |
+    | mode is Off, which blacks out every enumerated key and     |
+    | commits. (Zone effects, if the device also exposes         |
+    | 0x8070, are not surfaced for these boards yet.)            |
+    \*----------------------------------------------------------*/
+    if(caps.has_perkey_8080)
+    {
+        if(current.value == 0xFF)
+        {
+            std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>> by_type;
+
+            for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+            {
+                std::vector<std::pair<uint8_t, RGBColor>> keys;
+
+                for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+                {
+                    keys.emplace_back(key_id, ToRGBColor(0, 0, 0));
+                }
+
+                by_type.emplace_back(caps.perkey_8080_types[t].key_type, keys);
+            }
+
+            if(!by_type.empty())
+            {
+                controller->SetPerKey8080(by_type);
+                controller->PerKeyCommit8080();
+            }
+        }
+
+        return;
+    }
+
     if(caps.has_perkey)
     {
         /*------------------------------------------------------*\

@@ -91,6 +91,29 @@
 #define FN_8081_FRAME_END                   0x70
 
 /*-----------------------------------------------------*\
+| Feature 0x8080 functions (Per Key Lighting)           |
+|                                                       |
+| A separate feature from 0x8081 ("V2" is Logitech's    |
+| feature name, not a version). Addresses keys by a     |
+| (keyType u16 BE, keyId u8 = USB HID usage code) pair. |
+| fn3 SetKeyColors rides the 0x12 very-long report on a |
+| second HID handle; all other functions ride 0x11.     |
+\*-----------------------------------------------------*/
+#define FN_8080_GET_INFO                    0x00
+#define FN_8080_GET_KEY_TYPE_INFO           0x10
+#define FN_8080_GET_KEY_COLORS              0x20
+#define FN_8080_SET_KEY_COLORS              0x30
+#define FN_8080_SET_ALL_KEYS                0x40
+#define FN_8080_FLUSH_LEDS                  0x50
+
+/*-----------------------------------------------------*\
+| 0x8080 carries up to 14 (keyId,R,G,B) tuples in one   |
+| very-long (report 0x12) frame, and GetKeyColors       |
+| paginates its readback by the same count.             |
+\*-----------------------------------------------------*/
+#define HIDPP20_8080_KEYS_PER_FRAME         14
+
+/*-----------------------------------------------------*\
 | Feature 0x0620 functions (headset RGB hostmode)       |
 \*-----------------------------------------------------*/
 #define FN_0620_GET_INFO                    0x00
@@ -136,6 +159,22 @@ struct HIDPP20ZoneCluster
     uint16_t                    location;
     uint8_t                     effect_count;
     std::vector<HIDPP20Effect>    effects;
+};
+
+/*-----------------------------------------------------*\
+| One confirmed Feature 0x8080 keyType and the keyIds   |
+| enumerated under it. keyType is the legacy "zone"     |
+| (KEYBOARD=0x01, MEDIA=0x02, GKEYS=0x04, LOGO=0x10,    |
+| INDICATORS=0x40); keyIds are USB HID usage codes on   |
+| the keyboard keyType and vendor-local indices on the  |
+| others. Built entirely from runtime probing — no      |
+| hardcoded key map. See DiscoverPerKey8080().          |
+\*-----------------------------------------------------*/
+struct HIDPP20PerKey8080Type
+{
+    uint16_t                    key_type;
+    uint8_t                     param[3];     /* fn1 GetKeyTypeInfo param bytes */
+    std::vector<uint8_t>          key_ids;      /* fn2 GetKeyColors, keyId != 0 */
 };
 
 /*-----------------------------------------------------*\
@@ -199,6 +238,7 @@ struct HIDPP20DeviceCapabilities
     uint8_t         idx_headset_rgb_hostmode;   /* 0x0620 — Centurion headset RGB */
     uint8_t         idx_perkey_v2;
     uint8_t         idx_perkey_v1;
+    uint8_t         idx_perkey_8080;            /* 0x8080 — Per Key Lighting (legacy G810/G910 family) */
     uint8_t         idx_wireless_status;
     uint8_t         idx_disable_keys_by_usage;  /* 0x4522 — keyboard-family handshake */
     uint16_t        rgb_feature_page;
@@ -253,6 +293,17 @@ struct HIDPP20DeviceCapabilities
     std::vector<uint8_t>            headset_rgb_hostmode_zone_ids;  /* 0x0620 fn1 result */
     bool                            has_perkey;
     bool                            has_zone_effects;
+
+    /*-------------------------------------------------*\
+    | Feature 0x8080 (Per Key Lighting) enumeration.    |
+    | Populated by DiscoverPerKey8080() entirely from   |
+    | runtime probing (fn0 GetInfo + fn1/fn2 sweep).    |
+    \*-------------------------------------------------*/
+    bool                            has_perkey_8080;
+    uint16_t                        perkey_8080_type_flags;
+    uint16_t                        perkey_8080_type_count;     /* fn0 keyTypeCount — completeness oracle */
+    uint16_t                        perkey_8080_max_key_count;
+    std::vector<HIDPP20PerKey8080Type> perkey_8080_types;
     bool                            is_headset_rgb_hostmode;        /* 0x0620 path selected */
     bool                            has_numpad;
     uint8_t                         keyboard_layout_code;
@@ -461,7 +512,8 @@ public:
     LogitechHIDPP20Controller(hid_device* dev, const char* path,
                             uint8_t device_index, bool wireless,
                             std::shared_ptr<std::mutex> mutex_ptr,
-                            uint16_t usage_page = 0xFF00);
+                            uint16_t usage_page = 0xFF00,
+                            hid_device* perkey_vl_dev = nullptr);
     ~LogitechHIDPP20Controller();
 
     /*-------------------------------------------------*\
@@ -495,6 +547,18 @@ public:
                                      const uint8_t* data, size_t len,
                                      const std::vector<uint8_t>& zone_ids);
     PerKeyFrameResult PerKeyFrameEnd();
+
+    /*--------------------------------------------------*\
+    | Per-key lighting (0x8080 — separate feature)       |
+    |                                                    |
+    | Addresses keys by (keyType, keyId). fn3            |
+    | SetKeyColors rides the 0x12 very-long report on    |
+    | dev_perkey_vl; fn5 FlushLEDS commits on dev. The   |
+    | keyType/keyId set is discovered at probe time      |
+    | (DiscoverPerKey8080) — never hardcoded.            |
+    \*--------------------------------------------------*/
+    void              SetPerKey8080(const std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>>& by_type);
+    void              PerKeyCommit8080();
 
     /*-------------------------------------------------*\
     | Zone effects (0x8071 / 0x8070)                    |
@@ -591,6 +655,7 @@ public:
 
 private:
     hid_device*                 dev;
+    hid_device*                 dev_perkey_vl;  /* 0x8080: very-long (0x12) write handle (usage 0x0604); nullptr if absent */
     std::string                 location;
     uint8_t                     device_index;
     bool                        wireless;
@@ -650,6 +715,16 @@ private:
     int             ReadCenturionDirect(uint8_t* feat_idx_out, uint8_t* function_out,
                                         uint8_t* data_out, size_t data_max,
                                         int timeout_ms);
+
+    /*--------------------------------------------------*\
+    | Feature 0x8080 very-long (0x12) frame transport.   |
+    | Writes a 64-byte report to dev_perkey_vl; the ACK  |
+    | lands on dev and is drained by the reader thread.  |
+    | Fire-and-forget — do NOT route through SendStandard|
+    | (which caps at the 0x11 long report).              |
+    \*--------------------------------------------------*/
+    int             SendVeryLongFrame(uint8_t feat_idx, uint8_t function,
+                                      const uint8_t* data, size_t len);
 
     /*--------------------------------------------------*\
     | Reader thread dispatch layer                       |
@@ -718,6 +793,11 @@ private:
     void            DiscoverEffectCards();
     void            DiscoverHeadsetRGBHostmode();
     void            DiscoverPerKeyZones();
+    void            DiscoverPerKey8080();
+    size_t          ReadPerKey8080Colors(uint8_t feat_idx, uint16_t key_type,
+                                         uint16_t max_key_count,
+                                         std::vector<uint8_t>& out_ids,
+                                         bool log_colors);
     void            DiscoverKeyboardLayout();
 
     /*-------------------------------------------------*\
