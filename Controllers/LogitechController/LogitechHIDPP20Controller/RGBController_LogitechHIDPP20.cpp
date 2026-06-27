@@ -2010,10 +2010,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | we have data for.                                          |
     \*----------------------------------------------------------*/
     /*----------------------------------------------------------*\
-    | Feature 0x8080: Direct is handled above; the only other    |
-    | mode is Off, which blacks out every enumerated key and     |
-    | commits. (Zone effects, if the device also exposes         |
-    | 0x8070, are not surfaced for these boards yet.)            |
+    | Feature 0x8080: Direct is handled above and Off blacks     |
+    | every enumerated key via the per-key path. Any other mode  |
+    | is a 0x8070/0x8071 zone effect (Static/Cycle/Breathing/..) |
+    | and falls through to the zone-effect path below — the same |
+    | mechanism the 0x8081 keyboards use. Those modes only exist |
+    | when the device actually advertises a zone-effect feature, |
+    | so there is nothing to fall through to otherwise.          |
     \*----------------------------------------------------------*/
     if(caps.has_perkey_8080)
     {
@@ -2038,9 +2041,14 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                 controller->SetPerKey8080(by_type);
                 controller->PerKeyCommit8080();
             }
+
+            return;
         }
 
-        return;
+        /*------------------------------------------------------*\
+        | Any other mode is a zone effect — fall through to the  |
+        | SetZoneEffect path below.                              |
+        \*------------------------------------------------------*/
     }
 
     if(caps.has_perkey)
