@@ -851,15 +851,15 @@ REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",      
 | the very-long (usage 0x0604, report 0x12) handle these boards use for SetKeyColors. They run through the same DetectLogitechHIDPP20 as every other  |
 | HID++ 2.0 device, which dumps the feature table and drives 0x8080 (set/commit + runtime keyType enumeration).                                       |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IP ("Logitech G512",                                         DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_PID,            1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G512 RGB",                                     DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_RGB_PID,        1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G610 Orion",                                   DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G610_1_PID,          1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G610 Orion",                                   DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G610_2_PID,          1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G810 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G810_1_PID,          1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G810 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G810_2_PID,          1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G910 Orion Spark",                             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G910_ORION_SPARK_PID, 1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G910 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G910_PID,            1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G Pro RGB Mechanical Gaming Keyboard",          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_GPRO_KEYBOARD_1_PID, 1, 0xFF43);
+REGISTER_HID_DETECTOR_IPU("Logitech G512",                                         DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_PID,            1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G512 RGB",                                     DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G512_RGB_PID,        1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G610 Orion",                                   DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G610_1_PID,          1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G610 Orion",                                   DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G610_2_PID,          1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G810 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G810_1_PID,          1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G810 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G810_2_PID,          1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G910 Orion Spark",                             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G910_ORION_SPARK_PID, 1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G910 Orion Spectrum",                          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G910_PID,            1, 0xFF43, 0x0602);
+REGISTER_HID_DETECTOR_IPU("Logitech G Pro RGB Mechanical Gaming Keyboard",          DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_GPRO_KEYBOARD_1_PID, 1, 0xFF43, 0x0602);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Centurion-transport devices (63-byte reports on usage page 0xFFA0, 0x50 addressed or 0x51 direct).                                                |
