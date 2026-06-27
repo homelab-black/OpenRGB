@@ -2036,9 +2036,27 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
                 continue;
             }
 
-            effect.effect_id     = (response.data[2] << 8) | response.data[3];
-            effect.capabilities  = (response.data[4] << 8) | response.data[5];
-            effect.default_period = (response.data[6] << 8) | response.data[7];
+            /*--------------------------------------------------*\
+            | Response offsets differ between the pages:         |
+            |   0x8071/0x0600 GetEffectInfo — effectId at [2..3] |
+            |     (bytes 0-1 echo cluster + effect index).       |
+            |   0x8070 GetZoneEffectInfo (fn2) — effectId at     |
+            |     [0..1], caps [2..3], period [4..5] per the RE  |
+            |     doc. (0x8070 byte layout is binary-derived,    |
+            |     re-confirm on hardware.)                       |
+            \*--------------------------------------------------*/
+            if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+            {
+                effect.effect_id      = (response.data[0] << 8) | response.data[1];
+                effect.capabilities   = (response.data[2] << 8) | response.data[3];
+                effect.default_period = (response.data[4] << 8) | response.data[5];
+            }
+            else
+            {
+                effect.effect_id      = (response.data[2] << 8) | response.data[3];
+                effect.capabilities   = (response.data[4] << 8) | response.data[5];
+                effect.default_period = (response.data[6] << 8) | response.data[7];
+            }
 
             LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms",
                      LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period);
@@ -4098,6 +4116,8 @@ void LogitechHIDPP20Controller::SetZoneEffect
             | "Fixed color" marker — only set when there's an       |
             | actual color. All-black means "Off / pass-through to  |
             | per-key buffer", which uses byte 5 = 0x00 instead.    |
+            | Shared across pages: 0x8070's func-3 Static tail is   |
+            | R, G, B, 0x02 at byte 5, same position as 0x8071.     |
             \*-----------------------------------------------------*/
             if(r != 0 || g != 0 || b != 0)
             {
@@ -4208,11 +4228,15 @@ void LogitechHIDPP20Controller::SetZoneEffect
     }
 
     /*------------------------------------------------------*\
-    | 16-byte payload for all pages; persist at byte[12].    |
-    | 0x8070 and 0x8071/0x0600 share the same byte position  |
-    | per LogitechProtocolCommon setMode convention.         |
+    | Inline persist byte at [12] — 0x8071/0x0600 only.      |
+    | 0x8070 has no inline persist (NvConfig is funcs 4/5),  |
+    | so [12] there is a param byte; the legacy G810 left it |
+    | zero. Persist on 0x8070 rides SetSWControl's flag.     |
     \*------------------------------------------------------*/
-    data[12] = persist ? 0x01 : 0x00;
+    if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        data[12] = persist ? 0x01 : 0x00;
+    }
 
     LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
               "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
