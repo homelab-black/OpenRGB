@@ -2273,16 +2273,16 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
 void LogitechHIDPP20Controller::DiscoverPerKeyZones()
 {
     /*---------------------------------------------------------*\
-    | Try 0x8081 first, fall back to 0x8080                     |
+    | 0x8081 (Per Key Lighting V2) only. 0x8080 (V1) is a       |
+    | separate feature driven by DiscoverPerKey8080 — it must   |
+    | NOT be probed with the 0x8081 functions here. Doing so    |
+    | misreads a 0x8080 GetInfo as an 0x8081 zone bitmap, sets  |
+    | has_perkey on a device with no 0x8081, and then fires the |
+    | 0x8081 FrameEnd path (InvalidFunctionID) against it.      |
     \*---------------------------------------------------------*/
     caps.idx_perkey_v2 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V2);
 
-    if(caps.idx_perkey_v2 == 0)
-    {
-        caps.idx_perkey_v1 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V1);
-    }
-
-    uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
+    uint8_t perkey_idx = caps.idx_perkey_v2;
 
     if(perkey_idx == 0)
     {
