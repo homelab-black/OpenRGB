@@ -69,7 +69,7 @@ static constexpr HIDPP20FeatureVersionSet HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
     { 0x1D4B, { 0 }, 1 },
     { 0x4540, { 0, 1 }, 2 },
     { 0x8070, { 0, 3, 5 }, 3 },
-    { 0x8071, { 4 }, 1 },
+    { 0x8071, { 0, 4 }, 2 },
     { 0x8080, { 0 }, 1 },
     { 0x8081, { 0, 2 }, 2 },
 };
