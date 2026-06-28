@@ -2037,27 +2037,28 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
             }
 
             /*--------------------------------------------------*\
-            | Response offsets differ between the pages:         |
-            |   0x8071/0x0600 GetEffectInfo — effectId at [2..3] |
-            |     (bytes 0-1 echo cluster + effect index).       |
-            |   0x8070 GetZoneEffectInfo (fn2) — effectId at     |
-            |     [0..1], caps [2..3], period [4..5].            |
+            | 0x8070 GetZoneEffectInfo and 0x8071/0x0600         |
+            | GetEffectInfo share one response shape:            |
+            |   [0..1] echo (zone/cluster << 8 | effect index)   |
+            |   [2..3] effect type id                            |
+            |   [4..5] capability bitmask                        |
+            |   [6..7] default period (ms)                       |
+            | Hardware-confirmed on a G810: its [4..5] values    |
+            | (0xC001/0xDCE1) are the same capability masks a    |
+            | G515 reports on 0x8071, so [2..3] is the type and  |
+            | the prior 0x8070 layout was reading the index echo |
+            | at [0..1] as the id (it only matched on zone 0,    |
+            | where the echo collapses to the index).            |
             \*--------------------------------------------------*/
-            if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
-            {
-                effect.effect_id      = (response.data[0] << 8) | response.data[1];
-                effect.capabilities   = (response.data[2] << 8) | response.data[3];
-                effect.default_period = (response.data[4] << 8) | response.data[5];
-            }
-            else
-            {
-                effect.effect_id      = (response.data[2] << 8) | response.data[3];
-                effect.capabilities   = (response.data[4] << 8) | response.data[5];
-                effect.default_period = (response.data[6] << 8) | response.data[7];
-            }
+            effect.effect_id      = (response.data[2] << 8) | response.data[3];
+            effect.capabilities   = (response.data[4] << 8) | response.data[5];
+            effect.default_period = (response.data[6] << 8) | response.data[7];
 
-            LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms",
-                     LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period);
+            LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms "
+                     "[raw %02X %02X %02X %02X %02X %02X %02X %02X]",
+                     LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period,
+                     response.data[0], response.data[1], response.data[2], response.data[3],
+                     response.data[4], response.data[5], response.data[6], response.data[7]);
 
             cluster.effects.push_back(effect);
         }
