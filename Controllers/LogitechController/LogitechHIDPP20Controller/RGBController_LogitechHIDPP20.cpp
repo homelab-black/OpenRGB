@@ -1353,10 +1353,8 @@ void RGBController_LogitechHIDPP20::SetupZones()
     if(PerKey8080Capable())
     {
         SetupZones8080();
-        return;
     }
-
-    if(caps.has_perkey)
+    else if(caps.has_perkey)
     {
         if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
         {
@@ -1690,8 +1688,6 @@ void RGBController_LogitechHIDPP20::SetupZones8080()
         LOG_DEBUG("[%s] 0x8080 using ported layout for PID 0x%04X: %u LEDs, %ux%u matrix",
                   caps.device_name.c_str(), kbl->pid,
                   kbl->led_count, kbl->rows, kbl->cols);
-
-        SetupColors();
         return;
     }
 
@@ -1880,8 +1876,6 @@ void RGBController_LogitechHIDPP20::SetupZones8080()
                   "identified, %zu extra LED(s) only",
                   name.c_str(), extras.size());
     }
-
-    SetupColors();
 }
 
 void RGBController_LogitechHIDPP20::ResizeZone(int /*zone*/, int /*new_size*/)
