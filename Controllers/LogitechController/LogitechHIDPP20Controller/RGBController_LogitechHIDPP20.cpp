@@ -1685,6 +1685,8 @@ void RGBController_LogitechHIDPP20::SetupZones8080()
         LOG_DEBUG("[%s] 0x8080 using ported '%s' layout: %u LEDs, %ux%u matrix",
                   caps.device_name.c_str(), kbl->name_match,
                   kbl->led_count, kbl->rows, kbl->cols);
+
+        SetupColors();
         return;
     }
 
