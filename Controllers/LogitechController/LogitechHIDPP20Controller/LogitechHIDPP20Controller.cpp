@@ -3203,6 +3203,16 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
         return true;
     }
 
+    /*----------------------------------------------------------*\
+    | SetSWControl is an 0x8071 claim. 0x8070 boards (G810/G910) |
+    | write directly with no claim; one here makes them ignore   |
+    | the writes.                                                |
+    \*----------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        return true;
+    }
+
     if(caps.idx_rgb_effects == 0 || !device_online.load())
     {
         return false;
