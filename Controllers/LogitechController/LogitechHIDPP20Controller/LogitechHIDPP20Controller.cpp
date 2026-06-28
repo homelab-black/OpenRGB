@@ -4213,13 +4213,21 @@ void LogitechHIDPP20Controller::SetZoneEffect
 
         case 0x0004:    // Color Wave
             /*------------------------------------------------------*\
-            | Param block: periodHi/Lo at data[8..9], direction at   |
-            | data[11] — the 0x0016 layout without its saturation    |
-            | and intensity bytes.                                   |
+            | Plain (non-saturation) wave. The period is split       |
+            | NON-contiguously and there is no saturation byte:      |
+            |   data[8]  = period low                                |
+            |   data[9]  = direction (1..8)                          |
+            |   data[10] = brightness/intensity (1..100, min 1)      |
+            |   data[11] = period high                               |
+            | Distinct from the 0x0016 saturation-wave layout below  |
+            | (saturation@3, period BE@8..9, direction@11) — reusing |
+            | that here put the direction in the period-high slot,   |
+            | which the firmware rejected with InvalidArgument.      |
             \*------------------------------------------------------*/
-            data[8]  = (period >> 8) & 0xFF;
-            data[9]  = period & 0xFF;
-            data[11] = direction;
+            data[8]  = period & 0xFF;
+            data[9]  = direction;
+            data[10] = brightness ? brightness : 1;
+            data[11] = (period >> 8) & 0xFF;
             break;
 
         case 0x000B:    // Ripple
