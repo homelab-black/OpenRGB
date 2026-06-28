@@ -2407,7 +2407,20 @@ size_t LogitechHIDPP20Controller::ReadPerKey8080Colors
     )
 {
     size_t start_index = 0;
+
+    /*-----------------------------------------------------*\
+    | The found==0 break is the real terminator; guard_pages|
+    | only bounds the loop. maxKeyCount can be misreported  |
+    | as 0 (seen on the G810), which would collapse the     |
+    | guard to ~4 pages and truncate a full keyboard, so    |
+    | floor it at 16 pages (224 keys).                      |
+    \*-----------------------------------------------------*/
     size_t guard_pages = (max_key_count / HIDPP20_8080_KEYS_PER_FRAME) + 4;
+
+    if(guard_pages < 16)
+    {
+        guard_pages = 16;
+    }
 
     for(size_t page = 0; page < guard_pages; page++)
     {
@@ -2468,14 +2481,18 @@ size_t LogitechHIDPP20Controller::ReadPerKey8080Colors
 | keys by a (keyType u16 BE, keyId u8 = USB HID usage code) |
 | pair and carries SetKeyColors on the 0x12 very-long       |
 | report. There is NO device call that lists the keyTypes:  |
-| fn0 GetInfo returns only a keyTypeCount (cardinality) and |
-| a typeFlags word. So the keyType set is discovered        |
-| empirically — sweep fn1 GetKeyTypeInfo over the low byte  |
-| 0x00..0xFF, confirm each by requiring both a plausible    |
-| fn1 echo AND a real keyId != 0 from fn2 GetKeyColors,     |
-| stop once keyTypeCount keyTypes are confirmed, and extend |
-| to u16 high-bit candidates if the low-byte sweep falls    |
-| short.                                                    |
+| fn0 GetInfo returns only a keyTypeCount and a typeFlags   |
+| word. G HUB knows its keyTypes from shipped config and    |
+| reads each with fn2 GetKeyColors; with no config we sweep |
+| candidate keyTypes (low byte 0x00..0xFF plus the u16      |
+| high-bit values) and confirm each the same way G HUB does:|
+| fn2 GetKeyColors returns >= 1 real keyId. fn1             |
+| GetKeyTypeInfo is advisory only (its 3 param bytes feed   |
+| the dump) — it is NOT a gate, because V1 firmware such as |
+| the G810 errors on fn1 yet drives per-key fine via fn2/fn3.|
+| typeFlags is logged and used only as a completeness oracle,|
+| never to restrict the candidate set (so the C32B typeFlags|
+| mask cannot drop the G910's media keyType).               |
 |                                                           |
 | Read-only: this only issues fn0/fn1/fn2 (GetInfo /        |
 | GetKeyTypeInfo / GetKeyColors). All reads ride dev.       |
@@ -2524,9 +2541,13 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
     uint16_t max_key_count  = (uint16_t)((info[5] << 8) | info[6]);
 
     /*-----------------------------------------------------*\
-    | Quirk — C32B (G910 Orion Spark) over-reports typeFlags|
-    | bit 0x2. GetInfo-only mask; does not affect keyType   |
-    | enumeration (which is empirical, not typeFlags-based).|
+    | Quirk — C32B (G910 Orion Spark) reportedly over-      |
+    | reports typeFlags bit 0x2. This masks only the logged |
+    | / oracle value; it does NOT touch the candidate sweep,|
+    | so the G910's media keyType (0x02) is still probed and|
+    | confirmed by fn2 regardless. If media is in fact real,|
+    | the completeness-oracle log below will flag the       |
+    | mismatch and settle whether the mask is warranted.    |
     \*-----------------------------------------------------*/
     if(caps.pid_wired == 0xC32B || caps.pid_wireless == 0xC32B)
     {
@@ -2543,9 +2564,11 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
 
     /*-----------------------------------------------------*\
     | Build the candidate keyType list: full low byte       |
-    | 0x00..0xFF, then the u16 high-bit candidates          |
-    | 0x0100,0x0200,...,0x8000 (only reached if the low-byte|
-    | sweep confirms fewer than keyTypeCount).              |
+    | 0x00..0xFF (covers the whole family: 0x01 keyboard,   |
+    | 0x02 media, 0x04 G-keys, 0x10 logo, 0x40 indicators), |
+    | then the u16 high-bit candidates 0x0100..0x8000. Every|
+    | candidate is confirmed via fn2; typeFlags never       |
+    | restricts this set.                                   |
     \*-----------------------------------------------------*/
     std::vector<uint16_t> candidates;
     for(uint16_t low = 0x0000; low <= 0x00FF; low++)
@@ -2558,65 +2581,53 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
     }
 
     /*-----------------------------------------------------*\
-    | Sweep candidates, confirming each via fn1 then fn2.   |
+    | Sweep candidates, confirming each via fn2 GetKeyColors.|
     \*-----------------------------------------------------*/
     for(uint16_t key_type : candidates)
     {
-        if(key_type_count != 0 && caps.perkey_8080_types.size() >= key_type_count)
+        if(key_type == 0)
         {
-            break;              /* all advertised keyTypes confirmed */
+            continue;           /* 0x0000 is not a real keyType */
         }
 
         /*-------------------------------------------------*\
-        | fn1 GetKeyTypeInfo(keyType u16 BE) → echo + 3     |
-        | param bytes. Reject responses < 4 bytes or that   |
-        | don't echo the requested keyType.                 |
-        \*-------------------------------------------------*/
-        uint8_t q1[2]     = { (uint8_t)(key_type >> 8), (uint8_t)(key_type & 0xFF) };
-        uint8_t resp1[16] = {};
-        int r1 = SendAcked(idx, FN_8080_GET_KEY_TYPE_INFO, q1, 2,
-                           resp1, sizeof(resp1), HIDPP20_POLICY_PROBE);
-
-        if(r1 < 4)
-        {
-            continue;           /* no usable response for this keyType */
-        }
-
-        uint16_t echo = (uint16_t)((resp1[0] << 8) | resp1[1]);
-
-        if(echo != key_type)
-        {
-            continue;           /* not a real echo */
-        }
-
-        LOG_DEBUG("%s   fn1 keyType 0x%04X echo OK params=%02X,%02X,%02X",
-                  LOG_TAG, key_type, resp1[2], resp1[3], resp1[4]);
-
-        /*-------------------------------------------------*\
-        | fn2 GetKeyColors must yield >= 1 live keyId       |
-        | before the fn1 echo is trusted; some firmware     |
-        | echoes any keyType.                               |
+        | fn2 GetKeyColors is the confirmation: a keyType   |
+        | is real on this device iff it returns >= 1 keyId  |
+        | != 0. This is how G HUB walks its keyType list,   |
+        | and it needs no fn1 echo.                         |
         \*-------------------------------------------------*/
         std::vector<uint8_t> key_ids;
         size_t live = ReadPerKey8080Colors(idx, key_type, max_key_count, key_ids, true);
 
         if(live == 0)
         {
-            LOG_DEBUG("%s   keyType 0x%04X rejected (fn1 echoed but fn2 "
-                      "returned no live keyId)", LOG_TAG, key_type);
-            continue;
+            continue;           /* not a keyType on this device */
         }
+
+        /*-------------------------------------------------*\
+        | fn1 GetKeyTypeInfo is advisory — capture the 3    |
+        | param bytes for the dump when the device          |
+        | implements it, but never gate on it (V1 firmware  |
+        | like the G810 errors here yet drives per-key).    |
+        \*-------------------------------------------------*/
+        uint8_t q1[2]     = { (uint8_t)(key_type >> 8), (uint8_t)(key_type & 0xFF) };
+        uint8_t resp1[16] = {};
+        int  r1     = SendAcked(idx, FN_8080_GET_KEY_TYPE_INFO, q1, 2,
+                                resp1, sizeof(resp1), HIDPP20_POLICY_PROBE);
+        bool fn1_ok = (r1 >= 4)
+                   && (((uint16_t)((resp1[0] << 8) | resp1[1])) == key_type);
 
         HIDPP20PerKey8080Type entry;
         entry.key_type = key_type;
-        entry.param[0] = resp1[2];
-        entry.param[1] = resp1[3];
-        entry.param[2] = resp1[4];
+        entry.param[0] = fn1_ok ? resp1[2] : 0;
+        entry.param[1] = fn1_ok ? resp1[3] : 0;
+        entry.param[2] = fn1_ok ? resp1[4] : 0;
         entry.key_ids  = key_ids;
         caps.perkey_8080_types.push_back(entry);
 
-        LOG_DEBUG("%s   CONFIRMED keyType 0x%04X with %zu keyId(s)",
-                  LOG_TAG, key_type, key_ids.size());
+        LOG_DEBUG("%s   CONFIRMED keyType 0x%04X with %zu keyId(s)%s",
+                  LOG_TAG, key_type, key_ids.size(),
+                  fn1_ok ? "" : " (fn1 unsupported; fn2-confirmed)");
     }
 
     caps.has_perkey_8080 = !caps.perkey_8080_types.empty();
@@ -2638,12 +2649,31 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
         }
     }
 
-    if(key_type_count != 0 && caps.perkey_8080_types.size() < key_type_count)
+    /*-----------------------------------------------------*\
+    | Completeness oracle (diagnostic only — discovery does |
+    | not depend on it): typeFlags is the advertised keyType|
+    | bitmask, so its set-bit count is how many keyTypes to |
+    | expect. Logging it against what fn2 confirmed answers |
+    | per run whether typeFlags maps 1:1 to keyTypes (the   |
+    | doc's open question, and the C32B/G910 media case).   |
+    \*-----------------------------------------------------*/
+    unsigned int flag_count = 0;
+
+    for(int bit = 0; bit < 16; bit++)
     {
-        LOG_DEBUG("%s 0x8080 enumeration incomplete: confirmed %zu of %u "
-                  "keyTypes (GetInfo oracle). The dump above is authoritative; "
-                  "missing keyTypes did not pass the fn1<->fn2 cross-check.",
-                  LOG_TAG, caps.perkey_8080_types.size(), key_type_count);
+        if(type_flags & (1u << bit))
+        {
+            flag_count++;
+        }
+    }
+
+    if(caps.perkey_8080_types.size() != flag_count)
+    {
+        LOG_DEBUG("%s 0x8080 confirmed %zu keyType(s); typeFlags=0x%04X "
+                  "advertises %u. The CONFIRMED lines above are authoritative "
+                  "(fn2 read real keyIds); a mismatch means typeFlags is not a "
+                  "1:1 keyType bitmask on this device.",
+                  LOG_TAG, caps.perkey_8080_types.size(), type_flags, flag_count);
     }
 
     LOG_DEBUG("%s 0x8080 enumeration: %zu keyType(s) confirmed, has_perkey_8080=%s%s",
