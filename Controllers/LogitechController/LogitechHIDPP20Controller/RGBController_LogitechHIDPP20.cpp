@@ -475,6 +475,440 @@ static const MouseLayout* FindMouseLayout(const std::string& device_name)
     return nullptr;
 }
 
+/*---------------------------------------------------------*\
+| Keyboard per-key layout table (Feature 0x8080)            |
+| Mirrors the mouse layout table above: matched by device   |
+| name substring, each entry supplies the physical matrix   |
+| (which the device cannot report) plus, per LED, the wire  |
+| (keyType, keyId) that 0x8080 SetKeyColors addresses.      |
+| Ported from the legacy G810/G910/G Pro controllers — the  |
+| keyType values are the zones KEYBOARD 0x01 / MEDIA 0x02 / |
+| GKEYS 0x04 / LOGO 0x10 / INDICATORS 0x40.                 |
+\*---------------------------------------------------------*/
+#define KB_NA 0xFFFFFFFF
+
+struct KbLed
+{
+    const char*     name;
+    unsigned short  key_type;
+    unsigned char   key_id;
+};
+
+static const unsigned int g810_kbd_map[7 * 23] =
+{
+      111, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,   116,   114,   115, KB_NA,   113, KB_NA,   112,   110, KB_NA, KB_NA, KB_NA,
+       37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68,   109,   108,   107,   106,
+       49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,    79,    80,    81,    82,
+       39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,    91,    92,    93,    83,
+       53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,    88,    89,    90, KB_NA,
+       99,    96,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,   103, KB_NA, KB_NA,    78, KB_NA,    85,    86,    87,    84,
+       98,   101,   100, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,   104,   105,    97,   102,    76,    77,    75,    94, KB_NA,    95, KB_NA,
+};
+
+static const KbLed g810_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_NUMPAD_LOCK        , 0x0001, 0x53 },
+    { KEY_EN_NUMPAD_DIVIDE      , 0x0001, 0x54 },
+    { KEY_EN_NUMPAD_TIMES       , 0x0001, 0x55 },
+    { KEY_EN_NUMPAD_MINUS       , 0x0001, 0x56 },
+    { KEY_EN_NUMPAD_PLUS        , 0x0001, 0x57 },
+    { KEY_EN_NUMPAD_ENTER       , 0x0001, 0x58 },
+    { KEY_EN_NUMPAD_1           , 0x0001, 0x59 },
+    { KEY_EN_NUMPAD_2           , 0x0001, 0x5A },
+    { KEY_EN_NUMPAD_3           , 0x0001, 0x5B },
+    { KEY_EN_NUMPAD_4           , 0x0001, 0x5C },
+    { KEY_EN_NUMPAD_5           , 0x0001, 0x5D },
+    { KEY_EN_NUMPAD_6           , 0x0001, 0x5E },
+    { KEY_EN_NUMPAD_7           , 0x0001, 0x5F },
+    { KEY_EN_NUMPAD_8           , 0x0001, 0x60 },
+    { KEY_EN_NUMPAD_9           , 0x0001, 0x61 },
+    { KEY_EN_NUMPAD_0           , 0x0001, 0x62 },
+    { KEY_EN_NUMPAD_PERIOD      , 0x0001, 0x63 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_WINDOWS      , 0x0001, 0xE7 },
+    { KEY_EN_MEDIA_NEXT         , 0x0002, 0xB5 },
+    { KEY_EN_MEDIA_PREVIOUS     , 0x0002, 0xB6 },
+    { KEY_EN_MEDIA_STOP         , 0x0002, 0xB7 },
+    { KEY_EN_MEDIA_PLAY_PAUSE   , 0x0002, 0xCD },
+    { KEY_EN_MEDIA_MUTE         , 0x0002, 0xE2 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Lighting"                , 0x0040, 0x01 },
+    { "Game Mode"               , 0x0040, 0x02 },
+    { "Caps Lock Indicator"     , 0x0040, 0x03 },
+    { "Scroll Lock Indicator"   , 0x0040, 0x04 },
+    { "Num Lock Indicator"      , 0x0040, 0x05 },
+};
+// G810: 117 leds, matrix 7x23
+
+static const unsigned int g910_kbd_map[8 * 24] =
+{
+    KB_NA,   111,   112,   113,   114, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,
+      115,    37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68, KB_NA, KB_NA, KB_NA, KB_NA,
+      106,    49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,    79,    80,    81,    82,
+      107,    39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,    91,    92,    93,    83,
+      108,    53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,    88,    89,    90, KB_NA,
+      109,    99,    96,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,   103, KB_NA, KB_NA,    78, KB_NA,    85,    86,    87,    84,
+      110,    98,   101,   100, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,   104,   105,    97,   102,    76,    77,    75,    94, KB_NA,    95, KB_NA,
+    KB_NA, KB_NA, KB_NA,   116, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,
+};
+
+static const KbLed g910_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_NUMPAD_LOCK        , 0x0001, 0x53 },
+    { KEY_EN_NUMPAD_DIVIDE      , 0x0001, 0x54 },
+    { KEY_EN_NUMPAD_TIMES       , 0x0001, 0x55 },
+    { KEY_EN_NUMPAD_MINUS       , 0x0001, 0x56 },
+    { KEY_EN_NUMPAD_PLUS        , 0x0001, 0x57 },
+    { KEY_EN_NUMPAD_ENTER       , 0x0001, 0x58 },
+    { KEY_EN_NUMPAD_1           , 0x0001, 0x59 },
+    { KEY_EN_NUMPAD_2           , 0x0001, 0x5A },
+    { KEY_EN_NUMPAD_3           , 0x0001, 0x5B },
+    { KEY_EN_NUMPAD_4           , 0x0001, 0x5C },
+    { KEY_EN_NUMPAD_5           , 0x0001, 0x5D },
+    { KEY_EN_NUMPAD_6           , 0x0001, 0x5E },
+    { KEY_EN_NUMPAD_7           , 0x0001, 0x5F },
+    { KEY_EN_NUMPAD_8           , 0x0001, 0x60 },
+    { KEY_EN_NUMPAD_9           , 0x0001, 0x61 },
+    { KEY_EN_NUMPAD_0           , 0x0001, 0x62 },
+    { KEY_EN_NUMPAD_PERIOD      , 0x0001, 0x63 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_WINDOWS      , 0x0001, 0xE7 },
+    { "Key: G1"                 , 0x0004, 0x01 },
+    { "Key: G2"                 , 0x0004, 0x02 },
+    { "Key: G3"                 , 0x0004, 0x03 },
+    { "Key: G4"                 , 0x0004, 0x04 },
+    { "Key: G5"                 , 0x0004, 0x05 },
+    { "Key: G6"                 , 0x0004, 0x06 },
+    { "Key: G7"                 , 0x0004, 0x07 },
+    { "Key: G8"                 , 0x0004, 0x08 },
+    { "Key: G9"                 , 0x0004, 0x09 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Nameplate"               , 0x0010, 0x02 },
+};
+// G910: 117 leds, matrix 8x24
+
+static const unsigned int gpro_kbd_map[7 * 19] =
+{
+       89, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,    93,    92, KB_NA, KB_NA,    91, KB_NA,    90,
+       37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68,
+       49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,
+       39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,
+       53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,
+       82,    79,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,    86, KB_NA, KB_NA,    78, KB_NA,
+       81,    84,    83, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,    87,    88,    80,    85,    76,    77,    75,
+};
+
+static const KbLed gpro_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_FUNCTION     , 0x0001, 0xE7 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Lighting"                , 0x0040, 0x01 },
+    { "Game Mode"               , 0x0040, 0x02 },
+    { "Caps Lock Indicator"     , 0x0040, 0x03 },
+    { "Scroll Lock Indicator"   , 0x0040, 0x04 },
+};
+// GProKeyboard: 94 leds, matrix 7x19
+
+struct KeyboardLayout
+{
+    const char*         name_match;
+    unsigned int        rows;
+    unsigned int        cols;
+    unsigned int        led_count;
+    const unsigned int* map;
+    const KbLed*        leds;
+};
+
+/*---------------------------------------------------------*\
+| G610/G512 share the G810 physical layout. "Pro" matches   |
+| the G Pro keyboard; only consulted for keyboards, so it   |
+| cannot collide with "G Pro" mice.                         |
+\*---------------------------------------------------------*/
+static const KeyboardLayout known_keyboard_layouts[] =
+{
+    { "G810", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
+    { "G610", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
+    { "G512", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
+    { "G910", 8, 24, 117, g910_kbd_map, g910_kbd_leds },
+    { "Pro",  7, 19,  94, gpro_kbd_map, gpro_kbd_leds },
+    { nullptr, 0, 0, 0, nullptr, nullptr }
+};
+
+static const KeyboardLayout* FindKeyboardLayout(const std::string& device_name)
+{
+    for(const KeyboardLayout* kl = known_keyboard_layouts; kl->name_match != nullptr; kl++)
+    {
+        if(device_name.find(kl->name_match) != std::string::npos)
+        {
+            return kl;
+        }
+    }
+
+    return nullptr;
+}
+
 RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Controller* controller_ptr)
 {
     controller = controller_ptr;
@@ -528,7 +962,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     /*----------------------------------------------------------*\
     | Direct mode: per-key control via 0x8080 (separate feature) |
     \*----------------------------------------------------------*/
-    if(caps.has_perkey_8080)
+    if(PerKey8080Capable())
     {
         mode Direct;
         Direct.name       = "Direct";
@@ -911,7 +1345,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
     led_to_keytype_keyid_8080.clear();
     sent_colors.clear();
 
-    if(caps.has_perkey_8080)
+    if(PerKey8080Capable())
     {
         SetupZones8080();
         return;
@@ -1191,9 +1625,68 @@ void RGBController_LogitechHIDPP20::SetupZones()
 | zone (logo, media, G-keys, indicators), named by the HID  |
 | usage where standard, generically otherwise.              |
 \*---------------------------------------------------------*/
+bool RGBController_LogitechHIDPP20::PerKey8080Capable() const
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    /*-----------------------------------------------------*\
+    | 0x8080 per-key is usable if fn2 enumeration confirmed |
+    | keyTypes, OR the device is a known keyboard model with|
+    | a ported layout that supplies keyType/keyId itself    |
+    | (so it works even when fn2 reads are unavailable).    |
+    \*-----------------------------------------------------*/
+    return caps.has_perkey_8080
+        || (caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD
+         && caps.idx_perkey_8080 != 0
+         && FindKeyboardLayout(caps.device_name) != nullptr);
+}
+
 void RGBController_LogitechHIDPP20::SetupZones8080()
 {
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    /*-----------------------------------------------------*\
+    | Known model: use the ported per-model layout (the     |
+    | legacy G810/G910/G Pro matrix positions + names +     |
+    | keyType/keyId). The device cannot report key geometry,|
+    | and this also supplies the wire addressing directly,  |
+    | so per-key works even if the firmware's fn2 reads are |
+    | unavailable. Unknown 0x8080 devices fall through to   |
+    | the enumeration-driven KLM + Extras build below.      |
+    \*-----------------------------------------------------*/
+    const KeyboardLayout* kbl = FindKeyboardLayout(caps.device_name);
+
+    if(kbl != nullptr)
+    {
+        zone kb_zone;
+        kb_zone.name       = ZONE_EN_KEYBOARD;
+        kb_zone.type       = ZONE_TYPE_MATRIX;
+        kb_zone.leds_min   = kbl->led_count;
+        kb_zone.leds_max   = kbl->led_count;
+        kb_zone.leds_count = kbl->led_count;
+
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height          = kbl->rows;
+        new_map->width           = kbl->cols;
+        new_map->map             = new unsigned int[kbl->rows * kbl->cols];
+        memcpy(new_map->map, kbl->map, kbl->rows * kbl->cols * sizeof(unsigned int));
+        kb_zone.matrix_map       = new_map;
+        zones.push_back(kb_zone);
+
+        for(unsigned int i = 0; i < kbl->led_count; i++)
+        {
+            led new_led;
+            new_led.name  = kbl->leds[i].name;
+            new_led.value = ((uint32_t)kbl->leds[i].key_type << 8) | kbl->leds[i].key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(kbl->leds[i].key_type, kbl->leds[i].key_id);
+        }
+
+        LOG_DEBUG("[%s] 0x8080 using ported '%s' layout: %u LEDs, %ux%u matrix",
+                  caps.device_name.c_str(), kbl->name_match,
+                  kbl->led_count, kbl->rows, kbl->cols);
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | Identify the keyboard keyType: the enumerated keyType |
@@ -1450,7 +1943,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     | (built in SetupZones8080) maps each LED to its wire        |
     | (keyType, keyId).                                          |
     \*----------------------------------------------------------*/
-    if(caps.has_perkey_8080 && (unsigned int)active_mode < modes.size() &&
+    if(PerKey8080Capable() && (unsigned int)active_mode < modes.size() &&
        modes[active_mode].color_mode == MODE_COLORS_PER_LED)
     {
         std::vector<RGBColor> snapshot(colors.begin(), colors.end());
@@ -2016,7 +2509,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | modes only exist when the device advertises a zone-effect  |
     | feature, so there is nothing to fall through to otherwise. |
     \*----------------------------------------------------------*/
-    if(caps.has_perkey_8080)
+    if(PerKey8080Capable())
     {
         if(current.value == 0xFF)
         {

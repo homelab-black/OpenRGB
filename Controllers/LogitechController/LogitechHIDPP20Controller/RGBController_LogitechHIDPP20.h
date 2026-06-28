@@ -20,6 +20,7 @@ public:
 
     void        SetupZones();
     void        SetupZones8080();
+    bool        PerKey8080Capable() const;
     void        ResizeZone(int zone, int new_size);
     void        DeviceUpdateLEDs();
     void        UpdateZoneLEDs(int zone);
