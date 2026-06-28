@@ -4181,10 +4181,14 @@ void LogitechHIDPP20Controller::SetZoneEffect
             break;
 
         case 0x0004:    // Color Wave
-            data[3] = (period > 0) ? (uint8_t)(period / 100) : 50;
-            data[8] = 0x01;     // pattern
-            data[9] = 0x00;     // waveform
-            data[11] = 0x01;    // direction
+            /*------------------------------------------------------*\
+            | Param block: periodHi/Lo at data[8..9], direction at   |
+            | data[11] — the 0x0016 layout without its saturation    |
+            | and intensity bytes.                                   |
+            \*------------------------------------------------------*/
+            data[8]  = (period >> 8) & 0xFF;
+            data[9]  = period & 0xFF;
+            data[11] = direction;
             break;
 
         case 0x000B:    // Ripple
