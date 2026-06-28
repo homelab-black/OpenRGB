@@ -2080,26 +2080,31 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
             else
             {
-                uint8_t static_effect_idx = 0;
-
-                for(size_t j = 0; j < caps.zone_clusters[0].effects.size(); j++)
+                /*-------------------------------------------*\
+                | Per-cluster static-black primer. 0x8070     |
+                | rejects the cluster=0xFF broadcast (seen on |
+                | the G810), so address each cluster by its   |
+                | own index, matching the Off-mode path.      |
+                \*-------------------------------------------*/
+                for(size_t i = 0; i < caps.zone_clusters.size(); i++)
                 {
-                    if(caps.zone_clusters[0].effects[j].effect_id == 0x0001)
+                    for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
                     {
-                        static_effect_idx = caps.zone_clusters[0].effects[j].index;
-                        break;
+                        if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
+                        {
+                            controller->SetZoneEffect(
+                                caps.zone_clusters[i].index,
+                                caps.zone_clusters[i].effects[j].index,
+                                0x0001,              /* static effect */
+                                0, 0, 0,             /* black — no fixed-color marker */
+                                0,
+                                100,                 /* brightness — unused for static */
+                                0,                   /* direction — unused for static */
+                                true                 /* persist=true */);
+                            break;
+                        }
                     }
                 }
-
-                controller->SetZoneEffect(
-                    0xFF,                /* all clusters */
-                    static_effect_idx,
-                    0x0001,              /* static effect */
-                    0, 0, 0,             /* black — no fixed-color marker */
-                    0,
-                    100,                 /* brightness — unused for static */
-                    0,                   /* direction — unused for static */
-                    true                 /* persist=true */);
             }
         }
 
