@@ -3989,14 +3989,37 @@ void LogitechHIDPP20Controller::SetPerKey8080
         return;
     }
 
+    bool is_c330 = (caps.pid_wired == 0xC330 || caps.pid_wireless == 0xC330);
+
     for(size_t t = 0; t < by_type.size(); t++)
     {
         uint16_t key_type = by_type[t].first;
-        const std::vector<std::pair<uint8_t, RGBColor>>& keys = by_type[t].second;
+        const std::vector<std::pair<uint8_t, RGBColor>>& src_keys = by_type[t].second;
 
-        for(size_t off = 0; off < keys.size(); off += HIDPP20_8080_KEYS_PER_FRAME)
+        /*-----------------------------------------------------*\
+        | Quirk — C330 (G410 Atlas Spectrum): keyType 0x40 only |
+        | accepts keyId 1 and 2; drop any others before         |
+        | encoding. Pass-through for every other device and     |
+        | keyType.                                              |
+        \*-----------------------------------------------------*/
+        std::vector<std::pair<uint8_t, RGBColor>>          filtered;
+        const std::vector<std::pair<uint8_t, RGBColor>>*     keys = &src_keys;
+
+        if(is_c330 && key_type == 0x40)
         {
-            size_t count = keys.size() - off;
+            for(size_t k = 0; k < src_keys.size(); k++)
+            {
+                if(src_keys[k].first == 1 || src_keys[k].first == 2)
+                {
+                    filtered.push_back(src_keys[k]);
+                }
+            }
+            keys = &filtered;
+        }
+
+        for(size_t off = 0; off < keys->size(); off += HIDPP20_8080_KEYS_PER_FRAME)
+        {
+            size_t count = keys->size() - off;
             if(count > HIDPP20_8080_KEYS_PER_FRAME)
             {
                 count = HIDPP20_8080_KEYS_PER_FRAME;
@@ -4018,8 +4041,8 @@ void LogitechHIDPP20Controller::SetPerKey8080
             size_t pos = 4;
             for(size_t k = 0; k < count; k++)
             {
-                RGBColor color = keys[off + k].second;
-                payload[pos++] = keys[off + k].first;       /* keyId (USB HID usage) */
+                RGBColor color = (*keys)[off + k].second;
+                payload[pos++] = (*keys)[off + k].first;     /* keyId (USB HID usage) */
                 payload[pos++] = RGBGetRValue(color);
                 payload[pos++] = RGBGetGValue(color);
                 payload[pos++] = RGBGetBValue(color);
