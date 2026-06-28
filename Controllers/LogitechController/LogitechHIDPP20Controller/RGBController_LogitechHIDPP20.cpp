@@ -873,7 +873,7 @@ static const KbLed gpro_kbd_leds[] =
 
 struct KeyboardLayout
 {
-    const char*         name_match;
+    unsigned short      pid;
     unsigned int        rows;
     unsigned int        cols;
     unsigned int        led_count;
@@ -882,25 +882,30 @@ struct KeyboardLayout
 };
 
 /*---------------------------------------------------------*\
-| G610/G512 share the G810 physical layout. "Pro" matches   |
-| the G Pro keyboard; only consulted for keyboards, so it   |
-| cannot collide with "G Pro" mice.                         |
+| Matched on the firmware-reported PID (caps.pid_wired /    |
+| pid_wireless), so it is OS-independent and unaffected by  |
+| the Linux hid-logitech-dj virtual PIDs. G610/G512 share   |
+| the G810 layout; each model lists all of its PIDs.        |
 \*---------------------------------------------------------*/
 static const KeyboardLayout known_keyboard_layouts[] =
 {
-    { "G810", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
-    { "G610", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
-    { "G512", 7, 23, 117, g810_kbd_map, g810_kbd_leds },
-    { "G910", 8, 24, 117, g910_kbd_map, g910_kbd_leds },
-    { "Pro",  7, 19,  94, gpro_kbd_map, gpro_kbd_leds },
-    { nullptr, 0, 0, 0, nullptr, nullptr }
+    { 0xC331, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G810           */
+    { 0xC337, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G810           */
+    { 0xC333, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G610           */
+    { 0xC338, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G610           */
+    { 0xC342, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G512           */
+    { 0xC33C, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G512 RGB       */
+    { 0xC32B, 8, 24, 117, g910_kbd_map, g910_kbd_leds },    /* G910 Orion Spark*/
+    { 0xC335, 8, 24, 117, g910_kbd_map, g910_kbd_leds },    /* G910           */
+    { 0xC339, 7, 19,  94, gpro_kbd_map, gpro_kbd_leds },    /* G Pro          */
+    { 0, 0, 0, 0, nullptr, nullptr }
 };
 
-static const KeyboardLayout* FindKeyboardLayout(const std::string& device_name)
+static const KeyboardLayout* FindKeyboardLayout(unsigned short pid_wired, unsigned short pid_wireless)
 {
-    for(const KeyboardLayout* kl = known_keyboard_layouts; kl->name_match != nullptr; kl++)
+    for(const KeyboardLayout* kl = known_keyboard_layouts; kl->pid != 0; kl++)
     {
-        if(device_name.find(kl->name_match) != std::string::npos)
+        if(kl->pid == pid_wired || kl->pid == pid_wireless)
         {
             return kl;
         }
@@ -1638,7 +1643,7 @@ bool RGBController_LogitechHIDPP20::PerKey8080Capable() const
     return caps.has_perkey_8080
         || (caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD
          && caps.idx_perkey_8080 != 0
-         && FindKeyboardLayout(caps.device_name) != nullptr);
+         && FindKeyboardLayout(caps.pid_wired, caps.pid_wireless) != nullptr);
 }
 
 void RGBController_LogitechHIDPP20::SetupZones8080()
@@ -1654,7 +1659,7 @@ void RGBController_LogitechHIDPP20::SetupZones8080()
     | unavailable. Unknown 0x8080 devices fall through to   |
     | the enumeration-driven KLM + Extras build below.      |
     \*-----------------------------------------------------*/
-    const KeyboardLayout* kbl = FindKeyboardLayout(caps.device_name);
+    const KeyboardLayout* kbl = FindKeyboardLayout(caps.pid_wired, caps.pid_wireless);
 
     if(kbl != nullptr)
     {
@@ -1682,8 +1687,8 @@ void RGBController_LogitechHIDPP20::SetupZones8080()
             led_to_keytype_keyid_8080.emplace_back(kbl->leds[i].key_type, kbl->leds[i].key_id);
         }
 
-        LOG_DEBUG("[%s] 0x8080 using ported '%s' layout: %u LEDs, %ux%u matrix",
-                  caps.device_name.c_str(), kbl->name_match,
+        LOG_DEBUG("[%s] 0x8080 using ported layout for PID 0x%04X: %u LEDs, %ux%u matrix",
+                  caps.device_name.c_str(), kbl->pid,
                   kbl->led_count, kbl->rows, kbl->cols);
 
         SetupColors();
