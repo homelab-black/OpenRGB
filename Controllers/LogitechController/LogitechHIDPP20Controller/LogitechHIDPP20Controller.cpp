@@ -2621,6 +2621,23 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
 
     caps.has_perkey_8080 = !caps.perkey_8080_types.empty();
 
+    /*-----------------------------------------------------*\
+    | Numpad presence: full-size if any standard numpad HID |
+    | usage (0x53 NumLock .. 0x63 Keypad .) was enumerated; |
+    | drives FULL vs TKL matrix sizing in SetupZones8080.   |
+    \*-----------------------------------------------------*/
+    for(size_t t = 0; t < caps.perkey_8080_types.size() && !caps.has_numpad; t++)
+    {
+        for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+        {
+            if(key_id >= 0x53 && key_id <= 0x63)
+            {
+                caps.has_numpad = true;
+                break;
+            }
+        }
+    }
+
     if(key_type_count != 0 && caps.perkey_8080_types.size() < key_type_count)
     {
         LOG_DEBUG("%s 0x8080 enumeration incomplete: confirmed %zu of %u "

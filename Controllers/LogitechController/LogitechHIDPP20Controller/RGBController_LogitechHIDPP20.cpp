@@ -395,6 +395,7 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_usage =
     { KEY_EN_RIGHT_SHIFT,       0xE5 },
     { KEY_EN_RIGHT_ALT,         0xE6 },
     { KEY_EN_RIGHT_WINDOWS,     0xE7 },
+    { KEY_EN_RIGHT_FUNCTION,    0xE7 },     /* boards that place Fn where Right GUI sits (G Pro) */
 };
 
 /*---------------------------------------------------------*\
