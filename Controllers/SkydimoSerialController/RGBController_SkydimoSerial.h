@@ -1,7 +1,7 @@
 /*---------------------------------------------------------*\
-| RGBController_SkydimoSerial.h                             |
+| RGBController_SkydimoSerial.h                            |
 |                                                           |
-|   RGBController for Skydimo serial devices                |
+|   RGBController for Skydimo serial devices               |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -19,11 +19,11 @@ public:
     ~RGBController_SkydimoSerial();
 
     void        SetupZones();
-    void        DeviceConfigureZone(int zone_idx);
+    void        ResizeZone(int zone, int new_size);
 
     void        DeviceUpdateLEDs();
-    void        DeviceUpdateZoneLEDs(int zone);
-    void        DeviceUpdateSingleLED(int led);
+    void        UpdateZoneLEDs(int zone);
+    void        UpdateSingleLED(int led);
     void        DeviceUpdateMode();
 
 private:
