@@ -2544,15 +2544,11 @@ void LogitechHIDPP20Controller::DiscoverPerKey8080()
     uint16_t max_key_count  = (uint16_t)((info[5] << 8) | info[6]);
 
     /*-----------------------------------------------------*\
-    | Quirk — C32B (G910 Orion Spark) reportedly over-      |
-    | reports typeFlags bit 0x2. This masks only the logged |
-    | / oracle value; it does NOT touch the candidate sweep,|
-    | so the G910's media keyType (0x02) is still probed and|
-    | confirmed by fn2 regardless. If media is in fact real,|
-    | the completeness-oracle log below will flag the       |
-    | mismatch and settle whether the mask is warranted.    |
+    | G910 over-reports typeFlags bit 0x2; mask the logged  |
+    | / oracle value only. The candidate sweep still probes |
+    | media keyType 0x02 and confirms it via fn2.           |
     \*-----------------------------------------------------*/
-    if(caps.pid_wired == 0xC32B || caps.pid_wireless == 0xC32B)
+    if(caps.quirks & HIDPP20_QUIRK_8080_OVERREPORTS_MEDIA)
     {
         type_flags &= ~0x0002;
     }
@@ -4061,7 +4057,7 @@ void LogitechHIDPP20Controller::SetPerKey8080
         return;
     }
 
-    bool is_c330 = (caps.pid_wired == 0xC330 || caps.pid_wireless == 0xC330);
+    bool kt40_id12_only = (caps.quirks & HIDPP20_QUIRK_8080_KEYTYPE40_ID12_ONLY) != 0;
 
     for(size_t t = 0; t < by_type.size(); t++)
     {
@@ -4069,15 +4065,13 @@ void LogitechHIDPP20Controller::SetPerKey8080
         const std::vector<std::pair<uint8_t, RGBColor>>& src_keys = by_type[t].second;
 
         /*-----------------------------------------------------*\
-        | Quirk — C330 (G410 Atlas Spectrum): keyType 0x40 only |
-        | accepts keyId 1 and 2; drop any others before         |
-        | encoding. Pass-through for every other device and     |
-        | keyType.                                              |
+        | G410 keyType 0x40 accepts only keyId 1 and 2; drop    |
+        | any others before encoding.                           |
         \*-----------------------------------------------------*/
         std::vector<std::pair<uint8_t, RGBColor>>          filtered;
         const std::vector<std::pair<uint8_t, RGBColor>>*     keys = &src_keys;
 
-        if(is_c330 && key_type == 0x40)
+        if(kt40_id12_only && key_type == 0x40)
         {
             for(size_t k = 0; k < src_keys.size(); k++)
             {
