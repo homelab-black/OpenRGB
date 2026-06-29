@@ -86,11 +86,6 @@
 #define FN_8071_PWR_MODE                    0x80
 
 /*-----------------------------------------------------*\
-| Feature 0x8070 functions (only those referenced)      |
-\*-----------------------------------------------------*/
-#define FN_8070_GET_CURRENT_COLOR           0xC0
-
-/*-----------------------------------------------------*\
 | Feature 0x8081 functions                              |
 \*-----------------------------------------------------*/
 #define FN_8081_GET_INFO                    0x00
@@ -196,7 +191,6 @@ enum HIDPP20DeviceQuirks : uint32_t
 {
     HIDPP20_QUIRK_NONE                = 0,
     HIDPP20_QUIRK_FADE_ACCEPTS_WRITES = (1 << 0),  // firmware accepts host frames during sleep fade without waking
-    HIDPP20_QUIRK_8070_DIRECT_PREP    = (1 << 1),  // 0x8070: per-zone fn-12 GetCurrentColor read before firmware accepts color writes (G560/G933)
     HIDPP20_QUIRK_8080_OVERREPORTS_MEDIA = (1 << 2),  // 0x8080 typeFlags over-reports media bit 0x02 (G910)
     HIDPP20_QUIRK_8080_KEYTYPE40_ID12_ONLY = (1 << 3),  // 0x8080 keyType 0x40 accepts only keyId 1 and 2 (G410)
 };
@@ -218,8 +212,6 @@ struct HIDPP20DeviceQuirkEntry
 static constexpr HIDPP20DeviceQuirkEntry HIDPP20_DEVICE_QUIRK_TABLE[] =
 {
     { 0x40B4, 0xC355, HIDPP20_QUIRK_FADE_ACCEPTS_WRITES },  // G515 LS TKL
-    { 0,      0x0A78, HIDPP20_QUIRK_8070_DIRECT_PREP     },  // G560 (USB PID; confirm firmware-reported pid_wired on hardware)
-    { 0,      0x0A5B, HIDPP20_QUIRK_8070_DIRECT_PREP     },  // G933
     { 0xC32B, 0xC32B, HIDPP20_QUIRK_8080_OVERREPORTS_MEDIA },  // G910 Orion Spark
     { 0xC330, 0xC330, HIDPP20_QUIRK_8080_KEYTYPE40_ID12_ONLY },  // G410 Atlas Spectrum
 };

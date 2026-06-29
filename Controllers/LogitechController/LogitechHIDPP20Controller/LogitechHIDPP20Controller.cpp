@@ -3208,9 +3208,12 @@ int LogitechHIDPP20Controller::SetSWControl(uint8_t mode, uint8_t flags)
     if(caps.sw_control_simple)
     {
         /*------------------------------------------------------*\
-        | 0x8070: simple [enabled(bool), persist(bool)]          |
+        | 0x8070: simple [enabled, persist]. lghub/legacy send   |
+        | [1,1] to claim and [0,0] to release — persist mirrors  |
+        | enabled.                                               |
         \*------------------------------------------------------*/
-        uint8_t data[2] = { (uint8_t)(mode > 0 ? 0x01 : 0x00), 0x00 };
+        uint8_t en = (uint8_t)(mode > 0 ? 0x01 : 0x00);
+        uint8_t data[2] = { en, en };
         result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
                                   data, 2, response);
     }
@@ -3314,40 +3317,47 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     }
 
     /*----------------------------------------------------------*\
-    | 0x8070 boards write directly with no claim. G560/G933      |
-    | instead need a per-zone fn-12 GetCurrentColor read first,  |
-    | once per session (reset on wake).                          |
+    | 0x8070 PER-KEY keyboards (those exposing 0x8080: G810      |
+    | family) write per-key directly with NO claim, like the     |
+    | legacy controllers.                                        |
     |                                                            |
-    | FIXME: 0x8070 per-key keyboards (G810) accept per-key      |
-    | writes in their default state, so we leave it (matches the |
-    | legacy controllers). A partial SetSWControl claim breaks   |
-    | per-key; the full sequence is host-mode -> SetSWControl    |
-    | (1,1) -> SetZoneEffect off per zone -> per-key. TODO: test |
-    | on real G810/G610/G910 etc. which parts of that sequence   |
-    | each supports, and use the full claim where valid so we    |
-    | keep control if other host software moved the device out   |
-    | of its default state.                                      |
+    | FIXME: a partial SetSWControl claim breaks per-key on the  |
+    | G810; the full sequence is host-mode -> SetSWControl(1,1)  |
+    | -> SetZoneEffect off per zone -> per-key. TODO: test on    |
+    | real G810/G610/G910 which parts each supports and use the  |
+    | full claim where valid so we keep control if other host    |
+    | software moved the device out of its default state.        |
     \*----------------------------------------------------------*/
-    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS
+       && caps.idx_perkey_8080 != 0)
     {
-        if((caps.quirks & HIDPP20_QUIRK_8070_DIRECT_PREP)
-           && caps.idx_rgb_effects != 0 && device_online.load())
-        {
-            for(const HIDPP20ZoneCluster& zc : caps.zone_clusters)
-            {
-                uint8_t prep[2] = { zc.index, 0x00 };
-                blankFAPmessage resp;
-                SendAckedIntoFAP(caps.idx_rgb_effects, FN_8070_GET_CURRENT_COLOR,
-                                 prep, sizeof(prep), resp);
-            }
-            sw_control_claimed = true;
-        }
         return true;
     }
 
     if(caps.idx_rgb_effects == 0 || !device_online.load())
     {
         return false;
+    }
+
+    /*----------------------------------------------------------*\
+    | 0x8070 ZONE-ONLY devices (no 0x8080: G560/G933, 0x8070     |
+    | mice): the claim is just SetSWControl(1,1) — lghub and     |
+    | Solaar both do exactly this, with no power/host-mode tail. |
+    | No per-key layer to conflict, so no zone-park.             |
+    \*----------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        int sw_result = SetSWControl(1, 1);
+
+        if(sw_result <= 0)
+        {
+            LOG_DEBUG("%s 0x8070 SetSWControl(1,1) claim failed (result=%d)",
+                      LOG_TAG, sw_result);
+            return false;
+        }
+
+        sw_control_claimed = true;
+        return true;
     }
 
     /*----------------------------------------------------------*\
