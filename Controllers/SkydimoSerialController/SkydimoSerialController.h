@@ -1,9 +1,7 @@
 /*---------------------------------------------------------*\
-| SkydimoSerialController.h                                 |
+| SkydimoSerialController.h                                |
 |                                                           |
-|   Driver for Skydimo serial devices                       |
-|                                                           |
-|   Bartholomew Ho <qiangqiang101@hotmail.com>  30 Jun 2026 |
+|   Driver for Skydimo serial devices                      |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -11,29 +9,15 @@
 
 #pragma once
 
-#include <mutex>
 #include <string>
 #include <vector>
 #include "RGBController.h"
 #include "serial_port.h"
 
-#define SKYDIMO_SERIAL_BAUD_RATE               115200
-#define SKYDIMO_SERIAL_QUERY                    "Moni-A"
-#define SKYDIMO_SERIAL_QUERY_LENGTH             6
-#define SKYDIMO_SERIAL_MODEL_ID_LENGTH          6
-#define SKYDIMO_SERIAL_READ_BUFFER_SIZE         64
-#define SKYDIMO_SERIAL_MAX_RESPONSE_SIZE        63
-#define SKYDIMO_SERIAL_QUERY_ATTEMPTS           10
-#define SKYDIMO_SERIAL_DEFAULT_LED_COUNT        0
-#define SKYDIMO_SERIAL_DEFAULT_MAX_LED_COUNT    150
-#define SKYDIMO_SERIAL_BYTES_PER_LED            3
-#define SKYDIMO_SERIAL_FRAME_COUNT_SIZE         2
-#define SKYDIMO_SERIAL_MATRIX_NA                0xFFFFFFFF
-
 class SkydimoSerialController
 {
 public:
-    SkydimoSerialController(const std::string& port_name_arg);
+    SkydimoSerialController(const std::string& portname);
     ~SkydimoSerialController();
 
     bool                    IsPresent();
@@ -57,8 +41,8 @@ public:
 
 private:
     bool                    QueryInfo();
+    void                    DrainInput();
     void                    ConfigureOutput();
-    void                    SetMatrixCell(unsigned int y, unsigned int x, unsigned int& led_index);
     bool                    WriteFrame(const std::vector<RGBColor>& colors, unsigned int count);
 
     std::string             port_name;
@@ -76,7 +60,6 @@ private:
     unsigned int            matrix_width;
     unsigned int            matrix_height;
 
-    std::vector<unsigned int>   matrix_map;
-    serial_port                 serial_port_interface;
-    std::mutex                  device_mutex;
+    std::vector<unsigned int> matrix_map;
+    serial_port             serialport;
 };
