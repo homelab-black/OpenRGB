@@ -3317,6 +3317,16 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     | 0x8070 boards write directly with no claim. G560/G933      |
     | instead need a per-zone fn-12 GetCurrentColor read first,  |
     | once per session (reset on wake).                          |
+    |                                                            |
+    | FIXME: 0x8070 per-key keyboards (G810) accept per-key      |
+    | writes in their default state, so we leave it (matches the |
+    | legacy controllers). A partial SetSWControl claim breaks   |
+    | per-key; the full sequence is host-mode -> SetSWControl    |
+    | (1,1) -> SetZoneEffect off per zone -> per-key. TODO: test |
+    | on real G810/G610/G910 etc. which parts of that sequence   |
+    | each supports, and use the full claim where valid so we    |
+    | keep control if other host software moved the device out   |
+    | of its default state.                                      |
     \*----------------------------------------------------------*/
     if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
