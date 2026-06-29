@@ -1220,6 +1220,33 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     break;
                 }
 
+                case 0x000E:    // Decomposition
+                case 0x000F:    // Signature1
+                case 0x0010:    // Signature2
+                {
+                    /*-----------------------------------------------*\
+                    | Animated, no user color (period + intensity     |
+                    | only), per Solaar's LEDEffects table. Wire      |
+                    | param offsets handled in SetZoneEffect.         |
+                    \*-----------------------------------------------*/
+                    mode Anim;
+                    Anim.name           = (fx.effect_id == 0x000E) ? "Decomposition"
+                                        : (fx.effect_id == 0x000F) ? "Signature 1"
+                                        :                            "Signature 2";
+                    Anim.value          = fx.index;
+                    Anim.flags          = MODE_FLAG_HAS_SPEED
+                                        | MODE_FLAG_HAS_BRIGHTNESS;
+                    Anim.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Anim.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Anim.speed          = 80;
+                    Anim.brightness_min = 1;
+                    Anim.brightness_max = 100;
+                    Anim.brightness     = 100;
+                    Anim.color_mode     = MODE_COLORS_NONE;
+                    modes.push_back(Anim);
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -2347,6 +2374,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         | there IS no "next animation frame" guaranteed, so the  |
         | retry is the only mechanism to recover from a partial  |
         | commit during the reconnect-transient window.          |
+        |                                                        |
+        | TODO: the first frame on G515/G915 still sometimes     |
+        | loads slowly or looks off — the partial-commit window  |
+        | here isn't fully smoothed (the official app hits the   |
+        | same problem). Worth looking into a cleaner first-     |
+        | paint someday; the retry above is a mitigation, not a  |
+        | full fix.                                              |
         \*------------------------------------------------------*/
         if(full_commit || !needs_prep)
         {

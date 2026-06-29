@@ -1415,7 +1415,7 @@ bool LogitechHIDPP20Controller::ReadCenturionDeviceName0101(std::string& out)
     | fn0 getName -> recv[0] = name length (+ inline bytes   |
     | on devices that return the whole name in one reply).   |
     \*------------------------------------------------------*/
-    uint8_t recv[20] = {};
+    uint8_t recv[64] = {};
     int rd = SendAcked(idx, 0x00, nullptr, 0, recv, sizeof(recv));
 
     if(rd <= 0)
@@ -1425,8 +1425,8 @@ bool LogitechHIDPP20Controller::ReadCenturionDeviceName0101(std::string& out)
 
     unsigned int name_length = recv[0];
 
-    LOG_DEBUG("%s 0x0101 getName: len=%u raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
-              LOG_TAG, name_length,
+    LOG_DEBUG("%s 0x0101 getName: len=%u rd=%d raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
+              LOG_TAG, name_length, rd,
               recv[0], recv[1], recv[2], recv[3], recv[4], recv[5], recv[6], recv[7]);
 
     if(name_length == 0 || name_length > 64)
@@ -1435,12 +1435,16 @@ bool LogitechHIDPP20Controller::ReadCenturionDeviceName0101(std::string& out)
     }
 
     /*------------------------------------------------------*\
-    | Inline: a short name carried whole in the fn0 reply    |
-    | (printable byte right after the length). A long-frame  |
-    | payload holds at most 15 name bytes, so anything       |
-    | larger must be chunked.                                |
+    | Inline when the fn0 reply already carried the whole    |
+    | name: reply length covers it (Solaar's                 |
+    | len(reply) >= 1+name_length) and the byte after the    |
+    | length is printable (rejects a chunked fn0 that        |
+    | returned only the length + zero padding). Else fetch   |
+    | it in chunks via fn1.                                  |
     \*------------------------------------------------------*/
-    if(name_length <= 15 && recv[1] >= 0x20 && recv[1] <= 0x7E)
+    if((unsigned int)rd >= 1u + name_length
+       && name_length <= sizeof(recv) - 1
+       && recv[1] >= 0x20 && recv[1] <= 0x7E)
     {
         out.assign((char*)recv + 1, name_length);
     }
@@ -2303,10 +2307,18 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
              caps.idx_headset_rgb_hostmode);
 
     /*---------------------------------------------------------*\
+    | Claim host mode (fn8) before reading zone info — under    |
+    | firmware control GetRGBZoneInfo returns count=0 (matches  |
+    | Solaar's discover_zones). Restored after the read.        |
+    \*---------------------------------------------------------*/
+    uint8_t         hostmode_on = 0x01;
+    blankFAPmessage hm_claim_resp;
+    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                     FN_0620_SET_HOST_MODE_STATE, &hostmode_on, 1, hm_claim_resp);
+
+    /*---------------------------------------------------------*\
     | fn1 GetRGBZoneInfo — empty request, returns a zone list.  |
-    | Exact packing is not fully pinned down by the protocol    |
-    | doc; log the raw response so a tester's log is enough to  |
-    | refine the decoder.                                       |
+    | Exact packing not fully pinned; log the raw response.     |
     \*---------------------------------------------------------*/
     blankFAPmessage response;
     int result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
@@ -2348,6 +2360,15 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
         LOG_DEBUG("%s 0x0620 fn1 GetRGBZoneInfo failed (result=%d)",
                   LOG_TAG, result);
     }
+
+    /*---------------------------------------------------------*\
+    | Restore firmware mode after the discovery read; the apply |
+    | path re-claims host mode on first paint.                  |
+    \*---------------------------------------------------------*/
+    uint8_t         hostmode_off = 0x00;
+    blankFAPmessage hm_restore_resp;
+    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                     FN_0620_SET_HOST_MODE_STATE, &hostmode_off, 1, hm_restore_resp);
 
     if(caps.headset_rgb_hostmode_zone_ids.empty())
     {
@@ -4390,6 +4411,19 @@ void LogitechHIDPP20Controller::SetZoneEffect
             data[7] = period & 0xFF;
             break;
 
+        case 0x000E:    // Decomposition — no color; period BE@8-9, intensity@10
+            data[8]  = (period >> 8) & 0xFF;
+            data[9]  = period & 0xFF;
+            data[10] = brightness;
+            break;
+
+        case 0x000F:    // Signature1 — no color; period BE@7-8, intensity@9
+        case 0x0010:    // Signature2 — same layout
+            data[7] = (period >> 8) & 0xFF;
+            data[8] = period & 0xFF;
+            data[9] = brightness;
+            break;
+
         case 0x0015:    // Cycle (saturation variant)
             /*------------------------------------------------------*\
             | Saturation-bearing variant of 0x0003. Param block      |
@@ -5636,36 +5670,6 @@ bool LogitechHIDPP20Controller::IsCurrentlyWireless() const
     return wireless;
 }
 
-bool LogitechHIDPP20Controller::QueryWirelessStatus()
-{
-    if(caps.idx_wireless_status == 0)
-    {
-        LOG_DEBUG("%s QueryWirelessStatus: feature not present", LOG_TAG);
-        return false;
-    }
-
-    uint8_t send_data[1] = {0};
-    uint8_t recv_data[16] = {};
-    uint8_t hidpp_err = 0;
-
-    int result = SendAcked(caps.idx_wireless_status, 0,
-                           send_data, 0, recv_data, sizeof(recv_data),
-                           HIDPP20_POLICY_PROBE, &hidpp_err);
-
-    LOG_DEBUG("%s QueryWirelessStatus: result=%d err=0x%02X "
-              "data=[%02X %02X %02X %02X %02X %02X]",
-              LOG_TAG, result, hidpp_err,
-              recv_data[0], recv_data[1], recv_data[2],
-              recv_data[3], recv_data[4], recv_data[5]);
-
-    if(result <= 0)
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool LogitechHIDPP20Controller::QueryExternalPower()
 {
     /*----------------------------------------------------------*\
@@ -5943,8 +5947,14 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
         FlushResponseQueue();
 
         /*------------------------------------------------------*\
-        | Switch to flags=3 (ZONE|POWER): release EFFECT to      |
-        | firmware, monitor for user activity (keypress).        |
+        | flags=3 (EFFECT|POWER): keep effect control + monitor  |
+        | for user activity (keypress).                          |
+        |                                                        |
+        | TODO: look into matching Solaar, which uses flags 0x02 |
+        | (POWER only, no EFFECT bit) at idle and 0x04 (NV only) |
+        | active, and still receives onUserActivity events — so  |
+        | our EFFECT bit may be unnecessary. Works as-is;        |
+        | investigate + test on hardware before changing.        |
         \*------------------------------------------------------*/
         SetSWControl(3, 3);
 

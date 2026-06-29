@@ -659,7 +659,6 @@ public:
     bool            IsOnline() const;
     bool            IsDeepSleep() const;
     void            SetWireless(bool w)     { wireless = w; }
-    bool            QueryWirelessStatus();
     bool            QueryExternalPower();
     void            FlushResponseQueue();
 
