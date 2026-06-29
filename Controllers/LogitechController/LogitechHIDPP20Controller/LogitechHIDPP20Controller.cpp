@@ -3204,12 +3204,24 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
     }
 
     /*----------------------------------------------------------*\
-    | SetSWControl is an 0x8071 claim. 0x8070 boards (G810/G910) |
-    | write directly with no claim; one here makes them ignore   |
-    | the writes.                                                |
+    | 0x8070 boards write directly with no claim. G560/G933      |
+    | instead need a per-zone fn-12 GetCurrentColor read first,  |
+    | once per session (reset on wake).                          |
     \*----------------------------------------------------------*/
     if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
     {
+        if((caps.quirks & HIDPP20_QUIRK_8070_DIRECT_PREP)
+           && caps.idx_rgb_effects != 0 && device_online.load())
+        {
+            for(const HIDPP20ZoneCluster& zc : caps.zone_clusters)
+            {
+                uint8_t prep[2] = { zc.index, 0x00 };
+                blankFAPmessage resp;
+                SendAckedIntoFAP(caps.idx_rgb_effects, FN_8070_GET_CURRENT_COLOR,
+                                 prep, sizeof(prep), resp);
+            }
+            sw_control_claimed = true;
+        }
         return true;
     }
 
