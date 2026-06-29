@@ -52,6 +52,13 @@
 #define HIDPP20_FEAT_WIRELESS_STATUS          0x1D4B
 
 /*-----------------------------------------------------*\
+| Placeholder device names. Centralized so the set      |
+| sites and the is-placeholder test can't drift.        |
+\*-----------------------------------------------------*/
+#define HIDPP20_NAME_PLACEHOLDER_STD          "Logitech HID++ Device"
+#define HIDPP20_NAME_PLACEHOLDER_CENTURION    "Logitech Centurion Device"
+
+/*-----------------------------------------------------*\
 | HID++ 2.0 Function IDs (byte 3 high nibble)           |
 | Function ID is shifted left 4 bits, low nibble = swID |
 \*-----------------------------------------------------*/
@@ -797,6 +804,7 @@ private:
     void            LogFeatureSummary();
     void            DiscoverTransport();
     void            DiscoverDeviceName();
+    bool            ReadCenturionDeviceName0101(std::string& out);
     void            DiscoverDeviceType();
     void            EnumerateFeatures(uint8_t feature_set_idx);
     void            DiscoverFirmwareInfo();

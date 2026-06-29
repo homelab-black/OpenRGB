@@ -40,6 +40,38 @@ static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 static const int CENTURION_PROBE_PER_ADDR_TIMEOUT_MS = 5;
 
 /*----------------------------------------------------------*\
+| Device-name helpers. A placeholder is empty or one of the  |
+| HIDPP20_NAME_PLACEHOLDER_* strings. A name "looks real"    |
+| when it is non-empty, printable ASCII, and a sane length   |
+| — used to reject 0x0101 firmware-data responses that are   |
+| not an actual name.                                        |
+\*----------------------------------------------------------*/
+static bool HIDPP20NameIsPlaceholder(const std::string& n)
+{
+    return n.empty()
+        || n == HIDPP20_NAME_PLACEHOLDER_STD
+        || n == HIDPP20_NAME_PLACEHOLDER_CENTURION;
+}
+
+static bool HIDPP20NameLooksReal(const std::string& n)
+{
+    if(n.empty() || n.size() > 64)
+    {
+        return false;
+    }
+
+    for(unsigned char c : n)
+    {
+        if(c < 0x20 || c > 0x7E)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*----------------------------------------------------------*\
 | Observed HID++ 2.0 feature versions. Each row is a feature |
 | ID plus the versions we've empirically verified working.   |
 | When feature discovery reports a version outside this set, |
@@ -1361,6 +1393,88 @@ void LogitechHIDPP20Controller::LogFeatureSummary()
     LOG_DEBUG("%s ============================================================", LOG_TAG);
 }
 
+/*---------------------------------------------------------*\
+| Read a Centurion sub-device's name via DeviceName 0x0101  |
+| (bridge-routed). Handles both response shapes Solaar does:|
+| inline [len, name…] in the fn0 reply, or chunked [len]    |
+| then fn1 fragments. Returns false if 0x0101 is absent or  |
+| yields nothing. Mirrors Solaar get_name_centurion.        |
+\*---------------------------------------------------------*/
+bool LogitechHIDPP20Controller::ReadCenturionDeviceName0101(std::string& out)
+{
+    out.clear();
+
+    uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_CENTURION_DEVICE_NAME);
+
+    if(idx == 0)
+    {
+        return false;
+    }
+
+    /*------------------------------------------------------*\
+    | fn0 getName -> recv[0] = name length (+ inline bytes   |
+    | on devices that return the whole name in one reply).   |
+    \*------------------------------------------------------*/
+    uint8_t recv[20] = {};
+    int rd = SendAcked(idx, 0x00, nullptr, 0, recv, sizeof(recv));
+
+    if(rd <= 0)
+    {
+        return false;
+    }
+
+    unsigned int name_length = recv[0];
+
+    LOG_DEBUG("%s 0x0101 getName: len=%u raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
+              LOG_TAG, name_length,
+              recv[0], recv[1], recv[2], recv[3], recv[4], recv[5], recv[6], recv[7]);
+
+    if(name_length == 0 || name_length > 64)
+    {
+        return false;
+    }
+
+    /*------------------------------------------------------*\
+    | Inline: a short name carried whole in the fn0 reply    |
+    | (printable byte right after the length). A long-frame  |
+    | payload holds at most 15 name bytes, so anything       |
+    | larger must be chunked.                                |
+    \*------------------------------------------------------*/
+    if(name_length <= 15 && recv[1] >= 0x20 && recv[1] <= 0x7E)
+    {
+        out.assign((char*)recv + 1, name_length);
+    }
+    else
+    {
+        for(unsigned int offset = 0; offset < name_length; offset += 16)
+        {
+            uint8_t send_data[1] = { (uint8_t)offset };
+            uint8_t chunk[20]    = {};
+            int cr = SendAcked(idx, 0x10, send_data, 1, chunk, sizeof(chunk));
+
+            if(cr <= 0)
+            {
+                break;
+            }
+
+            unsigned int chunk_len = name_length - offset;
+            if(chunk_len > 16)
+            {
+                chunk_len = 16;
+            }
+
+            out.append((char*)chunk, chunk_len);
+        }
+    }
+
+    while(!out.empty() && out.back() == '\0')
+    {
+        out.pop_back();
+    }
+
+    return !out.empty();
+}
+
 void LogitechHIDPP20Controller::DiscoverDeviceName()
 {
     /*---------------------------------------------------------*\
@@ -1370,21 +1484,21 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
     if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         /*------------------------------------------------------*\
-        | Centurion sub-device: 0x0101 getName returns firmware  |
-        | data, not a readable name. Fall back to a platform-    |
-        | specific lookup that reads the friendly name from the  |
-        | OS's HID enumeration (sysfs HID_NAME on Linux,         |
-        | hid_device_info::product_string on Windows).           |
+        | Try the HID++ name (0x0101) first so a spec-compliant  |
+        | sub-device self-names; fall back to the OS/USB name    |
+        | for hardware that doesn't return a usable name there.  |
         \*------------------------------------------------------*/
-        std::string friendly = GetCenturionSubDeviceName(location);
+        std::string hidpp_name;
 
-        if(!friendly.empty())
+        if(ReadCenturionDeviceName0101(hidpp_name) && HIDPP20NameLooksReal(hidpp_name))
         {
-            caps.device_name = friendly;
+            caps.device_name = hidpp_name;
         }
         else
         {
-            caps.device_name = "Logitech Centurion Device";
+            std::string friendly = GetCenturionSubDeviceName(location);
+            caps.device_name = friendly.empty() ? HIDPP20_NAME_PLACEHOLDER_CENTURION
+                                                : friendly;
         }
 
         LOG_VERBOSE("%s Device name (Centurion): %s", LOG_TAG, caps.device_name.c_str());
@@ -1395,7 +1509,7 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
 
     if(feat_idx == 0)
     {
-        caps.device_name = "Logitech HID++ Device";
+        caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
         return;
     }
 
@@ -1405,7 +1519,7 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
 
     if(result <= 0)
     {
-        caps.device_name = "Logitech HID++ Device";
+        caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
         return;
     }
 
@@ -4566,21 +4680,21 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     }
 
     /*---------------------------------------------------------*\
-    | Discover sub-device identity if not already known.        |
+    | The sub-device's real name only becomes readable now that |
+    | it's reachable, so always re-discover — but never let a   |
+    | failed re-read downgrade a good name to a placeholder.    |
     \*---------------------------------------------------------*/
-    if(caps.device_name.empty() || caps.device_name.find("PRO X 2") == std::string::npos)
-    {
-        /*------------------------------------------------------*\
-        | Dongle may have a sysfs-derived name; get real name    |
-        | from the sub-device now that it's reachable.           |
-        \*------------------------------------------------------*/
-        std::string old_name = caps.device_name;
-        DiscoverDeviceName();
+    std::string old_name = caps.device_name;
+    DiscoverDeviceName();
 
-        if(caps.device_name != old_name)
-        {
-            log_tag = "[LogitechHID++ " + caps.device_name + "]";
-        }
+    if(HIDPP20NameIsPlaceholder(caps.device_name) && !HIDPP20NameIsPlaceholder(old_name))
+    {
+        caps.device_name = old_name;
+    }
+
+    if(caps.device_name != old_name)
+    {
+        log_tag = "[LogitechHID++ " + caps.device_name + "]";
     }
 
     DiscoverDeviceType();
