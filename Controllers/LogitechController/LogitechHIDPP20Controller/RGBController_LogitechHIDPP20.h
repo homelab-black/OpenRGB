@@ -40,6 +40,27 @@ private:
     void                        OnRepaintRequest();
 
     /*---------------------------------------------------------*\
+    | Build one matrix (map != nullptr) or linear zone from a   |
+    | name + geometry + (led name, wire value) list, appending  |
+    | to zones / leds / led_to_zone_id. Shared by the static-   |
+    | table layout paths (mouse, headset).                      |
+    |                                                           |
+    | TODO: once the G522 and the 0x8080 keyboards are both     |
+    | hardware-confirmed working as-is, fold the per-type       |
+    | layout tables (MouseLayout / HeadsetLayout / keyboard)    |
+    | into one generic DeviceLayout table + resolver keyed by   |
+    | name|PID, with a feature tag selecting the wire-address   |
+    | interpretation. Deferred to avoid disturbing the tested   |
+    | wire paths during a refactor.                             |
+    \*---------------------------------------------------------*/
+    void                        AddLayoutZone(const std::string&                                   zone_name,
+                                              zone_type                                            type,
+                                              unsigned int                                         rows,
+                                              unsigned int                                         cols,
+                                              const unsigned int*                                  map,
+                                              const std::vector<std::pair<std::string, uint16_t>>& zone_leds);
+
+    /*---------------------------------------------------------*\
     | When true, the next DeviceUpdateMode cycle sends its      |
     | SetZoneEffect calls with persist=true instead of the      |
     | default ephemeral write. Used by DeviceSaveMode to replay |

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <set>
 #include <vector>
+#include <map>
 #include "LogitechHIDPP20Controller.h"
 #include "RGBController_LogitechHIDPP20.h"
 #include "LogManager.h"
@@ -2309,12 +2310,28 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
     /*---------------------------------------------------------*\
     | Claim host mode (fn8) before reading zone info — under    |
     | firmware control GetRGBZoneInfo returns count=0 (matches  |
-    | Solaar's discover_zones). Restored after the read.        |
+    | Solaar's discover_zones). Read the prior mode (fn7) first |
+    | and only claim if it wasn't already host-controlled, so   |
+    | the restore below puts it back exactly as we found it.    |
     \*---------------------------------------------------------*/
-    uint8_t         hostmode_on = 0x01;
-    blankFAPmessage hm_claim_resp;
-    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
-                     FN_0620_SET_HOST_MODE_STATE, &hostmode_on, 1, hm_claim_resp);
+    blankFAPmessage hm_prior_resp;
+    int prior_result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                                        FN_0620_GET_HOST_MODE_STATE,
+                                        nullptr, 0, hm_prior_resp);
+    int  prior_mode  = (prior_result > 0) ? hm_prior_resp.data[0] : -1;
+    bool claimed     = false;
+
+    if(prior_mode != 0x01)
+    {
+        uint8_t         hostmode_on = 0x01;
+        blankFAPmessage hm_claim_resp;
+        if(SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                            FN_0620_SET_HOST_MODE_STATE,
+                            &hostmode_on, 1, hm_claim_resp) > 0)
+        {
+            claimed = true;
+        }
+    }
 
     /*---------------------------------------------------------*\
     | fn1 GetRGBZoneInfo — empty request, returns a zone list.  |
@@ -2362,13 +2379,18 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
     }
 
     /*---------------------------------------------------------*\
-    | Restore firmware mode after the discovery read; the apply |
-    | path re-claims host mode on first paint.                  |
+    | Restore the prior host mode if we changed it (Solaar's    |
+    | discover_zones finally-block). The apply path re-claims   |
+    | host mode on first paint via ClaimSWControlIfNeeded.      |
     \*---------------------------------------------------------*/
-    uint8_t         hostmode_off = 0x00;
-    blankFAPmessage hm_restore_resp;
-    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
-                     FN_0620_SET_HOST_MODE_STATE, &hostmode_off, 1, hm_restore_resp);
+    if(claimed && prior_mode >= 0)
+    {
+        uint8_t         restore_mode = (uint8_t)prior_mode;
+        blankFAPmessage hm_restore_resp;
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_HOST_MODE_STATE, &restore_mode, 1,
+                         hm_restore_resp);
+    }
 
     if(caps.headset_rgb_hostmode_zone_ids.empty())
     {
@@ -3174,7 +3196,8 @@ void LogitechHIDPP20Controller::Shutdown()
 
     /*---------------------------------------------------------*\
     | Release 0x0620 Headset RGB hostmode claim. Best-effort;   |
-    | mirrors the SetHostMode() additive branch.                |
+    | pairs with the SetHostModeState(1) claim in               |
+    | ClaimSWControlIfNeeded.                                   |
     \*---------------------------------------------------------*/
     if(caps.idx_headset_rgb_hostmode != 0)
     {
@@ -3310,30 +3333,44 @@ void LogitechHIDPP20Controller::SetHostMode()
         LOG_DEBUG("%s OnboardProfiles set to host mode, verify=0x%02X",
                   LOG_TAG, verify_response.data[0]);
     }
-
-    /*-------------------------------------------------------*\
-    | 0x0620 Headset RGB hostmode claim. Additive — a headset |
-    | exposing 0x0620 typically won't also have 0x8100/0x8101 |
-    | but we don't assume mutual exclusion. Sticky claim, not |
-    | re-issued per write; wake path re-enters SetHostMode    |
-    | after reconnect which reinstates it for free.           |
-    \*-------------------------------------------------------*/
-    if(caps.idx_headset_rgb_hostmode != 0)
-    {
-        uint8_t         on           = 0x01;
-        blankFAPmessage claim_response;
-        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
-                         FN_0620_SET_HOST_MODE_STATE,
-                         &on, 1, claim_response);
-
-        LOG_DEBUG("%s 0x0620 SetHostModeState(1) sent", LOG_TAG);
-    }
 }
 
 bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
 {
     if(sw_control_claimed)
     {
+        return true;
+    }
+
+    /*----------------------------------------------------------*\
+    | 0x0620 headset (G522/G321/G315): the claim is a single     |
+    | SetHostModeState(1) — Solaar's host-mode claim. A headset  |
+    | takes only this path; it has no 0x8070/0x8071/0x8080 to    |
+    | claim and no 0x0600 effects (Solaar drives 0x0600 nowhere).|
+    | Sticky; the wake path resets the flag so first paint       |
+    | re-claims. Released by SetHostModeState(0) in Shutdown.    |
+    \*----------------------------------------------------------*/
+    if(caps.idx_headset_rgb_hostmode != 0)
+    {
+        if(!device_online.load())
+        {
+            return false;
+        }
+
+        uint8_t         on   = 0x01;
+        blankFAPmessage resp;
+        int result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                                      FN_0620_SET_HOST_MODE_STATE, &on, 1, resp);
+
+        if(result <= 0)
+        {
+            LOG_DEBUG("%s 0x0620 SetHostModeState(1) claim failed (result=%d)",
+                      LOG_TAG, result);
+            return false;
+        }
+
+        sw_control_claimed = true;
+        LOG_DEBUG("%s 0x0620 host mode claimed", LOG_TAG);
         return true;
     }
 
@@ -4535,76 +4572,53 @@ void LogitechHIDPP20Controller::SetHeadsetRGBHostmodeColors
         return;
     }
 
-    /*---------------------------------------------------------*\
-    | If fewer colors than zones, fill the tail with the last   |
-    | provided color. If zero colors, nothing to write.         |
-    \*---------------------------------------------------------*/
     if(zone_colors.empty())
     {
         return;
     }
 
     /*---------------------------------------------------------*\
-    | Uniformity check: same color across every zone?           |
+    | Group zones by color, one fn5 SetRgbZonesSingleValue per  |
+    | distinct color, then one FrameEnd — Solaar's              |
+    | write_zone_map byte-for-byte. Host mode is already        |
+    | claimed (sticky) via ClaimSWControlIfNeeded; the frame is |
+    | just data + FrameEnd, no per-frame claim. Zone i takes    |
+    | zone_colors[i] (last color fills any shortfall).          |
     \*---------------------------------------------------------*/
-    RGBColor first = zone_colors[0];
-    bool all_same  = true;
-    for(size_t i = 1; i < zones.size(); i++)
+    std::map<RGBColor, std::vector<uint8_t>> groups;
+    for(size_t i = 0; i < zones.size(); i++)
     {
         RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
-        if(c != first)
-        {
-            all_same = false;
-            break;
-        }
+        groups[c].push_back(zones[i]);
     }
 
-    uint8_t         payload[16];
-    size_t          payload_len = 0;
-    uint8_t         function    = 0;
     blankFAPmessage response;
 
-    if(all_same)
+    for(const std::pair<const RGBColor, std::vector<uint8_t>>& group : groups)
     {
+        RGBColor                    color = group.first;
+        const std::vector<uint8_t>& ids   = group.second;
+
         /*------------------------------------------------------*\
         | fn5 SetRgbZonesSingleValue: [R, G, B, count, zones...] |
         \*------------------------------------------------------*/
-        function    = FN_0620_SET_RGB_ZONES_SINGLE_VALUE;
-        payload[0]  = RGBGetRValue(first);
-        payload[1]  = RGBGetGValue(first);
-        payload[2]  = RGBGetBValue(first);
-        payload[3]  = (uint8_t)zones.size();
+        uint8_t payload[16];
+        payload[0] = RGBGetRValue(color);
+        payload[1] = RGBGetGValue(color);
+        payload[2] = RGBGetBValue(color);
 
-        size_t n = zones.size();
+        size_t n = ids.size();
         if(n > sizeof(payload) - 4) n = sizeof(payload) - 4;
+        payload[3] = (uint8_t)n;
         for(size_t i = 0; i < n; i++)
         {
-            payload[4 + i] = zones[i];
+            payload[4 + i] = ids[i];
         }
-        payload_len = 4 + n;
-    }
-    else
-    {
-        /*------------------------------------------------------*\
-        | fn2 SetIndividualRgbZones: [zone, R, G, B] × N         |
-        | Each entry is 4 bytes; 16-byte payload fits 4 entries. |
-        \*------------------------------------------------------*/
-        function = FN_0620_SET_INDIVIDUAL_RGB_ZONES;
-        size_t n = zones.size();
-        if(n > sizeof(payload) / 4) n = sizeof(payload) / 4;
-        for(size_t i = 0; i < n; i++)
-        {
-            RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
-            payload[i * 4 + 0] = zones[i];
-            payload[i * 4 + 1] = RGBGetRValue(c);
-            payload[i * 4 + 2] = RGBGetGValue(c);
-            payload[i * 4 + 3] = RGBGetBValue(c);
-        }
-        payload_len = n * 4;
-    }
 
-    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, function,
-                     payload, payload_len, response);
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_RGB_ZONES_SINGLE_VALUE,
+                         payload, 4 + n, response);
+    }
 
     /*---------------------------------------------------------*\
     | fn6 FrameEnd — byte 0 = 0x01 (transient commit). Never    |
@@ -4615,8 +4629,8 @@ void LogitechHIDPP20Controller::SetHeadsetRGBHostmodeColors
     SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, FN_0620_FRAME_END,
                      frame_end, sizeof(frame_end), response);
 
-    LOG_TRACE("%s 0x0620 wrote %zu zone(s), fn=0x%02X, FrameEnd[0x01]",
-              LOG_TAG, zones.size(), function);
+    LOG_TRACE("%s 0x0620 wrote %zu zone(s) in %zu color group(s), FrameEnd[0x01]",
+              LOG_TAG, zones.size(), groups.size());
 }
 
 /*---------------------------------------------------------*\

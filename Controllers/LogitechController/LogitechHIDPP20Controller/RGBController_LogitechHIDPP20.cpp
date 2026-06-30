@@ -476,6 +476,67 @@ static const MouseLayout* FindMouseLayout(const std::string& device_name)
 }
 
 /*---------------------------------------------------------*\
+| Headset RGB hostmode (0x0620) physical layout table.      |
+| Firmware reports zone IDs but no geometry; this places    |
+| a known device's zone IDs onto earcup matrix zones.       |
+| Mirrors Solaar's per-device headset layout                |
+| (headset_g522.py). Keyed by firmware-reported PID —       |
+| Centurion device names are not reliable. Unknown 0x0620   |
+| headsets fall back to a generic one-LED-per-zone list.    |
+\*---------------------------------------------------------*/
+struct HeadsetEarcup
+{
+    const char*          name;       /* OpenRGB zone name                    */
+    unsigned int         rows;
+    unsigned int         cols;
+    unsigned int         led_count;
+    const unsigned int*  map;        /* zone-relative LED indices (rows*cols) */
+    const unsigned char* zone_ids;   /* firmware zone ID per LED, in LED order*/
+};
+
+struct HeadsetLayout
+{
+    uint16_t             pid;          /* matches pid_wireless or pid_wired   */
+    unsigned int         earcup_count;
+    const HeadsetEarcup* earcups;
+};
+
+/*---------------------------------------------------------*\
+| G522: 8 LEDs, two 2x2 earcup grids (outer view):          |
+|   Left  8 7 / 4 3      Right  6 5 / 2 1                   |
+| LEDs are listed in grid reading order (TL, TR, BL, BR) so |
+| each earcup's matrix map is the identity {0,1,2,3}.       |
+\*---------------------------------------------------------*/
+static const unsigned int  g522_earcup_map[2 * 2] = { 0, 1, 2, 3 };
+static const unsigned char g522_left_zone_ids[4]  = { 8, 7, 4, 3 };
+static const unsigned char g522_right_zone_ids[4] = { 6, 5, 2, 1 };
+
+static const HeadsetEarcup g522_earcups[] =
+{
+    { "Left Earcup",  2, 2, 4, g522_earcup_map, g522_left_zone_ids  },
+    { "Right Earcup", 2, 2, 4, g522_earcup_map, g522_right_zone_ids },
+};
+
+static const HeadsetLayout known_headset_layouts[] =
+{
+    { 0x0B18, 2, g522_earcups },    /* G522 LIGHTSPEED */
+    { 0x0000, 0, nullptr }
+};
+
+static const HeadsetLayout* FindHeadsetLayout(uint16_t pid_wireless, uint16_t pid_wired)
+{
+    for(const HeadsetLayout* hl = known_headset_layouts; hl->earcups != nullptr; hl++)
+    {
+        if(hl->pid == pid_wireless || hl->pid == pid_wired)
+        {
+            return hl;
+        }
+    }
+
+    return nullptr;
+}
+
+/*---------------------------------------------------------*\
 | Keyboard per-key layout table (Feature 0x8080)            |
 | Mirrors the mouse layout table above: matched by device   |
 | name substring, each entry supplies the physical matrix   |
@@ -1369,6 +1430,50 @@ static void hidpp20_derive_keyboard_layout
     }
 }
 
+void RGBController_LogitechHIDPP20::AddLayoutZone
+    (
+    const std::string&                                   zone_name,
+    zone_type                                            type,
+    unsigned int                                         rows,
+    unsigned int                                         cols,
+    const unsigned int*                                  map,
+    const std::vector<std::pair<std::string, uint16_t>>& zone_leds
+    )
+{
+    zone new_zone;
+    new_zone.name       = zone_name;
+    new_zone.type       = type;
+    new_zone.leds_min   = (unsigned int)zone_leds.size();
+    new_zone.leds_max   = (unsigned int)zone_leds.size();
+    new_zone.leds_count = (unsigned int)zone_leds.size();
+
+    if(type == ZONE_TYPE_MATRIX && map != nullptr)
+    {
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height     = rows;
+        new_map->width      = cols;
+        new_map->map        = new unsigned int[rows * cols];
+        memcpy(new_map->map, map, rows * cols * sizeof(unsigned int));
+        new_zone.matrix_map = new_map;
+    }
+    else
+    {
+        new_zone.matrix_map = nullptr;
+    }
+
+    zones.push_back(new_zone);
+
+    for(size_t i = 0; i < zone_leds.size(); i++)
+    {
+        led new_led;
+        new_led.name  = zone_leds[i].first;
+        new_led.value = zone_leds[i].second;
+        leds.push_back(new_led);
+
+        led_to_zone_id.push_back(zone_leds[i].second);
+    }
+}
+
 void RGBController_LogitechHIDPP20::SetupZones()
 {
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
@@ -1511,83 +1616,78 @@ void RGBController_LogitechHIDPP20::SetupZones()
             /*--------------------------------------------------*\
             | Known mouse: use table-defined matrix layout       |
             \*--------------------------------------------------*/
-            zone perkey_zone;
-            perkey_zone.name       = "Mouse LEDs";
-            perkey_zone.type       = ZONE_TYPE_MATRIX;
-            perkey_zone.leds_min   = ml->led_count;
-            perkey_zone.leds_max   = ml->led_count;
-            perkey_zone.leds_count = ml->led_count;
-
-            matrix_map_type* new_map = new matrix_map_type;
-            new_map->height          = ml->rows;
-            new_map->width           = ml->cols;
-            new_map->map             = new unsigned int[ml->rows * ml->cols];
-            memcpy(new_map->map, ml->map, ml->rows * ml->cols * sizeof(unsigned int));
-            perkey_zone.matrix_map   = new_map;
-            zones.push_back(perkey_zone);
-
+            std::vector<std::pair<std::string, uint16_t>> mouse_leds;
             for(unsigned int i = 0; i < ml->led_count && i < caps.perkey_zone_ids.size(); i++)
             {
-                led new_led;
-                new_led.name  = ml->led_names[i];
-                new_led.value = caps.perkey_zone_ids[i];
-                leds.push_back(new_led);
-
-                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+                mouse_leds.push_back(std::make_pair(std::string(ml->led_names[i]),
+                                                    (uint16_t)caps.perkey_zone_ids[i]));
             }
+            AddLayoutZone("Mouse LEDs", ZONE_TYPE_MATRIX, ml->rows, ml->cols, ml->map, mouse_leds);
         }
         else
         {
             /*-------------------------------------------------*\
             | Other devices: linear zone with auto-named LEDs   |
             \*-------------------------------------------------*/
-            zone perkey_zone;
-            perkey_zone.name       = "LEDs";
-            perkey_zone.type       = ZONE_TYPE_LINEAR;
-            perkey_zone.leds_min   = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.leds_max   = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.leds_count = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.matrix_map = nullptr;
-            zones.push_back(perkey_zone);
-
+            std::vector<std::pair<std::string, uint16_t>> other_leds;
             for(size_t i = 0; i < caps.perkey_zone_ids.size(); i++)
             {
-                led new_led;
-                new_led.name  = "LED " + std::to_string(caps.perkey_zone_ids[i]);
-                new_led.value = caps.perkey_zone_ids[i];
-                leds.push_back(new_led);
-
-                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+                other_leds.push_back(std::make_pair("LED " + std::to_string(caps.perkey_zone_ids[i]),
+                                                    (uint16_t)caps.perkey_zone_ids[i]));
             }
+            AddLayoutZone("LEDs", ZONE_TYPE_LINEAR, 0, 0, nullptr, other_leds);
         }
     }
     else if(caps.is_headset_rgb_hostmode)
     {
-        /*------------------------------------------------------*\
-        | Headset RGB hostmode (0x0620): single linear zone with |
-        | one LED per discovered earcup zone ID.                 |
-        \*------------------------------------------------------*/
-        size_t led_count = caps.headset_rgb_hostmode_zone_ids.size();
+        const HeadsetLayout* hl = FindHeadsetLayout(caps.pid_wireless, caps.pid_wired);
 
-        zone headset_zone;
-        headset_zone.name       = "Headset";
-        headset_zone.type       = ZONE_TYPE_LINEAR;
-        headset_zone.leds_min   = (unsigned int)led_count;
-        headset_zone.leds_max   = (unsigned int)led_count;
-        headset_zone.leds_count = (unsigned int)led_count;
-        headset_zone.matrix_map = nullptr;
-        zones.push_back(headset_zone);
-
-        for(size_t i = 0; i < led_count; i++)
+        unsigned int layout_leds = 0;
+        if(hl != nullptr)
         {
-            led new_led;
-            new_led.name  = (i == 0) ? "Left Earcup"
-                          : (i == 1) ? "Right Earcup"
-                          : "Zone " + std::to_string(i);
-            new_led.value = caps.headset_rgb_hostmode_zone_ids[i];
-            leds.push_back(new_led);
+            for(unsigned int e = 0; e < hl->earcup_count; e++)
+            {
+                layout_leds += hl->earcups[e].led_count;
+            }
+        }
 
-            led_to_zone_id.push_back(caps.headset_rgb_hostmode_zone_ids[i]);
+        if(hl != nullptr && caps.headset_rgb_hostmode_zone_ids.size() == layout_leds)
+        {
+            /*--------------------------------------------------*\
+            | Known headset: one matrix zone per earcup, LEDs    |
+            | placed on the device's physical 2x2 grid. LED      |
+            | value is the firmware zone ID the write path       |
+            | addresses; the count-match guard falls through to  |
+            | the generic path if a firmware variant reports a   |
+            | different zone set than the table expects.         |
+            \*--------------------------------------------------*/
+            for(unsigned int e = 0; e < hl->earcup_count; e++)
+            {
+                const HeadsetEarcup& ec = hl->earcups[e];
+
+                std::vector<std::pair<std::string, uint16_t>> earcup_leds;
+                for(unsigned int i = 0; i < ec.led_count; i++)
+                {
+                    earcup_leds.push_back(std::make_pair("LED " + std::to_string(ec.zone_ids[i]),
+                                                         (uint16_t)ec.zone_ids[i]));
+                }
+                AddLayoutZone(ec.name, ZONE_TYPE_MATRIX, ec.rows, ec.cols, ec.map, earcup_leds);
+            }
+        }
+        else
+        {
+            /*--------------------------------------------------*\
+            | Unknown 0x0620 headset: no geometry table, so a    |
+            | single linear zone with one LED per discovered     |
+            | zone ID.                                           |
+            \*--------------------------------------------------*/
+            std::vector<std::pair<std::string, uint16_t>> headset_leds;
+            for(size_t i = 0; i < caps.headset_rgb_hostmode_zone_ids.size(); i++)
+            {
+                headset_leds.push_back(std::make_pair("LED " + std::to_string(caps.headset_rgb_hostmode_zone_ids[i]),
+                                                      (uint16_t)caps.headset_rgb_hostmode_zone_ids[i]));
+            }
+            AddLayoutZone("Headset", ZONE_TYPE_LINEAR, 0, 0, nullptr, headset_leds);
         }
     }
     else if(caps.has_zone_effects)
@@ -1956,8 +2056,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     | Feature 0x0620 Headset RGB Hostmode (Centurion G522 /      |
     | PRO X 2). Static-color only, two earcup zones. Bypasses    |
     | per-key, SetZoneEffect, and effect-card paths entirely —   |
-    | 0x0620 has none of that. Claim was made once in            |
-    | SetHostMode(); we just write colors + FrameEnd[0x01].      |
+    | 0x0620 has none of that. Host mode was claimed once via    |
+    | ClaimSWControlIfNeeded() above; we just write colors +     |
+    | FrameEnd[0x01].                                            |
     \*----------------------------------------------------------*/
     if(caps.is_headset_rgb_hostmode)
     {
