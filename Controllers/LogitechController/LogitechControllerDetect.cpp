@@ -756,93 +756,187 @@ void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
     FinishLogitechHIDPP20Probe(controller, info);
 }
 
-#if defined(_WIN32) || defined(__APPLE__)
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Unified HID++ 2.0 Lightspeed Receiver Detection (Windows / macOS)                                                                                 |
+| Unified HID++ 2.0 Lightspeed Receiver Detection (all platforms)                                                                                   |
 |                                                                                                                                                   |
-|   On Linux, hid-logitech-dj splits receiver traffic into per-slot virtual child hidraw nodes with their own 0x40XX PIDs, so Linux detection can   |
-|   use DetectLogitechHIDPP20 directly against the virtual PIDs. Windows and macOS have no DJ driver — the receiver appears as a single HID device  |
-|   and we must probe each paired slot by hand, addressing it via the HID++ device_index header byte.                                               |
+|   Pointed at a Lightspeed receiver dongle, this probes each paired slot (device_index 0x01..0x06) and registers any RGB-capable HID++ 2.0 device  |
+|   behind it, regardless of the device's PID — we speak the full protocol, so each slot identifies itself (name, firmware PID) once we talk to it. |
+|   Runs on Linux too: the receiver hidraw is reachable and the device_index slot addressing reaches the paired devices directly, so we do not need  |
+|   per-device hid-logitech-dj virtual child PIDs.                                                                                                   |
 |                                                                                                                                                   |
-|   Iterates device indices 0x01..0x06. c547 is dual-pair, but the loop covers Unifying-style receivers and any future wider-pair variants. Each    |
-|   responding slot gets its own hid_device handle and a shared std::mutex so sibling slots serialize HID writes — matching the pattern in the      |
-|   legacy LogitechLightspeedController (see CreateLogitechLightspeedDevice around line 860).                                                       |
+|   c547 is dual-pair; the 0x01..0x06 loop also covers any wider-pair variants. Each responding slot gets its own hid_device handle and a shared    |
+|   std::mutex so sibling slots serialize HID writes — matching the legacy LogitechLightspeedController pattern.                                     |
 |                                                                                                                                                   |
-|   TODO (untested on Windows): runtime reader-thread coordination. Each slot controller starts its own reader thread; on a shared receiver both    |
-|   threads will see both slots' incoming packets. The reader needs to drop frames whose device_index doesn't match its own, or dispatch across     |
-|   sibling controllers. Safe during probe (mutex serializes writes, reads are direct); becomes an issue post-StartPowerManager.                    |
+|   TODO: runtime reader-thread coordination. Each slot controller starts its own reader thread; on a shared receiver both threads see both slots'  |
+|   packets. The reader should drop frames whose device_index doesn't match its own. Safe during probe (mutex serializes writes, reads are direct); |
+|   becomes an issue post-StartPowerManager.                                                                                                        |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::string& /*name*/)
+usages BundleLogitechUsages(hid_device_info* info);   /* defined later in this file (legacy Lightspeed path) */
+
+static void RegisterLightspeedReceiverSlot(hid_device_info* info, uint8_t idx, std::shared_ptr<std::mutex> receiver_mutex)
 {
-    std::shared_ptr<std::mutex> receiver_mutex = std::make_shared<std::mutex>();
+    hid_device* dev = hid_open_path(info->path);
 
-    for(uint8_t idx = 0x01; idx <= 0x06; idx++)
+    if(!dev)
     {
-        hid_device* dev = hid_open_path(info->path);
+        return;
+    }
 
-        if(!dev)
+    LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(
+        dev, info->path, idx, true, receiver_mutex, info->usage_page);
+
+    if(!controller->Probe())
+    {
+        /*--------------------------------------------------*\
+        | Slot is empty, stale, or not HID++ 2.0. Destructor |
+        | closes the per-slot handle we opened above.        |
+        \*--------------------------------------------------*/
+        delete controller;
+        return;
+    }
+
+    controller->Initialize();
+
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    if(caps.has_zone_effects || caps.has_perkey)
+    {
+        RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller);
+
+        LOG_INFO("[%s slot=%u] Registering RGB controller", caps.device_name.c_str(), idx);
+
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+
+        if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
         {
-            continue;
-        }
+            controller->StartPowerManager();
 
-        LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(
-            dev, info->path, idx, true, receiver_mutex, info->usage_page);
-
-        if(!controller->Probe())
-        {
-            /*--------------------------------------------------*\
-            | Slot is empty, stale, or not HID++ 2.0. Destructor |
-            | closes the per-slot handle we opened above.        |
-            \*--------------------------------------------------*/
-            delete controller;
-            continue;
-        }
-
-        controller->Initialize();
-
-        const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
-
-        if(caps.has_zone_effects || caps.has_perkey)
-        {
-            RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller);
-
-            LOG_INFO("[%s slot=%u] Registering RGB controller", caps.device_name.c_str(), idx);
-
-            ResourceManager::get()->RegisterRGBController(rgb_controller);
-
-            if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
+            if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
             {
-                controller->StartPowerManager();
-
-                if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
-                {
-                    controller->StartEventWatcher();
-                }
+                controller->StartEventWatcher();
             }
         }
-        else
-        {
-            LOG_INFO("[%s slot=%u] No RGB features, skipping", caps.device_name.c_str(), idx);
-            delete controller;
-        }
+    }
+    else
+    {
+        LOG_INFO("[%s slot=%u] No RGB features, skipping", caps.device_name.c_str(), idx);
+        delete controller;
     }
 }
-#endif
+
+void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::string& /*name*/)
+{
+    /*-------------------------------------------------------------------------------------------------*\
+    | Bundle the receiver's interface-2 usages so we can reach the usage-1 (RAP short message) handle    |
+    | that getWirelessDevice() needs to read the pairing table.                                          |
+    \*-------------------------------------------------------------------------------------------------*/
+    usages                      bundle          = BundleLogitechUsages(info);
+
+    /*-------------------------------------------------------------------------------------------------*\
+    | Linux/macOS expose interface 2 as a single hidraw node that accepts every report ID (no Windows   |
+    | per-TLC split), so BundleLogitechUsages may not key a usage-1 handle. Open the interface-2 path    |
+    | directly for the RAP read in that case — that one handle serves both RAP and FAP. No-op on         |
+    | Windows, where BundleLogitechUsages already found the real usage-1 handle.                         |
+    \*-------------------------------------------------------------------------------------------------*/
+    if(bundle.find(1) == bundle.end())
+    {
+        hid_device* rap = hid_open_path(info->path);
+        if(rap)
+        {
+            bundle.emplace((uint8_t)1, rap);
+        }
+    }
+
+    bool                        have_rap        = (bundle.find(1) != bundle.end());
+
+    wireless_map                wireless_devices;
+    std::map<uint8_t, bool>     online;
+    int                         count           = 0;
+
+    if(have_rap)
+    {
+        count = getWirelessDevice(bundle, info->product_id, &wireless_devices, &online);
+    }
+
+    /*-------------------------------------------------------------------------------------------------*\
+    | Enumeration is done; close the bundle handles. The per-slot registration below opens its own       |
+    | handle on the usage-2 path, so these are no longer needed.                                         |
+    \*-------------------------------------------------------------------------------------------------*/
+    for(usages::iterator u = bundle.begin(); u != bundle.end(); u++)
+    {
+        if(u->second)
+        {
+            hid_close(u->second);
+        }
+    }
+    bundle.clear();
+
+    std::shared_ptr<std::mutex> receiver_mutex  = std::make_shared<std::mutex>();
+
+    /*-------------------------------------------------------------------------------------------------*\
+    | Fallback: no usage-1 handle, or the pairing table reported nothing. Blindly probe slots 0x01..0x06 |
+    | exactly as before so detection never regresses on receivers the RAP path can't read.               |
+    \*-------------------------------------------------------------------------------------------------*/
+    if(!have_rap || count == 0)
+    {
+        for(uint8_t idx = 0x01; idx <= 0x06; idx++)
+        {
+            RegisterLightspeedReceiverSlot(info, idx, receiver_mutex);
+        }
+        return;
+    }
+
+    LOG_INFO("[Logitech receiver %04X] %d paired device(s)", info->product_id, count);
+
+    for(wireless_map::iterator wd = wireless_devices.begin(); wd != wireless_devices.end(); wd++)
+    {
+        uint16_t    dev_pid     = wd->first;
+        uint8_t     idx         = wd->second;
+        bool        is_online   = (online.find(idx) != online.end()) ? online[idx] : false;
+
+        if(!is_online)
+        {
+            /*--------------------------------------------------------------*\
+            | Paired but not currently linked (asleep / powered off). The    |
+            | receiver knows it exists but a FAP probe can't reach it, so    |
+            | log it and move on rather than registering a dead controller.  |
+            | Phase 2 (gated on the reader-thread coordination TODO above)   |
+            | would register it pending and StartProbeWatcher() it online.   |
+            \*--------------------------------------------------------------*/
+            LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X asleep (paired, offline) - skipping until awake", info->product_id, idx, dev_pid);
+            continue;
+        }
+
+        RegisterLightspeedReceiverSlot(info, idx, receiver_mutex);
+    }
+}
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Unified HID++ 2.0 Devices                                                                                                                         |
-|   PID-specific registrations for devices tested with the unified controller.                                                                      |
-|   Wired paths use the device's own USB PID; wireless paths on Linux use the hid-logitech-dj virtual child PIDs (0x40XX range).                    |
+|   Wired devices register on their own USB PID. Wireless devices are reached by pointing their Lightspeed receiver dongle at the slot probe        |
+|   (DetectLogitechHIDPP20LightspeedReceiver), which enumerates whatever is paired and identifies each by talking to it — no per-device wireless PID.|
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G502 X Plus (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,  2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G515_LS_TKL_PID,  2, 0xFF00, 2);
-#ifdef __linux__
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G502 X Plus (wireless)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G502_X_PLUS_LIGHTSPEED_VIRTUAL_PID, 2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wireless)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G515_LS_TKL_LIGHTSPEED_VIRTUAL_PID, 2, 0xFF00, 2);
-#endif
-#if defined(_WIN32) || defined(__APPLE__)
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, 0xC547, 2, 0xFF00, 2);
-#endif
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| G915 family (0x8081) wired — migrated from the legacy LogitechG915Controller. Same 0xFF00 / usage 2 transport as the G515. The unified controller |
+| self-discovers TKL-vs-full and the ANSI/ISO/JIS layout, so no name probe is needed. Wireless arrives through the receiver slot probe below.        |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G915 (wired)",                       DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G915_WIRED_PID,    2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G915 TKL (wired)",                   DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G915TKL_WIRED_PID, 2, 0xFF00, 2);
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| Lightspeed receiver dongles — ALL PLATFORMS. Point each dongle at the slot probe; it walks slots 0x01..0x06 and registers any RGB-capable HID++   |
+| 2.0 device paired to it (G915 family, G515, Lightspeed mice) regardless of PID. We speak the full protocol, so a device identifies itself once     |
+| probed — no per-device wireless/virtual PIDs needed. Explicit dongle list for now; the long-term plan is a VID-wide wildcard that probes every     |
+| Logitech device and passes through anything it cannot drive.                                                                                      |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C539)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, LOGITECH_G_LIGHTSPEED_RECEIVER_PID,  2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C53A Powerplay)",DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, LOGITECH_G_LIGHTSPEED_POWERPLAY_PID, 2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C541)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, LOGITECH_G915_RECEIVER_PID,         2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C545)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, LOGITECH_G915TKL_RECEIVER_PID,      2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, LOGITECH_G915_RECEIVER_2_PID,       2, 0xFF00, 2);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Per-key keyboards (Feature 0x8080 Per Key Lighting) — G512 / G610 / G810 / G910 / G Pro. Usage page 0xFF43; the unified detector auto-discovers   |
@@ -875,11 +969,11 @@ REGISTER_HID_DETECTOR_IPU("Logitech G213",                                  Dete
 REGISTER_HID_DETECTOR_IP ("Logitech G813 RGB Mechanical Gaming Keyboard",   DetectLogitechKeyboardG815, LOGITECH_VID, LOGITECH_G813_PID,                    1, 0xFF43);
 REGISTER_HID_DETECTOR_IP ("Logitech G815 RGB Mechanical Gaming Keyboard",   DetectLogitechKeyboardG815, LOGITECH_VID, LOGITECH_G815_PID,                    1, 0xFF43);
 
-REGISTER_HID_DETECTOR_IPU("Logitech G915 Wireless RGB Mechanical Gaming Keyboard",              DetectLogitechKeyboardG915,      LOGITECH_VID, LOGITECH_G915_RECEIVER_PID,      2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech G915 Wireless RGB Mechanical Gaming Keyboard (Receiver 2)", DetectLogitechKeyboardG915Receiver2, LOGITECH_VID, LOGITECH_G915_RECEIVER_2_PID, 2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech G915 Wireless RGB Mechanical Gaming Keyboard (Wired)",      DetectLogitechKeyboardG915Wired, LOGITECH_VID, LOGITECH_G915_WIRED_PID,         2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech G915TKL Wireless RGB Mechanical Gaming Keyboard",           DetectLogitechKeyboardG915,      LOGITECH_VID, LOGITECH_G915TKL_RECEIVER_PID,   2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech G915TKL Wireless RGB Mechanical Gaming Keyboard (Wired)",   DetectLogitechKeyboardG915Wired, LOGITECH_VID, LOGITECH_G915TKL_WIRED_PID,      2, 0xFF00, 2);
+/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
+| The G915 family moved to the unified HID++ 2.0 controller (see the "Unified HID++ 2.0 Devices" section above). LogitechG915Controller and its     |
+| detect functions (DetectLogitechKeyboardG915 / ...Wired / ...Receiver2) remain compiled but unregistered — restore these five registrations to    |
+| revert to the legacy controller.                                                                                                                  |
+\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Mice                                                                                                                                              |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -981,8 +1075,6 @@ void DetectLogitechWired(hid_device_info* info, const std::string& /*name*/)
 | Hat tip - kernel driver  https://github.com/torvalds/linux/blob/master/drivers/hid/hid-logitech-dj.c      |
 |         - ltunify        https://github.com/Lekensteyn/ltunify/                                           |
 \*---------------------------------------------------------------------------------------------------------*/
-#if defined(_WIN32) || defined(__APPLE__)
-
 usages BundleLogitechUsages(hid_device_info* info)
 {
     /*-----------------------------------------------------------------*\
@@ -1019,6 +1111,7 @@ usages BundleLogitechUsages(hid_device_info* info)
     return temp_usages;
 }
 
+#if defined(_WIN32) || defined(__APPLE__)
 void DetectLogitechLightspeedReceiver(hid_device_info* info, const std::string& /*name*/)
 {
     /*-----------------------------------------------------------------*\
@@ -1053,9 +1146,13 @@ void DetectLogitechLightspeedReceiver(hid_device_info* info, const std::string& 
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Lightspeed Receivers (Windows Wireless)                                                                                                           |
+|                                                                                                                                                   |
+| C539 / C53A are now owned by the unified DetectLogitechHIDPP20LightspeedReceiver on usage 2 (above), which enumerates the pairing table and       |
+| drives paired devices over the full HID++ 2.0 protocol. The legacy usage-1 registrations for those two PIDs are disabled so a device behind them  |
+| is not registered twice (unified + legacy). DetectLogitechLightspeedReceiver itself is retained for the other receiver PIDs below.                |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Logitech Lightspeed Receiver",                        DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_RECEIVER_PID,   2, 0xFF00, 1);
-REGISTER_HID_DETECTOR_IPU("Logitech G Powerplay Mousepad",                       DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_POWERPLAY_PID,  2, 0xFF00, 1);
+//REGISTER_HID_DETECTOR_IPU("Logitech Lightspeed Receiver",                        DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_RECEIVER_PID,   2, 0xFF00, 1);
+//REGISTER_HID_DETECTOR_IPU("Logitech G Powerplay Mousepad",                       DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_POWERPLAY_PID,  2, 0xFF00, 1);
 
 #endif
 
