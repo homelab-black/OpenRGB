@@ -192,7 +192,9 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
     { KEY_EN_EQUALS,          43  },
     { KEY_EN_LEFT_BRACKET,    44  },
     { KEY_EN_RIGHT_BRACKET,   45  },
-    { KEY_EN_ANSI_BACK_SLASH, 46  },
+    { KEY_EN_ANSI_BACK_SLASH, 46  },   /* ANSI only; ISO/JIS use 47 + 97 */
+    { KEY_EN_POUND,           47  },   /* ISO/JIS POUND (#/  row 3 col 12)  */
+    { KEY_EN_ISO_BACK_SLASH,  97  },   /* ISO/JIS extra key (row 4 col 1)   */
     { KEY_EN_SEMICOLON,       48  },
     { KEY_EN_QUOTE,           49  },
     { KEY_EN_BACK_TICK,       50  },
@@ -276,6 +278,30 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
     { "Key: G4",                    183 },
     { "Key: G5",                    184 },
     { "Logo",                       210 },
+};
+
+/*---------------------------------------------------------*\
+| Curated allowlist of non-matrix zones worth surfacing as  |
+| "Extras" — the media keys, G-keys, and logo the firmware  |
+| actually wires. Ported from Solaar's EXTRAS_ALLOWLIST.    |
+| Any other device-reported zone the KLM matrix did not     |
+| claim is a phantom/reserved slot (ISO's 46, ANSI's 47/97, |
+| G515's 99-103/254, ...) and is dropped. Layout-driven,    |
+| not device-specific.                                      |
+\*---------------------------------------------------------*/
+static const std::set<unsigned int> hidpp20_extras_allowlist =
+{
+    153,    /* Brightness  */
+    155,    /* Play/Pause  */
+    156,    /* Mute        */
+    157,    /* Next        */
+    158,    /* Previous    */
+    180,    /* G1          */
+    181,    /* G2          */
+    182,    /* G3          */
+    183,    /* G4          */
+    184,    /* G5          */
+    210,    /* Logo        */
 };
 
 /*---------------------------------------------------------*\
@@ -1552,20 +1578,27 @@ void RGBController_LogitechHIDPP20::SetupZones()
 
             /*---------------------------------------------------*\
             | Extras candidates: zones reported by the device     |
-            | that aren't claimed by KLM AND have a known name    |
-            | in hidpp20_key_name_to_zone. We deliberately DROP   |
-            | unnamed zones — firmware-side GetInfo bitmaps       |
-            | enumerate phantom/reserved slots (G515 reports      |
-            | 47, 97, 99-103, 254 among others) that aren't       |
-            | wired to physical LEDs. Exposing them as "LED N"    |
-            | created ghost entries in the GUI. Treat             |
-            | hidpp20_key_name_to_zone as the curated allowlist.  |
+            | that aren't claimed by KLM AND are in the curated   |
+            | hidpp20_extras_allowlist (media/G-keys/logo). We    |
+            | deliberately DROP everything else — firmware GetInfo|
+            | bitmaps enumerate phantom/reserved slots (ISO's 46, |
+            | ANSI's 47/97, G515's 99-103/254 ...) that aren't    |
+            | wired to physical LEDs and would otherwise show as  |
+            | ghost entries. Layout-driven, not device-specific.  |
             \*---------------------------------------------------*/
             std::vector<std::pair<uint16_t, std::string>> extras;
             for(uint16_t zid : caps.perkey_zone_ids)
             {
                 if(klm_claimed_zones.count(zid) != 0)
                 {
+                    continue;
+                }
+
+                if(hidpp20_extras_allowlist.count(zid) == 0)
+                {
+                    LOG_DEBUG("[LogitechHID++2.0 %s] Dropping non-extra per-key zone %u "
+                              "(phantom/reserved, not in extras allowlist)",
+                              name.c_str(), (unsigned)zid);
                     continue;
                 }
 
@@ -1581,10 +1614,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
 
                 if(label.empty())
                 {
-                    LOG_DEBUG("[LogitechHID++2.0 %s] Dropping unnamed per-key zone %u "
-                              "(not in hidpp20_key_name_to_zone)",
-                              name.c_str(), (unsigned)zid);
-                    continue;
+                    label = "LED " + std::to_string(zid);
                 }
 
                 extras.emplace_back(zid, label);
