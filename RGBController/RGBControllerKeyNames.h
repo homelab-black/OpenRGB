@@ -187,6 +187,7 @@ extern const char* KEY_DE_ESZETT;
 extern const char* KEY_DE_DIAERESIS_A;
 extern const char* KEY_DE_DIAERESIS_O;
 extern const char* KEY_DE_DIAERESIS_U;
+extern const char* KEY_DE_DEAD_ACUTE;
 
 extern const char* KEY_FR_SUPER_2;
 extern const char* KEY_FR_AMPERSAND;

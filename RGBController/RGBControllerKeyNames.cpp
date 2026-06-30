@@ -187,6 +187,7 @@ const char* KEY_DE_ESZETT             = "Key: ß";
 const char* KEY_DE_DIAERESIS_A        = "Key: Ä";
 const char* KEY_DE_DIAERESIS_O        = "Key: Ö";
 const char* KEY_DE_DIAERESIS_U        = "Key: Ü";
+const char* KEY_DE_DEAD_ACUTE         = "Key: Dead Acute";
 
 const char* KEY_FR_SUPER_2            = "Key: ²";
 const char* KEY_FR_AMPERSAND          = "Key: &";
