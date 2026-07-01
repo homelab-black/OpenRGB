@@ -32,7 +32,14 @@ unsigned int RGBController_Network::GetID()
 
 void RGBController_Network::SetHidden(bool hidden)
 {
-    client->SendRequest_RGBController_SetHidden(dev_id, hidden);
+    if(client->GetProtocolVersion() < 6)
+    {
+        RGBController::SetHidden(hidden);
+    }
+    else
+    {
+        client->SendRequest_RGBController_SetHidden(dev_id, hidden);
+    }
 }
 
 void RGBController_Network::ClearSegments(int zone)

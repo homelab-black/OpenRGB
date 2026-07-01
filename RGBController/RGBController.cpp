@@ -341,11 +341,6 @@ unsigned int RGBController::GetZoneLEDsCount(unsigned int zone)
     if(zone < zones.size())
     {
         leds_count = zones[zone].leds_count;
-
-        if((zones[zone].flags & ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE_EFFECTS_ONLY) && (leds_count > 1))
-        {
-            leds_count = 1;
-        }
     }
     else
     {
@@ -3768,6 +3763,23 @@ unsigned char* RGBController::SetZoneDescription(unsigned char* data_ptr, unsign
     if(protocol_version >= 5)
     {
         COPY_DATA_FIELD(data_ptr, data_start, zone->flags);
+    }
+
+    /*-----------------------------------------------------*\
+    | Set the manually configurable flag if older protocol  |
+    | and the LED minimum and maximum differ                |
+    \*-----------------------------------------------------*/
+    if(protocol_version < 6)
+    {
+        if((zone->leds_min != zone->leds_max) && !(zone->flags & ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE_EFFECTS_ONLY))
+        {
+            zone->flags |= ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE;
+        }
+
+        if(zone->leds_count > 0)
+        {
+            zone->flags |= ZONE_FLAG_MANUALLY_CONFIGURED_SIZE;
+        }
     }
 
     /*-----------------------------------------------------*\
