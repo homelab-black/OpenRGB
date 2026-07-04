@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| ClevoKeyboardDevices.h                                    |
+| NZXTFunctionKeyboardDevices.h                                    |
 |                                                           |
 |   Device list for Clevo per-key RGB keyboards (ITE 8291)  |
 |                                                           |

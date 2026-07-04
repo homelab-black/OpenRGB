@@ -227,6 +227,7 @@ std::vector<i2c_smbus_interface*> & ResourceManager::GetI2CBusses()
 
 void ResourceManager::RegisterRGBController(RGBController *rgb_controller)
 {
+    LOG_INFO("Call to Registering");
     /*-----------------------------------------------------*\
     | Mark this controller as locally owned                 |
     \*-----------------------------------------------------*/
@@ -1380,6 +1381,7 @@ void ResourceManager::DetectDevicesCoroutine()
                 if(detector.compare(current_hid_device))
                 {
                     detection_string = detector.name.c_str();
+                    LOG_INFO("Detection string: %s", detection_string);
 
                     /*-------------------------------------*\
                     | Check if this detector is enabled or  |

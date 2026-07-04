@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| ClevoKeyboardControllerDetect.cpp                         |
+| NZXTFunctionKeyboardControllerDetect.cpp                         |
 |                                                           |
 |   Detector for Clevo per-key RGB keyboard (ITE 8291)      |
 |                                                           |
@@ -41,3 +41,4 @@ void DetectClevoKeyboardControllers(hid_device_info* info, const std::string& na
 }
 
 REGISTER_HID_DETECTOR_PU("Clevo Keyboard", DetectClevoKeyboardControllers, 0x048D, 0x600B, 0xFF03, 0x01);
+//0x1e71, 0x2106

@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| ClevoKeyboardController.cpp                               |
+| NZXTFunctionKeyboardController.cpp                               |
 |                                                           |
 |   Driver for Clevo laptop per-key RGB keyboard (ITE 8291) |
 |   Protocol based on tuxedo-drivers ite_8291 module        |
