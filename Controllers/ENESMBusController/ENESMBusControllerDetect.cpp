@@ -30,10 +30,11 @@ using namespace std::chrono_literals;
 #undef interface
 #endif
 
-/*----------------------------------------------------------------------*\
-| This list contains the available SMBus addresses for mapping ENE RAM   |
-\*----------------------------------------------------------------------*/
-#define ENE_RAM_ADDRESS_COUNT  23
+/*---------------------------------------------------------*\
+| This list contains the available SMBus addresses for      |
+| mapping ENE RAM                                           |
+\*---------------------------------------------------------*/
+#define ENE_RAM_ADDRESS_COUNT  (sizeof(ene_ram_addresses) / sizeof(ene_ram_addresses[0]))
 
 static const unsigned char ene_ram_addresses[] =
 {
@@ -44,14 +45,7 @@ static const unsigned char ene_ram_addresses[] =
     0x74,
     0x75,
     0x76,
-    0x78,
-    0x79,
-    0x7A,
-    0x7B,
-    0x7C,
-    0x7D,
-    0x7E,
-    0x7F,
+    0x77,
     0x4F,
     0x66,
     0x67,
@@ -62,10 +56,11 @@ static const unsigned char ene_ram_addresses[] =
     0x3D
 };
 
-/*---------------------------------------------------------------------------------*\
-| This list contains the available SMBus addresses for mapping Aura motherboards    |
-\*---------------------------------------------------------------------------------*/
-#define AURA_MOBO_ADDRESS_COUNT 3
+/*---------------------------------------------------------*\
+| This list contains the available SMBus addresses for      |
+| mapping Aura motherboards                                 |
+\*---------------------------------------------------------*/
+#define AURA_MOBO_ADDRESS_COUNT (sizeof(aura_mobo_addresses) / sizeof(aura_mobo_addresses[0]))
 
 static const unsigned char aura_mobo_addresses[] =
 {
@@ -117,7 +112,7 @@ static void ENERegisterWrite(i2c_smbus_interface* bus, ene_dev_id dev, ene_regis
 *   TestForENESMBusController                                                              *
 *                                                                                          *
 *       Tests the given address to see if an ENE controller exists there.  First does a    *
-*       quick write to test for a response, and if so does a simple read at 0xA0 to test   *
+*       byte read to test for a response, and if so does a simple read at 0xA0 to test     *
 *       for incrementing values 0...F which was observed at this location during data dump *
 *                                                                                          *
 *       Also tests for the string "Micron" in the ENE register space.  Crucial (Micron)    *
@@ -207,7 +202,7 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
 
             for (unsigned int slot = 0; slot < 8; slot++)
             {
-                int res = busses[bus]->i2c_smbus_write_quick(0x77, I2C_SMBUS_WRITE);
+                int res = busses[bus]->i2c_smbus_read_byte(0x77);
 
                 if(res < 0)
                 {
@@ -220,11 +215,11 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
                 {
                     address_list_idx++;
 
-                    if(address_list_idx < ENE_RAM_ADDRESS_COUNT)
+                    if(address_list_idx < (int)ENE_RAM_ADDRESS_COUNT)
                     {
                         LOG_DEBUG("[ENE SMBus DRAM] Testing address %02X to see if there is a device there", ene_ram_addresses[address_list_idx]);
 
-                        res = busses[bus]->i2c_smbus_write_quick(ene_ram_addresses[address_list_idx], I2C_SMBUS_WRITE);
+                        res = busses[bus]->i2c_smbus_read_byte(ene_ram_addresses[address_list_idx]);
                     }
                     else
                     {
@@ -232,7 +227,7 @@ void DetectENESMBusDRAMControllers(std::vector<i2c_smbus_interface*> &busses)
                     }
                 } while (res >= 0);
 
-                if(address_list_idx < ENE_RAM_ADDRESS_COUNT)
+                if(address_list_idx < (int)ENE_RAM_ADDRESS_COUNT)
                 {
                     LOG_DEBUG("[ENE SMBus DRAM] Remapping slot %d to address %02X", slot, ene_ram_addresses[address_list_idx]);
 
@@ -355,6 +350,7 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 3060 Ti Gaming OC",             
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3060 Ti OC",                      DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3060TI_DEV,       ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3060TI_O8G_OC,               0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 3060 Ti OC",                            DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3060TI_LHR_DEV,   ASUS_SUB_VEN,   ASUS_TUF_RTX_3060TI_O8G_OC_V2,                  0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3060 Ti V2 OC",                   DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3060TI_LHR_DEV,   ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3060TI_O8G_V2_GAMING,        0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3060 Ti V2 OC",                   DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3060TI_LHR_DEV,   ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3060TI_O8G_V2_2_GAMING,      0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 OC",                         DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_OC,                     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 Gaming OC",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_GAMING,             0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 3070 White OC",                   DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX3070_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_3070_O8G_WHITE,              0x67);
@@ -462,8 +458,11 @@ REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White",       
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White OC",            DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_WHITE,      0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 4090 Gaming White OC",            DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_WHITE_2,    0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG MATRIX PLATINUM GeForce RTX 4090",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX4090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_MATRIX_PLATINUM_RTX_4090_24G,          0x67);
-REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5070 Gaming",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5070_O12G_GAMING,                  0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5060 Gaming OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5060_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5060_O8G_GAMING,                   0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5070 Gaming OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5070_O12G_GAMING,                  0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5070 Ti Gaming OC",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070TI_DEV,       ASUS_SUB_VEN,   ASUS_TUF_RTX_5070TI_O16G_GAMING,                0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5070 Ti Gaming BTF White OC",           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070TI_DEV,       ASUS_SUB_VEN,   ASUS_TUF_RTX_5070TI_O16G_GAMING_BTF_WHITE,      0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5070 Ti Gaming White OC",               DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070TI_DEV,       ASUS_SUB_VEN,   ASUS_TUF_RTX_5070TI_O16G_GAMING_WHITE,          0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG STRIX GeForce RTX 5070 Ti Gaming OC",               DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5070TI_DEV,       ASUS_SUB_VEN,   ASUS_ROG_STRIX_RTX_5070TI_O16G_GAMING_OC,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5080 Gaming OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5080_O16G_GAMING,                  0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5090 Gaming OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_TUF_RTX_5090_O32G_GAMING,                  0x67);
@@ -471,7 +470,9 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF GeForce RTX 5090 Gaming",                   
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING,           0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_O16G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_16G_GAMING,            0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5080 WHITE",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5080_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5080_16G_GAMING_WHITE,      0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC",                        DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING,           0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090",                           DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_2,         0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC BTF",                    DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF,       0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL GeForce RTX 5090 OC WHITE",                  DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE,     0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS ROG ASTRAL LC GeForce RTX 5090 OC",                     DetectENESMBusGPUControllers,   NVIDIA_VEN,     NVIDIA_RTX5090_DEV,         ASUS_SUB_VEN,   ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING,        0x67);
@@ -502,6 +503,7 @@ REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7700 XT Gaming OC",               
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI32_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7800XT_O16G_GAMING,                 0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI32_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7800XT_O16G_GAMING_0606,            0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7800 XT Gaming White OC",                 DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI32_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7800XT_O16G_WHITE_GAMING,           0x67);
+REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 GRE Gaming OC",                      DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900GRE_O16G_GAMING,                0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XT Gaming OC",                       DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XT_020G_GAMING,                 0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 7900 XTX Gaming OC",                      DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI31_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_7900XTX_O24G_GAMING,                0x67);
 REGISTER_I2C_PCI_DETECTOR("ASUS TUF Radeon RX 9070 Gaming OC",                          DetectENESMBusGPUControllers,   AMD_GPU_VEN,    AMD_NAVI48_DEV,             ASUS_SUB_VEN,   ASUS_TUF_RX_9070_016G_GAMING,                   0x67);

@@ -20,6 +20,56 @@
 
 std::unordered_map<std::string, int> i2c_smbus_pawnio::using_handle;
 
+s32 imc_index_sel(HANDLE pawnio_handle, s32 index)
+{
+    const SIZE_T    in_size         = 1;
+    ULONG64         in[in_size]     = {(ULONG64)index};
+    const SIZE_T    out_size        = 1;
+    ULONG64         out[out_size];
+    SIZE_T          return_size;
+    HRESULT         status;
+
+    /*-----------------------------------------------------*\
+    | Execute IMC slot_sel ioctl                            |
+    \*-----------------------------------------------------*/
+    status = pawnio_execute(pawnio_handle, "ioctl_smbus_index", in, in_size, out, 1, &return_size);
+
+    return(status ? -EIO : 0);
+}
+
+s32 piix4_port_sel(HANDLE pawnio_handle, s32 port)
+{
+    const SIZE_T    in_size         = 1;
+    ULONG64         in[in_size]     = {(ULONG64)port};
+    const SIZE_T    out_size        = 1;
+    ULONG64         out[out_size];
+    SIZE_T          return_size;
+    HRESULT         status;
+
+    /*-----------------------------------------------------*\
+    | Execute PIIX4 port_sel ioctl                          |
+    \*-----------------------------------------------------*/
+    status = pawnio_execute(pawnio_handle, "ioctl_piix4_port_sel", in, in_size, out, 1, &return_size);
+
+    return(status ? -EIO : 0);
+}
+
+s32 set_sleep_mode(HANDLE pawnio_handle, s32 sleep_mode)
+{
+    const SIZE_T    in_size         = 1;
+    ULONG64         in[in_size]     = {(ULONG64)sleep_mode};
+    const SIZE_T    out_size        = 0;
+    SIZE_T          return_size;
+    HRESULT         status;
+
+    /*-----------------------------------------------------*\
+    | Execute PIIX4 port_sel ioctl                          |
+    \*-----------------------------------------------------*/
+    status = pawnio_execute(pawnio_handle, "ioctl_set_sleep_mode", in, in_size, NULL, 1, &return_size);
+
+    return(status ? -EIO : 0);
+}
+
 i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
 {
     /*-----------------------------------------------------*\
@@ -49,23 +99,23 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
 
     if(!status)
     {
-        this->pci_vendor            = (out[2] & 0x000000000000FFFF);
-        this->pci_device            = (out[2] & 0x00000000FFFF0000) >> 16;
-        this->pci_subsystem_vendor  = (out[2] & 0x0000FFFF0000FFFF) >> 32;
-        this->pci_subsystem_device  = (out[2] & 0xFFFF000000000000) >> 48;
+        this->pci_vendor            = (int)(out[2] & 0x000000000000FFFF);
+        this->pci_device            = (int)((out[2] & 0x00000000FFFF0000) >> 16);
+        this->pci_subsystem_vendor  = (int)((out[2] & 0x0000FFFF0000FFFF) >> 32);
+        this->pci_subsystem_device  = (int)((out[2] & 0xFFFF000000000000) >> 48);
 
         char name_str[9];
-        name_str[0]                 = (out[0] & 0x00000000000000FF);
-        name_str[1]                 = (out[0] & 0x000000000000FF00) >> 8;
-        name_str[2]                 = (out[0] & 0x0000000000FF0000) >> 16;
-        name_str[3]                 = (out[0] & 0x00000000FF000000) >> 24;
-        name_str[4]                 = (out[0] & 0x000000FF00000000) >> 32;
-        name_str[5]                 = (out[0] & 0x0000FF0000000000) >> 40;
-        name_str[6]                 = (out[0] & 0x00FF000000000000) >> 48;
-        name_str[7]                 = (out[0] & 0xFF00000000000000) >> 56;
+        name_str[0]                 = (char)(out[0] & 0x00000000000000FF);
+        name_str[1]                 = (char)((out[0] & 0x000000000000FF00) >> 8);
+        name_str[2]                 = (char)((out[0] & 0x0000000000FF0000) >> 16);
+        name_str[3]                 = (char)((out[0] & 0x00000000FF000000) >> 24);
+        name_str[4]                 = (char)((out[0] & 0x000000FF00000000) >> 32);
+        name_str[5]                 = (char)((out[0] & 0x0000FF0000000000) >> 40);
+        name_str[6]                 = (char)((out[0] & 0x00FF000000000000) >> 48);
+        name_str[7]                 = (char)((out[0] & 0xFF00000000000000) >> 56);
         name_str[8]                 = 0;
 
-        strncpy( this->device_name, name_str, 512 );
+        strncpy(this->device_name, name_str, 512 );
     }
 
     /*-----------------------------------------------------*\
@@ -77,6 +127,26 @@ i2c_smbus_pawnio::i2c_smbus_pawnio(HANDLE handle, std::string name)
     {
         shared_smbus_access = drivers_settings["shared_smbus_access"].get<bool>();
     }
+
+    /*-----------------------------------------------------*\
+    | Get shared SMBus access setting                       |
+    \*-----------------------------------------------------*/
+    unsigned int smbus_sleep_mode = PAWNIO_SLEEPMODE_ALWAYSSLEEP;
+
+    if(drivers_settings.contains("smbus_sleep_mode"))
+    {
+        smbus_sleep_mode = drivers_settings["smbus_sleep_mode"];
+    }
+
+    if(smbus_sleep_mode >= PAWNIO_SLEEPMODE_MAX)
+    {
+        smbus_sleep_mode = PAWNIO_SLEEPMODE_ALWAYSSLEEP;
+    }
+
+    /*-----------------------------------------------------*\
+    | Initialize sleep mode                                 |
+    \*-----------------------------------------------------*/
+    set_sleep_mode(handle, smbus_sleep_mode);
 
     /*-----------------------------------------------------*\
     | Create global SMBus mutex if enabled                  |
@@ -157,6 +227,15 @@ s32 i2c_smbus_pawnio::i2c_smbus_xfer(u8 addr, char read_write, u8 command, int s
     if(global_smbus_access_handle != NULL)
     {
         ReleaseMutex(global_smbus_access_handle);
+    }
+
+    /*-----------------------------------------------------*\
+    | If the PawnIO driver returned an error, convert it to |
+    | the appropriate i2c_smbus error instead               |
+    \*-----------------------------------------------------*/
+    if(status != 0)
+    {
+        status = -1;
     }
 
     return(status);
@@ -274,23 +353,6 @@ HRESULT i2c_smbus_pawnio::start_pawnio(std::string filename, PHANDLE phandle)
     return(S_OK);
 }
 
-s32 piix4_port_sel(HANDLE pawnio_handle, s32 port)
-{
-    const SIZE_T    in_size         = 1;
-    ULONG64         in[in_size]     = {(ULONG64)port};
-    const SIZE_T    out_size        = 1;
-    ULONG64         out[out_size];
-    SIZE_T          return_size;
-    HRESULT         status;
-
-    /*-----------------------------------------------------*\
-    | Execute PIIX4 port_sel ioctl                          |
-    \*-----------------------------------------------------*/
-    status = pawnio_execute(pawnio_handle, "ioctl_piix4_port_sel", in, in_size, out, 1, &return_size);
-
-    return(status ? -EIO : 0);
-}
-
 bool i2c_smbus_pawnio_detect()
 {
     ULONG dll_version;
@@ -302,12 +364,21 @@ bool i2c_smbus_pawnio_detect()
 
     i2c_smbus_interface *   bus;
     HANDLE                  pawnio_handle;
+    bool                    bus_detected;
+
+    /*-----------------------------------------------------*\
+    | Set the detected flag to false, successfully          |
+    | any bus will result in a successful return status     |
+    \*-----------------------------------------------------*/
+    bus_detected = false;
 
     /*-----------------------------------------------------*\
     | Try to load Intel (i801) SMBus driver                 |
     \*-----------------------------------------------------*/
     if(i2c_smbus_pawnio::start_pawnio("SmbusI801.bin", &pawnio_handle) == S_OK)
     {
+        bus_detected = true;
+
         bus = new i2c_smbus_pawnio(pawnio_handle, "i801");
         ResourceManager::get()->RegisterI2CBus(bus);
     }
@@ -317,6 +388,8 @@ bool i2c_smbus_pawnio_detect()
     \*-----------------------------------------------------*/
     if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
     {
+        bus_detected = true;
+
         /*-------------------------------------------------*\
         | Select port 0                                     |
         \*-------------------------------------------------*/
@@ -331,7 +404,9 @@ bool i2c_smbus_pawnio_detect()
     \*-----------------------------------------------------*/
     if(i2c_smbus_pawnio::start_pawnio("SmbusPIIX4.bin", &pawnio_handle) == S_OK)
     {
-        /*--------------------------------------------------*\
+        bus_detected = true;
+
+        /*-------------------------------------------------*\
         | Select port 1                                     |
         \*-------------------------------------------------*/
         piix4_port_sel(pawnio_handle, 1);
@@ -345,11 +420,39 @@ bool i2c_smbus_pawnio_detect()
     \*-----------------------------------------------------*/
     if(i2c_smbus_pawnio::start_pawnio("SmbusNCT6793.bin", &pawnio_handle) == S_OK)
     {
+        bus_detected = true;
+
         bus = new i2c_smbus_pawnio(pawnio_handle, "NCT6793");
         ResourceManager::get()->RegisterI2CBus(bus);
     }
 
-    return(true);
+    /*-----------------------------------------------------*\
+    | Try to load Intel Skylake IMC SMBus driver            |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusIntelSkylakeIMC.bin", &pawnio_handle) == S_OK)
+    {
+        bus_detected = true;
+
+        imc_index_sel(pawnio_handle, 0);
+
+        bus = new i2c_smbus_pawnio(pawnio_handle, "Intel Skylake IMC");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
+
+    /*-----------------------------------------------------*\
+    | Try to load Intel Skylake IMC SMBus driver            |
+    \*-----------------------------------------------------*/
+    if(i2c_smbus_pawnio::start_pawnio("SmbusIntelSkylakeIMC.bin", &pawnio_handle) == S_OK)
+    {
+        bus_detected = true;
+
+        imc_index_sel(pawnio_handle, 1);
+
+        bus = new i2c_smbus_pawnio(pawnio_handle, "Intel Skylake IMC");
+        ResourceManager::get()->RegisterI2CBus(bus);
+    }
+
+    return(bus_detected);
 }
 
 REGISTER_I2C_BUS_DETECTOR(i2c_smbus_pawnio_detect);

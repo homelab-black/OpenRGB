@@ -69,6 +69,7 @@ device_info RoccatVulcanKeyboardController::InitDeviceInfo()
         case ROCCAT_VULCAN_PRO_PID:
         case ROCCAT_VULCAN_TKL_PRO_PID:
         case ROCCAT_VULCAN_II_PID:
+        case ROCCAT_VULCAN_II_MAX_PID:
         case TURTLE_BEACH_VULCAN_II_PID:
         case TURTLE_BEACH_VULCAN_II_TKL_PRO_PID:
             packet_length = 9;
@@ -85,9 +86,14 @@ device_info RoccatVulcanKeyboardController::InitDeviceInfo()
     buf[0] = report_id;
     hid_get_feature_report(dev_ctrl, buf, packet_length);
 
-    char version[5];
-    snprintf(version, 5, "%d.%02d", buf[2] / 100, buf[2] % 100);
+    /*-------------------------------------------------------------*\
+    | buf[2] is version e.g. 103 means v1.03                        |
+    \*-------------------------------------------------------------*/
+    dev_info.version_major = buf[2] / 100;
+    dev_info.version_minor = buf[2] % 100;
 
+    char version[5];
+    snprintf(version, 5, "%d.%02d", dev_info.version_major, dev_info.version_minor);
     dev_info.version = version;
 
     if(device_pid == ROCCAT_MAGMA_PID || device_pid == ROCCAT_MAGMA_MINI_PID)
@@ -115,6 +121,11 @@ device_info RoccatVulcanKeyboardController::GetDeviceInfo()
     return dev_info;
 }
 
+bool RoccatVulcanKeyboardController::IsBigEndianDirectMode()
+{
+    return (dev_info.version_major >= 1 && dev_info.version_minor >= 16);
+}
+
 void RoccatVulcanKeyboardController::EnableDirect(bool on_off_switch)
 {
     uint8_t* buf;
@@ -126,6 +137,7 @@ void RoccatVulcanKeyboardController::EnableDirect(bool on_off_switch)
         case ROCCAT_VULCAN_PRO_PID:
         case ROCCAT_VULCAN_TKL_PRO_PID:
         case ROCCAT_VULCAN_II_PID:
+        case ROCCAT_VULCAN_II_MAX_PID:
         case TURTLE_BEACH_VULCAN_II_PID:
         case TURTLE_BEACH_VULCAN_II_TKL_PRO_PID:
             buf = new uint8_t[5] { 0x0E, 0x05, on_off_switch, 0x00, 0x00 };
@@ -166,6 +178,11 @@ void RoccatVulcanKeyboardController::SendColors(std::vector<led_color> colors)
     case ROCCAT_VULCAN_II_PID:
     case TURTLE_BEACH_VULCAN_II_PID:
         packet_length = 396;
+        column_length = 1;
+        protocol_version = 2;
+        break;
+    case ROCCAT_VULCAN_II_MAX_PID:
+        packet_length = 567;
         column_length = 1;
         protocol_version = 2;
         break;
@@ -211,8 +228,16 @@ void RoccatVulcanKeyboardController::SendColors(std::vector<led_color> colors)
     }
     else
     {
-        bufs[0][3] = packet_length & 0xFF;
-        bufs[0][4] = (packet_length >> 8) & 0xFF;
+        if(IsBigEndianDirectMode())
+        {
+            bufs[0][3] = (packet_length >> 8) & 0xFF;
+            bufs[0][4] = packet_length & 0xFF;
+        }
+        else
+        {
+            bufs[0][3] = packet_length & 0xFF;
+            bufs[0][4] = (packet_length >> 8) & 0xFF;
+        }
     }
 
     unsigned int data_length_packet = 64 - header_length_first;
@@ -340,6 +365,11 @@ void RoccatVulcanKeyboardController::SendMode(unsigned int mode, unsigned int sp
         case TURTLE_BEACH_VULCAN_II_PID:
             protocol_version = 2;
             packet_length = 377;
+            column_length = 1;
+            break;
+        case ROCCAT_VULCAN_II_MAX_PID:
+            protocol_version = 2;
+            packet_length = 542;
             column_length = 1;
             break;
         case TURTLE_BEACH_VULCAN_II_TKL_PRO_PID:

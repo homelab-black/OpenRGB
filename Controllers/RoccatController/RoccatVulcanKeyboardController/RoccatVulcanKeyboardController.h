@@ -26,6 +26,7 @@
 #define ROCCAT_VULCAN_PRO_PID               0x30F7
 #define ROCCAT_VULCAN_TKL_PRO_PID           0x311A
 #define ROCCAT_VULCAN_II_PID                0x2F4E
+#define ROCCAT_VULCAN_II_MAX_PID            0x2EE2
 #define ROCCAT_PYRO_PID                     0x314C
 #define ROCCAT_MAGMA_PID                    0x3124
 #define ROCCAT_MAGMA_MINI_PID               0x69A0
@@ -60,6 +61,8 @@ enum
 struct device_info
 {
     std::string     version;
+    int             version_major;
+    int             version_minor;
     int             layout_type;
 };
 
@@ -88,6 +91,7 @@ public:
     void            AwaitResponse(int ms);
     void            ClearResponses();
 
+
     uint16_t        device_pid;
 
 private:
@@ -96,4 +100,6 @@ private:
     device_info     dev_info;
     std::string     location;
     std::string     name;
+
+    bool            IsBigEndianDirectMode();
 };
