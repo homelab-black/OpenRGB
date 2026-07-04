@@ -1,9 +1,9 @@
 /*---------------------------------------------------------*\
-| NZXTFunctionKeyboardController.h                                 |
+| NZXTFunctionKeyboardController.h                          |
 |                                                           |
-|   Driver for Clevo laptop per-key RGB keyboard (ITE 8291) |
+|   Driver for NZXT Function per-key RGB keyboard (ITE 8291)|
 |                                                           |
-|   Kyle Cascade (kyle@cascade.family)          16 Jan 2026 |
+|   P4tchW0rk (aekira@proton.me)          June 2026         |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |

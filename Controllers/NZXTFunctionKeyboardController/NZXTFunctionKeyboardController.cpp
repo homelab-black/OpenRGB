@@ -1,10 +1,10 @@
 /*---------------------------------------------------------*\
-| NZXTFunctionKeyboardController.cpp                               |
+| NZXTFunctionKeyboardController.cpp                        |
 |                                                           |
-|   Driver for NZXT_FUNCTION laptop per-key RGB keyboard (ITE 8291) |
+|   Driver for NZXT_FUNCTION laptop per-key RGB keyboard    |
 |   Protocol based on tuxedo-drivers ite_8291 module        |
 |                                                           |
-|   Kyle Cascade (kyle@cascade.family)          16 Jan 2026 |
+|   P4tchW0rk (aekira@proton.me)          June 2026         |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |

@@ -1,3 +1,14 @@
+/*---------------------------------------------------------*\
+| RGBController_NZXTFunction.cpp                            |
+|                                                           |
+|   RGBController for NZXT Function RGB keyboard (ITE 8291) |
+|                                                           |
+|   P4tchW0rk (aekira@proton.me)          June 2026         |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
+
 #include "LogManager.h"
 #include "RGBController_NZXTFunctionKeyboard.h"
 #include "KeyboardLayoutManager.h"

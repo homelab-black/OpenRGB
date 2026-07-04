@@ -1,9 +1,9 @@
 /*---------------------------------------------------------*\
-| NZXTFunctionKeyboardDevices.cpp                                  |
+| NZXTFunctionKeyboardDevices.cpp                           |
 |                                                           |
-|   Device list for Clevo per-key RGB keyboards (ITE 8291)  |
+|   Device list for NZXT Function per-key RGB keyboards     |
 |                                                           |
-|   Kyle Cascade (kyle@cascade.family)          21 Jan 2026 |
+|   P4tchW0rk (aekira@proton.me)          June 2026         |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
