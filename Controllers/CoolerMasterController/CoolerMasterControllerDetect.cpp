@@ -13,6 +13,7 @@
 #include <hidapi.h>
 #include "Detector.h"
 #include "LogManager.h"
+#include "SettingsManager.h"
 
 /*-----------------------------------------------------*\
 | Coolermaster specific includes                        |
@@ -26,8 +27,8 @@
 #include "RGBController_CMARGBGen2A1Controller.h"
 #include "RGBController_CMRGBController.h"
 #include "RGBController_CMR6000Controller.h"
-#include "RGBController_CMMonitorController.h"
-#include "RGBController_CMGD160Controller.h"
+#include "RGBController_CMARGBStrip.h"
+#include "CMARGBStripDevices.h"
 #include "RGBController_CMKeyboardController.h"
 
 /*-----------------------------------------------------*\
@@ -73,14 +74,9 @@
 #define COOLERMASTER_MP750_MEDIUM_PID               0x0105
 
 /*-----------------------------------------------------*\
-| Coolermaster Monitors                                 |
+| Coolermaster Monitors and Desks                       |
+|   PIDs defined in CMARGBStripDevices.h                |
 \*-----------------------------------------------------*/
-#define COOLERMASTER_GM27_FQS_PID                   0x01BB
-
-/*-----------------------------------------------------*\
-| Coolermaster Desks                                    |
-\*-----------------------------------------------------*/
-#define COOLERMASTER_GD160_PID                      0x01A9
 
 /******************************************************************************************\
 *                                                                                          *
@@ -287,27 +283,62 @@ void DetectCoolerMasterSmallARGB(hid_device_info* info, const std::string& /*nam
     }
 }
 
-void DetectCoolerMasterMonitor(hid_device_info* info, const std::string& name)
+void DetectCoolerMasterARGBStrip(hid_device_info* info, const std::string& /*name*/)
 {
     hid_device* dev = hid_open_path(info->path);
 
     if(dev)
     {
-        CMMonitorController*               controller     = new CMMonitorController(dev, *info, name);
-        RGBController_CMMonitorController* rgb_controller = new RGBController_CMMonitorController(controller);
+        const cm_argb_strip_device* device_config = nullptr;
 
-        ResourceManager::get()->RegisterRGBController(rgb_controller);
-    }
-}
+        for(unsigned int i = 0; i < CM_ARGB_STRIP_DEVICE_COUNT; i++)
+        {
+            if(cm_argb_strip_devices[i].product_id == info->product_id)
+            {
+                device_config = &cm_argb_strip_devices[i];
+                break;
+            }
+        }
 
-void DetectCoolerMasterGD160(hid_device_info* info, const std::string& name)
-{
-    hid_device* dev = hid_open_path(info->path);
+        if(!device_config)
+        {
+            hid_close(dev);
+            return;
+        }
 
-    if(dev)
-    {
-        CMGD160Controller*               controller     = new CMGD160Controller(dev, *info, name);
-        RGBController_CMGD160Controller* rgb_controller = new RGBController_CMGD160Controller(controller);
+        /*---------------------------------------------------------*\
+        | Load device settings (defaults: false)                    |
+        \*---------------------------------------------------------*/
+        const std::string config_key        = "CMARGBStripSettings";
+        SettingsManager* settings_manager   = ResourceManager::get()->GetSettingsManager();
+        json device_settings                = settings_manager->GetSettings(config_key);
+
+        if(!device_settings.contains("reset_on_detect"))
+        {
+            device_settings["reset_on_detect"] = false;
+        }
+
+        if(!device_settings.contains("use_broadcast_mode"))
+        {
+            device_settings["use_broadcast_mode"] = false;
+        }
+
+        settings_manager->SetSettings(config_key, device_settings);
+        settings_manager->SaveSettings();
+
+        bool reset_on_detect    = device_settings["reset_on_detect"];
+        bool use_broadcast_mode = device_settings["use_broadcast_mode"];
+
+        /*---------------------------------------------------------*\
+        | Create config from device definition                      |
+        \*---------------------------------------------------------*/
+        CMARGBStripConfig config;
+        config.leds_per_strip = device_config->leds_per_strip;
+        config.num_strips = device_config->num_strips;
+        config.strip_ids = device_config->strip_ids;
+
+        CMARGBStripController*     controller     = new CMARGBStripController(dev, *info, device_config->name, config, reset_on_detect, use_broadcast_mode);
+        RGBController_CMARGBStrip* rgb_controller = new RGBController_CMARGBStrip(controller, device_config->type);
 
         ResourceManager::get()->RegisterRGBController(rgb_controller);
     }
@@ -374,9 +405,9 @@ REGISTER_HID_DETECTOR_I  ("Cooler Master Radeon RX 6900 GPU",        DetectCoole
 /*-----------------------------------------------------*\
 | Coolermaster Monitors                                 |
 \*-----------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Cooler Master GM27-FQS ARGB Monitor",    DetectCoolerMasterMonitor,      COOLERMASTER_VID,   COOLERMASTER_GM27_FQS_PID,                   0,      0xFF00, 1);
+REGISTER_HID_DETECTOR_IPU("Cooler Master GM27-FQS ARGB Monitor",    DetectCoolerMasterARGBStrip,    COOLERMASTER_VID,   COOLERMASTER_GM27_FQS_PID,                   0,      0xFF00, 1);
 
 /*-----------------------------------------------------*\
 | Coolermaster Desks                                    |
 \*-----------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Cooler Master GD160 ARGB Gaming Desk",   DetectCoolerMasterGD160,        COOLERMASTER_VID,   COOLERMASTER_GD160_PID,                   0,      0xFF00, 1);
+REGISTER_HID_DETECTOR_IPU("Cooler Master GD160 ARGB Gaming Desk",   DetectCoolerMasterARGBStrip,    COOLERMASTER_VID,   COOLERMASTER_GD160_PID,                      0,      0xFF00, 1);
