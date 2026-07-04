@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| NZXTFunctionKeyboardController.h                                 |
+| ClevoKeyboardController.h                                 |
 |                                                           |
 |   Driver for Clevo laptop per-key RGB keyboard (ITE 8291) |
 |                                                           |

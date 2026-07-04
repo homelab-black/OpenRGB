@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| NZXTFunctionKeyboardControllerDetect.cpp                         |
+| ClevoKeyboardControllerDetect.cpp                         |
 |                                                           |
 |   Detector for Clevo per-key RGB keyboard (ITE 8291)      |
 |                                                           |

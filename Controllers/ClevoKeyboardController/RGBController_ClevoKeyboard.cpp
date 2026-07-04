@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_NZXTFunction.cpp                           |
+| RGBController_ClevoKeyboard.cpp                           |
 |                                                           |
 |   RGBController for Clevo per-key RGB keyboard (ITE 8291) |
 |                                                           |
