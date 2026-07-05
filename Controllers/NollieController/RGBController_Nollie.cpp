@@ -27,6 +27,7 @@
 RGBController_Nollie::RGBController_Nollie(NollieController* controller_ptr)
 {
     controller          = controller_ptr;
+    channel_index       = nullptr;
 
     name                = controller->GetNameString();
     vendor              = "Nollie";
@@ -236,13 +237,31 @@ void RGBController_Nollie::DeviceUpdateLEDs()
 
 void RGBController_Nollie::UpdateZoneLEDs(int zone)
 {
-    controller->SetChannelLEDs(channel_index[zone], zones[zone].colors, zones[zone].leds_count);
+    unsigned int DevPid = controller->GetUSBPID();
+    if(DevPid == NOLLIE32_PID || DevPid == NOLLIE16_PID || DevPid == NOLLIE32_OS21_PID || DevPid == NOLLIE16_OS21_PID)
+    {
+        controller->SetChannelLEDs(channel_index[zone], zones[zone].colors, zones[zone].leds_count);
+    }
+    else
+    {
+        controller->SetChannelLEDs((unsigned char)zone, zones[zone].colors, zones[zone].leds_count);
+        controller->SendUpdate();
+    }
 }
 
 void RGBController_Nollie::UpdateSingleLED(int led)
 {
     unsigned int channel = leds_channel[led];
-    controller->SetChannelLEDs(channel_index[channel], zones[channel].colors, zones[channel].leds_count);
+    unsigned int DevPid = controller->GetUSBPID();
+    if(DevPid == NOLLIE32_PID || DevPid == NOLLIE16_PID || DevPid == NOLLIE32_OS21_PID || DevPid == NOLLIE16_OS21_PID)
+    {
+        controller->SetChannelLEDs(channel_index[channel], zones[channel].colors, zones[channel].leds_count);
+    }
+    else
+    {
+        controller->SetChannelLEDs((unsigned char)channel, zones[channel].colors, zones[channel].leds_count);
+        controller->SendUpdate();
+    }
 }
 
 void RGBController_Nollie::DeviceUpdateMode()
