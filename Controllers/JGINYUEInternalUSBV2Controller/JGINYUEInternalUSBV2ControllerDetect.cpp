@@ -68,7 +68,7 @@ DetectedControllers DetectJGINYUEInternalUSBV2Controller(hid_device_info* info,c
                 port = new serial_port();
                 if(!port->serial_open(serial_ports[0].c_str(), 115200))
                 {
-                    LOG_WARNING("[JGINYUEInternalUSBV2ControllerDetect] Failed to open serial port %s - Direct mode will be unavailable. HID modes will still work.", serial_ports[0]->c_str());
+                    LOG_WARNING("[JGINYUEInternalUSBV2ControllerDetect] Failed to open serial port %s - Direct mode will be unavailable. HID modes will still work.", serial_ports[0].c_str());
                     delete port;
                     port = nullptr;
                 }
