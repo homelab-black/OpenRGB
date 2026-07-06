@@ -57,6 +57,7 @@
 #define KEYCHRON_K3_MAX_ANSI_RGB_PID                0x0A30
 #define KEYCHRON_K3_MAX_ISO_RGB_PID                 0x0A31
 #define KEYCHRON_K3_MAX_JIS_RGB_PID                 0x0A32
+#define KEYCHRON_K3_PRO_ANSI_RGB_PID                0x0230
 #define KEYCHRON_K3_V3_ANSI_RGB_PID                 0x0D30
 #define KEYCHRON_K3_V3_ISO_RGB_PID                  0x0D31
 #define KEYCHRON_K3_V3_JIS_RGB_PID                  0x0D32
