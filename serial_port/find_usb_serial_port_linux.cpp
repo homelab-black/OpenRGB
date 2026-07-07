@@ -146,9 +146,9 @@ std::vector<std::string> find_usb_serial_port(unsigned short vid, unsigned short
 
 }   /* find_usb_serial_port() */
 
-std::vector<serial_port_entry> find_usb_serial_ports()
+std::vector<SerialDeviceInfo> find_usb_serial_ports()
 {
-    std::vector<serial_port_entry> ret_vector;
+    std::vector<SerialDeviceInfo> ret_vector;
     DIR*                        dir;
     char                        symlink_path[1024]  = {0};
     struct dirent*              ent;
@@ -239,7 +239,7 @@ std::vector<serial_port_entry> find_usb_serial_ports()
                     }
                 }
 
-                serial_port_entry entry;
+                SerialDeviceInfo entry;
                 entry.com_port = "/dev/";
                 entry.com_port.append(port_string);
                 entry.usb_path = usb_path;

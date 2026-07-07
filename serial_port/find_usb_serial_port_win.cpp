@@ -132,9 +132,9 @@ std::vector<std::string> find_usb_serial_port(unsigned short vid, unsigned short
 
 }   /* find_usb_serial_port() */
 
-std::vector<serial_port_entry> find_usb_serial_ports()
+std::vector<SerialDeviceInfo> find_usb_serial_ports()
 {
-    std::vector<serial_port_entry>  ret_vector;
+    std::vector<SerialDeviceInfo>  ret_vector;
     HDEVINFO                    DeviceInfoSet;
     DWORD                       DeviceIndex             = 0;
     SP_DEVINFO_DATA             DeviceInfoData;
@@ -203,7 +203,7 @@ std::vector<serial_port_entry> find_usb_serial_ports()
                             strncpy(vid_str, szBuffer + 9, 4);
                             strncpy(pid_str, szBuffer + 18, 4);
 
-                            serial_port_entry entry;
+                            SerialDeviceInfo entry;
                             entry.com_port = pszPortName;
                             entry.usb_path = szBuffer;
 

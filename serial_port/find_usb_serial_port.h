@@ -20,7 +20,7 @@
 
 std::vector<std::string> find_usb_serial_port(unsigned short vid, unsigned short pid);
 
-struct serial_port_entry
+struct SerialDeviceInfo
 {
     std::string com_port;
     std::string usb_path;
@@ -28,4 +28,4 @@ struct serial_port_entry
     unsigned short product_id;
 } ;
 
-std::vector<serial_port_entry> find_usb_serial_ports();
+std::vector<SerialDeviceInfo> find_usb_serial_ports();

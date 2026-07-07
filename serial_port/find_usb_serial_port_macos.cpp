@@ -170,12 +170,12 @@ std::vector<std::string> find_usb_serial_port(unsigned short vid, unsigned short
     return(ret_vector);
 }
 
-std::vector<serial_port_entry> find_usb_serial_ports()
+std::vector<SerialDeviceInfo> find_usb_serial_ports()
 {
     /*-----------------------------------------------------*\
     | Return variables                                      |
     \*-----------------------------------------------------*/
-    std::vector<serial_port_entry>  ret_vector;
+    std::vector<SerialDeviceInfo>  ret_vector;
 
     /*-----------------------------------------------------*\
     | Execute command to list USB devices                   |
@@ -249,7 +249,7 @@ std::vector<serial_port_entry> find_usb_serial_ports()
             \*---------------------------------------------*/
             if(dev_pos < next_pos)
             {
-                serial_port_entry entry;
+                SerialDeviceInfo entry;
                 entry.com_port = out_string.substr(start_pos, end_pos-start_pos);
 
                 std::string vendor_string = out_string.substr(vid_pos + strlen(ID_VENDOR_STR), 6);
