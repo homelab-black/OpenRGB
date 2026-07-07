@@ -82,6 +82,7 @@ using namespace std::chrono_literals;
 #define LOGITECH_G502_LIGHTSPEED_PID                0xC08D
 #define LOGITECH_G502_X_PLUS_PID                    0xC095
 #define LOGITECH_G515_LS_TKL_PID                    0xC355
+#define LOGITECH_PRO_X_RAPID_PID                    0xC35B
 #define LOGITECH_G522_LIGHTSPEED_USB_PID            0x0B19
 #define LOGITECH_G522_LIGHTSPEED_DONGLE_PID         0x0B18
 #define LOGITECH_G600_PID                           0xC24A
@@ -918,6 +919,7 @@ void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::s
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G502 X Plus (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,  2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G515_LS_TKL_PID,  2, 0xFF00, 2);
+REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 PRO X RAPID (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_PRO_X_RAPID_PID,  2, 0xFF00, 2);
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | G915 family (0x8081) wired — migrated from the legacy LogitechG915Controller. Same 0xFF00 / usage 2 transport as the G515. The unified controller |
