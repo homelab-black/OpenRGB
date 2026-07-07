@@ -132,9 +132,9 @@ std::vector<std::string> find_usb_serial_port(unsigned short vid, unsigned short
 
 }   /* find_usb_serial_port() */
 
-std::vector<std::pair<std::string, std::string>> find_usb_serial_ports()
+std::vector<serial_port_entry> find_usb_serial_ports()
 {
-    std::vector<std::pair<std::string, std::string>>  ret_vector;
+    std::vector<serial_port_entry>  ret_vector;
     HDEVINFO                    DeviceInfoSet;
     DWORD                       DeviceIndex             = 0;
     SP_DEVINFO_DATA             DeviceInfoData;
@@ -198,7 +198,19 @@ std::vector<std::pair<std::string, std::string>> find_usb_serial_ports()
                     {
                         if(strncmp(pszPortName, "COM", 3) == 0)
                         {
-                            ret_vector.push_back(std::make_pair(std::string(pszPortName), std::string(szBuffer)));
+                            char vid_str[5] = {0};
+                            char pid_str[5] = {0};
+                            strncpy(vid_str, szBuffer + 9, 4);
+                            strncpy(pid_str, szBuffer + 18, 4);
+
+                            serial_port_entry entry;
+                            entry.com_port = pszPortName;
+                            entry.usb_path = szBuffer;
+
+                            entry.vendor_id = strtol(vid_str, NULL, 16);
+                            entry.product_id = strtol(pid_str, NULL, 16);
+
+                            ret_vector.push_back(entry);
                         }
                     }
 
