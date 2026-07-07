@@ -18,6 +18,7 @@
 #include "RoccatVulcanKeyboardController.h"
 #include "RoccatKovaController.h"
 #include "RoccatEloController.h"
+#include "RoccatSuoraFXController.h"
 #include "RGBController_RoccatBurst.h"
 #include "RGBController_RoccatBurstProAir.h"
 #include "RGBController_RoccatHordeAimo.h"
@@ -29,6 +30,7 @@
 #include "RGBController_RoccatVulcanKeyboard.h"
 #include "RGBController_RoccatKova.h"
 #include "RGBController_RoccatElo.h"
+#include "RGBController_RoccatSuoraFX.h"
 #include <hidapi.h>
 #include <unordered_set>
 
@@ -40,6 +42,7 @@
 |  RoccatVulcanKeyboardController PIDs defined in RoccatVulcanKeyboardController.h |
 \*--------------------------------------------------------------------------------*/
 #define ROCCAT_HORDE_AIMO_PID       0x303E
+#define ROCCAT_SUORA_FX_PID         0x3246
 
 /*-----------------------------------------------------------------*\
 |  MICE                                                             |
@@ -205,6 +208,19 @@ void DetectRoccatHordeAimoKeyboardControllers(hid_device_info* info, const std::
     }
 }
 
+void DetectRoccatSuoraFXControllers(hid_device_info* info, const std::string& /*name*/)
+{
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        RoccatSuoraFXController *     controller     = new RoccatSuoraFXController(dev, info->path);
+        RGBController_RoccatSuoraFX * rgb_controller = new RGBController_RoccatSuoraFX(controller);
+
+        ResourceManager::get()->RegisterRGBController(rgb_controller);
+    }
+}
+
 void DetectRoccatBurstCoreControllers(hid_device_info* info, const std::string& name)
 {
     hid_device* dev = hid_open_path(info->path);
@@ -328,6 +344,7 @@ REGISTER_PRE_DETECTION_HOOK(ResetRoccatVulcanKeyboardControllersPaths);
 |  KEYBOARDS                                                        |
 \*-----------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Roccat Horde Aimo",                  DetectRoccatHordeAimoKeyboardControllers,   ROCCAT_VID, ROCCAT_HORDE_AIMO_PID,                      1, 0x0B,    0 );
+REGISTER_HID_DETECTOR_IPU("Roccat Suora FX",                   DetectRoccatSuoraFXControllers,             ROCCAT_VID, ROCCAT_SUORA_FX_PID,                      3, 0xFF01,  1 );
 
 REGISTER_HID_DETECTOR_IP ("Roccat Magma",                       DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_MAGMA_PID,                           1,          0xFF01);
 REGISTER_HID_DETECTOR_IP ("Roccat Magma Mini",                  DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_MAGMA_MINI_PID,                      1,          0xFF01);
