@@ -340,14 +340,15 @@ struct KbLayoutEdit
 
 /*---------------------------------------------------------*\
 | PRO X RAPID top strip. INSERT_ROW adds a new row 0 above  |
-| the F-row; the rest INSERT_SHIFT_RIGHT into it. Game Mode |
-| is a non-RGB toggle so it gets no LED. Logo sits top-left |
-| above ESC; the media keys line up above F4 / F9-F12.      |
+| the F-row; the rest INSERT_SHIFT_RIGHT into it. Zone ids  |
+| hardware-probed on this board. Game Mode (F3) is a non-RGB|
+| toggle. No Logo: this model has no separately addressable |
+| logo LED (no reported zone lights it, unlit in product    |
+| photos), so it is intentionally omitted.                  |
 \*---------------------------------------------------------*/
 static const keyboard_led proxrapid_top_strip[] =
 {
-    { 0, 0, 0,  210, "Logo",             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_ROW         },   /* above ESC */
-    { 0, 0, 5,  150, "Brightness",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F4  */
+    { 0, 0, 5,  150, "Brightness",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_ROW         },   /* above F4  */
     { 0, 0, 10, 155, "Media Previous",   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F9  */
     { 0, 0, 11, 152, "Media Play/Pause", KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F10 */
     { 0, 0, 12, 154, "Media Next",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F11 */
@@ -356,7 +357,7 @@ static const keyboard_led proxrapid_top_strip[] =
 
 static const KbLayoutEdit known_kb_layout_edits[] =
 {
-    { 0xC35B, proxrapid_top_strip, 6 },   /* PRO X RAPID */
+    { 0xC35B, proxrapid_top_strip, 5 },   /* PRO X RAPID */
 };
 
 static key_set FindKbLayoutEdit(uint16_t pid_wired, uint16_t pid_wireless)
