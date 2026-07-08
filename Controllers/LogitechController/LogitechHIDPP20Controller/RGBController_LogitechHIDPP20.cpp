@@ -291,17 +291,33 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
 \*---------------------------------------------------------*/
 static const std::set<unsigned int> hidpp20_extras_allowlist =
 {
-    153,    /* Brightness  */
-    155,    /* Play/Pause  */
-    156,    /* Mute        */
-    157,    /* Next        */
-    158,    /* Previous    */
-    180,    /* G1          */
-    181,    /* G2          */
-    182,    /* G3          */
-    183,    /* G4          */
-    184,    /* G5          */
-    210,    /* Logo        */
+    150,    /* Brightness (PRO X RAPID renumbering) */
+    152,    /* Play/Pause (PRO X RAPID)             */
+    153,    /* Brightness                          */
+    154,    /* Next       (PRO X RAPID)            */
+    155,    /* Play/Pause                          */
+    156,    /* Mute                                */
+    157,    /* Next                                */
+    158,    /* Previous                            */
+    180,    /* G1                                  */
+    181,    /* G2                                  */
+    182,    /* G3                                  */
+    183,    /* G4                                  */
+    184,    /* G5                                  */
+    210,    /* Logo                                */
+};
+
+/*---------------------------------------------------------*\
+| Display names for Extras zones whose IDs aren't in the    |
+| key-name map (e.g. the PRO X RAPID top strip renumbered   |
+| brightness/play/next to 150/152/154). Zone-keyed, so the  |
+| same label can apply to a different ID on another board.  |
+\*---------------------------------------------------------*/
+static const std::map<uint16_t, std::string> hidpp20_extras_zone_name =
+{
+    { 150, "Brightness"       },
+    { 152, "Media Play/Pause" },
+    { 154, "Media Next"       },
 };
 
 /*---------------------------------------------------------*\
@@ -1603,12 +1619,21 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 }
 
                 std::string label;
-                for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_zone)
+
+                std::map<uint16_t, std::string>::const_iterator zn = hidpp20_extras_zone_name.find(zid);
+                if(zn != hidpp20_extras_zone_name.end())
                 {
-                    if(kv.second == zid)
+                    label = zn->second;
+                }
+                else
+                {
+                    for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_zone)
                     {
-                        label = kv.first;
-                        break;
+                        if(kv.second == zid)
+                        {
+                            label = kv.first;
+                            break;
+                        }
                     }
                 }
 
