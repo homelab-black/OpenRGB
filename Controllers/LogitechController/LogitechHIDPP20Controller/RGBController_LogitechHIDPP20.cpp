@@ -321,6 +321,58 @@ static const std::map<uint16_t, std::string> hidpp20_extras_zone_name =
 };
 
 /*---------------------------------------------------------*\
+| Keyboard layout edits: KLM key_set overlays applied on top|
+| of the base KeyboardLayoutManager layout for boards that  |
+| place media/logo/brightness keys in a row above the F-row |
+| (or otherwise differ from the stock layout). The keyboard_|
+| led.value field carries the HID++ per-key zone id, read   |
+| back via GetKeyValueAt so renumbered boards address the   |
+| right LED without a special-case in the commit path. Keyed|
+| by PID; matches pid_wired or pid_wireless.                |
+| (F-row columns: ESC=0, F1..F12 = 2..13, PrtSc/etc 14-16.) |
+\*---------------------------------------------------------*/
+struct KbLayoutEdit
+{
+    uint16_t             pid;
+    const keyboard_led*  keys;
+    size_t               key_count;
+};
+
+/*---------------------------------------------------------*\
+| PRO X RAPID top strip. INSERT_ROW adds a new row 0 above  |
+| the F-row; the rest INSERT_SHIFT_RIGHT into it. Game Mode |
+| is a non-RGB toggle so it gets no LED. Logo sits top-left |
+| above ESC; the media keys line up above F4 / F9-F12.      |
+\*---------------------------------------------------------*/
+static const keyboard_led proxrapid_top_strip[] =
+{
+    { 0, 0, 0,  210, "Logo",             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_ROW         },   /* above ESC */
+    { 0, 0, 5,  150, "Brightness",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F4  */
+    { 0, 0, 10, 158, "Media Previous",   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F9  */
+    { 0, 0, 11, 152, "Media Play/Pause", KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F10 */
+    { 0, 0, 12, 154, "Media Next",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F11 */
+    { 0, 0, 13, 156, "Media Mute",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F12 */
+};
+
+static const KbLayoutEdit known_kb_layout_edits[] =
+{
+    { 0xC35B, proxrapid_top_strip, 6 },   /* PRO X RAPID */
+};
+
+static key_set FindKbLayoutEdit(uint16_t pid_wired, uint16_t pid_wireless)
+{
+    for(const KbLayoutEdit& e : known_kb_layout_edits)
+    {
+        if(e.pid == pid_wired || e.pid == pid_wireless)
+        {
+            return key_set(e.keys, e.keys + e.key_count);
+        }
+    }
+
+    return key_set();
+}
+
+/*---------------------------------------------------------*\
 | Maps OpenRGB key name -> USB HID Keyboard/Keypad usage    |
 | code (HID Usage Tables page 0x07). Used by the 0x8080     |
 | Per Key Lighting path, whose keyIds ARE these standard    |
@@ -1543,6 +1595,18 @@ void RGBController_LogitechHIDPP20::SetupZones()
 
             KeyboardLayoutManager klm(kb_layout, kb_size);
 
+            /*--------------------------------------------------*\
+            | Apply any per-board layout edit (e.g. a top strip  |
+            | of media/logo keys above the F-row). KLM inserts   |
+            | the keys and re-derives dimensions, so the matrix  |
+            | build below needs no change.                       |
+            \*--------------------------------------------------*/
+            key_set kb_layout_edit = FindKbLayoutEdit(caps.pid_wired, caps.pid_wireless);
+            if(!kb_layout_edit.empty())
+            {
+                klm.ChangeKeys(kb_layout_edit);
+            }
+
             zone perkey_zone;
             perkey_zone.name       = ZONE_EN_KEYBOARD;
             perkey_zone.type       = ZONE_TYPE_MATRIX;
@@ -1566,10 +1630,17 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 new_led.name = key_name;
 
                 /*---------------------------------------------*\
-                | Look up zone ID by key name                   |
+                | Zone ID: a nonzero KLM value is a board-      |
+                | specific wire address from a layout edit (e.g.|
+                | renumbered top-strip keys); otherwise look it |
+                | up by key name from the standard table.       |
                 \*---------------------------------------------*/
-                std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_zone.find(key_name);
-                unsigned int zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
+                unsigned int zone_id = klm.GetKeyValueAt(i);
+                if(zone_id == 0)
+                {
+                    std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_zone.find(key_name);
+                    zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
+                }
                 new_led.value = zone_id;
                 leds.push_back(new_led);
 
