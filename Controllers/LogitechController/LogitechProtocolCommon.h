@@ -22,6 +22,8 @@
 #define LOGITECH_SHORT_MESSAGE_LEN                      7
 #define LOGITECH_LONG_MESSAGE                           0x11
 #define LOGITECH_LONG_MESSAGE_LEN                       20
+#define LOGITECH_VERY_LONG_MESSAGE                      0x12
+#define LOGITECH_VERY_LONG_MESSAGE_LEN                  64
 #define LOGITECH_FAP_RESPONSE_LEN                       64      //Define a universal response buffer and allow the hidapi to determine the size
 
 #define LOGITECH_DEFAULT_DEVICE_INDEX                   0xFF
@@ -270,7 +272,7 @@ struct logitech_led
         leds_fx                         fx;
 };
 
-int getWirelessDevice(usages _usages, uint16_t pid, wireless_map *wireless_devices);    //Helper function needed outside of class
+int getWirelessDevice(usages _usages, uint16_t pid, wireless_map *wireless_devices, std::map<uint8_t, bool> *online_out = nullptr);    //Helper function needed outside of class; online_out (optional) reports per-index link state
 
 class logitech_device
 {

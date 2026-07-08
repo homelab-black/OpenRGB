@@ -192,7 +192,9 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
     { KEY_EN_EQUALS,          43  },
     { KEY_EN_LEFT_BRACKET,    44  },
     { KEY_EN_RIGHT_BRACKET,   45  },
-    { KEY_EN_ANSI_BACK_SLASH, 46  },
+    { KEY_EN_ANSI_BACK_SLASH, 46  },   /* ANSI only; ISO/JIS use 47 + 97 */
+    { KEY_EN_POUND,           47  },   /* ISO/JIS POUND (#/  row 3 col 12)  */
+    { KEY_EN_ISO_BACK_SLASH,  97  },   /* ISO/JIS extra key (row 4 col 1)   */
     { KEY_EN_SEMICOLON,       48  },
     { KEY_EN_QUOTE,           49  },
     { KEY_EN_BACK_TICK,       50  },
@@ -279,6 +281,238 @@ static const std::map<std::string, unsigned int> hidpp20_key_name_to_zone =
 };
 
 /*---------------------------------------------------------*\
+| Curated allowlist of non-matrix zones worth surfacing as  |
+| "Extras" — the media keys, G-keys, and logo the firmware  |
+| actually wires. Ported from Solaar's EXTRAS_ALLOWLIST.    |
+| Any other device-reported zone the KLM matrix did not     |
+| claim is a phantom/reserved slot (ISO's 46, ANSI's 47/97, |
+| G515's 99-103/254, ...) and is dropped. Layout-driven,    |
+| not device-specific.                                      |
+\*---------------------------------------------------------*/
+static const std::set<unsigned int> hidpp20_extras_allowlist =
+{
+    150,    /* Brightness (PRO X RAPID renumbering) */
+    152,    /* Play/Pause (PRO X RAPID)             */
+    153,    /* Brightness                          */
+    154,    /* Next       (PRO X RAPID)            */
+    155,    /* Play/Pause                          */
+    156,    /* Mute                                */
+    157,    /* Next                                */
+    158,    /* Previous                            */
+    180,    /* G1                                  */
+    181,    /* G2                                  */
+    182,    /* G3                                  */
+    183,    /* G4                                  */
+    184,    /* G5                                  */
+    210,    /* Logo                                */
+};
+
+/*---------------------------------------------------------*\
+| Display names for Extras zones whose IDs aren't in the    |
+| key-name map (e.g. the PRO X RAPID top strip renumbered   |
+| brightness/play/next to 150/152/154). Zone-keyed, so the  |
+| same label can apply to a different ID on another board.  |
+\*---------------------------------------------------------*/
+static const std::map<uint16_t, std::string> hidpp20_extras_zone_name =
+{
+    { 150, "Brightness"       },
+    { 152, "Media Play/Pause" },
+    { 154, "Media Next"       },
+};
+
+/*---------------------------------------------------------*\
+| Keyboard layout edits: KLM key_set overlays applied on top|
+| of the base KeyboardLayoutManager layout for boards that  |
+| place media/logo/brightness keys in a row above the F-row |
+| (or otherwise differ from the stock layout). The keyboard_|
+| led.value field carries the HID++ per-key zone id, read   |
+| back via GetKeyValueAt so renumbered boards address the   |
+| right LED without a special-case in the commit path. Keyed|
+| by PID; matches pid_wired or pid_wireless.                |
+| (F-row columns: ESC=0, F1..F12 = 2..13, PrtSc/etc 14-16.) |
+\*---------------------------------------------------------*/
+struct KbLayoutEdit
+{
+    uint16_t             pid;
+    const keyboard_led*  keys;
+    size_t               key_count;
+};
+
+/*---------------------------------------------------------*\
+| PRO X RAPID top strip. INSERT_ROW adds a new row 0 above  |
+| the F-row; the rest INSERT_SHIFT_RIGHT into it. Zone ids  |
+| hardware-probed on this board. Game Mode (F3) is a non-RGB|
+| toggle. No Logo: this model has no separately addressable |
+| logo LED (no reported zone lights it, unlit in product    |
+| photos), so it is intentionally omitted.                  |
+\*---------------------------------------------------------*/
+static const keyboard_led proxrapid_top_strip[] =
+{
+    { 0, 0, 5,  150, "Brightness",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_ROW         },   /* above F4  */
+    { 0, 0, 10, 155, "Media Previous",   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F9  */
+    { 0, 0, 11, 152, "Media Play/Pause", KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F10 */
+    { 0, 0, 12, 154, "Media Next",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F11 */
+    { 0, 0, 13, 153, "Media Mute",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F12 */
+};
+
+static const KbLayoutEdit known_kb_layout_edits[] =
+{
+    { 0xC35B, proxrapid_top_strip, 5 },   /* PRO X RAPID */
+};
+
+static key_set FindKbLayoutEdit(uint16_t pid_wired, uint16_t pid_wireless)
+{
+    for(const KbLayoutEdit& e : known_kb_layout_edits)
+    {
+        if(e.pid == pid_wired || e.pid == pid_wireless)
+        {
+            return key_set(e.keys, e.keys + e.key_count);
+        }
+    }
+
+    return key_set();
+}
+
+/*---------------------------------------------------------*\
+| Maps OpenRGB key name -> USB HID Keyboard/Keypad usage    |
+| code (HID Usage Tables page 0x07). Used by the 0x8080     |
+| Per Key Lighting path, whose keyIds ARE these standard    |
+| usage codes — sibling to hidpp20_key_name_to_zone above,  |
+| which carries the 0x8081 sequential zone numbering        |
+| instead. This is the HID specification, not a device      |
+| table.                                                    |
+\*---------------------------------------------------------*/
+static const std::map<std::string, unsigned int> hidpp20_key_name_to_usage =
+{
+    { KEY_EN_A,                 0x04 },
+    { KEY_EN_B,                 0x05 },
+    { KEY_EN_C,                 0x06 },
+    { KEY_EN_D,                 0x07 },
+    { KEY_EN_E,                 0x08 },
+    { KEY_EN_F,                 0x09 },
+    { KEY_EN_G,                 0x0A },
+    { KEY_EN_H,                 0x0B },
+    { KEY_EN_I,                 0x0C },
+    { KEY_EN_J,                 0x0D },
+    { KEY_EN_K,                 0x0E },
+    { KEY_EN_L,                 0x0F },
+    { KEY_EN_M,                 0x10 },
+    { KEY_EN_N,                 0x11 },
+    { KEY_EN_O,                 0x12 },
+    { KEY_EN_P,                 0x13 },
+    { KEY_EN_Q,                 0x14 },
+    { KEY_EN_R,                 0x15 },
+    { KEY_EN_S,                 0x16 },
+    { KEY_EN_T,                 0x17 },
+    { KEY_EN_U,                 0x18 },
+    { KEY_EN_V,                 0x19 },
+    { KEY_EN_W,                 0x1A },
+    { KEY_EN_X,                 0x1B },
+    { KEY_EN_Y,                 0x1C },
+    { KEY_EN_Z,                 0x1D },
+    { KEY_EN_1,                 0x1E },
+    { KEY_EN_2,                 0x1F },
+    { KEY_EN_3,                 0x20 },
+    { KEY_EN_4,                 0x21 },
+    { KEY_EN_5,                 0x22 },
+    { KEY_EN_6,                 0x23 },
+    { KEY_EN_7,                 0x24 },
+    { KEY_EN_8,                 0x25 },
+    { KEY_EN_9,                 0x26 },
+    { KEY_EN_0,                 0x27 },
+    { KEY_EN_ANSI_ENTER,        0x28 },
+    { KEY_EN_ESCAPE,            0x29 },
+    { KEY_EN_BACKSPACE,         0x2A },
+    { KEY_EN_TAB,               0x2B },
+    { KEY_EN_SPACE,             0x2C },
+    { KEY_EN_MINUS,             0x2D },
+    { KEY_EN_EQUALS,            0x2E },
+    { KEY_EN_LEFT_BRACKET,      0x2F },
+    { KEY_EN_RIGHT_BRACKET,     0x30 },
+    { KEY_EN_ANSI_BACK_SLASH,   0x31 },     /* ANSI */
+    { KEY_EN_POUND,             0x32 },     /* ISO  */
+    { KEY_EN_SEMICOLON,         0x33 },
+    { KEY_EN_QUOTE,             0x34 },
+    { KEY_EN_BACK_TICK,         0x35 },
+    { KEY_EN_COMMA,             0x36 },
+    { KEY_EN_PERIOD,            0x37 },
+    { KEY_EN_FORWARD_SLASH,     0x38 },
+    { KEY_EN_CAPS_LOCK,         0x39 },
+    { KEY_EN_F1,                0x3A },
+    { KEY_EN_F2,                0x3B },
+    { KEY_EN_F3,                0x3C },
+    { KEY_EN_F4,                0x3D },
+    { KEY_EN_F5,                0x3E },
+    { KEY_EN_F6,                0x3F },
+    { KEY_EN_F7,                0x40 },
+    { KEY_EN_F8,                0x41 },
+    { KEY_EN_F9,                0x42 },
+    { KEY_EN_F10,               0x43 },
+    { KEY_EN_F11,               0x44 },
+    { KEY_EN_F12,               0x45 },
+    { KEY_EN_PRINT_SCREEN,      0x46 },
+    { KEY_EN_SCROLL_LOCK,       0x47 },
+    { KEY_EN_PAUSE_BREAK,       0x48 },
+    { KEY_EN_INSERT,            0x49 },
+    { KEY_EN_HOME,              0x4A },
+    { KEY_EN_PAGE_UP,           0x4B },
+    { KEY_EN_DELETE,            0x4C },
+    { KEY_EN_END,               0x4D },
+    { KEY_EN_PAGE_DOWN,         0x4E },
+    { KEY_EN_RIGHT_ARROW,       0x4F },
+    { KEY_EN_LEFT_ARROW,        0x50 },
+    { KEY_EN_DOWN_ARROW,        0x51 },
+    { KEY_EN_UP_ARROW,          0x52 },
+    { KEY_EN_NUMPAD_LOCK,       0x53 },
+    { KEY_EN_NUMPAD_DIVIDE,     0x54 },
+    { KEY_EN_NUMPAD_TIMES,      0x55 },
+    { KEY_EN_NUMPAD_MINUS,      0x56 },
+    { KEY_EN_NUMPAD_PLUS,       0x57 },
+    { KEY_EN_NUMPAD_ENTER,      0x58 },
+    { KEY_EN_NUMPAD_1,          0x59 },
+    { KEY_EN_NUMPAD_2,          0x5A },
+    { KEY_EN_NUMPAD_3,          0x5B },
+    { KEY_EN_NUMPAD_4,          0x5C },
+    { KEY_EN_NUMPAD_5,          0x5D },
+    { KEY_EN_NUMPAD_6,          0x5E },
+    { KEY_EN_NUMPAD_7,          0x5F },
+    { KEY_EN_NUMPAD_8,          0x60 },
+    { KEY_EN_NUMPAD_9,          0x61 },
+    { KEY_EN_NUMPAD_0,          0x62 },
+    { KEY_EN_NUMPAD_PERIOD,     0x63 },
+    { KEY_EN_ISO_BACK_SLASH,    0x64 },     /* ISO */
+    { KEY_EN_MENU,              0x65 },
+    { KEY_EN_LEFT_CONTROL,      0xE0 },
+    { KEY_EN_LEFT_SHIFT,        0xE1 },
+    { KEY_EN_LEFT_ALT,          0xE2 },
+    { KEY_EN_LEFT_WINDOWS,      0xE3 },
+    { KEY_EN_RIGHT_CONTROL,     0xE4 },
+    { KEY_EN_RIGHT_SHIFT,       0xE5 },
+    { KEY_EN_RIGHT_ALT,         0xE6 },
+    { KEY_EN_RIGHT_WINDOWS,     0xE7 },
+    { KEY_EN_RIGHT_FUNCTION,    0xE7 },     /* boards that place Fn where Right GUI sits (G Pro) */
+};
+
+/*---------------------------------------------------------*\
+| Reverse lookup over hidpp20_key_name_to_usage: HID usage  |
+| code -> key name, or nullptr when the code is not a       |
+| standard keyboard key (a vendor-local logo / G-key /      |
+| indicator id).                                            |
+\*---------------------------------------------------------*/
+static const char* hidpp20_key_name_for_usage(unsigned int usage)
+{
+    for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_usage)
+    {
+        if(kv.second == usage)
+        {
+            return kv.first.c_str();
+        }
+    }
+
+    return nullptr;
+}
+
+/*---------------------------------------------------------*\
 | Mouse LED layout table                                    |
 | Each entry defines a matrix layout for a known mouse.     |
 | Looked up by substring match on device name.              |
@@ -336,6 +570,506 @@ static const MouseLayout* FindMouseLayout(const std::string& device_name)
     return nullptr;
 }
 
+/*---------------------------------------------------------*\
+| Headset RGB hostmode (0x0620) physical layout table.      |
+| Firmware reports zone IDs but no geometry; this places    |
+| a known device's zone IDs onto earcup matrix zones.       |
+| Mirrors Solaar's per-device headset layout                |
+| (headset_g522.py). Keyed by firmware-reported PID —       |
+| Centurion device names are not reliable. Unknown 0x0620   |
+| headsets fall back to a generic one-LED-per-zone list.    |
+\*---------------------------------------------------------*/
+struct HeadsetEarcup
+{
+    const char*          name;       /* OpenRGB zone name                    */
+    unsigned int         rows;
+    unsigned int         cols;
+    unsigned int         led_count;
+    const unsigned int*  map;        /* zone-relative LED indices (rows*cols) */
+    const unsigned char* zone_ids;   /* firmware zone ID per LED, in LED order*/
+};
+
+struct HeadsetLayout
+{
+    uint16_t             pid;          /* matches pid_wireless or pid_wired   */
+    unsigned int         earcup_count;
+    const HeadsetEarcup* earcups;
+};
+
+/*---------------------------------------------------------*\
+| G522: 8 LEDs, two 2x2 earcup grids (outer view):          |
+|   Left  8 7 / 4 3      Right  6 5 / 2 1                   |
+| LEDs are listed in grid reading order (TL, TR, BL, BR) so |
+| each earcup's matrix map is the identity {0,1,2,3}.       |
+\*---------------------------------------------------------*/
+static const unsigned int  g522_earcup_map[2 * 2] = { 0, 1, 2, 3 };
+static const unsigned char g522_left_zone_ids[4]  = { 8, 7, 4, 3 };
+static const unsigned char g522_right_zone_ids[4] = { 6, 5, 2, 1 };
+
+static const HeadsetEarcup g522_earcups[] =
+{
+    { "Left Earcup",  2, 2, 4, g522_earcup_map, g522_left_zone_ids  },
+    { "Right Earcup", 2, 2, 4, g522_earcup_map, g522_right_zone_ids },
+};
+
+static const HeadsetLayout known_headset_layouts[] =
+{
+    { 0x0B18, 2, g522_earcups },    /* G522 LIGHTSPEED */
+    { 0x0000, 0, nullptr }
+};
+
+static const HeadsetLayout* FindHeadsetLayout(uint16_t pid_wireless, uint16_t pid_wired)
+{
+    for(const HeadsetLayout* hl = known_headset_layouts; hl->earcups != nullptr; hl++)
+    {
+        if(hl->pid == pid_wireless || hl->pid == pid_wired)
+        {
+            return hl;
+        }
+    }
+
+    return nullptr;
+}
+
+/*---------------------------------------------------------*\
+| Keyboard per-key layout table (Feature 0x8080)            |
+| Mirrors the mouse layout table above: matched by device   |
+| name substring, each entry supplies the physical matrix   |
+| (which the device cannot report) plus, per LED, the wire  |
+| (keyType, keyId) that 0x8080 SetKeyColors addresses.      |
+| Ported from the legacy G810/G910/G Pro controllers — the  |
+| keyType values are the zones KEYBOARD 0x01 / MEDIA 0x02 / |
+| GKEYS 0x04 / LOGO 0x10 / INDICATORS 0x40.                 |
+\*---------------------------------------------------------*/
+#define KB_NA 0xFFFFFFFF
+
+struct KbLed
+{
+    const char*     name;
+    unsigned short  key_type;
+    unsigned char   key_id;
+};
+
+static const unsigned int g810_kbd_map[7 * 23] =
+{
+      111, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,   116,   114,   115, KB_NA,   113, KB_NA,   112,   110, KB_NA, KB_NA, KB_NA,
+       37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68,   109,   108,   107,   106,
+       49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,    79,    80,    81,    82,
+       39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,    91,    92,    93,    83,
+       53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,    88,    89,    90, KB_NA,
+       99,    96,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,   103, KB_NA, KB_NA,    78, KB_NA,    85,    86,    87,    84,
+       98,   101,   100, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,   104,   105,    97,   102,    76,    77,    75,    94, KB_NA,    95, KB_NA,
+};
+
+static const KbLed g810_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_NUMPAD_LOCK        , 0x0001, 0x53 },
+    { KEY_EN_NUMPAD_DIVIDE      , 0x0001, 0x54 },
+    { KEY_EN_NUMPAD_TIMES       , 0x0001, 0x55 },
+    { KEY_EN_NUMPAD_MINUS       , 0x0001, 0x56 },
+    { KEY_EN_NUMPAD_PLUS        , 0x0001, 0x57 },
+    { KEY_EN_NUMPAD_ENTER       , 0x0001, 0x58 },
+    { KEY_EN_NUMPAD_1           , 0x0001, 0x59 },
+    { KEY_EN_NUMPAD_2           , 0x0001, 0x5A },
+    { KEY_EN_NUMPAD_3           , 0x0001, 0x5B },
+    { KEY_EN_NUMPAD_4           , 0x0001, 0x5C },
+    { KEY_EN_NUMPAD_5           , 0x0001, 0x5D },
+    { KEY_EN_NUMPAD_6           , 0x0001, 0x5E },
+    { KEY_EN_NUMPAD_7           , 0x0001, 0x5F },
+    { KEY_EN_NUMPAD_8           , 0x0001, 0x60 },
+    { KEY_EN_NUMPAD_9           , 0x0001, 0x61 },
+    { KEY_EN_NUMPAD_0           , 0x0001, 0x62 },
+    { KEY_EN_NUMPAD_PERIOD      , 0x0001, 0x63 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_WINDOWS      , 0x0001, 0xE7 },
+    { KEY_EN_MEDIA_NEXT         , 0x0002, 0xB5 },
+    { KEY_EN_MEDIA_PREVIOUS     , 0x0002, 0xB6 },
+    { KEY_EN_MEDIA_STOP         , 0x0002, 0xB7 },
+    { KEY_EN_MEDIA_PLAY_PAUSE   , 0x0002, 0xCD },
+    { KEY_EN_MEDIA_MUTE         , 0x0002, 0xE2 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Lighting"                , 0x0040, 0x01 },
+    { "Game Mode"               , 0x0040, 0x02 },
+    { "Caps Lock Indicator"     , 0x0040, 0x03 },
+    { "Scroll Lock Indicator"   , 0x0040, 0x04 },
+    { "Num Lock Indicator"      , 0x0040, 0x05 },
+};
+// G810: 117 leds, matrix 7x23
+
+static const unsigned int g910_kbd_map[8 * 24] =
+{
+    KB_NA,   111,   112,   113,   114, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,
+      115,    37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68, KB_NA, KB_NA, KB_NA, KB_NA,
+      106,    49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,    79,    80,    81,    82,
+      107,    39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,    91,    92,    93,    83,
+      108,    53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,    88,    89,    90, KB_NA,
+      109,    99,    96,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,   103, KB_NA, KB_NA,    78, KB_NA,    85,    86,    87,    84,
+      110,    98,   101,   100, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,   104,   105,    97,   102,    76,    77,    75,    94, KB_NA,    95, KB_NA,
+    KB_NA, KB_NA, KB_NA,   116, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,
+};
+
+static const KbLed g910_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_NUMPAD_LOCK        , 0x0001, 0x53 },
+    { KEY_EN_NUMPAD_DIVIDE      , 0x0001, 0x54 },
+    { KEY_EN_NUMPAD_TIMES       , 0x0001, 0x55 },
+    { KEY_EN_NUMPAD_MINUS       , 0x0001, 0x56 },
+    { KEY_EN_NUMPAD_PLUS        , 0x0001, 0x57 },
+    { KEY_EN_NUMPAD_ENTER       , 0x0001, 0x58 },
+    { KEY_EN_NUMPAD_1           , 0x0001, 0x59 },
+    { KEY_EN_NUMPAD_2           , 0x0001, 0x5A },
+    { KEY_EN_NUMPAD_3           , 0x0001, 0x5B },
+    { KEY_EN_NUMPAD_4           , 0x0001, 0x5C },
+    { KEY_EN_NUMPAD_5           , 0x0001, 0x5D },
+    { KEY_EN_NUMPAD_6           , 0x0001, 0x5E },
+    { KEY_EN_NUMPAD_7           , 0x0001, 0x5F },
+    { KEY_EN_NUMPAD_8           , 0x0001, 0x60 },
+    { KEY_EN_NUMPAD_9           , 0x0001, 0x61 },
+    { KEY_EN_NUMPAD_0           , 0x0001, 0x62 },
+    { KEY_EN_NUMPAD_PERIOD      , 0x0001, 0x63 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_WINDOWS      , 0x0001, 0xE7 },
+    { "Key: G1"                 , 0x0004, 0x01 },
+    { "Key: G2"                 , 0x0004, 0x02 },
+    { "Key: G3"                 , 0x0004, 0x03 },
+    { "Key: G4"                 , 0x0004, 0x04 },
+    { "Key: G5"                 , 0x0004, 0x05 },
+    { "Key: G6"                 , 0x0004, 0x06 },
+    { "Key: G7"                 , 0x0004, 0x07 },
+    { "Key: G8"                 , 0x0004, 0x08 },
+    { "Key: G9"                 , 0x0004, 0x09 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Nameplate"               , 0x0010, 0x02 },
+};
+// G910: 117 leds, matrix 8x24
+
+static const unsigned int gpro_kbd_map[7 * 19] =
+{
+       89, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA, KB_NA,    93,    92, KB_NA, KB_NA,    91, KB_NA,    90,
+       37, KB_NA,    54,    55,    56,    57, KB_NA,    58,    59,    60,    61, KB_NA,    62,    63,    64,    65,    66,    67,    68,
+       49,    26,    27,    28,    29,    30,    31,    32,    33,    34,    35, KB_NA,    41,    42,    38, KB_NA,    69,    70,    71,
+       39, KB_NA,    16,    22,     4,    17, KB_NA,    19,    24,    20,     8,    14,    15,    43,    44,    45,    72,    73,    74,
+       53, KB_NA,     0,    18,     3,     5, KB_NA,     6,     7,     9,    10,    11,    47,    48,    46,    36, KB_NA, KB_NA, KB_NA,
+       82,    79,    25,    23,     2,    21, KB_NA,     1, KB_NA,    13,    12,    50,    51,    52,    86, KB_NA, KB_NA,    78, KB_NA,
+       81,    84,    83, KB_NA, KB_NA, KB_NA, KB_NA,    40, KB_NA, KB_NA, KB_NA, KB_NA,    87,    88,    80,    85,    76,    77,    75,
+};
+
+static const KbLed gpro_kbd_leds[] =
+{
+    { KEY_EN_A                  , 0x0001, 0x04 },
+    { KEY_EN_B                  , 0x0001, 0x05 },
+    { KEY_EN_C                  , 0x0001, 0x06 },
+    { KEY_EN_D                  , 0x0001, 0x07 },
+    { KEY_EN_E                  , 0x0001, 0x08 },
+    { KEY_EN_F                  , 0x0001, 0x09 },
+    { KEY_EN_G                  , 0x0001, 0x0A },
+    { KEY_EN_H                  , 0x0001, 0x0B },
+    { KEY_EN_I                  , 0x0001, 0x0C },
+    { KEY_EN_J                  , 0x0001, 0x0D },
+    { KEY_EN_K                  , 0x0001, 0x0E },
+    { KEY_EN_L                  , 0x0001, 0x0F },
+    { KEY_EN_M                  , 0x0001, 0x10 },
+    { KEY_EN_N                  , 0x0001, 0x11 },
+    { KEY_EN_O                  , 0x0001, 0x12 },
+    { KEY_EN_P                  , 0x0001, 0x13 },
+    { KEY_EN_Q                  , 0x0001, 0x14 },
+    { KEY_EN_R                  , 0x0001, 0x15 },
+    { KEY_EN_S                  , 0x0001, 0x16 },
+    { KEY_EN_T                  , 0x0001, 0x17 },
+    { KEY_EN_U                  , 0x0001, 0x18 },
+    { KEY_EN_V                  , 0x0001, 0x19 },
+    { KEY_EN_W                  , 0x0001, 0x1A },
+    { KEY_EN_X                  , 0x0001, 0x1B },
+    { KEY_EN_Y                  , 0x0001, 0x1C },
+    { KEY_EN_Z                  , 0x0001, 0x1D },
+    { KEY_EN_1                  , 0x0001, 0x1E },
+    { KEY_EN_2                  , 0x0001, 0x1F },
+    { KEY_EN_3                  , 0x0001, 0x20 },
+    { KEY_EN_4                  , 0x0001, 0x21 },
+    { KEY_EN_5                  , 0x0001, 0x22 },
+    { KEY_EN_6                  , 0x0001, 0x23 },
+    { KEY_EN_7                  , 0x0001, 0x24 },
+    { KEY_EN_8                  , 0x0001, 0x25 },
+    { KEY_EN_9                  , 0x0001, 0x26 },
+    { KEY_EN_0                  , 0x0001, 0x27 },
+    { KEY_EN_ANSI_ENTER         , 0x0001, 0x28 },
+    { KEY_EN_ESCAPE             , 0x0001, 0x29 },
+    { KEY_EN_BACKSPACE          , 0x0001, 0x2A },
+    { KEY_EN_TAB                , 0x0001, 0x2B },
+    { KEY_EN_SPACE              , 0x0001, 0x2C },
+    { KEY_EN_MINUS              , 0x0001, 0x2D },
+    { KEY_EN_EQUALS             , 0x0001, 0x2E },
+    { KEY_EN_LEFT_BRACKET       , 0x0001, 0x2F },
+    { KEY_EN_RIGHT_BRACKET      , 0x0001, 0x30 },
+    { KEY_EN_ANSI_BACK_SLASH    , 0x0001, 0x31 },
+    { KEY_EN_POUND              , 0x0001, 0x32 },
+    { KEY_EN_SEMICOLON          , 0x0001, 0x33 },
+    { KEY_EN_QUOTE              , 0x0001, 0x34 },
+    { KEY_EN_BACK_TICK          , 0x0001, 0x35 },
+    { KEY_EN_COMMA              , 0x0001, 0x36 },
+    { KEY_EN_PERIOD             , 0x0001, 0x37 },
+    { KEY_EN_FORWARD_SLASH      , 0x0001, 0x38 },
+    { KEY_EN_CAPS_LOCK          , 0x0001, 0x39 },
+    { KEY_EN_F1                 , 0x0001, 0x3A },
+    { KEY_EN_F2                 , 0x0001, 0x3B },
+    { KEY_EN_F3                 , 0x0001, 0x3C },
+    { KEY_EN_F4                 , 0x0001, 0x3D },
+    { KEY_EN_F5                 , 0x0001, 0x3E },
+    { KEY_EN_F6                 , 0x0001, 0x3F },
+    { KEY_EN_F7                 , 0x0001, 0x40 },
+    { KEY_EN_F8                 , 0x0001, 0x41 },
+    { KEY_EN_F9                 , 0x0001, 0x42 },
+    { KEY_EN_F10                , 0x0001, 0x43 },
+    { KEY_EN_F11                , 0x0001, 0x44 },
+    { KEY_EN_F12                , 0x0001, 0x45 },
+    { KEY_EN_PRINT_SCREEN       , 0x0001, 0x46 },
+    { KEY_EN_SCROLL_LOCK        , 0x0001, 0x47 },
+    { KEY_EN_PAUSE_BREAK        , 0x0001, 0x48 },
+    { KEY_EN_INSERT             , 0x0001, 0x49 },
+    { KEY_EN_HOME               , 0x0001, 0x4A },
+    { KEY_EN_PAGE_UP            , 0x0001, 0x4B },
+    { KEY_EN_DELETE             , 0x0001, 0x4C },
+    { KEY_EN_END                , 0x0001, 0x4D },
+    { KEY_EN_PAGE_DOWN          , 0x0001, 0x4E },
+    { KEY_EN_RIGHT_ARROW        , 0x0001, 0x4F },
+    { KEY_EN_LEFT_ARROW         , 0x0001, 0x50 },
+    { KEY_EN_DOWN_ARROW         , 0x0001, 0x51 },
+    { KEY_EN_UP_ARROW           , 0x0001, 0x52 },
+    { KEY_EN_ISO_BACK_SLASH     , 0x0001, 0x64 },
+    { KEY_EN_MENU               , 0x0001, 0x65 },
+    { KEY_EN_LEFT_CONTROL       , 0x0001, 0xE0 },
+    { KEY_EN_LEFT_SHIFT         , 0x0001, 0xE1 },
+    { KEY_EN_LEFT_ALT           , 0x0001, 0xE2 },
+    { KEY_EN_LEFT_WINDOWS       , 0x0001, 0xE3 },
+    { KEY_EN_RIGHT_CONTROL      , 0x0001, 0xE4 },
+    { KEY_EN_RIGHT_SHIFT        , 0x0001, 0xE5 },
+    { KEY_EN_RIGHT_ALT          , 0x0001, 0xE6 },
+    { KEY_EN_RIGHT_FUNCTION     , 0x0001, 0xE7 },
+    { "Logo"                    , 0x0010, 0x01 },
+    { "Lighting"                , 0x0040, 0x01 },
+    { "Game Mode"               , 0x0040, 0x02 },
+    { "Caps Lock Indicator"     , 0x0040, 0x03 },
+    { "Scroll Lock Indicator"   , 0x0040, 0x04 },
+};
+// GProKeyboard: 94 leds, matrix 7x19
+
+struct KeyboardLayout
+{
+    unsigned short      pid;
+    unsigned int        rows;
+    unsigned int        cols;
+    unsigned int        led_count;
+    const unsigned int* map;
+    const KbLed*        leds;
+};
+
+/*---------------------------------------------------------*\
+| Matched on the firmware-reported PID (caps.pid_wired /    |
+| pid_wireless), so it is OS-independent and unaffected by  |
+| the Linux hid-logitech-dj virtual PIDs. G610/G512 share   |
+| the G810 layout; each model lists all of its PIDs.        |
+\*---------------------------------------------------------*/
+static const KeyboardLayout known_keyboard_layouts[] =
+{
+    { 0xC331, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G810           */
+    { 0xC337, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G810           */
+    { 0xC333, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G610           */
+    { 0xC338, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G610           */
+    { 0xC342, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G512           */
+    { 0xC33C, 7, 23, 117, g810_kbd_map, g810_kbd_leds },    /* G512 RGB       */
+    { 0xC32B, 8, 24, 117, g910_kbd_map, g910_kbd_leds },    /* G910 Orion Spark*/
+    { 0xC335, 8, 24, 117, g910_kbd_map, g910_kbd_leds },    /* G910           */
+    { 0xC339, 7, 19,  94, gpro_kbd_map, gpro_kbd_leds },    /* G Pro          */
+    { 0, 0, 0, 0, nullptr, nullptr }
+};
+
+static const KeyboardLayout* FindKeyboardLayout(unsigned short pid_wired, unsigned short pid_wireless)
+{
+    for(const KeyboardLayout* kl = known_keyboard_layouts; kl->pid != 0; kl++)
+    {
+        if(kl->pid == pid_wired || kl->pid == pid_wireless)
+        {
+            return kl;
+        }
+    }
+
+    return nullptr;
+}
+
 RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Controller* controller_ptr)
 {
     controller = controller_ptr;
@@ -377,6 +1111,19 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     | Direct mode: per-key control via 0x8081                    |
     \*----------------------------------------------------------*/
     if(caps.has_perkey)
+    {
+        mode Direct;
+        Direct.name       = "Direct";
+        Direct.value      = 0;
+        Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+        Direct.color_mode = MODE_COLORS_PER_LED;
+        modes.push_back(Direct);
+    }
+
+    /*----------------------------------------------------------*\
+    | Direct mode: per-key control via 0x8080 (separate feature) |
+    \*----------------------------------------------------------*/
+    if(PerKey8080Capable())
     {
         mode Direct;
         Direct.name       = "Direct";
@@ -629,6 +1376,33 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                     break;
                 }
 
+                case 0x000E:    // Decomposition
+                case 0x000F:    // Signature1
+                case 0x0010:    // Signature2
+                {
+                    /*-----------------------------------------------*\
+                    | Animated, no user color (period + intensity     |
+                    | only), per Solaar's LEDEffects table. Wire      |
+                    | param offsets handled in SetZoneEffect.         |
+                    \*-----------------------------------------------*/
+                    mode Anim;
+                    Anim.name           = (fx.effect_id == 0x000E) ? "Decomposition"
+                                        : (fx.effect_id == 0x000F) ? "Signature 1"
+                                        :                            "Signature 2";
+                    Anim.value          = fx.index;
+                    Anim.flags          = MODE_FLAG_HAS_SPEED
+                                        | MODE_FLAG_HAS_BRIGHTNESS;
+                    Anim.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+                    Anim.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+                    Anim.speed          = 80;
+                    Anim.brightness_min = 1;
+                    Anim.brightness_max = 100;
+                    Anim.brightness     = 100;
+                    Anim.color_mode     = MODE_COLORS_NONE;
+                    modes.push_back(Anim);
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -700,14 +1474,114 @@ RGBController_LogitechHIDPP20::~RGBController_LogitechHIDPP20()
     delete controller;
 }
 
+/*---------------------------------------------------------*\
+| Derive the KeyboardLayoutManager size + layout from the   |
+| discovered capabilities. Shared by the 0x8081 and 0x8080  |
+| per-key keyboard branches.                                |
+\*---------------------------------------------------------*/
+static void hidpp20_derive_keyboard_layout
+    (
+    const HIDPP20DeviceCapabilities&    caps,
+    KEYBOARD_SIZE&                      kb_size,
+    KEYBOARD_LAYOUT&                    kb_layout
+    )
+{
+    kb_size = caps.has_numpad ? KEYBOARD_SIZE_FULL : KEYBOARD_SIZE_TKL;
+
+    switch(caps.keyboard_layout_code)
+    {
+        case 3:     // German
+        case 7:     // Swiss
+            kb_layout = KEYBOARD_LAYOUT_ISO_QWERTZ;
+            break;
+
+        case 4:     // French
+            kb_layout = KEYBOARD_LAYOUT_ISO_AZERTY;
+            break;
+
+        case 2:     // UK
+        case 5:     // Spanish
+        case 0x0B:  // Italian
+        case 0x0D:  // Portuguese
+        case 0x0E:  // Belgian
+        case 0x0F:  // Scandinavian
+        case 8:     // Nordic
+        case 0x16:  // Nordic
+        case 0x1D:  // Nordic
+        case 0x21:  // Nordic
+        case 0x24:  // Belgian
+            kb_layout = KEYBOARD_LAYOUT_ISO_QWERTY;
+            break;
+
+        case 9:     // Japanese
+        case 0x3E:  // Japanese
+            kb_layout = KEYBOARD_LAYOUT_JIS;
+            break;
+
+        case 1:     // US
+        default:
+            kb_layout = KEYBOARD_LAYOUT_ANSI_QWERTY;
+            break;
+    }
+}
+
+void RGBController_LogitechHIDPP20::AddLayoutZone
+    (
+    const std::string&                                   zone_name,
+    zone_type                                            type,
+    unsigned int                                         rows,
+    unsigned int                                         cols,
+    const unsigned int*                                  map,
+    const std::vector<std::pair<std::string, uint16_t>>& zone_leds
+    )
+{
+    zone new_zone;
+    new_zone.name       = zone_name;
+    new_zone.type       = type;
+    new_zone.leds_min   = (unsigned int)zone_leds.size();
+    new_zone.leds_max   = (unsigned int)zone_leds.size();
+    new_zone.leds_count = (unsigned int)zone_leds.size();
+
+    if(type == ZONE_TYPE_MATRIX && map != nullptr)
+    {
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height     = rows;
+        new_map->width      = cols;
+        new_map->map        = new unsigned int[rows * cols];
+        memcpy(new_map->map, map, rows * cols * sizeof(unsigned int));
+        new_zone.matrix_map = new_map;
+    }
+    else
+    {
+        new_zone.matrix_map = nullptr;
+    }
+
+    zones.push_back(new_zone);
+
+    for(size_t i = 0; i < zone_leds.size(); i++)
+    {
+        led new_led;
+        new_led.name  = zone_leds[i].first;
+        new_led.value = zone_leds[i].second;
+        leds.push_back(new_led);
+
+        led_to_zone_id.push_back(zone_leds[i].second);
+    }
+}
+
 void RGBController_LogitechHIDPP20::SetupZones()
 {
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
     led_to_zone_id.clear();
+    led_to_keytype_keyid_8080.clear();
     sent_colors.clear();
 
-    if(caps.has_perkey)
+    if(PerKey8080Capable())
+    {
+        SetupZones8080();
+    }
+    else if(caps.has_perkey)
     {
         if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
         {
@@ -716,49 +1590,23 @@ void RGBController_LogitechHIDPP20::SetupZones()
             | layout. Derive size from numpad presence, layout   |
             | from 0x4540 KeyboardLayout feature.                |
             \*--------------------------------------------------*/
-            KEYBOARD_SIZE kb_size = caps.has_numpad
-                                  ? KEYBOARD_SIZE_FULL
-                                  : KEYBOARD_SIZE_TKL;
-
+            KEYBOARD_SIZE   kb_size;
             KEYBOARD_LAYOUT kb_layout;
-
-            switch(caps.keyboard_layout_code)
-            {
-                case 3:     // German
-                case 7:     // Swiss
-                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTZ;
-                    break;
-
-                case 4:     // French
-                    kb_layout = KEYBOARD_LAYOUT_ISO_AZERTY;
-                    break;
-
-                case 2:     // UK
-                case 5:     // Spanish
-                case 0x0B:  // Italian
-                case 0x0D:  // Portuguese
-                case 0x0E:  // Belgian
-                case 0x0F:  // Scandinavian
-                case 8:     // Nordic
-                case 0x16:  // Nordic
-                case 0x1D:  // Nordic
-                case 0x21:  // Nordic
-                case 0x24:  // Belgian
-                    kb_layout = KEYBOARD_LAYOUT_ISO_QWERTY;
-                    break;
-
-                case 9:     // Japanese
-                case 0x3E:  // Japanese
-                    kb_layout = KEYBOARD_LAYOUT_JIS;
-                    break;
-
-                case 1:     // US
-                default:
-                    kb_layout = KEYBOARD_LAYOUT_ANSI_QWERTY;
-                    break;
-            }
+            hidpp20_derive_keyboard_layout(caps, kb_size, kb_layout);
 
             KeyboardLayoutManager klm(kb_layout, kb_size);
+
+            /*--------------------------------------------------*\
+            | Apply any per-board layout edit (e.g. a top strip  |
+            | of media/logo keys above the F-row). KLM inserts   |
+            | the keys and re-derives dimensions, so the matrix  |
+            | build below needs no change.                       |
+            \*--------------------------------------------------*/
+            key_set kb_layout_edit = FindKbLayoutEdit(caps.pid_wired, caps.pid_wireless);
+            if(!kb_layout_edit.empty())
+            {
+                klm.ChangeKeys(kb_layout_edit);
+            }
 
             zone perkey_zone;
             perkey_zone.name       = ZONE_EN_KEYBOARD;
@@ -783,10 +1631,17 @@ void RGBController_LogitechHIDPP20::SetupZones()
                 new_led.name = key_name;
 
                 /*---------------------------------------------*\
-                | Look up zone ID by key name                   |
+                | Zone ID: a nonzero KLM value is a board-      |
+                | specific wire address from a layout edit (e.g.|
+                | renumbered top-strip keys); otherwise look it |
+                | up by key name from the standard table.       |
                 \*---------------------------------------------*/
-                std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_zone.find(key_name);
-                unsigned int zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
+                unsigned int zone_id = klm.GetKeyValueAt(i);
+                if(zone_id == 0)
+                {
+                    std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_zone.find(key_name);
+                    zone_id = (it != hidpp20_key_name_to_zone.end()) ? it->second : 0;
+                }
                 new_led.value = zone_id;
                 leds.push_back(new_led);
 
@@ -799,6 +1654,11 @@ void RGBController_LogitechHIDPP20::SetupZones()
             | G915 this is media keys, G1-G5, brightness, and   |
             | logo. Append them as a separate linear zone so    |
             | users can still address them.                     |
+            |                                                   |
+            | Skipped when a board-specific top-strip layout    |
+            | edit was applied: that strip is the authoritative |
+            | special-key set, so any other reported zone is a  |
+            | phantom that would only show up mislabeled here.  |
             \*-------------------------------------------------*/
             std::set<uint16_t> klm_claimed_zones;
             for(uint16_t zid : led_to_zone_id)
@@ -811,39 +1671,52 @@ void RGBController_LogitechHIDPP20::SetupZones()
 
             /*---------------------------------------------------*\
             | Extras candidates: zones reported by the device     |
-            | that aren't claimed by KLM AND have a known name    |
-            | in hidpp20_key_name_to_zone. We deliberately DROP   |
-            | unnamed zones — firmware-side GetInfo bitmaps       |
-            | enumerate phantom/reserved slots (G515 reports      |
-            | 47, 97, 99-103, 254 among others) that aren't       |
-            | wired to physical LEDs. Exposing them as "LED N"    |
-            | created ghost entries in the GUI. Treat             |
-            | hidpp20_key_name_to_zone as the curated allowlist.  |
+            | that aren't claimed by KLM AND are in the curated   |
+            | hidpp20_extras_allowlist (media/G-keys/logo). We    |
+            | deliberately DROP everything else — firmware GetInfo|
+            | bitmaps enumerate phantom/reserved slots (ISO's 46, |
+            | ANSI's 47/97, G515's 99-103/254 ...) that aren't    |
+            | wired to physical LEDs and would otherwise show as  |
+            | ghost entries. Layout-driven, not device-specific.  |
             \*---------------------------------------------------*/
             std::vector<std::pair<uint16_t, std::string>> extras;
-            for(uint16_t zid : caps.perkey_zone_ids)
+            for(uint16_t zid : (kb_layout_edit.empty() ? caps.perkey_zone_ids : std::vector<uint16_t>()))
             {
                 if(klm_claimed_zones.count(zid) != 0)
                 {
                     continue;
                 }
 
-                std::string label;
-                for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_zone)
+                if(hidpp20_extras_allowlist.count(zid) == 0)
                 {
-                    if(kv.second == zid)
+                    LOG_DEBUG("[LogitechHID++2.0 %s] Dropping non-extra per-key zone %u "
+                              "(phantom/reserved, not in extras allowlist)",
+                              name.c_str(), (unsigned)zid);
+                    continue;
+                }
+
+                std::string label;
+
+                std::map<uint16_t, std::string>::const_iterator zn = hidpp20_extras_zone_name.find(zid);
+                if(zn != hidpp20_extras_zone_name.end())
+                {
+                    label = zn->second;
+                }
+                else
+                {
+                    for(const std::pair<const std::string, unsigned int>& kv : hidpp20_key_name_to_zone)
                     {
-                        label = kv.first;
-                        break;
+                        if(kv.second == zid)
+                        {
+                            label = kv.first;
+                            break;
+                        }
                     }
                 }
 
                 if(label.empty())
                 {
-                    LOG_DEBUG("[LogitechHID++2.0 %s] Dropping unnamed per-key zone %u "
-                              "(not in hidpp20_key_name_to_zone)",
-                              name.c_str(), (unsigned)zid);
-                    continue;
+                    label = "LED " + std::to_string(zid);
                 }
 
                 extras.emplace_back(zid, label);
@@ -875,83 +1748,78 @@ void RGBController_LogitechHIDPP20::SetupZones()
             /*--------------------------------------------------*\
             | Known mouse: use table-defined matrix layout       |
             \*--------------------------------------------------*/
-            zone perkey_zone;
-            perkey_zone.name       = "Mouse LEDs";
-            perkey_zone.type       = ZONE_TYPE_MATRIX;
-            perkey_zone.leds_min   = ml->led_count;
-            perkey_zone.leds_max   = ml->led_count;
-            perkey_zone.leds_count = ml->led_count;
-
-            matrix_map_type* new_map = new matrix_map_type;
-            new_map->height          = ml->rows;
-            new_map->width           = ml->cols;
-            new_map->map             = new unsigned int[ml->rows * ml->cols];
-            memcpy(new_map->map, ml->map, ml->rows * ml->cols * sizeof(unsigned int));
-            perkey_zone.matrix_map   = new_map;
-            zones.push_back(perkey_zone);
-
+            std::vector<std::pair<std::string, uint16_t>> mouse_leds;
             for(unsigned int i = 0; i < ml->led_count && i < caps.perkey_zone_ids.size(); i++)
             {
-                led new_led;
-                new_led.name  = ml->led_names[i];
-                new_led.value = caps.perkey_zone_ids[i];
-                leds.push_back(new_led);
-
-                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+                mouse_leds.push_back(std::make_pair(std::string(ml->led_names[i]),
+                                                    (uint16_t)caps.perkey_zone_ids[i]));
             }
+            AddLayoutZone("Mouse LEDs", ZONE_TYPE_MATRIX, ml->rows, ml->cols, ml->map, mouse_leds);
         }
         else
         {
             /*-------------------------------------------------*\
             | Other devices: linear zone with auto-named LEDs   |
             \*-------------------------------------------------*/
-            zone perkey_zone;
-            perkey_zone.name       = "LEDs";
-            perkey_zone.type       = ZONE_TYPE_LINEAR;
-            perkey_zone.leds_min   = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.leds_max   = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.leds_count = (unsigned int)caps.perkey_zone_ids.size();
-            perkey_zone.matrix_map = nullptr;
-            zones.push_back(perkey_zone);
-
+            std::vector<std::pair<std::string, uint16_t>> other_leds;
             for(size_t i = 0; i < caps.perkey_zone_ids.size(); i++)
             {
-                led new_led;
-                new_led.name  = "LED " + std::to_string(caps.perkey_zone_ids[i]);
-                new_led.value = caps.perkey_zone_ids[i];
-                leds.push_back(new_led);
-
-                led_to_zone_id.push_back(caps.perkey_zone_ids[i]);
+                other_leds.push_back(std::make_pair("LED " + std::to_string(caps.perkey_zone_ids[i]),
+                                                    (uint16_t)caps.perkey_zone_ids[i]));
             }
+            AddLayoutZone("LEDs", ZONE_TYPE_LINEAR, 0, 0, nullptr, other_leds);
         }
     }
     else if(caps.is_headset_rgb_hostmode)
     {
-        /*------------------------------------------------------*\
-        | Headset RGB hostmode (0x0620): single linear zone with |
-        | one LED per discovered earcup zone ID.                 |
-        \*------------------------------------------------------*/
-        size_t led_count = caps.headset_rgb_hostmode_zone_ids.size();
+        const HeadsetLayout* hl = FindHeadsetLayout(caps.pid_wireless, caps.pid_wired);
 
-        zone headset_zone;
-        headset_zone.name       = "Headset";
-        headset_zone.type       = ZONE_TYPE_LINEAR;
-        headset_zone.leds_min   = (unsigned int)led_count;
-        headset_zone.leds_max   = (unsigned int)led_count;
-        headset_zone.leds_count = (unsigned int)led_count;
-        headset_zone.matrix_map = nullptr;
-        zones.push_back(headset_zone);
-
-        for(size_t i = 0; i < led_count; i++)
+        unsigned int layout_leds = 0;
+        if(hl != nullptr)
         {
-            led new_led;
-            new_led.name  = (i == 0) ? "Left Earcup"
-                          : (i == 1) ? "Right Earcup"
-                          : "Zone " + std::to_string(i);
-            new_led.value = caps.headset_rgb_hostmode_zone_ids[i];
-            leds.push_back(new_led);
+            for(unsigned int e = 0; e < hl->earcup_count; e++)
+            {
+                layout_leds += hl->earcups[e].led_count;
+            }
+        }
 
-            led_to_zone_id.push_back(caps.headset_rgb_hostmode_zone_ids[i]);
+        if(hl != nullptr && caps.headset_rgb_hostmode_zone_ids.size() == layout_leds)
+        {
+            /*--------------------------------------------------*\
+            | Known headset: one matrix zone per earcup, LEDs    |
+            | placed on the device's physical 2x2 grid. LED      |
+            | value is the firmware zone ID the write path       |
+            | addresses; the count-match guard falls through to  |
+            | the generic path if a firmware variant reports a   |
+            | different zone set than the table expects.         |
+            \*--------------------------------------------------*/
+            for(unsigned int e = 0; e < hl->earcup_count; e++)
+            {
+                const HeadsetEarcup& ec = hl->earcups[e];
+
+                std::vector<std::pair<std::string, uint16_t>> earcup_leds;
+                for(unsigned int i = 0; i < ec.led_count; i++)
+                {
+                    earcup_leds.push_back(std::make_pair("LED " + std::to_string(ec.zone_ids[i]),
+                                                         (uint16_t)ec.zone_ids[i]));
+                }
+                AddLayoutZone(ec.name, ZONE_TYPE_MATRIX, ec.rows, ec.cols, ec.map, earcup_leds);
+            }
+        }
+        else
+        {
+            /*--------------------------------------------------*\
+            | Unknown 0x0620 headset: no geometry table, so a    |
+            | single linear zone with one LED per discovered     |
+            | zone ID.                                           |
+            \*--------------------------------------------------*/
+            std::vector<std::pair<std::string, uint16_t>> headset_leds;
+            for(size_t i = 0; i < caps.headset_rgb_hostmode_zone_ids.size(); i++)
+            {
+                headset_leds.push_back(std::make_pair("LED " + std::to_string(caps.headset_rgb_hostmode_zone_ids[i]),
+                                                      (uint16_t)caps.headset_rgb_hostmode_zone_ids[i]));
+            }
+            AddLayoutZone("Headset", ZONE_TYPE_LINEAR, 0, 0, nullptr, headset_leds);
         }
     }
     else if(caps.has_zone_effects)
@@ -999,6 +1867,274 @@ void RGBController_LogitechHIDPP20::SetupZones()
     }
 
     SetupColors();
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) zone setup.             |
+|                                                           |
+| Fed entirely by the runtime enumeration in                |
+| DiscoverPerKey8080(): caps.perkey_8080_types holds the    |
+| confirmed keyTypes and their live keyIds. Nothing about   |
+| the key set is hardcoded.                                 |
+|                                                           |
+| For a keyboard we build the KeyboardLayoutManager matrix  |
+| and resolve each matrix key to a wire (keyType, keyId) by |
+| its standard HID keyboard usage code. The "keyboard"      |
+| keyType is identified as the enumerated keyType whose     |
+| keyIds best match the standard HID keyboard page — not by |
+| a hardcoded keyType value. Every enumerated (keyType,     |
+| keyId) the matrix doesn't claim is surfaced in an Extras  |
+| zone (logo, media, G-keys, indicators), named by the HID  |
+| usage where standard, generically otherwise.              |
+\*---------------------------------------------------------*/
+bool RGBController_LogitechHIDPP20::PerKey8080Capable() const
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    /*-----------------------------------------------------*\
+    | 0x8080 per-key is usable if fn2 enumeration confirmed |
+    | keyTypes, OR the device is a known keyboard model with|
+    | a ported layout that supplies keyType/keyId itself    |
+    | (so it works even when fn2 reads are unavailable).    |
+    \*-----------------------------------------------------*/
+    return caps.has_perkey_8080
+        || (caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD
+         && caps.idx_perkey_8080 != 0
+         && FindKeyboardLayout(caps.pid_wired, caps.pid_wireless) != nullptr);
+}
+
+void RGBController_LogitechHIDPP20::SetupZones8080()
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    /*-----------------------------------------------------*\
+    | Known model: use the ported per-model layout (the     |
+    | legacy G810/G910/G Pro matrix positions + names +     |
+    | keyType/keyId). The device cannot report key geometry,|
+    | and this also supplies the wire addressing directly,  |
+    | so per-key works even if the firmware's fn2 reads are |
+    | unavailable. Unknown 0x8080 devices fall through to   |
+    | the enumeration-driven KLM + Extras build below.      |
+    \*-----------------------------------------------------*/
+    const KeyboardLayout* kbl = FindKeyboardLayout(caps.pid_wired, caps.pid_wireless);
+
+    if(kbl != nullptr)
+    {
+        zone kb_zone;
+        kb_zone.name       = ZONE_EN_KEYBOARD;
+        kb_zone.type       = ZONE_TYPE_MATRIX;
+        kb_zone.leds_min   = kbl->led_count;
+        kb_zone.leds_max   = kbl->led_count;
+        kb_zone.leds_count = kbl->led_count;
+
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height          = kbl->rows;
+        new_map->width           = kbl->cols;
+        new_map->map             = new unsigned int[kbl->rows * kbl->cols];
+        memcpy(new_map->map, kbl->map, kbl->rows * kbl->cols * sizeof(unsigned int));
+        kb_zone.matrix_map       = new_map;
+        zones.push_back(kb_zone);
+
+        for(unsigned int i = 0; i < kbl->led_count; i++)
+        {
+            led new_led;
+            new_led.name  = kbl->leds[i].name;
+            new_led.value = ((uint32_t)kbl->leds[i].key_type << 8) | kbl->leds[i].key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(kbl->leds[i].key_type, kbl->leds[i].key_id);
+        }
+
+        LOG_DEBUG("[%s] 0x8080 using ported layout for PID 0x%04X: %u LEDs, %ux%u matrix",
+                  caps.device_name.c_str(), kbl->pid,
+                  kbl->led_count, kbl->rows, kbl->cols);
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Identify the keyboard keyType: the enumerated keyType |
+    | whose keyIds overlap the standard HID keyboard page   |
+    | the most. Ties / no keyboard device -> none.          |
+    \*-----------------------------------------------------*/
+    int      kb_type_index   = -1;
+    size_t   kb_best_overlap = 0;
+
+    if(caps.device_type == LOGITECH_DEVICE_TYPE_KEYBOARD)
+    {
+        for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+        {
+            size_t overlap = 0;
+
+            for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+            {
+                if(hidpp20_key_name_for_usage(key_id) != nullptr)
+                {
+                    overlap++;
+                }
+            }
+
+            if(overlap > kb_best_overlap)
+            {
+                kb_best_overlap = overlap;
+                kb_type_index   = (int)t;
+            }
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Track which (keyType, keyId) pairs the matrix claims  |
+    | so the Extras zone can pick up everything else.       |
+    \*-----------------------------------------------------*/
+    std::set<uint32_t> claimed;        /* (keyType << 8) | keyId */
+
+    size_t matrix_total  = 0;          /* KLM keys in the matrix       */
+    size_t matrix_mapped = 0;          /* matrix keys with a live keyId */
+
+    /*-----------------------------------------------------*\
+    | Keyboard matrix (when a keyboard keyType was found).  |
+    \*-----------------------------------------------------*/
+    if(kb_type_index >= 0)
+    {
+        const HIDPP20PerKey8080Type& kb_type = caps.perkey_8080_types[kb_type_index];
+
+        std::set<uint8_t> kb_key_ids(kb_type.key_ids.begin(), kb_type.key_ids.end());
+
+        KEYBOARD_SIZE   kb_size;
+        KEYBOARD_LAYOUT kb_layout;
+        hidpp20_derive_keyboard_layout(caps, kb_size, kb_layout);
+
+        KeyboardLayoutManager klm(kb_layout, kb_size);
+
+        zone perkey_zone;
+        perkey_zone.name       = ZONE_EN_KEYBOARD;
+        perkey_zone.type       = ZONE_TYPE_MATRIX;
+        perkey_zone.leds_min   = klm.GetKeyCount();
+        perkey_zone.leds_max   = klm.GetKeyCount();
+        perkey_zone.leds_count = klm.GetKeyCount();
+
+        matrix_map_type* new_map = new matrix_map_type;
+        new_map->height          = klm.GetRowCount();
+        new_map->width           = klm.GetColumnCount();
+        new_map->map             = new unsigned int[new_map->height * new_map->width];
+        klm.GetKeyMap(new_map->map, KEYBOARD_MAP_FILL_TYPE_COUNT,
+                      new_map->height, new_map->width);
+        perkey_zone.matrix_map = new_map;
+        zones.push_back(perkey_zone);
+
+        matrix_total = klm.GetKeyCount();
+
+        for(unsigned int i = 0; i < klm.GetKeyCount(); i++)
+        {
+            std::string key_name = klm.GetKeyNameAt(i);
+
+            led new_led;
+            new_led.name = key_name;
+
+            uint16_t key_type = 0;
+            uint8_t  key_id   = 0;
+
+            /*-----------------------------------------*\
+            | Resolve the key's standard HID usage code |
+            | and keep it only if the device enumerated |
+            | that keyId on the keyboard keyType.       |
+            \*-----------------------------------------*/
+            std::map<std::string, unsigned int>::const_iterator it = hidpp20_key_name_to_usage.find(key_name);
+
+            if(it != hidpp20_key_name_to_usage.end()
+            && kb_key_ids.count((uint8_t)it->second) != 0)
+            {
+                key_type = kb_type.key_type;
+                key_id   = (uint8_t)it->second;
+                claimed.insert(((uint32_t)key_type << 8) | key_id);
+                matrix_mapped++;
+            }
+
+            new_led.value = ((uint32_t)key_type << 8) | key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(key_type, key_id);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Extras: every enumerated (keyType, keyId) the matrix  |
+    | did not claim. Named by HID usage where the keyId is a|
+    | standard keyboard code, generically otherwise.        |
+    \*-----------------------------------------------------*/
+    std::vector<std::pair<uint16_t, uint8_t>> extras;
+
+    for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+    {
+        uint16_t key_type = caps.perkey_8080_types[t].key_type;
+
+        for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+        {
+            uint32_t pair_key = ((uint32_t)key_type << 8) | key_id;
+
+            if(claimed.count(pair_key) != 0)
+            {
+                continue;
+            }
+
+            extras.emplace_back(key_type, key_id);
+        }
+    }
+
+    if(!extras.empty())
+    {
+        zone extras_zone;
+        extras_zone.name       = "Extras";
+        extras_zone.type       = ZONE_TYPE_LINEAR;
+        extras_zone.leds_min   = (unsigned int)extras.size();
+        extras_zone.leds_max   = (unsigned int)extras.size();
+        extras_zone.leds_count = (unsigned int)extras.size();
+        extras_zone.matrix_map = nullptr;
+        zones.push_back(extras_zone);
+
+        for(size_t i = 0; i < extras.size(); i++)
+        {
+            uint16_t    key_type = extras[i].first;
+            uint8_t     key_id   = extras[i].second;
+            const char* std_name = hidpp20_key_name_for_usage(key_id);
+
+            led new_led;
+
+            if(std_name != nullptr)
+            {
+                new_led.name = std_name;
+            }
+            else
+            {
+                char label[32];
+                snprintf(label, sizeof(label), "Zone 0x%04X Key 0x%02X",
+                         key_type, key_id);
+                new_led.name = label;
+            }
+
+            new_led.value = ((uint32_t)key_type << 8) | key_id;
+            leds.push_back(new_led);
+            led_to_keytype_keyid_8080.emplace_back(key_type, key_id);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | One-shot summary of how the enumeration mapped onto   |
+    | the UI. If the structure dump looked right but nothing|
+    | lights, this line localises the break: no keyboard    |
+    | keyType, zero matrix keys mapped, or everything in    |
+    | Extras all point at distinct faults.                  |
+    \*-----------------------------------------------------*/
+    if(kb_type_index >= 0)
+    {
+        LOG_DEBUG("[LogitechHID++2.0 %s] 0x8080 zones: keyboard keyType 0x%04X, "
+                  "%zu/%zu matrix keys mapped, %zu extra LED(s)",
+                  name.c_str(), caps.perkey_8080_types[kb_type_index].key_type,
+                  matrix_mapped, matrix_total, extras.size());
+    }
+    else
+    {
+        LOG_DEBUG("[LogitechHID++2.0 %s] 0x8080 zones: no keyboard keyType "
+                  "identified, %zu extra LED(s) only",
+                  name.c_str(), extras.size());
+    }
 }
 
 void RGBController_LogitechHIDPP20::ResizeZone(int /*zone*/, int /*new_size*/)
@@ -1052,12 +2188,76 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     | Feature 0x0620 Headset RGB Hostmode (Centurion G522 /      |
     | PRO X 2). Static-color only, two earcup zones. Bypasses    |
     | per-key, SetZoneEffect, and effect-card paths entirely —   |
-    | 0x0620 has none of that. Claim was made once in            |
-    | SetHostMode(); we just write colors + FrameEnd[0x01].      |
+    | 0x0620 has none of that. Host mode was claimed once via    |
+    | ClaimSWControlIfNeeded() above; we just write colors +     |
+    | FrameEnd[0x01].                                            |
     \*----------------------------------------------------------*/
     if(caps.is_headset_rgb_hostmode)
     {
         controller->SetHeadsetRGBHostmodeColors(colors);
+        return;
+    }
+
+    /*----------------------------------------------------------*\
+    | Feature 0x8080 (Per Key Lighting). Full repaint grouped    |
+    | by keyType, then one FlushLEDS. led_to_keytype_keyid_8080  |
+    | (built in SetupZones8080) maps each LED to its wire        |
+    | (keyType, keyId).                                          |
+    \*----------------------------------------------------------*/
+    if(PerKey8080Capable() && (unsigned int)active_mode < modes.size() &&
+       modes[active_mode].color_mode == MODE_COLORS_PER_LED)
+    {
+        std::vector<RGBColor> snapshot(colors.begin(), colors.end());
+
+        int brightness = controller->GetDimBrightness();
+
+        /*------------------------------------------------------*\
+        | Group painted LEDs by keyType, preserving keyType      |
+        | order of first appearance. Skip unaddressable LEDs     |
+        | (keyType 0 + keyId 0 — present in the matrix but not   |
+        | enumerated on the device).                             |
+        \*------------------------------------------------------*/
+        std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>> by_type;
+        std::map<uint16_t, size_t> type_slot;
+
+        for(size_t i = 0; i < snapshot.size() && i < led_to_keytype_keyid_8080.size(); i++)
+        {
+            uint16_t key_type = led_to_keytype_keyid_8080[i].first;
+            uint8_t  key_id   = led_to_keytype_keyid_8080[i].second;
+
+            if(key_type == 0 && key_id == 0)
+            {
+                continue;
+            }
+
+            RGBColor color = snapshot[i];
+
+            if(brightness < 100)
+            {
+                uint8_t r = RGBGetRValue(color) * brightness / 100;
+                uint8_t g = RGBGetGValue(color) * brightness / 100;
+                uint8_t b = RGBGetBValue(color) * brightness / 100;
+                color = ToRGBColor(r, g, b);
+            }
+
+            std::map<uint16_t, size_t>::iterator slot = type_slot.find(key_type);
+
+            if(slot == type_slot.end())
+            {
+                type_slot[key_type] = by_type.size();
+                by_type.emplace_back(key_type, std::vector<std::pair<uint8_t, RGBColor>>());
+                slot = type_slot.find(key_type);
+            }
+
+            by_type[slot->second].second.emplace_back(key_id, color);
+        }
+
+        if(!by_type.empty())
+        {
+            controller->SetPerKey8080(by_type);
+            controller->PerKeyCommit8080();
+        }
+
         return;
     }
 
@@ -1141,26 +2341,31 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             }
             else
             {
-                uint8_t static_effect_idx = 0;
-
-                for(size_t j = 0; j < caps.zone_clusters[0].effects.size(); j++)
+                /*-------------------------------------------*\
+                | Per-cluster static-black primer. 0x8070     |
+                | rejects the cluster=0xFF broadcast (seen on |
+                | the G810), so address each cluster by its   |
+                | own index, matching the Off-mode path.      |
+                \*-------------------------------------------*/
+                for(size_t i = 0; i < caps.zone_clusters.size(); i++)
                 {
-                    if(caps.zone_clusters[0].effects[j].effect_id == 0x0001)
+                    for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
                     {
-                        static_effect_idx = caps.zone_clusters[0].effects[j].index;
-                        break;
+                        if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
+                        {
+                            controller->SetZoneEffect(
+                                caps.zone_clusters[i].index,
+                                caps.zone_clusters[i].effects[j].index,
+                                0x0001,              /* static effect */
+                                0, 0, 0,             /* black — no fixed-color marker */
+                                0,
+                                100,                 /* brightness — unused for static */
+                                0,                   /* direction — unused for static */
+                                true                 /* persist=true */);
+                            break;
+                        }
                     }
                 }
-
-                controller->SetZoneEffect(
-                    0xFF,                /* all clusters */
-                    static_effect_idx,
-                    0x0001,              /* static effect */
-                    0, 0, 0,             /* black — no fixed-color marker */
-                    0,
-                    100,                 /* brightness — unused for static */
-                    0,                   /* direction — unused for static */
-                    true                 /* persist=true */);
             }
         }
 
@@ -1402,6 +2607,13 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         | there IS no "next animation frame" guaranteed, so the  |
         | retry is the only mechanism to recover from a partial  |
         | commit during the reconnect-transient window.          |
+        |                                                        |
+        | TODO: the first frame on G515/G915 still sometimes     |
+        | loads slowly or looks off — the partial-commit window  |
+        | here isn't fully smoothed (the official app hits the   |
+        | same problem). Worth looking into a cleaner first-     |
+        | paint someday; the retry above is a mitigation, not a  |
+        | full fix.                                              |
         \*------------------------------------------------------*/
         if(full_commit || !needs_prep)
         {
@@ -1562,6 +2774,47 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | effects render correctly alongside per-key on the devices  |
     | we have data for.                                          |
     \*----------------------------------------------------------*/
+    /*----------------------------------------------------------*\
+    | Feature 0x8080: Direct is handled above and Off blacks     |
+    | every enumerated key via the per-key path. Any other mode  |
+    | is a 0x8070/0x8071 zone effect (Static/Cycle/Breathing/..) |
+    | and falls through to the zone-effect path below. Those     |
+    | modes only exist when the device advertises a zone-effect  |
+    | feature, so there is nothing to fall through to otherwise. |
+    \*----------------------------------------------------------*/
+    if(PerKey8080Capable())
+    {
+        if(current.value == 0xFF)
+        {
+            std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>> by_type;
+
+            for(size_t t = 0; t < caps.perkey_8080_types.size(); t++)
+            {
+                std::vector<std::pair<uint8_t, RGBColor>> keys;
+
+                for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+                {
+                    keys.emplace_back(key_id, ToRGBColor(0, 0, 0));
+                }
+
+                by_type.emplace_back(caps.perkey_8080_types[t].key_type, keys);
+            }
+
+            if(!by_type.empty())
+            {
+                controller->SetPerKey8080(by_type);
+                controller->PerKeyCommit8080();
+            }
+
+            return;
+        }
+
+        /*------------------------------------------------------*\
+        | Any other mode is a zone effect — fall through to the  |
+        | SetZoneEffect path below.                              |
+        \*------------------------------------------------------*/
+    }
+
     if(caps.has_perkey)
     {
         /*------------------------------------------------------*\

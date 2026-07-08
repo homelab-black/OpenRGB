@@ -19,6 +19,8 @@ public:
     ~RGBController_LogitechHIDPP20();
 
     void        SetupZones();
+    void        SetupZones8080();
+    bool        PerKey8080Capable() const;
     void        ResizeZone(int zone, int new_size);
     void        DeviceUpdateLEDs();
     void        UpdateZoneLEDs(int zone);
@@ -36,6 +38,27 @@ private:
     | for dim/wake when no animation is driving updates.        |
     \*---------------------------------------------------------*/
     void                        OnRepaintRequest();
+
+    /*---------------------------------------------------------*\
+    | Build one matrix (map != nullptr) or linear zone from a   |
+    | name + geometry + (led name, wire value) list, appending  |
+    | to zones / leds / led_to_zone_id. Shared by the static-   |
+    | table layout paths (mouse, headset).                      |
+    |                                                           |
+    | TODO: once the G522 and the 0x8080 keyboards are both     |
+    | hardware-confirmed working as-is, fold the per-type       |
+    | layout tables (MouseLayout / HeadsetLayout / keyboard)    |
+    | into one generic DeviceLayout table + resolver keyed by   |
+    | name|PID, with a feature tag selecting the wire-address   |
+    | interpretation. Deferred to avoid disturbing the tested   |
+    | wire paths during a refactor.                             |
+    \*---------------------------------------------------------*/
+    void                        AddLayoutZone(const std::string&                                   zone_name,
+                                              zone_type                                            type,
+                                              unsigned int                                         rows,
+                                              unsigned int                                         cols,
+                                              const unsigned int*                                  map,
+                                              const std::vector<std::pair<std::string, uint16_t>>& zone_leds);
 
     /*---------------------------------------------------------*\
     | When true, the next DeviceUpdateMode cycle sends its      |
@@ -69,4 +92,14 @@ private:
     \*---------------------------------------------------------*/
     std::vector<RGBColor>       sent_colors;
     uint32_t                    last_init_gen = 0;
+
+    /*---------------------------------------------------------*\
+    | Feature 0x8080 per-key addressing: maps OpenRGB LED       |
+    | index -> (keyType, keyId) wire pair. Built in SetupZones  |
+    | from the runtime enumeration; an entry with keyType 0 +   |
+    | keyId 0 marks an LED that the device did not enumerate    |
+    | (present in the matrix but unaddressable). Parallel to    |
+    | led_to_zone_id, used only on the 0x8080 path.             |
+    \*---------------------------------------------------------*/
+    std::vector<std::pair<uint16_t, uint8_t>> led_to_keytype_keyid_8080;
 };

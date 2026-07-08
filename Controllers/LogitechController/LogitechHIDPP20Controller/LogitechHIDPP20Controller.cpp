@@ -12,6 +12,7 @@
 #include <chrono>
 #include <set>
 #include <vector>
+#include <map>
 #include "LogitechHIDPP20Controller.h"
 #include "RGBController_LogitechHIDPP20.h"
 #include "LogManager.h"
@@ -38,6 +39,38 @@ static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 | Solaar's probe_centurion_device_addr constant.             |
 \*----------------------------------------------------------*/
 static const int CENTURION_PROBE_PER_ADDR_TIMEOUT_MS = 5;
+
+/*----------------------------------------------------------*\
+| Device-name helpers. A placeholder is empty or one of the  |
+| HIDPP20_NAME_PLACEHOLDER_* strings. A name "looks real"    |
+| when it is non-empty, printable ASCII, and a sane length   |
+| — used to reject 0x0101 firmware-data responses that are   |
+| not an actual name.                                        |
+\*----------------------------------------------------------*/
+static bool HIDPP20NameIsPlaceholder(const std::string& n)
+{
+    return n.empty()
+        || n == HIDPP20_NAME_PLACEHOLDER_STD
+        || n == HIDPP20_NAME_PLACEHOLDER_CENTURION;
+}
+
+static bool HIDPP20NameLooksReal(const std::string& n)
+{
+    if(n.empty() || n.size() > 64)
+    {
+        return false;
+    }
+
+    for(unsigned char c : n)
+    {
+        if(c < 0x20 || c > 0x7E)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 /*----------------------------------------------------------*\
 | Observed HID++ 2.0 feature versions. Each row is a feature |
@@ -67,8 +100,10 @@ static constexpr HIDPP20FeatureVersionSet HIDPP20_FEATURE_OBSERVED_VERSIONS[] =
 {
     { 0x0620, { 1 }, 1 },
     { 0x1D4B, { 0 }, 1 },
-    { 0x4540, { 1 }, 1 },
-    { 0x8071, { 4 }, 1 },
+    { 0x4540, { 0, 1 }, 2 },
+    { 0x8070, { 0, 3, 5 }, 3 },
+    { 0x8071, { 0, 4 }, 2 },
+    { 0x8080, { 0 }, 1 },
     { 0x8081, { 0, 2 }, 2 },
 };
 
@@ -111,10 +146,12 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     uint8_t                     device_index,
     bool                        wireless,
     std::shared_ptr<std::mutex> mutex_ptr,
-    uint16_t                    usage_page
+    uint16_t                    usage_page,
+    hid_device*                 perkey_vl_dev
     )
 {
     this->dev           = dev;
+    this->dev_perkey_vl = perkey_vl_dev;
     this->location      = path;
     this->device_index  = device_index;
     this->wireless      = wireless;
@@ -172,6 +209,11 @@ LogitechHIDPP20Controller::~LogitechHIDPP20Controller()
     if(dev)
     {
         hid_close(dev);
+    }
+
+    if(dev_perkey_vl && dev_perkey_vl != dev)
+    {
+        hid_close(dev_perkey_vl);
     }
 }
 
@@ -678,6 +720,68 @@ int LogitechHIDPP20Controller::SendStandard
     else
     {
         result = hid_write(dev, buf, msg_len);
+    }
+
+    return result;
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x8080 very-long (report 0x12) frame.             |
+|                                                           |
+| The G810/G910 keyboard family carries fn3 SetKeyColors    |
+| on a 64-byte report 0x12 that the Windows HIDClass splits |
+| onto a second Top-Level-Collection (usage 0x0604). That   |
+| handle is dev_perkey_vl; everything else (IRoot, reads,   |
+| commit, ACK) stays on dev. Frame layout matches the long  |
+| report — [0x12, device_index, feat_idx, fn|swid, data…] — |
+| just on the wider report. Fire-and-forget: the firmware   |
+| ACKs on dev where the reader thread drains it.            |
+\*---------------------------------------------------------*/
+int LogitechHIDPP20Controller::SendVeryLongFrame
+    (
+    uint8_t         feat_idx,
+    uint8_t         function,
+    const uint8_t*  data,
+    size_t          len
+    )
+{
+    const size_t max_payload = LOGITECH_VERY_LONG_MESSAGE_LEN - 4;
+
+    if(dev_perkey_vl == nullptr)
+    {
+        return -1;
+    }
+
+    uint8_t buf[LOGITECH_VERY_LONG_MESSAGE_LEN];
+    memset(buf, 0, sizeof(buf));
+
+    buf[0] = LOGITECH_VERY_LONG_MESSAGE;
+    buf[1] = device_index;
+    buf[2] = feat_idx;
+    buf[3] = function | HIDPP20_SW_ID;
+
+    if(data && len > 0)
+    {
+        size_t copy_len = (len > max_payload) ? max_payload : len;
+        memcpy(buf + 4, data, copy_len);
+    }
+
+    int result;
+
+    if(mutex)
+    {
+        std::lock_guard<std::mutex> lock(*mutex);
+        result = hid_write(dev_perkey_vl, buf, sizeof(buf));
+    }
+    else
+    {
+        result = hid_write(dev_perkey_vl, buf, sizeof(buf));
+    }
+
+    if(result < 0)
+    {
+        LOG_DEBUG("%s 0x8080 very-long frame write failed (result=%d) "
+                  "feat=0x%02X func=0x%02X", LOG_TAG, result, feat_idx, function);
     }
 
     return result;
@@ -1230,6 +1334,152 @@ uint8_t LogitechHIDPP20Controller::GetFeatureVersion(uint16_t feature_page) cons
     return 0;
 }
 
+/*-------------------------------------------------------------------*\
+| Diagnostic feature/version summary, scoped to the features this     |
+| controller actually uses or version-gates on. Logged like           |
+| `solaar show` so a device whose firmware has shifted a feature's    |
+| index or version away from what we assume can be identified from    |
+| the debug log alone — e.g. a per-key keyboard reporting 0x8080      |
+| (v1) instead of 0x8081 (v2), or an effects feature at an unexpected |
+| version. Each GetFeatureIndex call also runs the observed-version   |
+| tripwire (LOG_INFO) for versions we have not seen before.           |
+|                                                                     |
+| Most entries are already cached by the discovery above, so this     |
+| adds only a few extra IRoot queries (e.g. 0x8080 on a v2 device).   |
+| On Centurion the whole feature map is pre-enumerated, so no extra   |
+| wire traffic at all.                                                |
+\*-------------------------------------------------------------------*/
+void LogitechHIDPP20Controller::LogFeatureSummary()
+{
+    static const struct
+    {
+        uint16_t    page;
+        const char* name;
+    } relevant_features[] =
+    {
+        { HIDPP20_FEAT_FEATURE_SET,           "FEATURE_SET"           },
+        { HIDPP20_FEAT_FIRMWARE_INFO,         "FIRMWARE_INFO/BRIDGE"  },
+        { HIDPP20_FEAT_DISABLE_KEYS_BY_USAGE, "DISABLE_KEYS_BY_USAGE" },
+        { HIDPP20_FEAT_COLOR_LED_EFFECTS,     "COLOR_LED_EFFECTS"     },
+        { HIDPP20_FEAT_RGB_EFFECTS,           "RGB_EFFECTS"           },
+        { HIDPP20_FEAT_PER_KEY_LIGHTING_V1,   "PER_KEY_LIGHTING_V1"   },
+        { HIDPP20_FEAT_PER_KEY_LIGHTING_V2,   "PER_KEY_LIGHTING_V2"   },
+        { HIDPP20_FEAT_KEYBOARD_LAYOUT,       "KEYBOARD_LAYOUT"       },
+        { HIDPP20_FEAT_ONBOARD_PROFILES,      "ONBOARD_PROFILES"      },
+        { HIDPP20_FEAT_PROFILE_MANAGEMENT,    "PROFILE_MANAGEMENT"    },
+        { HIDPP20_FEAT_CENTURION_RGB,         "CENTURION_RGB_0x0600"  },
+        { HIDPP20_FEAT_HEADSET_RGB_HOSTMODE,  "HEADSET_RGB_HOSTMODE"  },
+        { HIDPP20_FEAT_WIRELESS_STATUS,       "WIRELESS_STATUS"       },
+    };
+
+    LOG_DEBUG("%s ===== HID++ 2.0 feature summary (features OpenRGB uses) =====", LOG_TAG);
+
+    for(size_t i = 0; i < sizeof(relevant_features) / sizeof(relevant_features[0]); i++)
+    {
+        uint16_t page = relevant_features[i].page;
+        uint8_t  idx  = GetFeatureIndex(page);
+
+        if(idx != 0)
+        {
+            LOG_DEBUG("%s   feature 0x%04X %-22s present  idx=0x%02X V%u",
+                      LOG_TAG, page, relevant_features[i].name, idx, GetFeatureVersion(page));
+        }
+        else
+        {
+            LOG_DEBUG("%s   feature 0x%04X %-22s absent",
+                      LOG_TAG, page, relevant_features[i].name);
+        }
+    }
+
+    LOG_DEBUG("%s ============================================================", LOG_TAG);
+}
+
+/*---------------------------------------------------------*\
+| Read a Centurion sub-device's name via DeviceName 0x0101  |
+| (bridge-routed). Handles both response shapes Solaar does:|
+| inline [len, name…] in the fn0 reply, or chunked [len]    |
+| then fn1 fragments. Returns false if 0x0101 is absent or  |
+| yields nothing. Mirrors Solaar get_name_centurion.        |
+\*---------------------------------------------------------*/
+bool LogitechHIDPP20Controller::ReadCenturionDeviceName0101(std::string& out)
+{
+    out.clear();
+
+    uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_CENTURION_DEVICE_NAME);
+
+    if(idx == 0)
+    {
+        return false;
+    }
+
+    /*------------------------------------------------------*\
+    | fn0 getName -> recv[0] = name length (+ inline bytes   |
+    | on devices that return the whole name in one reply).   |
+    \*------------------------------------------------------*/
+    uint8_t recv[64] = {};
+    int rd = SendAcked(idx, 0x00, nullptr, 0, recv, sizeof(recv));
+
+    if(rd <= 0)
+    {
+        return false;
+    }
+
+    unsigned int name_length = recv[0];
+
+    LOG_DEBUG("%s 0x0101 getName: len=%u rd=%d raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
+              LOG_TAG, name_length, rd,
+              recv[0], recv[1], recv[2], recv[3], recv[4], recv[5], recv[6], recv[7]);
+
+    if(name_length == 0 || name_length > 64)
+    {
+        return false;
+    }
+
+    /*------------------------------------------------------*\
+    | Inline when the fn0 reply already carried the whole    |
+    | name: reply length covers it (Solaar's                 |
+    | len(reply) >= 1+name_length) and the byte after the    |
+    | length is printable (rejects a chunked fn0 that        |
+    | returned only the length + zero padding). Else fetch   |
+    | it in chunks via fn1.                                  |
+    \*------------------------------------------------------*/
+    if((unsigned int)rd >= 1u + name_length
+       && name_length <= sizeof(recv) - 1
+       && recv[1] >= 0x20 && recv[1] <= 0x7E)
+    {
+        out.assign((char*)recv + 1, name_length);
+    }
+    else
+    {
+        for(unsigned int offset = 0; offset < name_length; offset += 16)
+        {
+            uint8_t send_data[1] = { (uint8_t)offset };
+            uint8_t chunk[20]    = {};
+            int cr = SendAcked(idx, 0x10, send_data, 1, chunk, sizeof(chunk));
+
+            if(cr <= 0)
+            {
+                break;
+            }
+
+            unsigned int chunk_len = name_length - offset;
+            if(chunk_len > 16)
+            {
+                chunk_len = 16;
+            }
+
+            out.append((char*)chunk, chunk_len);
+        }
+    }
+
+    while(!out.empty() && out.back() == '\0')
+    {
+        out.pop_back();
+    }
+
+    return !out.empty();
+}
+
 void LogitechHIDPP20Controller::DiscoverDeviceName()
 {
     /*---------------------------------------------------------*\
@@ -1239,21 +1489,21 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
     if(transport.type == HIDPP20_TRANSPORT_CENTURION)
     {
         /*------------------------------------------------------*\
-        | Centurion sub-device: 0x0101 getName returns firmware  |
-        | data, not a readable name. Fall back to a platform-    |
-        | specific lookup that reads the friendly name from the  |
-        | OS's HID enumeration (sysfs HID_NAME on Linux,         |
-        | hid_device_info::product_string on Windows).           |
+        | Try the HID++ name (0x0101) first so a spec-compliant  |
+        | sub-device self-names; fall back to the OS/USB name    |
+        | for hardware that doesn't return a usable name there.  |
         \*------------------------------------------------------*/
-        std::string friendly = GetCenturionSubDeviceName(location);
+        std::string hidpp_name;
 
-        if(!friendly.empty())
+        if(ReadCenturionDeviceName0101(hidpp_name) && HIDPP20NameLooksReal(hidpp_name))
         {
-            caps.device_name = friendly;
+            caps.device_name = hidpp_name;
         }
         else
         {
-            caps.device_name = "Logitech Centurion Device";
+            std::string friendly = GetCenturionSubDeviceName(location);
+            caps.device_name = friendly.empty() ? HIDPP20_NAME_PLACEHOLDER_CENTURION
+                                                : friendly;
         }
 
         LOG_VERBOSE("%s Device name (Centurion): %s", LOG_TAG, caps.device_name.c_str());
@@ -1264,7 +1514,7 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
 
     if(feat_idx == 0)
     {
-        caps.device_name = "Logitech HID++ Device";
+        caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
         return;
     }
 
@@ -1274,7 +1524,7 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
 
     if(result <= 0)
     {
-        caps.device_name = "Logitech HID++ Device";
+        caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
         return;
     }
 
@@ -1907,12 +2157,29 @@ void LogitechHIDPP20Controller::DiscoverRGBEffects()
                 continue;
             }
 
-            effect.effect_id     = (response.data[2] << 8) | response.data[3];
-            effect.capabilities  = (response.data[4] << 8) | response.data[5];
+            /*--------------------------------------------------*\
+            | 0x8070 GetZoneEffectInfo and 0x8071/0x0600         |
+            | GetEffectInfo share one response shape:            |
+            |   [0..1] echo (zone/cluster << 8 | effect index)   |
+            |   [2..3] effect type id                            |
+            |   [4..5] capability bitmask                        |
+            |   [6..7] default period (ms)                       |
+            | Hardware-confirmed on a G810: its [4..5] values    |
+            | (0xC001/0xDCE1) are the same capability masks a    |
+            | G515 reports on 0x8071, so [2..3] is the type and  |
+            | the prior 0x8070 layout was reading the index echo |
+            | at [0..1] as the id (it only matched on zone 0,    |
+            | where the echo collapses to the index).            |
+            \*--------------------------------------------------*/
+            effect.effect_id      = (response.data[2] << 8) | response.data[3];
+            effect.capabilities   = (response.data[4] << 8) | response.data[5];
             effect.default_period = (response.data[6] << 8) | response.data[7];
 
-            LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms",
-                     LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period);
+            LOG_INFO("%s   Effect %d: id=0x%04X caps=0x%04X default_period=%dms "
+                     "[raw %02X %02X %02X %02X %02X %02X %02X %02X]",
+                     LOG_TAG, j, effect.effect_id, effect.capabilities, effect.default_period,
+                     response.data[0], response.data[1], response.data[2], response.data[3],
+                     response.data[4], response.data[5], response.data[6], response.data[7]);
 
             cluster.effects.push_back(effect);
         }
@@ -2041,10 +2308,34 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
              caps.idx_headset_rgb_hostmode);
 
     /*---------------------------------------------------------*\
+    | Claim host mode (fn8) before reading zone info — under    |
+    | firmware control GetRGBZoneInfo returns count=0 (matches  |
+    | Solaar's discover_zones). Read the prior mode (fn7) first |
+    | and only claim if it wasn't already host-controlled, so   |
+    | the restore below puts it back exactly as we found it.    |
+    \*---------------------------------------------------------*/
+    blankFAPmessage hm_prior_resp;
+    int prior_result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                                        FN_0620_GET_HOST_MODE_STATE,
+                                        nullptr, 0, hm_prior_resp);
+    int  prior_mode  = (prior_result > 0) ? hm_prior_resp.data[0] : -1;
+    bool claimed     = false;
+
+    if(prior_mode != 0x01)
+    {
+        uint8_t         hostmode_on = 0x01;
+        blankFAPmessage hm_claim_resp;
+        if(SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                            FN_0620_SET_HOST_MODE_STATE,
+                            &hostmode_on, 1, hm_claim_resp) > 0)
+        {
+            claimed = true;
+        }
+    }
+
+    /*---------------------------------------------------------*\
     | fn1 GetRGBZoneInfo — empty request, returns a zone list.  |
-    | Exact packing is not fully pinned down by the protocol    |
-    | doc; log the raw response so a tester's log is enough to  |
-    | refine the decoder.                                       |
+    | Exact packing not fully pinned; log the raw response.     |
     \*---------------------------------------------------------*/
     blankFAPmessage response;
     int result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
@@ -2087,6 +2378,20 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
                   LOG_TAG, result);
     }
 
+    /*---------------------------------------------------------*\
+    | Restore the prior host mode if we changed it (Solaar's    |
+    | discover_zones finally-block). The apply path re-claims   |
+    | host mode on first paint via ClaimSWControlIfNeeded.      |
+    \*---------------------------------------------------------*/
+    if(claimed && prior_mode >= 0)
+    {
+        uint8_t         restore_mode = (uint8_t)prior_mode;
+        blankFAPmessage hm_restore_resp;
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_HOST_MODE_STATE, &restore_mode, 1,
+                         hm_restore_resp);
+    }
+
     if(caps.headset_rgb_hostmode_zone_ids.empty())
     {
         LOG_INFO("%s 0x0620 zone decode produced 0 zones — falling back to "
@@ -2127,16 +2432,16 @@ void LogitechHIDPP20Controller::DiscoverHeadsetRGBHostmode()
 void LogitechHIDPP20Controller::DiscoverPerKeyZones()
 {
     /*---------------------------------------------------------*\
-    | Try 0x8081 first, fall back to 0x8080                     |
+    | 0x8081 (Per Key Lighting V2) only. 0x8080 (V1) is a       |
+    | separate feature driven by DiscoverPerKey8080 — it must   |
+    | NOT be probed with the 0x8081 functions here. Doing so    |
+    | misreads a 0x8080 GetInfo as an 0x8081 zone bitmap, sets  |
+    | has_perkey on a device with no 0x8081, and then fires the |
+    | 0x8081 FrameEnd path (InvalidFunctionID) against it.      |
     \*---------------------------------------------------------*/
     caps.idx_perkey_v2 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V2);
 
-    if(caps.idx_perkey_v2 == 0)
-    {
-        caps.idx_perkey_v1 = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V1);
-    }
-
-    uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
+    uint8_t perkey_idx = caps.idx_perkey_v2;
 
     if(perkey_idx == 0)
     {
@@ -2242,6 +2547,296 @@ void LogitechHIDPP20Controller::DiscoverPerKeyZones()
                 LOG_TAG, caps.perkey_zone_ids.size(),
                 page_counts[0], page_counts[1], page_counts[2],
                 caps.has_numpad ? "yes" : "no");
+}
+
+/*---------------------------------------------------------*\
+| fn2 GetKeyColors readback for one keyType, paginated by   |
+| HIDPP20_8080_KEYS_PER_FRAME. Skips the 4-byte header,     |
+| drops keyId==0 padding, appends the live keyIds to        |
+| out_ids (optionally logging current colors), and returns  |
+| the number collected. Used both for the enumeration       |
+| cross-check and for the full per-keyType key sweep.       |
+\*---------------------------------------------------------*/
+size_t LogitechHIDPP20Controller::ReadPerKey8080Colors
+    (
+    uint8_t                 feat_idx,
+    uint16_t                key_type,
+    uint16_t                max_key_count,
+    std::vector<uint8_t>&     out_ids,
+    bool                    log_colors
+    )
+{
+    size_t start_index = 0;
+
+    /*-----------------------------------------------------*\
+    | The found==0 break is the real terminator; guard_pages|
+    | only bounds the loop. maxKeyCount can be misreported  |
+    | as 0 (seen on the G810), which would collapse the     |
+    | guard to ~4 pages and truncate a full keyboard, so    |
+    | floor it at 16 pages (224 keys).                      |
+    \*-----------------------------------------------------*/
+    size_t guard_pages = (max_key_count / HIDPP20_8080_KEYS_PER_FRAME) + 4;
+
+    if(guard_pages < 16)
+    {
+        guard_pages = 16;
+    }
+
+    for(size_t page = 0; page < guard_pages; page++)
+    {
+        uint8_t query[5] =
+        {
+            (uint8_t)(key_type    >> 8), (uint8_t)(key_type    & 0xFF),
+            (uint8_t)(start_index >> 8), (uint8_t)(start_index & 0xFF),
+            0x00    /* persistenceOptions — default volatile */
+        };
+
+        uint8_t recv[60] = {};
+        int     result   = SendAcked(feat_idx, FN_8080_GET_KEY_COLORS, query, 5,
+                                     recv, sizeof(recv), HIDPP20_POLICY_PROBE);
+
+        if(result <= 4)
+        {
+            break;          /* header only / error / empty */
+        }
+
+        size_t entries = ((size_t)result - 4) / 4;
+        size_t found   = 0;
+
+        for(size_t e = 0; e < entries; e++)
+        {
+            const uint8_t* entry  = recv + 4 + e * 4;
+            uint8_t        key_id = entry[0];
+
+            if(key_id == 0)
+            {
+                continue;   /* padding / empty slot */
+            }
+
+            out_ids.push_back(key_id);
+            found++;
+
+            if(log_colors)
+            {
+                LOG_DEBUG("%s     keyType 0x%04X keyId 0x%02X = RGB(%02X,%02X,%02X)",
+                          LOG_TAG, key_type, key_id, entry[1], entry[2], entry[3]);
+            }
+        }
+
+        if(found == 0)
+        {
+            break;          /* exhausted this keyType */
+        }
+
+        start_index += HIDPP20_8080_KEYS_PER_FRAME;
+    }
+
+    return out_ids.size();
+}
+
+/*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) discovery + enumeration |
+|                                                           |
+| 0x8080 is a separate feature from 0x8081 — it addresses   |
+| keys by a (keyType u16 BE, keyId u8 = USB HID usage code) |
+| pair and carries SetKeyColors on the 0x12 very-long       |
+| report. There is NO device call that lists the keyTypes:  |
+| fn0 GetInfo returns only a keyTypeCount and a typeFlags   |
+| word. G HUB knows its keyTypes from shipped config and    |
+| reads each with fn2 GetKeyColors; with no config we sweep |
+| candidate keyTypes (low byte 0x00..0xFF plus the u16      |
+| high-bit values) and confirm each the same way G HUB does:|
+| fn2 GetKeyColors returns >= 1 real keyId. fn1             |
+| GetKeyTypeInfo is advisory only (its 3 param bytes feed   |
+| the dump) — it is NOT a gate, because V1 firmware such as |
+| the G810 errors on fn1 yet drives per-key fine via fn2/fn3.|
+| typeFlags is logged and used only as a completeness oracle,|
+| never to restrict the candidate set (so the C32B typeFlags|
+| mask cannot drop the G910's media keyType).               |
+|                                                           |
+| Read-only: this only issues fn0/fn1/fn2 (GetInfo /        |
+| GetKeyTypeInfo / GetKeyColors). All reads ride dev.       |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::DiscoverPerKey8080()
+{
+    caps.idx_perkey_8080           = 0;
+    caps.has_perkey_8080           = false;
+    caps.perkey_8080_type_flags    = 0;
+    caps.perkey_8080_type_count    = 0;
+    caps.perkey_8080_max_key_count = 0;
+    caps.perkey_8080_types.clear();
+
+    /*-----------------------------------------------------*\
+    | Discovery via IRoot — any version, no hardcoded index |
+    | fallback. If the device doesn't advertise 0x8080 the  |
+    | path simply doesn't engage.                           |
+    \*-----------------------------------------------------*/
+    uint8_t idx = GetFeatureIndex(HIDPP20_FEAT_PER_KEY_LIGHTING_V1);
+
+    if(idx == 0)
+    {
+        LOG_DEBUG("%s 0x8080 Per Key Lighting not advertised by this device", LOG_TAG);
+        return;
+    }
+
+    caps.idx_perkey_8080 = idx;
+
+    /*-----------------------------------------------------*\
+    | fn0 GetInfo: typeFlags(u16 BE)@0, reserved@2,         |
+    | keyTypeCount(u16 BE)@3, maxKeyCount(u16 BE)@5.        |
+    \*-----------------------------------------------------*/
+    uint8_t info[20] = {};
+    int r0 = SendAcked(idx, FN_8080_GET_INFO, nullptr, 0,
+                       info, sizeof(info), HIDPP20_POLICY_RELIABLE);
+
+    if(r0 <= 0)
+    {
+        LOG_DEBUG("%s 0x8080 idx=0x%02X fn0 GetInfo failed (r=%d) — "
+                  "feature advertised but unreadable", LOG_TAG, idx, r0);
+        return;
+    }
+
+    uint16_t type_flags     = (uint16_t)((info[0] << 8) | info[1]);
+    uint16_t key_type_count = (uint16_t)((info[3] << 8) | info[4]);
+    uint16_t max_key_count  = (uint16_t)((info[5] << 8) | info[6]);
+
+    /*-----------------------------------------------------*\
+    | G910 over-reports typeFlags bit 0x2; mask the logged  |
+    | / oracle value only. The candidate sweep still probes |
+    | media keyType 0x02 and confirms it via fn2.           |
+    \*-----------------------------------------------------*/
+    if(caps.quirks & HIDPP20_QUIRK_8080_OVERREPORTS_MEDIA)
+    {
+        type_flags &= ~0x0002;
+    }
+
+    caps.perkey_8080_type_flags    = type_flags;
+    caps.perkey_8080_type_count    = key_type_count;
+    caps.perkey_8080_max_key_count = max_key_count;
+
+    LOG_DEBUG("%s ===== 0x8080 Per Key Lighting structure dump =====", LOG_TAG);
+    LOG_DEBUG("%s   idx=0x%02X  typeFlags=0x%04X  keyTypeCount=%u  maxKeyCount=%u",
+              LOG_TAG, idx, type_flags, key_type_count, max_key_count);
+
+    /*-----------------------------------------------------*\
+    | Build the candidate keyType list: full low byte       |
+    | 0x00..0xFF (covers the whole family: 0x01 keyboard,   |
+    | 0x02 media, 0x04 G-keys, 0x10 logo, 0x40 indicators), |
+    | then the u16 high-bit candidates 0x0100..0x8000. Every|
+    | candidate is confirmed via fn2; typeFlags never       |
+    | restricts this set.                                   |
+    \*-----------------------------------------------------*/
+    std::vector<uint16_t> candidates;
+    for(uint16_t low = 0x0000; low <= 0x00FF; low++)
+    {
+        candidates.push_back(low);
+    }
+    for(int bit = 8; bit <= 15; bit++)
+    {
+        candidates.push_back((uint16_t)(1u << bit));
+    }
+
+    /*-----------------------------------------------------*\
+    | Sweep candidates, confirming each via fn2 GetKeyColors.|
+    \*-----------------------------------------------------*/
+    for(uint16_t key_type : candidates)
+    {
+        if(key_type == 0)
+        {
+            continue;           /* 0x0000 is not a real keyType */
+        }
+
+        /*-------------------------------------------------*\
+        | fn2 GetKeyColors is the confirmation: a keyType   |
+        | is real on this device iff it returns >= 1 keyId  |
+        | != 0. This is how G HUB walks its keyType list,   |
+        | and it needs no fn1 echo.                         |
+        \*-------------------------------------------------*/
+        std::vector<uint8_t> key_ids;
+        size_t live = ReadPerKey8080Colors(idx, key_type, max_key_count, key_ids, true);
+
+        if(live == 0)
+        {
+            continue;           /* not a keyType on this device */
+        }
+
+        /*-------------------------------------------------*\
+        | fn1 GetKeyTypeInfo is advisory — capture the 3    |
+        | param bytes for the dump when the device          |
+        | implements it, but never gate on it (V1 firmware  |
+        | like the G810 errors here yet drives per-key).    |
+        \*-------------------------------------------------*/
+        uint8_t q1[2]     = { (uint8_t)(key_type >> 8), (uint8_t)(key_type & 0xFF) };
+        uint8_t resp1[16] = {};
+        int  r1     = SendAcked(idx, FN_8080_GET_KEY_TYPE_INFO, q1, 2,
+                                resp1, sizeof(resp1), HIDPP20_POLICY_PROBE);
+        bool fn1_ok = (r1 >= 4)
+                   && (((uint16_t)((resp1[0] << 8) | resp1[1])) == key_type);
+
+        HIDPP20PerKey8080Type entry;
+        entry.key_type = key_type;
+        entry.param[0] = fn1_ok ? resp1[2] : 0;
+        entry.param[1] = fn1_ok ? resp1[3] : 0;
+        entry.param[2] = fn1_ok ? resp1[4] : 0;
+        entry.key_ids  = key_ids;
+        caps.perkey_8080_types.push_back(entry);
+
+        LOG_DEBUG("%s   CONFIRMED keyType 0x%04X with %zu keyId(s)%s",
+                  LOG_TAG, key_type, key_ids.size(),
+                  fn1_ok ? "" : " (fn1 unsupported; fn2-confirmed)");
+    }
+
+    caps.has_perkey_8080 = !caps.perkey_8080_types.empty();
+
+    /*-----------------------------------------------------*\
+    | Numpad presence: full-size if any standard numpad HID |
+    | usage (0x53 NumLock .. 0x63 Keypad .) was enumerated; |
+    | drives FULL vs TKL matrix sizing in SetupZones8080.   |
+    \*-----------------------------------------------------*/
+    for(size_t t = 0; t < caps.perkey_8080_types.size() && !caps.has_numpad; t++)
+    {
+        for(uint8_t key_id : caps.perkey_8080_types[t].key_ids)
+        {
+            if(key_id >= 0x53 && key_id <= 0x63)
+            {
+                caps.has_numpad = true;
+                break;
+            }
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Completeness oracle (diagnostic only — discovery does |
+    | not depend on it): typeFlags is the advertised keyType|
+    | bitmask, so its set-bit count is how many keyTypes to |
+    | expect. Logging it against what fn2 confirmed answers |
+    | per run whether typeFlags maps 1:1 to keyTypes (the   |
+    | doc's open question, and the C32B/G910 media case).   |
+    \*-----------------------------------------------------*/
+    unsigned int flag_count = 0;
+
+    for(int bit = 0; bit < 16; bit++)
+    {
+        if(type_flags & (1u << bit))
+        {
+            flag_count++;
+        }
+    }
+
+    if(caps.perkey_8080_types.size() != flag_count)
+    {
+        LOG_DEBUG("%s 0x8080 confirmed %zu keyType(s); typeFlags=0x%04X "
+                  "advertises %u. The CONFIRMED lines above are authoritative "
+                  "(fn2 read real keyIds); a mismatch means typeFlags is not a "
+                  "1:1 keyType bitmask on this device.",
+                  LOG_TAG, caps.perkey_8080_types.size(), type_flags, flag_count);
+    }
+
+    LOG_DEBUG("%s 0x8080 enumeration: %zu keyType(s) confirmed, has_perkey_8080=%s%s",
+              LOG_TAG, caps.perkey_8080_types.size(),
+              caps.has_perkey_8080 ? "yes" : "no",
+              (dev_perkey_vl == nullptr)
+                ? " (NOTE: no 0x12 very-long handle — read-only, cannot paint)" : "");
 }
 
 void LogitechHIDPP20Controller::DiscoverKeyboardLayout()
@@ -2512,6 +3107,7 @@ bool LogitechHIDPP20Controller::Probe()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 
     /*---------------------------------------------------------*\
@@ -2523,7 +3119,13 @@ bool LogitechHIDPP20Controller::Probe()
     \*---------------------------------------------------------*/
     caps.idx_wireless_status = GetFeatureIndex(HIDPP20_FEAT_WIRELESS_STATUS);
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    /*---------------------------------------------------------*\
+    | Diagnostic: log the OpenRGB-relevant feature/version map  |
+    | (solaar-show-style) for firmware-mismatch identification. |
+    \*---------------------------------------------------------*/
+    LogFeatureSummary();
+
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s %s: no RGB features found", LOG_TAG, caps.device_name.c_str());
 
@@ -2594,7 +3196,8 @@ void LogitechHIDPP20Controller::Shutdown()
 
     /*---------------------------------------------------------*\
     | Release 0x0620 Headset RGB hostmode claim. Best-effort;   |
-    | mirrors the SetHostMode() additive branch.                |
+    | pairs with the SetHostModeState(1) claim in               |
+    | ClaimSWControlIfNeeded.                                   |
     \*---------------------------------------------------------*/
     if(caps.idx_headset_rgb_hostmode != 0)
     {
@@ -2649,9 +3252,12 @@ int LogitechHIDPP20Controller::SetSWControl(uint8_t mode, uint8_t flags)
     if(caps.sw_control_simple)
     {
         /*------------------------------------------------------*\
-        | 0x8070: simple [enabled(bool), persist(bool)]          |
+        | 0x8070: simple [enabled, persist]. lghub/legacy send   |
+        | [1,1] to claim and [0,0] to release — persist mirrors  |
+        | enabled.                                               |
         \*------------------------------------------------------*/
-        uint8_t data[2] = { (uint8_t)(mode > 0 ? 0x01 : 0x00), 0x00 };
+        uint8_t en = (uint8_t)(mode > 0 ? 0x01 : 0x00);
+        uint8_t data[2] = { en, en };
         result = SendAckedIntoFAP(caps.idx_rgb_effects, caps.fn_sw_control,
                                   data, 2, response);
     }
@@ -2727,24 +3333,6 @@ void LogitechHIDPP20Controller::SetHostMode()
         LOG_DEBUG("%s OnboardProfiles set to host mode, verify=0x%02X",
                   LOG_TAG, verify_response.data[0]);
     }
-
-    /*-------------------------------------------------------*\
-    | 0x0620 Headset RGB hostmode claim. Additive — a headset |
-    | exposing 0x0620 typically won't also have 0x8100/0x8101 |
-    | but we don't assume mutual exclusion. Sticky claim, not |
-    | re-issued per write; wake path re-enters SetHostMode    |
-    | after reconnect which reinstates it for free.           |
-    \*-------------------------------------------------------*/
-    if(caps.idx_headset_rgb_hostmode != 0)
-    {
-        uint8_t         on           = 0x01;
-        blankFAPmessage claim_response;
-        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
-                         FN_0620_SET_HOST_MODE_STATE,
-                         &on, 1, claim_response);
-
-        LOG_DEBUG("%s 0x0620 SetHostModeState(1) sent", LOG_TAG);
-    }
 }
 
 bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
@@ -2754,9 +3342,80 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
         return true;
     }
 
+    /*----------------------------------------------------------*\
+    | 0x0620 headset (G522/G321/G315): the claim is a single     |
+    | SetHostModeState(1) — Solaar's host-mode claim. A headset  |
+    | takes only this path; it has no 0x8070/0x8071/0x8080 to    |
+    | claim and no 0x0600 effects (Solaar drives 0x0600 nowhere).|
+    | Sticky; the wake path resets the flag so first paint       |
+    | re-claims. Released by SetHostModeState(0) in Shutdown.    |
+    \*----------------------------------------------------------*/
+    if(caps.idx_headset_rgb_hostmode != 0)
+    {
+        if(!device_online.load())
+        {
+            return false;
+        }
+
+        uint8_t         on   = 0x01;
+        blankFAPmessage resp;
+        int result = SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                                      FN_0620_SET_HOST_MODE_STATE, &on, 1, resp);
+
+        if(result <= 0)
+        {
+            LOG_DEBUG("%s 0x0620 SetHostModeState(1) claim failed (result=%d)",
+                      LOG_TAG, result);
+            return false;
+        }
+
+        sw_control_claimed = true;
+        LOG_DEBUG("%s 0x0620 host mode claimed", LOG_TAG);
+        return true;
+    }
+
+    /*----------------------------------------------------------*\
+    | 0x8070 PER-KEY keyboards (those exposing 0x8080: G810      |
+    | family) write per-key directly with NO claim, like the     |
+    | legacy controllers.                                        |
+    |                                                            |
+    | FIXME: a partial SetSWControl claim breaks per-key on the  |
+    | G810; the full sequence is host-mode -> SetSWControl(1,1)  |
+    | -> SetZoneEffect off per zone -> per-key. TODO: test on    |
+    | real G810/G610/G910 which parts each supports and use the  |
+    | full claim where valid so we keep control if other host    |
+    | software moved the device out of its default state.        |
+    \*----------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS
+       && caps.idx_perkey_8080 != 0)
+    {
+        return true;
+    }
+
     if(caps.idx_rgb_effects == 0 || !device_online.load())
     {
         return false;
+    }
+
+    /*----------------------------------------------------------*\
+    | 0x8070 ZONE-ONLY devices (no 0x8080: G560/G933, 0x8070     |
+    | mice): the claim is just SetSWControl(1,1) — lghub and     |
+    | Solaar both do exactly this, with no power/host-mode tail. |
+    | No per-key layer to conflict, so no zone-park.             |
+    \*----------------------------------------------------------*/
+    if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        int sw_result = SetSWControl(1, 1);
+
+        if(sw_result <= 0)
+        {
+            LOG_DEBUG("%s 0x8070 SetSWControl(1,1) claim failed (result=%d)",
+                      LOG_TAG, sw_result);
+            return false;
+        }
+
+        sw_control_claimed = true;
+        return true;
     }
 
     /*----------------------------------------------------------*\
@@ -3571,6 +4230,111 @@ PerKeyFrameResult LogitechHIDPP20Controller::PerKeyFrameEnd()
 }
 
 /*---------------------------------------------------------*\
+| Feature 0x8080 (Per Key Lighting) set + commit            |
+|                                                           |
+| fn3 SetKeyColors rides the 0x12 very-long report on       |
+| dev_perkey_vl. Payload:                                   |
+|   [keyType u16 BE, count u16 BE, (keyId,R,G,B) x count]   |
+| <=14 tuples per packet (60-byte payload cap). Larger      |
+| groups are split. Colors do not appear until fn5          |
+| FlushLEDS commits.                                        |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::SetPerKey8080
+    (
+    const std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>>& by_type
+    )
+{
+    if(caps.idx_perkey_8080 == 0 || dev_perkey_vl == nullptr)
+    {
+        return;
+    }
+
+    bool kt40_id12_only = (caps.quirks & HIDPP20_QUIRK_8080_KEYTYPE40_ID12_ONLY) != 0;
+
+    for(size_t t = 0; t < by_type.size(); t++)
+    {
+        uint16_t key_type = by_type[t].first;
+        const std::vector<std::pair<uint8_t, RGBColor>>& src_keys = by_type[t].second;
+
+        /*-----------------------------------------------------*\
+        | G410 keyType 0x40 accepts only keyId 1 and 2; drop    |
+        | any others before encoding.                           |
+        \*-----------------------------------------------------*/
+        std::vector<std::pair<uint8_t, RGBColor>>          filtered;
+        const std::vector<std::pair<uint8_t, RGBColor>>*     keys = &src_keys;
+
+        if(kt40_id12_only && key_type == 0x40)
+        {
+            for(size_t k = 0; k < src_keys.size(); k++)
+            {
+                if(src_keys[k].first == 1 || src_keys[k].first == 2)
+                {
+                    filtered.push_back(src_keys[k]);
+                }
+            }
+            keys = &filtered;
+        }
+
+        for(size_t off = 0; off < keys->size(); off += HIDPP20_8080_KEYS_PER_FRAME)
+        {
+            size_t count = keys->size() - off;
+            if(count > HIDPP20_8080_KEYS_PER_FRAME)
+            {
+                count = HIDPP20_8080_KEYS_PER_FRAME;
+            }
+
+            /*-------------------------------------------------*\
+            | Payload: keyType(u16 BE) + count(u16 BE) +        |
+            | count x (keyId, R, G, B). SendVeryLongFrame       |
+            | prepends the 4-byte HID++ header.                 |
+            \*-------------------------------------------------*/
+            uint8_t payload[LOGITECH_VERY_LONG_MESSAGE_LEN - 4];
+            memset(payload, 0, sizeof(payload));
+
+            payload[0] = (uint8_t)(key_type >> 8);
+            payload[1] = (uint8_t)(key_type & 0xFF);
+            payload[2] = (uint8_t)(count    >> 8);
+            payload[3] = (uint8_t)(count    & 0xFF);
+
+            size_t pos = 4;
+            for(size_t k = 0; k < count; k++)
+            {
+                RGBColor color = (*keys)[off + k].second;
+                payload[pos++] = (*keys)[off + k].first;     /* keyId (USB HID usage) */
+                payload[pos++] = RGBGetRValue(color);
+                payload[pos++] = RGBGetGValue(color);
+                payload[pos++] = RGBGetBValue(color);
+            }
+
+            SendVeryLongFrame(caps.idx_perkey_8080, FN_8080_SET_KEY_COLORS,
+                              payload, pos);
+        }
+    }
+}
+
+/*---------------------------------------------------------*\
+| fn5 FlushLEDS — commit. Empty body (persist = default),   |
+| sent on the 0x11 long report via dev.                     |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::PerKeyCommit8080()
+{
+    if(caps.idx_perkey_8080 == 0)
+    {
+        return;
+    }
+
+    uint8_t recv[20] = {};
+    int     result   = SendAcked(caps.idx_perkey_8080, FN_8080_FLUSH_LEDS, nullptr, 0,
+                                 recv, sizeof(recv), HIDPP20_POLICY_RELIABLE);
+
+    if(result <= 0)
+    {
+        LOG_DEBUG("%s 0x8080 FlushLEDS commit not acked (result=%d) — "
+                  "colors may not have latched", LOG_TAG, result);
+    }
+}
+
+/*---------------------------------------------------------*\
 | Zone effects (0x8071 / 0x8070)                            |
 \*---------------------------------------------------------*/
 
@@ -3621,6 +4385,8 @@ void LogitechHIDPP20Controller::SetZoneEffect
             | "Fixed color" marker — only set when there's an       |
             | actual color. All-black means "Off / pass-through to  |
             | per-key buffer", which uses byte 5 = 0x00 instead.    |
+            | Shared across pages: 0x8070's func-3 Static tail is   |
+            | R, G, B, 0x02 at byte 5, same position as 0x8071.     |
             \*-----------------------------------------------------*/
             if(r != 0 || g != 0 || b != 0)
             {
@@ -3656,10 +4422,22 @@ void LogitechHIDPP20Controller::SetZoneEffect
             break;
 
         case 0x0004:    // Color Wave
-            data[3] = (period > 0) ? (uint8_t)(period / 100) : 50;
-            data[8] = 0x01;     // pattern
-            data[9] = 0x00;     // waveform
-            data[11] = 0x01;    // direction
+            /*------------------------------------------------------*\
+            | Plain (non-saturation) wave. The period is split       |
+            | NON-contiguously and there is no saturation byte:      |
+            |   data[8]  = period low                                |
+            |   data[9]  = direction (1..8)                          |
+            |   data[10] = brightness/intensity (1..100, min 1)      |
+            |   data[11] = period high                               |
+            | Distinct from the 0x0016 saturation-wave layout below  |
+            | (saturation@3, period BE@8..9, direction@11) — reusing |
+            | that here put the direction in the period-high slot,   |
+            | which the firmware rejected with InvalidArgument.      |
+            \*------------------------------------------------------*/
+            data[8]  = period & 0xFF;
+            data[9]  = direction;
+            data[10] = brightness ? brightness : 1;
+            data[11] = (period >> 8) & 0xFF;
             break;
 
         case 0x000B:    // Ripple
@@ -3668,6 +4446,19 @@ void LogitechHIDPP20Controller::SetZoneEffect
             data[4] = b;
             data[6] = (period >> 8) & 0xFF;
             data[7] = period & 0xFF;
+            break;
+
+        case 0x000E:    // Decomposition — no color; period BE@8-9, intensity@10
+            data[8]  = (period >> 8) & 0xFF;
+            data[9]  = period & 0xFF;
+            data[10] = brightness;
+            break;
+
+        case 0x000F:    // Signature1 — no color; period BE@7-8, intensity@9
+        case 0x0010:    // Signature2 — same layout
+            data[7] = (period >> 8) & 0xFF;
+            data[8] = period & 0xFF;
+            data[9] = brightness;
             break;
 
         case 0x0015:    // Cycle (saturation variant)
@@ -3731,11 +4522,15 @@ void LogitechHIDPP20Controller::SetZoneEffect
     }
 
     /*------------------------------------------------------*\
-    | 16-byte payload for all pages; persist at byte[12].    |
-    | 0x8070 and 0x8071/0x0600 share the same byte position  |
-    | per LogitechProtocolCommon setMode convention.         |
+    | Inline persist byte at [12] — 0x8071/0x0600 only.      |
+    | 0x8070 has no inline persist (NvConfig is funcs 4/5),  |
+    | so [12] there is a param byte; persist on 0x8070 rides |
+    | SetSWControl's flag.                                   |
     \*------------------------------------------------------*/
-    data[12] = persist ? 0x01 : 0x00;
+    if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)
+    {
+        data[12] = persist ? 0x01 : 0x00;
+    }
 
     LOG_DEBUG("%s SetEffect cluster=%u idx=%u id=0x%04X "
               "data=[%02X %02X %02X %02X %02X %02X %02X %02X "
@@ -3777,76 +4572,53 @@ void LogitechHIDPP20Controller::SetHeadsetRGBHostmodeColors
         return;
     }
 
-    /*---------------------------------------------------------*\
-    | If fewer colors than zones, fill the tail with the last   |
-    | provided color. If zero colors, nothing to write.         |
-    \*---------------------------------------------------------*/
     if(zone_colors.empty())
     {
         return;
     }
 
     /*---------------------------------------------------------*\
-    | Uniformity check: same color across every zone?           |
+    | Group zones by color, one fn5 SetRgbZonesSingleValue per  |
+    | distinct color, then one FrameEnd — Solaar's              |
+    | write_zone_map byte-for-byte. Host mode is already        |
+    | claimed (sticky) via ClaimSWControlIfNeeded; the frame is |
+    | just data + FrameEnd, no per-frame claim. Zone i takes    |
+    | zone_colors[i] (last color fills any shortfall).          |
     \*---------------------------------------------------------*/
-    RGBColor first = zone_colors[0];
-    bool all_same  = true;
-    for(size_t i = 1; i < zones.size(); i++)
+    std::map<RGBColor, std::vector<uint8_t>> groups;
+    for(size_t i = 0; i < zones.size(); i++)
     {
         RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
-        if(c != first)
-        {
-            all_same = false;
-            break;
-        }
+        groups[c].push_back(zones[i]);
     }
 
-    uint8_t         payload[16];
-    size_t          payload_len = 0;
-    uint8_t         function    = 0;
     blankFAPmessage response;
 
-    if(all_same)
+    for(const std::pair<const RGBColor, std::vector<uint8_t>>& group : groups)
     {
+        RGBColor                    color = group.first;
+        const std::vector<uint8_t>& ids   = group.second;
+
         /*------------------------------------------------------*\
         | fn5 SetRgbZonesSingleValue: [R, G, B, count, zones...] |
         \*------------------------------------------------------*/
-        function    = FN_0620_SET_RGB_ZONES_SINGLE_VALUE;
-        payload[0]  = RGBGetRValue(first);
-        payload[1]  = RGBGetGValue(first);
-        payload[2]  = RGBGetBValue(first);
-        payload[3]  = (uint8_t)zones.size();
+        uint8_t payload[16];
+        payload[0] = RGBGetRValue(color);
+        payload[1] = RGBGetGValue(color);
+        payload[2] = RGBGetBValue(color);
 
-        size_t n = zones.size();
+        size_t n = ids.size();
         if(n > sizeof(payload) - 4) n = sizeof(payload) - 4;
+        payload[3] = (uint8_t)n;
         for(size_t i = 0; i < n; i++)
         {
-            payload[4 + i] = zones[i];
+            payload[4 + i] = ids[i];
         }
-        payload_len = 4 + n;
-    }
-    else
-    {
-        /*------------------------------------------------------*\
-        | fn2 SetIndividualRgbZones: [zone, R, G, B] × N         |
-        | Each entry is 4 bytes; 16-byte payload fits 4 entries. |
-        \*------------------------------------------------------*/
-        function = FN_0620_SET_INDIVIDUAL_RGB_ZONES;
-        size_t n = zones.size();
-        if(n > sizeof(payload) / 4) n = sizeof(payload) / 4;
-        for(size_t i = 0; i < n; i++)
-        {
-            RGBColor c = (i < zone_colors.size()) ? zone_colors[i] : zone_colors.back();
-            payload[i * 4 + 0] = zones[i];
-            payload[i * 4 + 1] = RGBGetRValue(c);
-            payload[i * 4 + 2] = RGBGetGValue(c);
-            payload[i * 4 + 3] = RGBGetBValue(c);
-        }
-        payload_len = n * 4;
-    }
 
-    SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, function,
-                     payload, payload_len, response);
+        SendAckedIntoFAP(caps.idx_headset_rgb_hostmode,
+                         FN_0620_SET_RGB_ZONES_SINGLE_VALUE,
+                         payload, 4 + n, response);
+    }
 
     /*---------------------------------------------------------*\
     | fn6 FrameEnd — byte 0 = 0x01 (transient commit). Never    |
@@ -3857,8 +4629,8 @@ void LogitechHIDPP20Controller::SetHeadsetRGBHostmodeColors
     SendAckedIntoFAP(caps.idx_headset_rgb_hostmode, FN_0620_FRAME_END,
                      frame_end, sizeof(frame_end), response);
 
-    LOG_TRACE("%s 0x0620 wrote %zu zone(s), fn=0x%02X, FrameEnd[0x01]",
-              LOG_TAG, zones.size(), function);
+    LOG_TRACE("%s 0x0620 wrote %zu zone(s) in %zu color group(s), FrameEnd[0x01]",
+              LOG_TAG, zones.size(), groups.size());
 }
 
 /*---------------------------------------------------------*\
@@ -3976,21 +4748,21 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
     }
 
     /*---------------------------------------------------------*\
-    | Discover sub-device identity if not already known.        |
+    | The sub-device's real name only becomes readable now that |
+    | it's reachable, so always re-discover — but never let a   |
+    | failed re-read downgrade a good name to a placeholder.    |
     \*---------------------------------------------------------*/
-    if(caps.device_name.empty() || caps.device_name.find("PRO X 2") == std::string::npos)
-    {
-        /*------------------------------------------------------*\
-        | Dongle may have a sysfs-derived name; get real name    |
-        | from the sub-device now that it's reachable.           |
-        \*------------------------------------------------------*/
-        std::string old_name = caps.device_name;
-        DiscoverDeviceName();
+    std::string old_name = caps.device_name;
+    DiscoverDeviceName();
 
-        if(caps.device_name != old_name)
-        {
-            log_tag = "[LogitechHID++ " + caps.device_name + "]";
-        }
+    if(HIDPP20NameIsPlaceholder(caps.device_name) && !HIDPP20NameIsPlaceholder(old_name))
+    {
+        caps.device_name = old_name;
+    }
+
+    if(caps.device_name != old_name)
+    {
+        log_tag = "[LogitechHID++ " + caps.device_name + "]";
     }
 
     DiscoverDeviceType();
@@ -4009,9 +4781,10 @@ void LogitechHIDPP20Controller::ReprobeSubDevice()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s Sub-device has no RGB features", LOG_TAG);
         return;
@@ -4208,6 +4981,7 @@ void LogitechHIDPP20Controller::RediscoverFeatures()
         DiscoverHeadsetRGBHostmode();
     }
     DiscoverPerKeyZones();
+    DiscoverPerKey8080();
     DiscoverKeyboardLayout();
 }
 
@@ -4223,7 +4997,7 @@ void LogitechHIDPP20Controller::FullReprobe()
     FlushResponseQueue();
     RediscoverFeatures();
 
-    if(!caps.has_zone_effects && !caps.has_perkey)
+    if(!caps.has_zone_effects && !caps.has_perkey && !caps.has_perkey_8080)
     {
         LOG_DEBUG("%s Device has no RGB features after re-probe", LOG_TAG);
         return;
@@ -4910,36 +5684,6 @@ bool LogitechHIDPP20Controller::IsCurrentlyWireless() const
     return wireless;
 }
 
-bool LogitechHIDPP20Controller::QueryWirelessStatus()
-{
-    if(caps.idx_wireless_status == 0)
-    {
-        LOG_DEBUG("%s QueryWirelessStatus: feature not present", LOG_TAG);
-        return false;
-    }
-
-    uint8_t send_data[1] = {0};
-    uint8_t recv_data[16] = {};
-    uint8_t hidpp_err = 0;
-
-    int result = SendAcked(caps.idx_wireless_status, 0,
-                           send_data, 0, recv_data, sizeof(recv_data),
-                           HIDPP20_POLICY_PROBE, &hidpp_err);
-
-    LOG_DEBUG("%s QueryWirelessStatus: result=%d err=0x%02X "
-              "data=[%02X %02X %02X %02X %02X %02X]",
-              LOG_TAG, result, hidpp_err,
-              recv_data[0], recv_data[1], recv_data[2],
-              recv_data[3], recv_data[4], recv_data[5]);
-
-    if(result <= 0)
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool LogitechHIDPP20Controller::QueryExternalPower()
 {
     /*----------------------------------------------------------*\
@@ -5217,8 +5961,14 @@ void LogitechHIDPP20Controller::OnUserActivity(uint8_t activity_type)
         FlushResponseQueue();
 
         /*------------------------------------------------------*\
-        | Switch to flags=3 (ZONE|POWER): release EFFECT to      |
-        | firmware, monitor for user activity (keypress).        |
+        | flags=3 (EFFECT|POWER): keep effect control + monitor  |
+        | for user activity (keypress).                          |
+        |                                                        |
+        | TODO: look into matching Solaar, which uses flags 0x02 |
+        | (POWER only, no EFFECT bit) at idle and 0x04 (NV only) |
+        | active, and still receives onUserActivity events — so  |
+        | our EFFECT bit may be unnecessary. Works as-is;        |
+        | investigate + test on hardware before changing.        |
         \*------------------------------------------------------*/
         SetSWControl(3, 3);
 

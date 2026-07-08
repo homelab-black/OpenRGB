@@ -29,26 +29,46 @@
 std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::string& path)
 {
     /*--------------------------------------------------------*\
-    | Centurion sub-device friendly name comes from sysfs      |
-    | HID_NAME=, same field Solaar reads. The `path` arg is a  |
-    | hidraw dev path like /dev/hidraw5; extract the hidrawN   |
-    | basename and read /sys/class/hidraw/<basename>/device/   |
-    | uevent.                                                  |
+    | Prefer the USB product string (the source Solaar uses)   |
+    | — cleaner than HID_NAME, which carries a "Logitech "     |
+    | prefix. `path` is a hidraw dev path like /dev/hidraw5;   |
+    | the USB device string is at                              |
+    | /sys/class/hidraw/<hidrawN>/device/../../product, with   |
+    | HID_NAME from the hidraw uevent as the fallback.         |
     \*--------------------------------------------------------*/
-    std::string sysfs_name;
+    std::string name;
     size_t pos = path.rfind("hidraw");
 
     if(pos == std::string::npos)
     {
-        return sysfs_name;
+        return name;
     }
 
-    std::string uevent_path = "/sys/class/hidraw/" + path.substr(pos) + "/device/uevent";
+    std::string hidraw = path.substr(pos);
+
+    std::ifstream pf("/sys/class/hidraw/" + hidraw + "/device/../../product");
+
+    if(pf)
+    {
+        std::getline(pf, name);
+
+        while(!name.empty() && (name.back() == '\n' || name.back() == '\r'))
+        {
+            name.pop_back();
+        }
+    }
+
+    if(!name.empty())
+    {
+        return name;
+    }
+
+    std::string uevent_path = "/sys/class/hidraw/" + hidraw + "/device/uevent";
     FILE* f = fopen(uevent_path.c_str(), "r");
 
     if(!f)
     {
-        return sysfs_name;
+        return name;
     }
 
     char line[256];
@@ -57,11 +77,11 @@ std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::stri
     {
         if(strncmp(line, "HID_NAME=", 9) == 0)
         {
-            sysfs_name = line + 9;
+            name = line + 9;
 
-            while(!sysfs_name.empty() && (sysfs_name.back() == '\n' || sysfs_name.back() == '\r'))
+            while(!name.empty() && (name.back() == '\n' || name.back() == '\r'))
             {
-                sysfs_name.pop_back();
+                name.pop_back();
             }
 
             break;
@@ -69,7 +89,7 @@ std::string LogitechHIDPP20Controller::GetCenturionSubDeviceName(const std::stri
     }
 
     fclose(f);
-    return sysfs_name;
+    return name;
 }
 
 bool LogitechHIDPP20Controller::ScanForDevice(bool force)
