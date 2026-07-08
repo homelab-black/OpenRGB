@@ -348,10 +348,10 @@ static const keyboard_led proxrapid_top_strip[] =
 {
     { 0, 0, 0,  210, "Logo",             KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_ROW         },   /* above ESC */
     { 0, 0, 5,  150, "Brightness",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F4  */
-    { 0, 0, 10, 158, "Media Previous",   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F9  */
+    { 0, 0, 10, 155, "Media Previous",   KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F9  */
     { 0, 0, 11, 152, "Media Play/Pause", KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F10 */
     { 0, 0, 12, 154, "Media Next",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F11 */
-    { 0, 0, 13, 156, "Media Mute",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F12 */
+    { 0, 0, 13, 153, "Media Mute",       KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },   /* above F12 */
 };
 
 static const KbLayoutEdit known_kb_layout_edits[] =
@@ -1653,6 +1653,11 @@ void RGBController_LogitechHIDPP20::SetupZones()
             | G915 this is media keys, G1-G5, brightness, and   |
             | logo. Append them as a separate linear zone so    |
             | users can still address them.                     |
+            |                                                   |
+            | Skipped when a board-specific top-strip layout    |
+            | edit was applied: that strip is the authoritative |
+            | special-key set, so any other reported zone is a  |
+            | phantom that would only show up mislabeled here.  |
             \*-------------------------------------------------*/
             std::set<uint16_t> klm_claimed_zones;
             for(uint16_t zid : led_to_zone_id)
@@ -1674,7 +1679,7 @@ void RGBController_LogitechHIDPP20::SetupZones()
             | ghost entries. Layout-driven, not device-specific.  |
             \*---------------------------------------------------*/
             std::vector<std::pair<uint16_t, std::string>> extras;
-            for(uint16_t zid : caps.perkey_zone_ids)
+            for(uint16_t zid : (kb_layout_edit.empty() ? caps.perkey_zone_ids : std::vector<uint16_t>()))
             {
                 if(klm_claimed_zones.count(zid) != 0)
                 {
