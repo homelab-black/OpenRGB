@@ -9,7 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include "Detector.h"
+#include "DetectionManager.h"
 #include "LogManager.h"
 #include "RGBController_NVIDIAIllumination_Windows_Linux.h"
 #include "pci_ids.h"
@@ -80,8 +80,9 @@ static const nv_gpu_pci_device device_list[] =
     {NVIDIA_VEN,    NVIDIA_RTX5090_DEV,             NVIDIA_SUB_VEN,   NVIDIA_RTX5090_FE_SUB_DEV,                            NVIDIA_ILLUMINATION_V1,     TREATS_RGBW_AS_RGBW,    "NVIDIA GeForce RTX 5090 FE"                  },
 };
 
-void DetectNVIDIAIllumGPUs()
+DetectedControllers DetectNVIDIAIllumGPUs()
 {
+    DetectedControllers             detected_controllers;
     static NV_PHYSICAL_GPU_HANDLE   gpu_handles[64];
     static NV_S32                   gpu_count = 0;
     NV_U32                          device_id;
@@ -119,7 +120,7 @@ void DetectNVIDIAIllumGPUs()
                                 NVIDIAIlluminationV1Controller*     controller     = new NVIDIAIlluminationV1Controller(new_nvapi, device_list[dev_idx].treats_rgbw_as_rgb, device_list[dev_idx].name);
                                 RGBController_NVIDIAIlluminationV1* rgb_controller = new RGBController_NVIDIAIlluminationV1(controller);
 
-                                ResourceManager::get()->RegisterRGBController(rgb_controller);
+                                detected_controllers.push_back(rgb_controller);
                             }
                             break;
                     }
@@ -127,6 +128,8 @@ void DetectNVIDIAIllumGPUs()
             }
         }
     }
+
+    return(detected_controllers);
 }
 
 REGISTER_DETECTOR("Nvidia NvAPI Illumination", DetectNVIDIAIllumGPUs);

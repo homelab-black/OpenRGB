@@ -12,17 +12,22 @@
 #include "ResourceManager.h"
 #include "i2c_tools.h"
 
-static void UpdateBusListCallback(void * this_ptr)
+static void OpenRGBSystemInfoPageResourceManagerCallback(void * this_ptr, unsigned int update_reason)
 {
     OpenRGBSystemInfoPage * this_obj = (OpenRGBSystemInfoPage *)this_ptr;
 
-    QMetaObject::invokeMethod(this_obj, "UpdateBusList", Qt::QueuedConnection);
+    switch(update_reason)
+    {
+        case RESOURCEMANAGER_UPDATE_REASON_I2C_BUS_LIST_UPDATED:
+            QMetaObject::invokeMethod(this_obj, "UpdateBusList", Qt::QueuedConnection);
+            break;
+    }
 }
 
 OpenRGBSystemInfoPage::OpenRGBSystemInfoPage(std::vector<i2c_smbus_interface *>& bus, QWidget *parent) :
     QFrame(parent),
     ui(new Ui::OpenRGBSystemInfoPage),
-    busses(bus)
+    buses(bus)
 {
     ui->setupUi(this);
 
@@ -36,7 +41,7 @@ OpenRGBSystemInfoPage::OpenRGBSystemInfoPage(std::vector<i2c_smbus_interface *>&
     /*-----------------------------------------------------*\
     | Register I2C bus list change callback                 |
     \*-----------------------------------------------------*/
-    ResourceManager::get()->RegisterI2CBusListChangeCallback(UpdateBusListCallback, this);
+    ResourceManager::get()->RegisterResourceManagerCallback(OpenRGBSystemInfoPageResourceManagerCallback, this);
 
     /*-----------------------------------------------------*\
     | Update the bus list                                   |
@@ -61,6 +66,11 @@ OpenRGBSystemInfoPage::OpenRGBSystemInfoPage(std::vector<i2c_smbus_interface *>&
 
 OpenRGBSystemInfoPage::~OpenRGBSystemInfoPage()
 {
+    /*-----------------------------------------------------*\
+    | Unregister I2C bus list change callback               |
+    \*-----------------------------------------------------*/
+    ResourceManager::get()->UnregisterResourceManagerCallback(OpenRGBSystemInfoPageResourceManagerCallback, this);
+
     delete ui;
 }
 
@@ -79,9 +89,9 @@ void OpenRGBSystemInfoPage::UpdateBusList()
     \*-----------------------------------------------------*/
     ui->SMBusAdaptersBox->clear();
 
-    for (std::size_t i = 0; i < busses.size(); i++)
+    for (std::size_t i = 0; i < buses.size(); i++)
     {
-        ui->SMBusAdaptersBox->addItem(busses[i]->device_name);
+        ui->SMBusAdaptersBox->addItem(buses[i]->info.device_name);
     }
 
     ui->SMBusAdaptersBox->setCurrentIndex(0);
@@ -96,9 +106,9 @@ void OpenRGBSystemInfoPage::on_DetectButton_clicked()
         current_index = 0;
     }
 
-    if((int)(busses.size()) > current_index)
+    if((int)(buses.size()) > current_index)
     {
-        i2c_smbus_interface* bus = busses[current_index];
+        i2c_smbus_interface* bus = buses[current_index];
 
         switch(ui->SMBusDetectionModeBox->currentIndex())
         {
@@ -130,9 +140,9 @@ void OpenRGBSystemInfoPage::on_DumpButton_clicked()
         current_index = 0;
     }
 
-    if((int)(busses.size()) > current_index)
+    if((int)(buses.size()) > current_index)
     {
-        i2c_smbus_interface* bus = busses[current_index];
+        i2c_smbus_interface* bus = buses[current_index];
         unsigned char address = ui->DumpAddressBox->value();
 
         ui->SMBusDataText->setPlainText(i2c_dump(bus, address).c_str());
@@ -148,9 +158,9 @@ void OpenRGBSystemInfoPage::on_CommandButton_clicked()
         current_index = 0;
     }
 
-    if((int)(busses.size()) > current_index)
+    if((int)(buses.size()) > current_index)
     {
-        i2c_smbus_interface*    bus         = busses[current_index];
+        i2c_smbus_interface*    bus         = buses[current_index];
         unsigned char           address     = ui->CommandAddressBox->value();
         unsigned char           regaddr     = ui->CommandRegisterBox->value();
         unsigned short          write_data  = ui->CommandWriteDataLineEdit->text().toInt(nullptr, 0);

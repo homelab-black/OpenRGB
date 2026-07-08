@@ -7,32 +7,29 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include "Detector.h"
+#include "DetectionManager.h"
 #include "MSIMonitorController.h"
 #include "RGBController_MSIMonitor.h"
 
 #define MSI_USB_VID         0x1462
 #define MSI_USB_PID         0x3FA4
 
-/*----------------------------------------------------------*\
-|                                                            |
-|   DetectMSIMonitorController                               |
-|                                                            |
-|       Detect MSI monitor and maybe others                  |
-|                                                            |
-\*----------------------------------------------------------*/
-
-static void DetectMSIMonitorController(hid_device_info* info, const std::string& name)
+DetectedControllers DetectMSIMonitorController(hid_device_info* info, const std::string& name)
 {
-    hid_device* dev = hid_open_path(info->path);
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
+
+    dev = hid_open_path(info->path);
 
     if(dev)
     {
         MSIMonitorController*     controller         = new MSIMonitorController(dev, *info, name);
         RGBController_MSIMonitor* rgb_controller     = new RGBController_MSIMonitor(controller);
 
-        ResourceManager::get()->RegisterRGBController(rgb_controller);
+        detected_controllers.push_back(rgb_controller);
     }
+
+    return(detected_controllers);
 }
 
 REGISTER_HID_DETECTOR_IPU("MSI Monitor (Gaming Controller)", DetectMSIMonitorController, MSI_USB_VID, MSI_USB_PID, 0, 0x01, 0);
