@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| SteelSeriesApexController.cpp                             |
+| SteelSeriesApexController.h                               |
 |                                                           |
 |   Driver for SteelSeries Apex Keyboards                   |
 |                                                           |
@@ -21,41 +21,17 @@
 #include "SteelSeriesGeneric.h"
 #include "SteelSeriesApexBaseController.h"
 
-enum
-{
-    APEX_PACKET_ID_DIRECT               = 0x3a,     /* Direct mode                */
-    APEX_PACKET_ID_ONBOARD              = 0x3b,     /* Onboard mode               */
-    APEX_2023_PACKET_ID_DIRECT          = 0x40,     /* New Wired Direct mode      */
-    APEX_2023_PACKET_ID_DIRECT_WIRELESS = 0x61,     /* New Wireless Direct mode   */
-    APEX_2023_PACKET_ID_INIT            = 0x4B,     /* New Initialization         */
-    APEX_GEN3_PACKET_ID_ONBOARD         = 0x41,     /* New Wired onboard mode     */
-    APEX_2023_PACKET_LENGTH             = 643,
-};
-
 class SteelSeriesApexController : public SteelSeriesApexBaseController
 {
 public:
     SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, std::string dev_name);
     ~SteelSeriesApexController();
-
-    void SetMode
-        (
-        unsigned char mode,
-        std::vector<RGBColor> colors
-        );
-
-    void SetLEDsDirect(std::vector<RGBColor> colors);
-
+    void SetMode(unsigned char mode, std::vector<RGBColor> colors) override;
+    void SetLEDsDirect(std::vector<RGBColor> colors) override;
     std::string GetSerial() override;
 
 private:
-
-    void    SelectProfile
-                (
-                unsigned char   profile
-                );
-
-    void    SendInitialization();
-    void    SendDeinitialization();
-
+    void SelectProfile(unsigned char profile);
+    void SendInitialization();
+    void SendDeinitialization();
 };

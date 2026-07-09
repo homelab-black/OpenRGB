@@ -16,15 +16,29 @@
 #include "RGBController.h"
 #include "SteelSeriesGeneric.h"
 
-#define STEELSERIES_PACKET_IN_SIZE  64
-#define STEELSERIES_PACKET_OUT_SIZE STEELSERIES_PACKET_IN_SIZE + 1
+#define STEELSERIES_PACKET_IN_SIZE      64
+#define STEELSERIES_PACKET_OUT_SIZE     STEELSERIES_PACKET_IN_SIZE + 1
 
 /*-------------------------------------------------*\
-| Gen 1: 2019-22 models (all FW) & 2023 FW < 1.19.7 |
-| Gen 2: 2023 models with FW >= 1.19.7              |
-| Gen 3: 2025+ and may feature Gen 3 in the name    |
+| Keyboard names with protocol quirk code           |
 \*-------------------------------------------------*/
+#define APEX_9_TKL_NAME                 "SteelSeries Apex 9 TKL"
+#define APEX_9_MINI_NAME                "SteelSeries Apex 9 Mini"
+#define APEX_PRO_2023_WIRED_NAME        "SteelSeries Apex Pro TKL 2023 Wired"
+#define APEX_PRO_2023_WIRELESS_NAME     "SteelSeries Apex Pro TKL 2023 Wireless"
+#define APEX_PRO_TKL_GEN3_NAME          "SteelSeries Apex Pro TKL Gen 3 Wired"
+#define APEX_PRO_TKL_GEN3_WIRELESS_NAME "SteelSeries Apex Pro TKL Gen 3 Wireless"
 
+/*-------------------------------------------------*\
+| Protocol quirk applicability                      |
+|                                                   |
+| Gen 1: 2019-22 models with original case design,  |
+|        all FW releases.                           |
+| Gen 2: '2023' USB-C + Apex 9 series TKL and       |
+|        smaller, wired/wireless with pre-prism FW  |
+| Gen 3: All models with Omnipoint 3.0 switches and |
+|        Gen 2 models with prism FW update          |
+\*-------------------------------------------------*/
 typedef enum
 {
     APEX_GEN1                 = 0x00,
@@ -37,6 +51,22 @@ enum
 {
     APEX_MODE_DIRECT,
     APEX_MODE_ONBOARD,
+};
+
+enum
+{
+    APEX_PACKET_LENGTH                  = 643,
+    APEX_9_PACKET_LENGTH                = 513,      /* Test if required           */
+    APEX_PACKET_ID_PROFILE              = 0x89,     /* Profile                    */
+    APEX_PACKET_ID_FIRMWARE             = 0x90,     /* Firmware version           */
+    APEX_GEN1_PACKET_ID_DIRECT          = 0x3A,     /* Direct mode                */
+    APEX_GEN1_PACKET_ID_ONBOARD         = 0x3B,     /* Onboard mode               */
+    APEX_GEN1_PACKET_ID_SERIAL          = 0xFF,     /* Serial number              */
+    APEX_2023_PACKET_ID_DIRECT          = 0x40,     /* New Wired Direct mode      */
+    APEX_2023_PACKET_ID_DIRECT_WIRELESS = 0x61,     /* New Wireless Direct mode   */
+    APEX_2023_PACKET_ID_INIT            = 0x4B,     /* New Initialization         */
+    APEX_2023_PACKET_ID_ONBOARD         = 0x41,     /* New Wired onboard mode     */
+    APEX_2023_PACKET_ID_REGION          = 0xF5,     /* Region byte                */
 };
 
 class SteelSeriesApexBaseController
