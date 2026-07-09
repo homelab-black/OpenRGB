@@ -261,6 +261,9 @@ const sinowealth_device_map sinowealth_10c_keyboards{
         0xA4, { "AULA F99", aula_f99_layout },
     },
     {
+        0x9A, { "AULA F99", aula_f99_layout },
+    },
+    {
         0x0B, { "AULA F87 Pro", aula_f87_layout },
     },
     {
