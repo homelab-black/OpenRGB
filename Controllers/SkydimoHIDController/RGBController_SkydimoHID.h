@@ -3,8 +3,6 @@
 |                                                           |
 |   RGBController for Skydimo HID devices                   |
 |                                                           |
-|   Bartholomew Ho <qiangqiang101@hotmail.com>  09 Jul 2026 |
-|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/

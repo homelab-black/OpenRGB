@@ -3,39 +3,36 @@
 |                                                           |
 |   Driver for Skydimo HID devices                          |
 |                                                           |
-|   Bartholomew Ho <qiangqiang101@hotmail.com>  09 Jul 2026 |
-|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
 #include <cstring>
-#include "LogManager.h"
 #include "SkydimoHIDController.h"
 #include "StringUtils.h"
 
-static unsigned char CalculateCRC8(const unsigned char* data, unsigned int length)
+#define PACKET_SIZE         64
+#define PACKET_RGB_BYTES    60
+
+static unsigned char crc8(const unsigned char* data, size_t len)
 {
     unsigned char crc = 0x00;
-
-    for(unsigned int byte_idx = 0; byte_idx < length; byte_idx++)
+    for (size_t i = 0; i < len; i++)
     {
-        crc ^= data[byte_idx];
-
-        for(unsigned int bit_idx = 0; bit_idx < SKYDIMO_HID_CRC_BIT_COUNT; bit_idx++)
+        crc ^= data[i];
+        for (int j = 0; j < 8; j++)
         {
-            if(crc & SKYDIMO_HID_CRC_HIGH_BIT)
+            if (crc & 0x80)
             {
-                crc = (unsigned char)((crc << 1) ^ SKYDIMO_HID_CRC_POLYNOMIAL);
+                crc = (crc << 1) ^ 0x07;
             }
             else
             {
-                crc = (unsigned char)(crc << 1);
+                crc = (crc << 1);
             }
         }
     }
-
-    return(crc);
+    return crc;
 }
 
 SkydimoHIDController::SkydimoHIDController(hid_device* dev_handle, const char* path)
@@ -43,153 +40,119 @@ SkydimoHIDController::SkydimoHIDController(hid_device* dev_handle, const char* p
     dev         = dev_handle;
     location    = path;
 
-    wchar_t name_string[SKYDIMO_HID_NAME_BUFFER_SIZE];
-    int result;
+    wchar_t name_string[255];
+    int ret;
 
-    result = hid_get_manufacturer_string(dev, name_string, SKYDIMO_HID_NAME_BUFFER_SIZE);
-    if(result == 0)
+    ret = hid_get_manufacturer_string(dev, name_string, 255);
+    if(ret == 0)
     {
         device_name = StringUtils::wstring_to_string(name_string);
     }
     else
     {
         device_name = "Skydimo";
-        LOG_WARNING("[SkydimoHIDController] Failed to read manufacturer string for %s", path);
     }
 
-    result = hid_get_product_string(dev, name_string, SKYDIMO_HID_NAME_BUFFER_SIZE);
-    if(result == 0)
+    ret = hid_get_product_string(dev, name_string, 255);
+    if(ret == 0)
     {
         device_name.append(" ").append(StringUtils::wstring_to_string(name_string));
     }
     else
     {
         device_name.append(" HID Device");
-        LOG_WARNING("[SkydimoHIDController] Failed to read product string for %s", path);
     }
 
-    wchar_t serial_string[SKYDIMO_HID_SERIAL_BUFFER_SIZE];
-    result = hid_get_serial_number_string(dev, serial_string, SKYDIMO_HID_SERIAL_BUFFER_SIZE);
-    if(result == 0)
+    wchar_t serial_string[128];
+    ret = hid_get_serial_number_string(dev, serial_string, 128);
+    if(ret == 0)
     {
         serial = StringUtils::wstring_to_string(serial_string);
     }
     else
     {
         serial = "";
-        LOG_DEBUG("[SkydimoHIDController] No serial number available for %s", path);
     }
 }
 
 SkydimoHIDController::~SkydimoHIDController()
 {
-    if(dev)
+    if (dev)
     {
         hid_close(dev);
     }
 }
 
-std::string SkydimoHIDController::GetDeviceName() const
+std::string SkydimoHIDController::GetDeviceName()
 {
-    return(device_name);
+    return device_name;
 }
 
-std::string SkydimoHIDController::GetSerial() const
+std::string SkydimoHIDController::GetSerial()
 {
-    return(serial);
+    return serial;
 }
 
-std::string SkydimoHIDController::GetLocation() const
+std::string SkydimoHIDController::GetLocation()
 {
-    return("HID: " + location);
+    return location;
 }
 
-bool SkydimoHIDController::SendPacket(unsigned char start_led, const unsigned char* chunk, unsigned int chunk_length)
+void SkydimoHIDController::SendPacket(unsigned char start_led, const unsigned char* chunk, size_t chunk_len)
 {
-    unsigned char packet[SKYDIMO_HID_PACKET_SIZE];
-    memset(packet, 0x00, sizeof(packet));
+    unsigned char buf[64];
+    memset(buf, 0x00, sizeof(buf));
 
-    packet[0]                                  = SKYDIMO_HID_REPORT_ID;
-    packet[SKYDIMO_HID_PACKET_START_LED_INDEX] = start_led;
-    packet[SKYDIMO_HID_PACKET_RESERVED_INDEX]  = 0x00;
+    buf[0] = 0x01; // Report ID 1
+    buf[1] = start_led;
+    buf[2] = 0x00;
 
-    if(chunk_length > SKYDIMO_HID_PACKET_DATA_SIZE)
+    if (chunk_len > 60)
     {
-        chunk_length = SKYDIMO_HID_PACKET_DATA_SIZE;
+        chunk_len = 60;
     }
 
-    memcpy(&packet[SKYDIMO_HID_PACKET_DATA_OFFSET], chunk, chunk_length);
+    memcpy(&buf[3], chunk, chunk_len);
 
-    /*-----------------------------------------------------*\
-    | Calculate CRC8 over all bytes before the checksum     |
-    \*-----------------------------------------------------*/
-    packet[SKYDIMO_HID_PACKET_SIZE - 1] = CalculateCRC8(packet, SKYDIMO_HID_PACKET_SIZE - 1);
+    // Calculate CRC8 over the first 63 bytes of the report (buf[0] to buf[62])
+    buf[63] = crc8(buf, 63);
 
-    int bytes_written = hid_write(dev, packet, SKYDIMO_HID_PACKET_SIZE);
-
-    if(bytes_written != SKYDIMO_HID_PACKET_SIZE)
-    {
-        LOG_ERROR("[SkydimoHIDController] Failed to write RGB packet at LED %u (%d/%u bytes): %ls",
-                  (unsigned int)start_led, bytes_written, (unsigned int)SKYDIMO_HID_PACKET_SIZE, hid_error(dev));
-        return(false);
-    }
-
-    return(true);
+    hid_write(dev, buf, 64);
 }
 
 void SkydimoHIDController::SetLEDs(const std::vector<RGBColor>& colors)
 {
-    std::lock_guard<std::mutex> guard(device_mutex);
-
-    unsigned char frame_data[SKYDIMO_HID_FRAME_SIZE];
+    // Frame size: 49 LEDs * 3 = 147 bytes in GRB format
+    unsigned char frame_data[147];
     memset(frame_data, 0, sizeof(frame_data));
 
-    /*-----------------------------------------------------*\
-    | Convert colors to GRB format                          |
-    \*-----------------------------------------------------*/
-    for(unsigned int led_idx = 0; (led_idx < colors.size()) && (led_idx < SKYDIMO_HID_LED_COUNT); led_idx++)
+    // Convert colors to GRB format
+    for (size_t i = 0; i < colors.size() && i < 49; i++)
     {
-        unsigned int color_offset = led_idx * SKYDIMO_HID_BYTES_PER_LED;
-
-        frame_data[color_offset + 0] = RGBGetGValue(colors[led_idx]);
-        frame_data[color_offset + 1] = RGBGetRValue(colors[led_idx]);
-        frame_data[color_offset + 2] = RGBGetBValue(colors[led_idx]);
+        frame_data[i * 3 + 0] = RGBGetGValue(colors[i]);
+        frame_data[i * 3 + 1] = RGBGetRValue(colors[i]);
+        frame_data[i * 3 + 2] = RGBGetBValue(colors[i]);
     }
 
-    /*-----------------------------------------------------*\
-    | Send the frame in packet-sized chunks                 |
-    \*-----------------------------------------------------*/
-    for(unsigned int frame_offset = 0; frame_offset < SKYDIMO_HID_FRAME_SIZE; frame_offset += SKYDIMO_HID_PACKET_DATA_SIZE)
-    {
-        unsigned int bytes_remaining = SKYDIMO_HID_FRAME_SIZE - frame_offset;
-        unsigned int chunk_length    = (bytes_remaining < SKYDIMO_HID_PACKET_DATA_SIZE)
-                                     ? bytes_remaining
-                                     : SKYDIMO_HID_PACKET_DATA_SIZE;
-        unsigned char start_led      = (unsigned char)(frame_offset / SKYDIMO_HID_BYTES_PER_LED);
+    // Send the frame in 3 packets
+    // Packet 0: starts at 0, length 60
+    SendPacket(0, &frame_data[0], 60);
 
-        if(!SendPacket(start_led, &frame_data[frame_offset], chunk_length))
-        {
-            return;
-        }
-    }
+    // Packet 1: starts at 20 (which is index 60), length 60
+    SendPacket(20, &frame_data[60], 60);
 
-    /*-----------------------------------------------------*\
-    | Send the frame-end packet                             |
-    \*-----------------------------------------------------*/
-    unsigned char end_packet[SKYDIMO_HID_PACKET_SIZE];
-    memset(end_packet, 0x00, sizeof(end_packet));
+    // Packet 2: starts at 40 (which is index 120), length 27
+    SendPacket(40, &frame_data[120], 27);
 
-    end_packet[0]                                 = SKYDIMO_HID_REPORT_ID;
-    end_packet[SKYDIMO_HID_END_COMMAND_INDEX]     = SKYDIMO_HID_END_COMMAND_VALUE;
-    end_packet[SKYDIMO_HID_END_SUBCOMMAND_INDEX]  = SKYDIMO_HID_END_SUBCOMMAND_VALUE;
-    end_packet[SKYDIMO_HID_END_LED_COUNT_INDEX]   = SKYDIMO_HID_LED_COUNT;
-    end_packet[SKYDIMO_HID_END_MARKER_INDEX]      = SKYDIMO_HID_END_MARKER_VALUE;
+    // Send the end packet
+    unsigned char end_buf[64];
+    memset(end_buf, 0x00, sizeof(end_buf));
 
-    int bytes_written = hid_write(dev, end_packet, SKYDIMO_HID_PACKET_SIZE);
+    end_buf[0] = 0x01; // Report ID 1
+    end_buf[1] = 0xFF;
+    end_buf[2] = 0xFF;
+    end_buf[3] = 0x31;
+    end_buf[60] = 0x1E;
 
-    if(bytes_written != SKYDIMO_HID_PACKET_SIZE)
-    {
-        LOG_ERROR("[SkydimoHIDController] Failed to write frame-end packet (%d/%u bytes): %ls",
-                  bytes_written, (unsigned int)SKYDIMO_HID_PACKET_SIZE, hid_error(dev));
-    }
+    hid_write(dev, end_buf, 64);
 }
