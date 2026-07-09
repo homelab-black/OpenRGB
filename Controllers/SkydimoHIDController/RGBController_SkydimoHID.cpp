@@ -60,7 +60,7 @@ void RGBController_SkydimoHID::SetupZones()
     // Construct matrix map
     std::vector<unsigned int> map(7 * 7, -1);
 
-    for(unsigned int i = 0; i < 49; i++)
+    for (unsigned int i = 0; i < 49; i++)
     {
         int col = vLedPositions[i][0];
         int row = vLedPositions[i][1];
@@ -70,7 +70,7 @@ void RGBController_SkydimoHID::SetupZones()
 
     zones.push_back(led_zone);
 
-    for(unsigned int led_idx = 0; led_idx < 49; led_idx++)
+    for (unsigned int led_idx = 0; led_idx < 49; led_idx++)
     {
         led new_led;
         new_led.name = "LED ";
