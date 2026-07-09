@@ -44,7 +44,7 @@ SkydimoHIDController::SkydimoHIDController(hid_device* dev_handle, const char* p
     int ret;
 
     ret = hid_get_manufacturer_string(dev, name_string, 255);
-    if (ret == 0)
+    if(ret == 0)
     {
         device_name = StringUtils::wstring_to_string(name_string);
     }
@@ -54,7 +54,7 @@ SkydimoHIDController::SkydimoHIDController(hid_device* dev_handle, const char* p
     }
 
     ret = hid_get_product_string(dev, name_string, 255);
-    if (ret == 0)
+    if(ret == 0)
     {
         device_name.append(" ").append(StringUtils::wstring_to_string(name_string));
     }
@@ -65,7 +65,7 @@ SkydimoHIDController::SkydimoHIDController(hid_device* dev_handle, const char* p
 
     wchar_t serial_string[128];
     ret = hid_get_serial_number_string(dev, serial_string, 128);
-    if (ret == 0)
+    if(ret == 0)
     {
         serial = StringUtils::wstring_to_string(serial_string);
     }
