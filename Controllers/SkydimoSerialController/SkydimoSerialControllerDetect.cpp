@@ -21,11 +21,11 @@ DetectedControllers DetectSkydimoSerialControllers()
     DetectedControllers         detected_controllers;
     std::vector<std::string>    ports = find_usb_serial_port(SKYDIMO_SERIAL_VID, SKYDIMO_SERIAL_PID);
 
-    for(unsigned int port_idx = 0; port_idx < ports.size(); port_idx++)
+    for (unsigned int port_idx = 0; port_idx < ports.size(); port_idx++)
     {
         SkydimoSerialController* controller = new SkydimoSerialController(ports[port_idx]);
 
-        if(controller->IsPresent())
+        if (controller->IsPresent())
         {
             RGBController_SkydimoSerial* rgb_controller = new RGBController_SkydimoSerial(controller);
             detected_controllers.push_back(rgb_controller);
