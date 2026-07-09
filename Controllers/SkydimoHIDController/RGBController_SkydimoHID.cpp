@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_SkydimoHID.cpp                              |
+| RGBController_SkydimoHID.cpp                             |
 |                                                           |
 |   RGBController for Skydimo HID devices                   |
 |                                                           |
@@ -8,17 +8,6 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_SkydimoHID.h"
-
-const int vLedPositions[49][2] =
-{
-    {0, 6}, {0, 5}, {0, 4}, {0, 3}, {0, 2}, {0, 1}, {0, 0},
-    {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6},
-    {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0},
-    {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6},
-    {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0},
-    {5, 0}, {5, 1}, {5, 2}, {5, 3}, {5, 4}, {5, 5}, {5, 6},
-    {6, 6}, {6, 5}, {6, 4}, {6, 3}, {6, 2}, {6, 1}, {6, 0}
-};
 
 RGBController_SkydimoHID::RGBController_SkydimoHID(SkydimoHIDController* controller_ptr)
 {
@@ -59,18 +48,26 @@ void RGBController_SkydimoHID::SetupZones()
 
     // Construct matrix map
     std::vector<unsigned int> map(7 * 7, -1);
-
-    for (unsigned int i = 0; i < 49; i++)
+    const int vKeyPositions[49][2] = {
+        {0, 6}, {0, 5}, {0, 4}, {0, 3}, {0, 2}, {0, 1}, {0, 0},
+        {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6},
+        {2, 6}, {2, 5}, {2, 4}, {2, 3}, {2, 2}, {2, 1}, {2, 0},
+        {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6},
+        {4, 6}, {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0},
+        {5, 0}, {5, 1}, {5, 2}, {5, 3}, {5, 4}, {5, 5}, {5, 6},
+        {6, 6}, {6, 5}, {6, 4}, {6, 3}, {6, 2}, {6, 1}, {6, 0}
+    };
+    for(unsigned int i = 0; i < 49; i++)
     {
-        int col = vLedPositions[i][0];
-        int row = vLedPositions[i][1];
+        int col = vKeyPositions[i][0];
+        int row = vKeyPositions[i][1];
         map[row * 7 + col] = i;
     }
     led_zone.matrix_map.map = map;
 
     zones.push_back(led_zone);
 
-    for (unsigned int led_idx = 0; led_idx < 49; led_idx++)
+    for(unsigned int led_idx = 0; led_idx < 49; led_idx++)
     {
         led new_led;
         new_led.name = "LED ";
