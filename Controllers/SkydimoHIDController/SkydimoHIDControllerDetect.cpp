@@ -22,7 +22,7 @@ DetectedControllers DetectSkydimoHID(hid_device_info* info, const std::string&)
 
     dev = hid_open_path(info->path);
 
-    if(dev)
+    if (dev)
     {
         SkydimoHIDController*       controller     = new SkydimoHIDController(dev, info->path);
         RGBController_SkydimoHID*   rgb_controller = new RGBController_SkydimoHID(controller);

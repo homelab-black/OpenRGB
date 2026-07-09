@@ -94,9 +94,9 @@ static std::string StringToUpper(const std::string& value)
 
 static const SkydimoModelEntry* FindModelEntry(const std::string& model)
 {
-    for(const SkydimoModelEntry& entry: skydimo_model_entries)
+    for (const SkydimoModelEntry& entry: skydimo_model_entries)
     {
-        if(model == entry.model)
+        if (model == entry.model)
         {
             return &entry;
         }
@@ -112,7 +112,7 @@ static std::string BytesToHex(const std::vector<unsigned char>& bytes, std::size
 
     result.reserve((bytes.size() - offset) * 2);
 
-    for(std::size_t idx = offset; idx < bytes.size(); idx++)
+    for (std::size_t idx = offset; idx < bytes.size(); idx++)
     {
         result.push_back(hex[(bytes[idx] >> 4) & 0x0F]);
         result.push_back(hex[bytes[idx] & 0x0F]);
@@ -144,7 +144,7 @@ SkydimoSerialController::~SkydimoSerialController()
 
 bool SkydimoSerialController::IsPresent()
 {
-    if(present)
+    if (present)
     {
         return true;
     }
@@ -157,9 +157,9 @@ void SkydimoSerialController::DrainInput()
 {
     char buffer[64];
 
-    for(unsigned int attempt = 0; attempt < 8; attempt++)
+    for (unsigned int attempt = 0; attempt < 8; attempt++)
     {
-        if(serialport.serial_read(buffer, sizeof(buffer)) <= 0)
+        if (serialport.serial_read(buffer, sizeof(buffer)) <= 0)
         {
             break;
         }
@@ -168,7 +168,7 @@ void SkydimoSerialController::DrainInput()
 
 bool SkydimoSerialController::QueryInfo()
 {
-    if(!port_open)
+    if (!port_open)
     {
         return false;
     }
@@ -176,39 +176,39 @@ bool SkydimoSerialController::QueryInfo()
     DrainInput();
 
     char query[] = "Moni-A";
-    if(serialport.serial_write(query, 6) != 6)
+    if (serialport.serial_write(query, 6) != 6)
     {
         return false;
     }
 
     std::vector<unsigned char> response;
 
-    for(unsigned int attempt = 0; attempt < 10; attempt++)
+    for (unsigned int attempt = 0; attempt < 10; attempt++)
     {
         char buffer[64];
         int bytes_read = serialport.serial_read(buffer, sizeof(buffer));
 
-        if(bytes_read < 0)
+        if (bytes_read < 0)
         {
             return false;
         }
 
-        if(bytes_read > 0)
+        if (bytes_read > 0)
         {
             response.insert(response.end(), buffer, buffer + bytes_read);
         }
 
-        if(response.size() >= 63)
+        if (response.size() >= 63)
         {
             break;
         }
 
-        if(!response.empty())
+        if (!response.empty())
         {
             unsigned char last = response[response.size() - 1];
             unsigned char prev = response.size() >= 2 ? response[response.size() - 2] : 0;
 
-            if((last == '\r') || (last == '\n') || (prev == '\r'))
+            if ((last == '\r') || (last == '\n') || (prev == '\r'))
             {
                 break;
             }
@@ -220,12 +220,12 @@ bool SkydimoSerialController::QueryInfo()
         response.pop_back();
     }
 
-    if(response.size() < 6)
+    if (response.size() < 6)
     {
         return false;
     }
 
-    if((std::toupper(response[0]) != 'S') || (std::toupper(response[1]) != 'K'))
+    if ((std::toupper(response[0]) != 'S') || (std::toupper(response[1]) != 'K'))
     {
         return false;
     }
@@ -235,10 +235,10 @@ bool SkydimoSerialController::QueryInfo()
     serial_id = "000000";
 
     std::vector<unsigned char>::iterator comma = std::find(response.begin(), response.end(), ',');
-    if(comma != response.end())
+    if (comma != response.end())
     {
         std::size_t comma_offset = static_cast<std::size_t>(comma - response.begin());
-        if(comma_offset < 6)
+        if (comma_offset < 6)
         {
             return false;
         }
@@ -262,7 +262,7 @@ void SkydimoSerialController::ConfigureOutput()
     matrix_height   = 0;
     matrix_map.clear();
 
-    if((entry == nullptr) || (entry->layout == SkydimoLayoutKind::None))
+    if ((entry == nullptr) || (entry->layout == SkydimoLayoutKind::None))
     {
         return;
     }
@@ -272,7 +272,7 @@ void SkydimoSerialController::ConfigureOutput()
     leds_min    = entry->total;
     leds_max    = entry->total;
 
-    if(entry->layout == SkydimoLayoutKind::Strip1)
+    if (entry->layout == SkydimoLayoutKind::Strip1)
     {
         return;
     }
@@ -282,12 +282,12 @@ void SkydimoSerialController::ConfigureOutput()
     const unsigned int z3 = entry->zones[2];
     const unsigned int z4 = entry->zones[3];
 
-    if(entry->layout == SkydimoLayoutKind::Perimeter4)
+    if (entry->layout == SkydimoLayoutKind::Perimeter4)
     {
         matrix_height = std::max(z1, z3) + 2;
         matrix_width  = std::max(z2, z4) + 2;
     }
-    else if(entry->layout == SkydimoLayoutKind::Perimeter3)
+    else if (entry->layout == SkydimoLayoutKind::Perimeter3)
     {
         matrix_height = std::max(z1, z3) + 1;
         matrix_width  = z2 + 2;
@@ -303,13 +303,13 @@ void SkydimoSerialController::ConfigureOutput()
     unsigned int led_index = 0;
     auto set_cell = [&](unsigned int y, unsigned int x)
     {
-        if((y < matrix_height) && (x < matrix_width))
+        if ((y < matrix_height) && (x < matrix_width))
         {
             matrix_map[(y * matrix_width) + x] = led_index++;
         }
     };
 
-    if(entry->layout == SkydimoLayoutKind::Sides2)
+    if (entry->layout == SkydimoLayoutKind::Sides2)
     {
         unsigned int placed = 0;
         int y = static_cast<int>(matrix_height) - 2;
@@ -335,7 +335,7 @@ void SkydimoSerialController::ConfigureOutput()
         }
     }
 
-    if((entry->layout == SkydimoLayoutKind::Perimeter3) || (entry->layout == SkydimoLayoutKind::Perimeter4))
+    if ((entry->layout == SkydimoLayoutKind::Perimeter3) || (entry->layout == SkydimoLayoutKind::Perimeter4))
     {
         unsigned int placed = 0;
         int x = static_cast<int>(matrix_width) - 2;
@@ -347,7 +347,7 @@ void SkydimoSerialController::ConfigureOutput()
             x--;
         }
     }
-    else if(entry->layout == SkydimoLayoutKind::Sides2)
+    else if (entry->layout == SkydimoLayoutKind::Sides2)
     {
         unsigned int placed = 0;
         unsigned int y = 1;
@@ -371,7 +371,7 @@ void SkydimoSerialController::ConfigureOutput()
         y++;
     }
 
-    if(entry->layout == SkydimoLayoutKind::Perimeter4)
+    if (entry->layout == SkydimoLayoutKind::Perimeter4)
     {
         placed = 0;
         unsigned int x = 1;
@@ -387,7 +387,7 @@ void SkydimoSerialController::ConfigureOutput()
 
 bool SkydimoSerialController::WriteFrame(const std::vector<RGBColor>& colors, unsigned int count)
 {
-    if(!port_open)
+    if (!port_open)
     {
         return false;
     }
@@ -404,7 +404,7 @@ bool SkydimoSerialController::WriteFrame(const std::vector<RGBColor>& colors, un
     packet.push_back((count / 256) & 0xFF);
     packet.push_back(count & 0xFF);
 
-    for(unsigned int led_idx = 0; led_idx < count; led_idx++)
+    for (unsigned int led_idx = 0; led_idx < count; led_idx++)
     {
         packet.push_back(RGBGetRValue(colors[led_idx]));
         packet.push_back(RGBGetGValue(colors[led_idx]));
@@ -429,12 +429,12 @@ void SkydimoSerialController::SetBlack()
 
 void SkydimoSerialController::SetLEDCount(unsigned int led_count)
 {
-    if(!resizable)
+    if (!resizable)
     {
         return;
     }
 
-    if((led_count < leds_min) || (led_count > leds_max))
+    if ((led_count < leds_min) || (led_count > leds_max))
     {
         return;
     }

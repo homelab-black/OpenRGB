@@ -56,7 +56,7 @@ void RGBController_SkydimoSerial::ClearZoneData()
 
 void RGBController_SkydimoSerial::SetupZones()
 {
-    if(zones.empty())
+    if (zones.empty())
     {
         zone led_zone;
         led_zone.name       = "Output 1";
@@ -65,12 +65,12 @@ void RGBController_SkydimoSerial::SetupZones()
         led_zone.leds_max   = controller->GetMaxLEDCount();
         led_zone.leds_count = controller->GetLEDCount();
 
-        if(controller->IsResizable())
+        if (controller->IsResizable())
         {
             led_zone.flags  = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE;
         }
 
-        if(led_zone.type == ZONE_TYPE_MATRIX)
+        if (led_zone.type == ZONE_TYPE_MATRIX)
         {
             led_zone.matrix_map.height    = controller->GetMatrixHeight();
             led_zone.matrix_map.width     = controller->GetMatrixWidth();
@@ -81,7 +81,7 @@ void RGBController_SkydimoSerial::SetupZones()
     }
 
     leds.clear();
-    for(unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
+    for (unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
     {
         led new_led;
         new_led.name = "LED ";
@@ -95,7 +95,7 @@ void RGBController_SkydimoSerial::SetupZones()
 
 void RGBController_SkydimoSerial::DeviceConfigureZone(int zone_idx)
 {
-    if(static_cast<unsigned int>(zone_idx) < zones.size())
+    if (static_cast<unsigned int>(zone_idx) < zones.size())
     {
         controller->SetLEDCount(zones[zone_idx].leds_count);
         SetupZones();
