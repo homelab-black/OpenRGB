@@ -1,7 +1,7 @@
 /*---------------------------------------------------------*\
-| SkydimoSerialController.cpp                              |
+| SkydimoSerialController.cpp                               |
 |                                                           |
-|   Driver for Skydimo serial devices                      |
+|   Driver for Skydimo serial devices                       |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
