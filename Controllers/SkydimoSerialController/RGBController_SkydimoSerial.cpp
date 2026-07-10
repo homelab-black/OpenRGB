@@ -67,7 +67,11 @@ void RGBController_SkydimoSerial::SetupZones()
 
         if (controller->IsResizable())
         {
-            led_zone.flags  = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE;
+            led_zone.flags  = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE
+                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_NAME
+                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_TYPE
+                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_MATRIX_MAP
+                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_SEGMENTS;
         }
 
         if (led_zone.type == ZONE_TYPE_MATRIX)
