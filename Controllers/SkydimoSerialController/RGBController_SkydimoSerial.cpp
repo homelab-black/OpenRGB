@@ -3,11 +3,12 @@
 |                                                           |
 |   RGBController for Skydimo serial devices                |
 |                                                           |
+|   Bartholomew Ho <qiangqiang101@hotmail.com>  30 Jun 2026 |
+|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include <algorithm>
 #include "RGBController_SkydimoSerial.h"
 
 /**------------------------------------------------------------------*\
@@ -32,64 +33,73 @@ RGBController_SkydimoSerial::RGBController_SkydimoSerial(SkydimoSerialController
     serial              = controller->GetSerial();
     location            = controller->GetLocation();
 
-    mode Direct;
-    Direct.name         = "Direct";
-    Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
-    Direct.color_mode   = MODE_COLORS_PER_LED;
-    modes.push_back(Direct);
+    mode direct_mode;
+    direct_mode.name        = "Direct";
+    direct_mode.value       = 0;
+    direct_mode.flags       = MODE_FLAG_HAS_PER_LED_COLOR;
+    direct_mode.color_mode  = MODE_COLORS_PER_LED;
+    modes.push_back(direct_mode);
 
     SetupZones();
 }
 
 RGBController_SkydimoSerial::~RGBController_SkydimoSerial()
 {
-    controller->SetBlack();
-    ClearZoneData();
-    delete controller;
-}
+    Shutdown();
 
-void RGBController_SkydimoSerial::ClearZoneData()
-{
-    zones.clear();
-    leds.clear();
+    controller->SetBlack();
+    delete controller;
 }
 
 void RGBController_SkydimoSerial::SetupZones()
 {
-    if (zones.empty())
-    {
-        zone led_zone;
-        led_zone.name       = "Output 1";
-        led_zone.type       = controller->GetMatrixMap().empty() ? ZONE_TYPE_LINEAR : ZONE_TYPE_MATRIX;
-        led_zone.leds_min   = controller->GetMinLEDCount();
-        led_zone.leds_max   = controller->GetMaxLEDCount();
-        led_zone.leds_count = controller->GetLEDCount();
-
-        if (controller->IsResizable())
-        {
-            led_zone.flags  = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE
-                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_NAME
-                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_TYPE
-                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_MATRIX_MAP
-                            | ZONE_FLAG_MANUALLY_CONFIGURABLE_SEGMENTS;
-        }
-
-        if (led_zone.type == ZONE_TYPE_MATRIX)
-        {
-            led_zone.matrix_map.height    = controller->GetMatrixHeight();
-            led_zone.matrix_map.width     = controller->GetMatrixWidth();
-            led_zone.matrix_map.map       = controller->GetMatrixMap();
-        }
-
-        zones.push_back(led_zone);
-    }
+    bool first_run = zones.empty();
 
     leds.clear();
-    for (unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
+    colors.clear();
+    zones.resize(1);
+
+    zones[0].leds_min = controller->GetMinLEDCount();
+    zones[0].leds_max = controller->GetMaxLEDCount();
+
+    if(first_run)
+    {
+        if(controller->IsResizable())
+        {
+            zones[0].flags = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE
+                           | ZONE_FLAG_MANUALLY_CONFIGURABLE_NAME
+                           | ZONE_FLAG_MANUALLY_CONFIGURABLE_TYPE
+                           | ZONE_FLAG_MANUALLY_CONFIGURABLE_MATRIX_MAP
+                           | ZONE_FLAG_MANUALLY_CONFIGURABLE_SEGMENTS;
+        }
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_NAME))
+    {
+        zones[0].name = "Output 1";
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_SIZE))
+    {
+        zones[0].leds_count = controller->GetLEDCount();
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_TYPE))
+    {
+        zones[0].type = controller->GetMatrixMap().empty() ? ZONE_TYPE_LINEAR : ZONE_TYPE_MATRIX;
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_MATRIX_MAP))
+    {
+        zones[0].matrix_map.height = controller->GetMatrixHeight();
+        zones[0].matrix_map.width  = controller->GetMatrixWidth();
+        zones[0].matrix_map.map    = controller->GetMatrixMap();
+    }
+
+    for(unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
     {
         led new_led;
-        new_led.name = "LED ";
-        new_led.name.append(std::to_string(led_idx));
+        new_led.name = zones[0].name + ", LED " + std::to_string(led_idx + 1);
 
         leds.push_back(new_led);
     }
@@ -99,9 +109,20 @@ void RGBController_SkydimoSerial::SetupZones()
 
 void RGBController_SkydimoSerial::DeviceConfigureZone(int zone_idx)
 {
-    if (static_cast<unsigned int>(zone_idx) < zones.size())
+    unsigned int zone_index = (unsigned int)zone_idx;
+
+    if(zone_index < zones.size())
     {
-        controller->SetLEDCount(zones[zone_idx].leds_count);
+        if(zones[zone_index].flags & ZONE_FLAG_MANUALLY_CONFIGURED_SIZE)
+        {
+            controller->SetLEDCount(zones[zone_index].leds_count);
+        }
+        else
+        {
+            controller->SetLEDCount(controller->GetMinLEDCount());
+        }
+
+        zones[zone_index].leds_count = controller->GetLEDCount();
         SetupZones();
     }
 }
@@ -111,17 +132,16 @@ void RGBController_SkydimoSerial::DeviceUpdateLEDs()
     controller->SetLEDs(colors);
 }
 
-void RGBController_SkydimoSerial::DeviceUpdateZoneLEDs(int /*zone*/)
+void RGBController_SkydimoSerial::DeviceUpdateZoneLEDs(int)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_SkydimoSerial::DeviceUpdateSingleLED(int /*led*/)
+void RGBController_SkydimoSerial::DeviceUpdateSingleLED(int)
 {
     DeviceUpdateLEDs();
 }
 
 void RGBController_SkydimoSerial::DeviceUpdateMode()
 {
-
 }

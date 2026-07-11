@@ -3,6 +3,8 @@
 |                                                           |
 |   RGBController for Skydimo serial devices                |
 |                                                           |
+|   Bartholomew Ho <qiangqiang101@hotmail.com>  30 Jun 2026 |
+|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
@@ -27,7 +29,5 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    void        ClearZoneData();
-
     SkydimoSerialController* controller;
 };
