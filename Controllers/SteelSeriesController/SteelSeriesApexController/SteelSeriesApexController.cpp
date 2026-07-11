@@ -36,23 +36,26 @@ static unsigned int keys[] =
     0x63, 0xFB
 };
 
-inline static const std::map<std::string, protocol_quirk> protocol_map =
+inline static const std::map<unsigned short, protocol_quirk> protocol_map =
 {
-    {APEX_9_TKL_NAME,                   APEX_GEN2},
-    {APEX_9_MINI_NAME,                  APEX_GEN2},
-    {APEX_PRO_2023_WIRED_NAME,          APEX_GEN2},
-    {APEX_PRO_2023_WIRELESS_NAME,       APEX_GEN3},
-    {APEX_PRO_TKL_GEN3_NAME,            APEX_GEN3},
-    {APEX_PRO_TKL_GEN3_WIRELESS_NAME,   APEX_GEN3}
+    {STEELSERIES_APEX_9_TKL_PID,             APEX_GEN2},
+    {STEELSERIES_APEX_9_MINI_PID,            APEX_GEN2},
+    {STEELSERIES_APEX_PRO_TKL_2023_PID,      APEX_GEN2},
+    {STEELSERIES_APEX_PRO_TKL_2023_WL_PID_1, APEX_GEN3},
+    {STEELSERIES_APEX_PRO_TKL_2023_WL_PID_2, APEX_GEN3},
+    {STEELSERIES_APEX_PRO_TKL_GEN3_PID,      APEX_GEN3},
+    {STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_1, APEX_GEN3},
+    {STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_2, APEX_GEN3},
 };
 
-SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, std::string dev_name) : SteelSeriesApexBaseController(dev_handle, path, dev_name)
+SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, unsigned short pid, std::string dev_name) : SteelSeriesApexBaseController(dev_handle, path, dev_name)
 {
     proto_type = type;
     kbd_quirk = APEX_GEN1;
-    if(protocol_map.count(dev_name) > 0)
+    device_pid = pid;
+    if(protocol_map.count(device_pid) > 0)
     {
-        kbd_quirk = protocol_map.at(dev_name);
+        kbd_quirk = protocol_map.at(device_pid);
     }
     SendInitialization();
 }
@@ -108,8 +111,10 @@ void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
         | protocol, make sure to place their model here and |
         | further below when developing.                    |
         \*-------------------------------------------------*/
-        if(name == APEX_PRO_2023_WIRELESS_NAME ||
-           name == APEX_PRO_TKL_GEN3_WIRELESS_NAME)
+        if(device_pid == STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_1 ||
+           device_pid == STEELSERIES_APEX_PRO_TKL_GEN3_WL_PID_2 ||
+           device_pid == STEELSERIES_APEX_PRO_TKL_2023_WL_PID_1 ||
+           device_pid == STEELSERIES_APEX_PRO_TKL_2023_WL_PID_2)
         {
              packet_id = APEX_2023_PACKET_ID_DIRECT_WIRELESS;
         }
@@ -170,9 +175,9 @@ void SteelSeriesApexController::SendInitialization()
     /*---------------------------------------------------*\
     | Check models which can be Gen 3 via firmware update |
     \*---------------------------------------------------*/
-    if(name == APEX_PRO_2023_WIRED_NAME ||
-       name == APEX_9_TKL_NAME          ||
-       name == APEX_9_MINI_NAME)
+    if(device_pid == STEELSERIES_APEX_PRO_TKL_PID ||
+       device_pid == STEELSERIES_APEX_9_TKL_PID   ||
+       device_pid == STEELSERIES_APEX_9_MINI_PID)
     {
         std::string fwver = GetVersion();
         fwver.erase(0,4);
@@ -249,7 +254,7 @@ std::string SteelSeriesApexController::GetSerial()
 
     memset(obuf, 0x00, sizeof(obuf));
 
-    if(name == APEX_PRO_TKL_GEN3_NAME)
+    if(device_pid == STEELSERIES_APEX_PRO_TKL_GEN3_PID)
     {
         obuf[0x00] = 0;
         obuf[0x01] = APEX_2023_PACKET_ID_REGION;
@@ -283,11 +288,11 @@ std::string SteelSeriesApexController::GetSerial()
             }
         }
     }
-    if(name == APEX_9_TKL_NAME)
+    if(device_pid == STEELSERIES_APEX_9_TKL_PID)
     {
         return "64847";
     }
-    if(name == APEX_9_MINI_NAME)
+    if(device_pid == STEELSERIES_APEX_9_MINI_PID)
     {
         return "64837";
     }

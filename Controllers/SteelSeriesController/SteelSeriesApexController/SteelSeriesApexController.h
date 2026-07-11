@@ -18,13 +18,13 @@
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
-#include "SteelSeriesGeneric.h"
+#include "SteelSeriesDevices.h"
 #include "SteelSeriesApexBaseController.h"
 
 class SteelSeriesApexController : public SteelSeriesApexBaseController
 {
 public:
-    SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, std::string dev_name);
+    SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, unsigned short pid, std::string dev_name);
     ~SteelSeriesApexController();
     void SetMode(unsigned char mode, std::vector<RGBColor> colors) override;
     void SetLEDsDirect(std::vector<RGBColor> colors) override;

@@ -13,21 +13,12 @@
 
 #include <cstring>
 #include <string>
+#include <hidapi.h>
 #include "RGBController.h"
-#include "SteelSeriesGeneric.h"
+#include "SteelSeriesDevices.h"
 
 #define STEELSERIES_PACKET_IN_SIZE      64
 #define STEELSERIES_PACKET_OUT_SIZE     STEELSERIES_PACKET_IN_SIZE + 1
-
-/*-------------------------------------------------*\
-| Keyboard names with protocol quirk code           |
-\*-------------------------------------------------*/
-#define APEX_9_TKL_NAME                 "SteelSeries Apex 9 TKL"
-#define APEX_9_MINI_NAME                "SteelSeries Apex 9 Mini"
-#define APEX_PRO_2023_WIRED_NAME        "SteelSeries Apex Pro TKL 2023 Wired"
-#define APEX_PRO_2023_WIRELESS_NAME     "SteelSeries Apex Pro TKL 2023 Wireless"
-#define APEX_PRO_TKL_GEN3_NAME          "SteelSeries Apex Pro TKL Gen 3 Wired"
-#define APEX_PRO_TKL_GEN3_WIRELESS_NAME "SteelSeries Apex Pro TKL Gen 3 Wireless"
 
 /*-------------------------------------------------*\
 | Protocol quirk applicability                      |
@@ -92,5 +83,6 @@ protected:
     std::string         location;
     std::string         name;
     protocol_quirk      kbd_quirk;
+    unsigned short      device_pid;
     unsigned char       reset_cmd;
 };
