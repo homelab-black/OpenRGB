@@ -7,6 +7,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <functional>
 #include "SkydimoSerialController.h"
 
 #include <algorithm>
@@ -215,7 +216,7 @@ bool SkydimoSerialController::QueryInfo()
         }
     }
 
-    while(!response.empty() && ((response.back() == '\r') || (response.back() == '\n')))
+    while (!response.empty() && ((response.back() == '\r') || (response.back() == '\n')))
     {
         response.pop_back();
     }
@@ -301,7 +302,7 @@ void SkydimoSerialController::ConfigureOutput()
     matrix_map.assign(matrix_width * matrix_height, SKYDIMO_MATRIX_NA);
 
     unsigned int led_index = 0;
-    auto set_cell = [&](unsigned int y, unsigned int x)
+    std::function<void(unsigned int, unsigned int)> set_cell = [&](unsigned int y, unsigned int x)
     {
         if ((y < matrix_height) && (x < matrix_width))
         {
@@ -314,7 +315,7 @@ void SkydimoSerialController::ConfigureOutput()
         unsigned int placed = 0;
         int y = static_cast<int>(matrix_height) - 2;
 
-        while((placed < z1) && (y >= 1))
+        while ((placed < z1) && (y >= 1))
         {
             set_cell(static_cast<unsigned int>(y), 0);
             placed++;
@@ -327,7 +328,7 @@ void SkydimoSerialController::ConfigureOutput()
         int y = entry->layout == SkydimoLayoutKind::Perimeter3 ? static_cast<int>(matrix_height) - 1
                                                                : static_cast<int>(matrix_height) - 2;
 
-        while((placed < z1) && (y >= 1))
+        while ((placed < z1) && (y >= 1))
         {
             set_cell(static_cast<unsigned int>(y), matrix_width - 1);
             placed++;
@@ -340,7 +341,7 @@ void SkydimoSerialController::ConfigureOutput()
         unsigned int placed = 0;
         int x = static_cast<int>(matrix_width) - 2;
 
-        while((placed < z2) && (x >= 1))
+        while ((placed < z2) && (x >= 1))
         {
             set_cell(0, static_cast<unsigned int>(x));
             placed++;
@@ -352,7 +353,7 @@ void SkydimoSerialController::ConfigureOutput()
         unsigned int placed = 0;
         unsigned int y = 1;
 
-        while((placed < z2) && (y <= (matrix_height - 2)))
+        while ((placed < z2) && (y <= (matrix_height - 2)))
         {
             set_cell(y, matrix_width - 1);
             placed++;
@@ -364,7 +365,7 @@ void SkydimoSerialController::ConfigureOutput()
     unsigned int placed = 0;
     unsigned int y = 1;
 
-    while((placed < z3) && (y <= end_y))
+    while ((placed < z3) && (y <= end_y))
     {
         set_cell(y, 0);
         placed++;
@@ -376,7 +377,7 @@ void SkydimoSerialController::ConfigureOutput()
         placed = 0;
         unsigned int x = 1;
 
-        while((placed < z4) && (x <= (matrix_width - 2)))
+        while ((placed < z4) && (x <= (matrix_width - 2)))
         {
             set_cell(matrix_height - 1, x);
             placed++;
