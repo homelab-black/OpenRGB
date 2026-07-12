@@ -1518,40 +1518,75 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
         return;
     }
 
-    uint8_t recv[16] = {};
-    int result = SendAcked(feat_idx, LOTITECH_CMD_DEVICE_NAME_TYPE_GET_COUNT,
-                           nullptr, 0, recv, sizeof(recv));
-
-    if(result <= 0)
+    /*----------------------------------------------------------*\
+    | Rescan churn (notification bursts from the previous        |
+    | session's teardown) can garble or time out the first       |
+    | reads, so validate the length and retry the whole          |
+    | discovery. Never leave the name blank — a failed read      |
+    | falls back to the placeholder.                             |
+    \*----------------------------------------------------------*/
+    for(int attempt = 0; attempt < 3; attempt++)
     {
-        caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
-        return;
-    }
-
-    unsigned int name_length = recv[0];
-    caps.device_name.clear();
-
-    for(unsigned int offset = 0; offset < name_length; offset += 16)
-    {
-        uint8_t send_data[1] = { (uint8_t)offset };
-        result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_DEVICE_NAME,
-                           send_data, 1, recv, sizeof(recv));
+        uint8_t recv[16] = {};
+        int result = SendAcked(feat_idx, LOTITECH_CMD_DEVICE_NAME_TYPE_GET_COUNT,
+                               nullptr, 0, recv, sizeof(recv));
 
         if(result <= 0)
         {
-            break;
+            continue;
         }
 
-        unsigned int chunk_len = name_length - offset;
-        if(chunk_len > 16)
+        unsigned int name_length = recv[0];
+
+        if(name_length == 0 || name_length > 64)
         {
-            chunk_len = 16;
+            LOG_DEBUG("%s GetCount returned implausible name length %u (attempt %d)",
+                      LOG_TAG, name_length, attempt);
+            continue;
         }
 
-        caps.device_name.append((char*)recv, chunk_len);
+        std::string name;
+        bool        complete = true;
+
+        for(unsigned int offset = 0; offset < name_length; offset += 16)
+        {
+            uint8_t send_data[1] = { (uint8_t)offset };
+            result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_DEVICE_NAME,
+                               send_data, 1, recv, sizeof(recv));
+
+            if(result <= 0)
+            {
+                complete = false;
+                break;
+            }
+
+            unsigned int chunk_len = name_length - offset;
+            if(chunk_len > 16)
+            {
+                chunk_len = 16;
+            }
+
+            name.append((char*)recv, chunk_len);
+        }
+
+        while(!name.empty() && name.back() == '\0')
+        {
+            name.pop_back();
+        }
+
+        if(!complete || name.empty())
+        {
+            continue;
+        }
+
+        caps.device_name = name;
+        LOG_VERBOSE("%s Device name: %s", LOG_TAG, caps.device_name.c_str());
+        return;
     }
 
-    LOG_VERBOSE("%s Device name: %s", LOG_TAG, caps.device_name.c_str());
+    caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
+    LOG_WARNING("%s Device name discovery failed after retries, using placeholder",
+                LOG_TAG);
 }
 
 void LogitechHIDPP20Controller::DiscoverDeviceType()
@@ -1575,19 +1610,28 @@ void LogitechHIDPP20Controller::DiscoverDeviceType()
         return;
     }
 
-    uint8_t recv[16] = {};
-    int result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_TYPE,
-                           nullptr, 0, recv, sizeof(recv));
+    /*----------------------------------------------------------*\
+    | Retry like the name read: a timed-out type read under      |
+    | rescan churn would register a keyboard with a mouse        |
+    | layout.                                                    |
+    \*----------------------------------------------------------*/
+    for(int attempt = 0; attempt < 3; attempt++)
+    {
+        uint8_t recv[16] = {};
+        int result = SendAcked(feat_idx, LOGITECH_CMD_DEVICE_NAME_TYPE_GET_TYPE,
+                               nullptr, 0, recv, sizeof(recv));
 
-    if(result > 0)
-    {
-        caps.device_type = recv[0];
-        LOG_VERBOSE("%s Device type: %d", LOG_TAG, caps.device_type);
+        if(result > 0)
+        {
+            caps.device_type = recv[0];
+            LOG_VERBOSE("%s Device type: %d", LOG_TAG, caps.device_type);
+            return;
+        }
     }
-    else
-    {
-        caps.device_type = LOGITECH_DEVICE_TYPE_MOUSE;
-    }
+
+    caps.device_type = LOGITECH_DEVICE_TYPE_MOUSE;
+    LOG_WARNING("%s Device type discovery failed after retries, assuming mouse",
+                LOG_TAG);
 }
 
 void LogitechHIDPP20Controller::DiscoverTransport()
