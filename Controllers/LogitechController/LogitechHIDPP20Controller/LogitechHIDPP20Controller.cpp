@@ -1910,6 +1910,17 @@ void LogitechHIDPP20Controller::DiscoverFirmwareInfo()
                 }
             }
 
+            if(caps.quirks & HIDPP20_QUIRK_KEEP_ONBOARD_MODE)
+            {
+                LogitechHIDPP20IdleSettings::instance()->load();
+                if(LogitechHIDPP20IdleSettings::instance()->forceHostMode())
+                {
+                    caps.quirks &= ~HIDPP20_QUIRK_KEEP_ONBOARD_MODE;
+                    LOG_INFO("%s force_host_mode set: KEEP_ONBOARD_MODE quirk disabled",
+                             LOG_TAG);
+                }
+            }
+
             if(caps.quirks != 0)
             {
                 LOG_DEBUG("%s Device quirks: 0x%08X", LOG_TAG, caps.quirks);
@@ -3177,21 +3188,24 @@ void LogitechHIDPP20Controller::Shutdown()
     }
 
     /*---------------------------------------------------------*\
-    | Restore firmware mode                                     |
+    | Restore firmware mode (skip if we never left onboard)     |
     \*---------------------------------------------------------*/
-    if(caps.idx_profile_management != 0)
+    if(!(caps.quirks & HIDPP20_QUIRK_KEEP_ONBOARD_MODE))
     {
-        uint8_t data[1] = { 0x03 };
-        blankFAPmessage response;
-        SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
-                         data, 1, response);
-    }
-    else if(caps.idx_onboard_profiles != 0)
-    {
-        uint8_t data[1] = { 0x01 };
-        blankFAPmessage response;
-        SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
-                         data, 1, response);
+        if(caps.idx_profile_management != 0)
+        {
+            uint8_t data[1] = { 0x03 };
+            blankFAPmessage response;
+            SendAckedIntoFAP(caps.idx_profile_management, FN_8101_GET_SET_MODE,
+                             data, 1, response);
+        }
+        else if(caps.idx_onboard_profiles != 0)
+        {
+            uint8_t data[1] = { 0x01 };
+            blankFAPmessage response;
+            SendAckedIntoFAP(caps.idx_onboard_profiles, FN_8100_SET_ONBOARD_MODE,
+                             data, 1, response);
+        }
     }
 
     /*---------------------------------------------------------*\
@@ -3480,7 +3494,21 @@ bool LogitechHIDPP20Controller::ClaimSWControlIfNeeded()
 
     SetRGBPowerMode(1);
     WritePowerConfig(idle_timeout_s, sleep_timeout_s);
-    SetHostMode();
+
+    /*---------------------------------------------------------*\
+    | KEEP_ONBOARD_MODE (G915 TKL): host mode breaks the F-row  |
+    | (onboard-profile-mapped G-keys); per-key works onboard.   |
+    \*---------------------------------------------------------*/
+    if(caps.quirks & HIDPP20_QUIRK_KEEP_ONBOARD_MODE)
+    {
+        LOG_INFO("%s KEEP_ONBOARD_MODE quirk: skipping onboard->host switch",
+                 LOG_TAG);
+    }
+    else
+    {
+        SetHostMode();
+    }
+
     WritePowerConfig(idle_timeout_s, sleep_timeout_s);
 
     written_idle_s  = idle_timeout_s;

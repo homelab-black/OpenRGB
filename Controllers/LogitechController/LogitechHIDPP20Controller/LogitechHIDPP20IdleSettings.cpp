@@ -92,13 +92,17 @@ void LogitechHIDPP20IdleSettings::load()
     \*---------------------------------------------------------*/
     if(!settings.is_object() || settings.empty())
     {
-        configured = false;
-        on_battery = LogitechHIDPP20IdleProfile{};
-        plugged_in = LogitechHIDPP20IdleProfile{};
+        configured      = false;
+        force_host_mode = false;
+        on_battery      = LogitechHIDPP20IdleProfile{};
+        plugged_in      = LogitechHIDPP20IdleProfile{};
         return;
     }
 
     configured = true;
+
+    force_host_mode = settings.contains("force_host_mode")
+                    ? (bool)settings["force_host_mode"] : false;
 
     if(settings.contains("on_battery"))
     {
@@ -123,14 +127,21 @@ void LogitechHIDPP20IdleSettings::save()
 {
     json settings;
 
-    settings["on_battery"] = ProfileToJson(on_battery);
-    settings["plugged_in"] = ProfileToJson(plugged_in);
+    settings["on_battery"]      = ProfileToJson(on_battery);
+    settings["plugged_in"]      = ProfileToJson(plugged_in);
+    settings["force_host_mode"] = force_host_mode;
 
     SettingsManager* mgr = ResourceManager::get()->GetSettingsManager();
     mgr->SetSettings(SETTINGS_KEY, settings);
     mgr->SaveSettings();
 
     configured = true;
+}
+
+void LogitechHIDPP20IdleSettings::setForceHostMode(bool v)
+{
+    force_host_mode = v;
+    configured      = true;
 }
 
 void LogitechHIDPP20IdleSettings::setOnBattery(const LogitechHIDPP20IdleProfile& p)

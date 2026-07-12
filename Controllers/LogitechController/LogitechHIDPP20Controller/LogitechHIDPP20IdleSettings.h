@@ -35,6 +35,10 @@ public:
     const LogitechHIDPP20IdleProfile&  onBattery()    const { return on_battery; }
     const LogitechHIDPP20IdleProfile&  pluggedIn()    const { return plugged_in; }
 
+    /* Ignore HIDPP20_QUIRK_KEEP_ONBOARD_MODE (Solaar or the official app handles G-keys). Applied at device init. */
+    bool                               forceHostMode() const { return force_host_mode; }
+    void                               setForceHostMode(bool v);
+
     void                               setOnBattery(const LogitechHIDPP20IdleProfile& p);
     void                               setPluggedIn(const LogitechHIDPP20IdleProfile& p);
 
@@ -42,6 +46,7 @@ private:
     LogitechHIDPP20IdleSettings() = default;
 
     bool                       configured = false;
+    bool                       force_host_mode = false;
     LogitechHIDPP20IdleProfile on_battery;
     LogitechHIDPP20IdleProfile plugged_in;
 };
