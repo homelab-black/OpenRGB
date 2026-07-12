@@ -656,6 +656,7 @@ public:
     void            SetRepaintCallback(std::function<void()> repaint);
     void            SetReapplyActiveModeCallback(std::function<bool()> cb);
     void            SetRegisterCallback(std::function<void(RGBController*)> cb);
+    void            SetPairingName(const std::string& name);   /* receiver-stored codename; watcher label + name-read fallback */
     HIDPP20PowerState GetPowerState() const;
     int             GetDimBrightness() const;
     bool            IsOnline() const;
@@ -964,4 +965,5 @@ private:
     std::function<void()> request_repaint_fn;
     std::function<bool()> reapply_active_mode_fn;
     std::function<void(RGBController*)> register_controller_fn;
+    std::string                 pairing_name;   /* receiver-stored codename, "" if unknown */
 };

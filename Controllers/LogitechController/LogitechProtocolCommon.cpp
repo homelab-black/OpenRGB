@@ -138,6 +138,78 @@ int getWirelessDevice(usages device_usages, uint16_t pid, wireless_map *wireless
     return((int)wireless_devices->size());
 }
 
+std::string getWirelessDeviceName(usages device_usages, uint8_t device_index)
+{
+    usages::iterator find_usage = device_usages.find(1);
+
+    if(find_usage == device_usages.end() || device_index < 1)
+    {
+        return "";
+    }
+
+    hid_device* dev_use1 = find_usage->second;
+
+    /*-----------------------------------------------------------------*\
+    | GET_LONG_REGISTER 0xB5 (receiver info), sub 0x40 + N - 1 =        |
+    | extended pairing info: the codename the receiver stores for the   |
+    | paired device. Answered by the receiver itself, so it works even  |
+    | when the device is asleep.                                        |
+    \*-----------------------------------------------------------------*/
+    shortFAPrequest get_name;
+    get_name.init(LOGITECH_RECEIVER_DEVICE_INDEX, LOGITECH_GET_LONG_REGISTER_REQUEST);
+    get_name.feature_command = 0xB5;
+    get_name.data[0]         = (uint8_t)(0x40 + device_index - 1);
+
+    hid_write(dev_use1, get_name.buffer, get_name.size());
+
+    /*-----------------------------------------------------------------*\
+    | Read until the matching response; skip unrelated frames (link     |
+    | notifications etc.) up to a small budget.                          |
+    \*-----------------------------------------------------------------*/
+    for(int reads = 0; reads < 8; reads++)
+    {
+        blankFAPmessage response;
+        response.init();
+
+        int rd = hid_read_timeout(dev_use1, response.buffer, response.size(), LOGITECH_PROTOCOL_TIMEOUT);
+
+        if(rd <= 0)
+        {
+            break;
+        }
+
+        if(response.feature_index   != LOGITECH_GET_LONG_REGISTER_REQUEST ||
+           response.feature_command != 0xB5                               ||
+           response.data[0]         != (uint8_t)(0x40 + device_index - 1))
+        {
+            continue;
+        }
+
+        unsigned int name_len = response.data[1];
+
+        LOG_DEBUG("Pairing name reply idx=%u len=%u raw=[%02X %02X %02X %02X %02X %02X %02X %02X]",
+                  device_index, name_len,
+                  response.data[0], response.data[1], response.data[2], response.data[3],
+                  response.data[4], response.data[5], response.data[6], response.data[7]);
+
+        if(name_len == 0 || name_len > 14)
+        {
+            break;
+        }
+
+        std::string name((char*)&response.data[2], name_len);
+
+        while(!name.empty() && (name.back() == '\0' || name.back() == ' '))
+        {
+            name.pop_back();
+        }
+
+        return name;
+    }
+
+    return "";
+}
+
 logitech_device::logitech_device(char *path, usages _usages, uint8_t _device_index, bool _wireless)
 {
     device_index        = _device_index;

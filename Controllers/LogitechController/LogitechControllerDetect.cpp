@@ -774,7 +774,79 @@ void DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 usages BundleLogitechUsages(hid_device_info* info);   /* defined later in this file (legacy Lightspeed path) */
 
-static void RegisterLightspeedReceiverSlot(hid_device_info* info, uint8_t idx, std::shared_ptr<std::mutex> receiver_mutex)
+/*-------------------------------------------------------------------------------------------------*\
+| Pending watchers: controllers created for paired-but-asleep receiver slots. They run a probe      |
+| watcher until the device wakes, then register their RGB controller (hotplug-style, no rescan).    |
+| The pre-detection hook tears down leftovers so rescans don't accumulate watcher threads.          |
+\*-------------------------------------------------------------------------------------------------*/
+static std::vector<LogitechHIDPP20Controller*>  lightspeed_pending_watchers;
+static std::mutex                               lightspeed_pending_mutex;
+static bool                                     lightspeed_hook_registered = false;
+
+static void CleanupLightspeedPendingWatchers()
+{
+    std::vector<LogitechHIDPP20Controller*> doomed;
+
+    {
+        std::lock_guard<std::mutex> lock(lightspeed_pending_mutex);
+        doomed.swap(lightspeed_pending_watchers);
+    }
+
+    /*--------------------------------------------------------------*\
+    | Delete outside the lock: the destructor joins the watcher's    |
+    | power thread, which may be inside the register callback        |
+    | waiting on the same lock.                                      |
+    \*--------------------------------------------------------------*/
+    for(LogitechHIDPP20Controller* c : doomed)
+    {
+        delete c;
+    }
+}
+
+/*-------------------------------------------------------------------------------------------------*\
+| Attach the pending-watcher lifecycle to a controller: on wake it registers its RGB controller and |
+| hands ownership to ResourceManager; if the cleanup hook already claimed it, skip registration.    |
+\*-------------------------------------------------------------------------------------------------*/
+static void StartLightspeedSlotWatcher(LogitechHIDPP20Controller* controller, const std::string& pairing_name)
+{
+    controller->SetPairingName(pairing_name);
+
+    controller->SetRegisterCallback([controller](RGBController* rgb)
+    {
+        bool owned = false;
+
+        {
+            std::lock_guard<std::mutex> lock(lightspeed_pending_mutex);
+
+            for(size_t i = 0; i < lightspeed_pending_watchers.size(); i++)
+            {
+                if(lightspeed_pending_watchers[i] == controller)
+                {
+                    lightspeed_pending_watchers.erase(lightspeed_pending_watchers.begin() + i);
+                    owned = true;
+                    break;
+                }
+            }
+        }
+
+        if(owned)
+        {
+            ResourceManager::get()->RegisterRGBController(rgb);
+        }
+        /* else: cleanup hook owns the controller and is deleting it; drop the
+           unregistered wrapper (deleting it would double-free the controller). */
+    });
+
+    {
+        std::lock_guard<std::mutex> lock(lightspeed_pending_mutex);
+        lightspeed_pending_watchers.push_back(controller);
+    }
+
+    controller->StartProbeWatcher();
+}
+
+static void RegisterLightspeedReceiverSlot(hid_device_info* info, uint8_t idx, std::shared_ptr<std::mutex> receiver_mutex,
+                                           const std::string& pairing_name = "", bool watch_on_fail = false)
 {
     hid_device* dev = hid_open_path(info->path);
 
@@ -786,12 +858,24 @@ static void RegisterLightspeedReceiverSlot(hid_device_info* info, uint8_t idx, s
     LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(
         dev, info->path, idx, true, receiver_mutex, info->usage_page);
 
+    controller->SetPairingName(pairing_name);
+
     if(!controller->Probe())
     {
         /*--------------------------------------------------*\
-        | Slot is empty, stale, or not HID++ 2.0. Destructor |
-        | closes the per-slot handle we opened above.        |
+        | Slot didn't answer. If the pairing table says a    |
+        | device lives here, watch for it (it may have gone  |
+        | to sleep between the table read and the probe);    |
+        | otherwise it's empty/stale — drop it.              |
         \*--------------------------------------------------*/
+        if(watch_on_fail)
+        {
+            LOG_INFO("[Logitech receiver slot=%u] '%s' probe failed - watching for wake",
+                     idx, pairing_name.c_str());
+            StartLightspeedSlotWatcher(controller, pairing_name);
+            return;
+        }
+
         delete controller;
         return;
     }
@@ -854,9 +938,20 @@ void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::s
     std::map<uint8_t, bool>     online;
     int                         count           = 0;
 
+    std::map<uint8_t, std::string> pairing_names;
+
     if(have_rap)
     {
         count = getWirelessDevice(bundle, info->product_id, &wireless_devices, &online);
+
+        /*---------------------------------------------------------------------------------------------*\
+        | Receiver-stored codenames (extended pairing info): available even for asleep devices, and a    |
+        | fallback when the FAP name read flakes on awake ones.                                          |
+        \*---------------------------------------------------------------------------------------------*/
+        for(wireless_map::iterator wd = wireless_devices.begin(); wd != wireless_devices.end(); wd++)
+        {
+            pairing_names[wd->second] = getWirelessDeviceName(bundle, wd->second);
+        }
     }
 
     /*-------------------------------------------------------------------------------------------------*\
@@ -873,6 +968,16 @@ void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::s
     bundle.clear();
 
     std::shared_ptr<std::mutex> receiver_mutex  = std::make_shared<std::mutex>();
+
+    /*-------------------------------------------------------------------------------------------------*\
+    | Rescans must not accumulate watcher threads: tear down leftover pending watchers before each new   |
+    | detection pass.                                                                                    |
+    \*-------------------------------------------------------------------------------------------------*/
+    if(!lightspeed_hook_registered)
+    {
+        ResourceManager::get()->RegisterPreDetectionHook(CleanupLightspeedPendingWatchers);
+        lightspeed_hook_registered = true;
+    }
 
     /*-------------------------------------------------------------------------------------------------*\
     | Fallback: no usage-1 handle, or the pairing table reported nothing. Blindly probe slots 0x01..0x06 |
@@ -894,21 +999,31 @@ void DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::s
         uint16_t    dev_pid     = wd->first;
         uint8_t     idx         = wd->second;
         bool        is_online   = (online.find(idx) != online.end()) ? online[idx] : false;
+        std::string name        = pairing_names.count(idx) ? pairing_names[idx] : "";
 
         if(!is_online)
         {
             /*--------------------------------------------------------------*\
-            | Paired but not currently linked (asleep / powered off). The    |
-            | receiver knows it exists but a FAP probe can't reach it, so    |
-            | log it and move on rather than registering a dead controller.  |
-            | Phase 2 (gated on the reader-thread coordination TODO above)   |
-            | would register it pending and StartProbeWatcher() it online.   |
+            | Paired but not currently linked (asleep / powered off). A FAP  |
+            | probe can't reach it, so start a watcher: the device registers |
+            | itself (hotplug-style) as soon as it wakes — no rescan needed. |
             \*--------------------------------------------------------------*/
-            LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X asleep (paired, offline) - skipping until awake", info->product_id, idx, dev_pid);
+            LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X '%s' asleep - watching for wake",
+                     info->product_id, idx, dev_pid, name.c_str());
+
+            hid_device* dev = hid_open_path(info->path);
+
+            if(dev)
+            {
+                LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(
+                    dev, info->path, idx, true, receiver_mutex, info->usage_page);
+
+                StartLightspeedSlotWatcher(controller, name);
+            }
             continue;
         }
 
-        RegisterLightspeedReceiverSlot(info, idx, receiver_mutex);
+        RegisterLightspeedReceiverSlot(info, idx, receiver_mutex, name, true);
     }
 }
 

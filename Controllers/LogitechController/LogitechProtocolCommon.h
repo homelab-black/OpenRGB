@@ -30,6 +30,7 @@
 #define LOGITECH_RECEIVER_DEVICE_INDEX                  0xFF    //The Unifying receiver uses RAP or register access protocol
 #define LOGITECH_SET_REGISTER_REQUEST                   0x80
 #define LOGITECH_GET_REGISTER_REQUEST                   0x81
+#define LOGITECH_GET_LONG_REGISTER_REQUEST              0x83
 
 #define LOGITECH_HIDPP_PAGE_ROOT_IDX                    0x00    //Used for querying the feature index
 #define LOGITECH_CMD_ROOT_GET_FEATURE                   0x01
@@ -273,6 +274,7 @@ struct logitech_led
 };
 
 int getWirelessDevice(usages _usages, uint16_t pid, wireless_map *wireless_devices, std::map<uint8_t, bool> *online_out = nullptr);    //Helper function needed outside of class; online_out (optional) reports per-index link state
+std::string getWirelessDeviceName(usages _usages, uint8_t device_index);                                                               //Receiver-stored device codename (extended pairing info reg 0xB5 0x4N); works while the device is asleep
 
 class logitech_device
 {

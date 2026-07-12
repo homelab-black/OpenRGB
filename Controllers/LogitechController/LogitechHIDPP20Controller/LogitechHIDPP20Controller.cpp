@@ -206,6 +206,13 @@ LogitechHIDPP20Controller::~LogitechHIDPP20Controller()
         Shutdown();
     }
 
+    /*----------------------------------------------------------*\
+    | Watcher-mode controllers run reader/power threads without  |
+    | ever initializing; Shutdown() won't have stopped them.     |
+    | Idempotent, so safe to call unconditionally.               |
+    \*----------------------------------------------------------*/
+    StopPowerManager();
+
     if(dev)
     {
         hid_close(dev);
@@ -1584,9 +1591,14 @@ void LogitechHIDPP20Controller::DiscoverDeviceName()
         return;
     }
 
-    caps.device_name = HIDPP20_NAME_PLACEHOLDER_STD;
-    LOG_WARNING("%s Device name discovery failed after retries, using placeholder",
-                LOG_TAG);
+    /*----------------------------------------------------------*\
+    | Prefer the receiver-stored pairing codename over the       |
+    | generic placeholder when the FAP name read keeps failing.  |
+    \*----------------------------------------------------------*/
+    caps.device_name = pairing_name.empty() ? HIDPP20_NAME_PLACEHOLDER_STD
+                                            : pairing_name;
+    LOG_WARNING("%s Device name discovery failed after retries, using '%s'",
+                LOG_TAG, caps.device_name.c_str());
 }
 
 void LogitechHIDPP20Controller::DiscoverDeviceType()
@@ -4730,6 +4742,21 @@ void LogitechHIDPP20Controller::SetReapplyActiveModeCallback(std::function<bool(
 void LogitechHIDPP20Controller::SetRegisterCallback(std::function<void(RGBController*)> cb)
 {
     register_controller_fn = cb;
+}
+
+void LogitechHIDPP20Controller::SetPairingName(const std::string& name)
+{
+    pairing_name = name;
+
+    /*----------------------------------------------------------*\
+    | Label the controller while the device is asleep; the real  |
+    | 0x0005 name read replaces this once the device answers.    |
+    \*----------------------------------------------------------*/
+    if(!name.empty() && caps.device_name.empty())
+    {
+        caps.device_name = name;
+        log_tag          = "[LogitechHID++ " + name + "]";
+    }
 }
 
 HIDPP20PowerState LogitechHIDPP20Controller::GetPowerState() const
