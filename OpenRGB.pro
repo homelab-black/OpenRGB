@@ -473,6 +473,8 @@ contains(QMAKE_PLATFORM, linux) {
     HEADERS +=                                                                                  \
     dependencies/NVFC/nvapi.h                                                                   \
     i2c_smbus/Linux/i2c_smbus_linux.h                                                           \
+    i2c_smbus/Linux/i2c_smbus_nvrm.h                                                            \
+    i2c_smbus/Linux/nvrm_api.h                                                                  \
     AutoStart/AutoStart-Linux.h                                                                 \
     SPDAccessor/EE1004Accessor_Linux.h                                                          \
     SPDAccessor/SPD5118Accessor_Linux.h                                                         \
@@ -526,6 +528,7 @@ contains(QMAKE_PLATFORM, linux) {
     dependencies/hueplusplus-1.2.0/src/LinHttpHandler.cpp                                       \
     dependencies/NVFC/nvapi.cpp                                                                 \
     i2c_smbus/Linux/i2c_smbus_linux.cpp                                                         \
+    i2c_smbus/Linux/i2c_smbus_nvrm.cpp                                                          \
     scsiapi/scsiapi_linux.c                                                                     \
     serial_port/find_usb_serial_port_linux.cpp                                                  \
     AutoStart/AutoStart-Linux.cpp                                                               \
