@@ -166,7 +166,6 @@ void RGBController_Zotac4AGPU::SetupZones()
     new_zone.leds_min      = 1;
     new_zone.leds_max      = 1;
     new_zone.leds_count    = 1;
-    new_zone.matrix_map    = NULL;
     zones.push_back(new_zone);
 
     SetupColors();
@@ -247,5 +246,5 @@ void RGBController_Zotac4AGPU::SetupInitialValues()
     modes[active_mode].speed = zoneConfig.speed;
     modes[active_mode].brightness = zoneConfig.on_time;
 
-    SignalUpdate();
+    SignalUpdate(RGBCONTROLLER_UPDATE_REASON_UPDATEMODE);
 }

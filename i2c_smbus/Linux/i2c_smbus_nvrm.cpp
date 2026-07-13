@@ -369,8 +369,7 @@ s32 i2c_smbus_nvrm::i2c_xfer(u8 addr, char read_write, int* size, u8* data)
 *                                                                                          *
 \******************************************************************************************/
 
-#include "Detector.h"
-#include "ResourceManager.h"
+#include "DetectionManager.h"
 
 bool i2c_smbus_nvrm_detect()
 {
@@ -441,15 +440,15 @@ bool i2c_smbus_nvrm_detect()
             continue;
         }
 
-        snprintf(bus->device_name, sizeof(bus->device_name),
+        snprintf(bus->info.device_name, sizeof(bus->info.device_name),
                  "NVIDIA RM i2c port %d (GPU %s)", NVRM_RGB_PORT_ID, ent->d_name);
-        bus->pci_vendor           = pci_vendor;
-        bus->pci_device           = pci_device;
-        bus->pci_subsystem_vendor = pci_subsystem_vendor;
-        bus->pci_subsystem_device = pci_subsystem_device;
-        bus->port_id              = NVRM_RGB_PORT_ID;
-        bus->bus_id               = minor;
-        ResourceManager::get()->RegisterI2CBus(bus);
+        bus->info.pci_vendor           = pci_vendor;
+        bus->info.pci_device           = pci_device;
+        bus->info.pci_subsystem_vendor = pci_subsystem_vendor;
+        bus->info.pci_subsystem_device = pci_subsystem_device;
+        bus->info.port_id              = NVRM_RGB_PORT_ID;
+        bus->info.bus_id               = minor;
+        DetectionManager::get()->RegisterI2CBus(bus);
 
         LOG_INFO("[i2c_smbus_nvrm] registered RM i2c bus for GPU %s (%04X:%04X %04X:%04X)",
                  ent->d_name, pci_vendor, pci_device,

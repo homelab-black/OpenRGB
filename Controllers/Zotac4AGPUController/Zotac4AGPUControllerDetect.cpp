@@ -1,7 +1,7 @@
 /*---------------------------------------------------------*\
-| ZotacV2GPUControllerDetect.cpp                            |
+| Zotac4AGPUControllerDetect.cpp                            |
 |                                                           |
-|   Detector for Zotac V2 GPU                               |
+|   Detector for Zotac 4A GPU                               |
 |                                                           |
 |   Peter Berendi                               28 Dec 2024 |
 |                                                           |
@@ -9,7 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-only                   |
 \*---------------------------------------------------------*/
 
-#include "Detector.h"
+#include "DetectionManager.h"
 #include "Zotac4AGPUController.h"
 #include "RGBController_Zotac4AGPU.h"
 #include "pci_ids.h"
@@ -30,8 +30,10 @@
 *                                                                                          *
 \******************************************************************************************/
 
-s32 DetectZotac4AGPUControllers(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name)
+DetectedControllers DetectZotac4AGPUControllers(i2c_smbus_interface* bus, u8 i2c_addr, const std::string& name)
 {
+    DetectedControllers detected_controllers;
+
     bus->i2c_set_max_speed(10000);
 
     u8 rdata_pkt[I2C_SMBUS_BLOCK_MAX] = { 0x00 };
@@ -40,7 +42,7 @@ s32 DetectZotac4AGPUControllers(i2c_smbus_interface* bus, u8 i2c_addr, const std
     if((res < 0) || (res > I2C_SMBUS_BLOCK_MAX))
     {
         bus->i2c_set_max_speed(0); // restore default speed if not detected
-        return -1;
+        return(detected_controllers);
     }
 
     char tempstr[I2C_SMBUS_BLOCK_MAX * 3 + 1];
@@ -58,8 +60,8 @@ s32 DetectZotac4AGPUControllers(i2c_smbus_interface* bus, u8 i2c_addr, const std
     LOG_TRACE("Found RGB controller '%s' on '%s'", tempstr, name.c_str());
     Zotac4AGPUController* controller = new Zotac4AGPUController(bus, i2c_addr, tempstr);
     RGBController_Zotac4AGPU* rgb_controller = new RGBController_Zotac4AGPU(controller);
-    ResourceManager::get()->RegisterRGBController(rgb_controller);
-    return res;
+    detected_controllers.push_back(rgb_controller);
+    return(detected_controllers);
 }
 
 REGISTER_I2C_PCI_DETECTOR("ZOTAC GAMING GeForce RTX 4060 Ti Twin Edge 8G",        DetectZotac4AGPUControllers, NVIDIA_VEN, NVIDIA_RTX4060TI_DEV,       ZOTAC_SUB_VEN, ZOTAC_RTX4060TI_8G_TWIN_EDGE_SUB_DEV,  0x4A);
