@@ -13,7 +13,7 @@
 
 #include <string>
 #include <hidapi.h>
-#include "SteelSeriesDevices.h"
+#include "SteelSeriesGeneric.h"
 
 /* Mode, we then use these to set actual effect based on speed. */
 enum
