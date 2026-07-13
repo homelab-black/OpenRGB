@@ -14,7 +14,7 @@
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
-#include "SteelSeriesDevices.h"
+#include "SteelSeriesGeneric.h"
 #include "SteelSeriesApex3Controller.h"
 
 #define STEELSERIES_TZ_LED_COUNT            10

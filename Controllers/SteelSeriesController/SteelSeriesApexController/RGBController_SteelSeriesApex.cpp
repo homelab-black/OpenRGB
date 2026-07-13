@@ -55,17 +55,10 @@ RGBController_SteelSeriesApex::RGBController_SteelSeriesApex(SteelSeriesApexBase
 
     mode Direct;
     Direct.name         = "Direct";
-    Direct.value        = APEX_MODE_DIRECT;
+    Direct.value        = 0x00;
     Direct.flags        = MODE_FLAG_HAS_PER_LED_COLOR;
     Direct.color_mode   = MODE_COLORS_PER_LED;
     modes.push_back(Direct);
-
-    mode Onboard;
-    Onboard.name        = "Onboard";
-    Onboard.value       = APEX_MODE_ONBOARD;
-    Onboard.flags       = 0;
-    Onboard.color_mode  = MODE_COLORS_NONE;
-    modes.push_back(Onboard);
 
     SetupZones();
 }
@@ -104,13 +97,13 @@ void RGBController_SteelSeriesApex::SetupZones()
             new_zone.matrix_map.width       = MATRIX_WIDTH;
             new_zone.matrix_map.map.resize(MATRIX_HEIGHT * MATRIX_WIDTH);
 
-            if((proto_type == APEX) || (proto_type == APEX_M))
+            if((proto_type == APEX) || (proto_type == APEX_M) || (proto_type == APEX_9_TKL) || (proto_type == APEX_9_MINI))
             {
                 SetSkuRegion(&new_zone.matrix_map, sku);
             }
         }
 
-        if((proto_type == APEX) || (proto_type == APEX_M))
+        if((proto_type == APEX) || (proto_type == APEX_M) || (proto_type == APEX_9_TKL) || (proto_type == APEX_9_MINI))
         {
             new_zone.leds_min   = zone_sizes[zone_idx];
             new_zone.leds_max   = zone_sizes[zone_idx];
