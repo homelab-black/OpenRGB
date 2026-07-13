@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| SteelSeriesApexController.h                               |
+| SteelSeriesApexController.cpp                             |
 |                                                           |
 |   Driver for SteelSeries Apex Keyboards                   |
 |                                                           |
@@ -18,20 +18,42 @@
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
-#include "SteelSeriesDevices.h"
+#include "SteelSeriesGeneric.h"
 #include "SteelSeriesApexBaseController.h"
+
+enum
+{
+    APEX_PACKET_ID_DIRECT               = 0x3a,     /* Direct mode                */
+    APEX_2023_PACKET_ID_DIRECT          = 0x40,     /* New Wired Direct mode      */
+    APEX_2023_PACKET_ID_DIRECT_WIRELESS = 0x61,     /* New Wireless Direct mode   */
+    APEX_2023_PACKET_ID_INIT            = 0x4B,     /* New Initialization         */
+    APEX_2023_PACKET_LENGTH             = 643,
+    APEX_GEN3_PACKET_CLEAR_LIGHTING     = 0x41,
+};
 
 class SteelSeriesApexController : public SteelSeriesApexBaseController
 {
 public:
-    SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, unsigned short pid, std::string dev_name);
+    SteelSeriesApexController(hid_device* dev_handle, steelseries_type type, const char* path, std::string dev_name);
     ~SteelSeriesApexController();
-    void SetMode(unsigned char mode, std::vector<RGBColor> colors) override;
-    void SetLEDsDirect(std::vector<RGBColor> colors) override;
+
+    void SetMode
+        (
+        unsigned char mode,
+        std::vector<RGBColor> colors
+        );
+
+    void SetLEDsDirect(std::vector<RGBColor> colors);
+
     std::string GetSerial() override;
 
 private:
-    void SelectProfile(unsigned char profile);
-    void SendInitialization();
-    void SendDeinitialization();
+
+    void    SelectProfile
+                (
+                unsigned char   profile
+                );
+
+    void    SendInitialization();
+
 };

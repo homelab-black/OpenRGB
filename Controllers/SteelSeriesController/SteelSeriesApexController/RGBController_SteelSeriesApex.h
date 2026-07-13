@@ -14,7 +14,7 @@
 #include <chrono>
 #include "RGBController.h"
 #include "SteelSeriesApexBaseController.h"
-#include "SteelSeriesDevices.h"
+#include "SteelSeriesGeneric.h"
 
 class RGBController_SteelSeriesApex : public RGBController
 {
