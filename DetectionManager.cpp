@@ -211,14 +211,23 @@ void DetectionManager::Cleanup()
     ProcessCleanup();
 }
 
-std::vector<RGBController*> DetectionManager::GetRGBControllers()
+std::vector<RGBController*>& DetectionManager::GetRGBControllers()
 {
     /*-----------------------------------------------------*\
-    | Return a copy under the lock: controllers may be      |
-    | registered from hotplug threads at any time           |
+    | Caller must hold the list lock (LockRGBControllers)   |
+    | while iterating; registration runs on other threads   |
     \*-----------------------------------------------------*/
-    std::lock_guard<std::mutex> lock(RGBControllersMutex);
     return(rgb_controllers);
+}
+
+void DetectionManager::LockRGBControllers()
+{
+    RGBControllersMutex.lock();
+}
+
+void DetectionManager::UnlockRGBControllers()
+{
+    RGBControllersMutex.unlock();
 }
 
 /*---------------------------------------------------------*\

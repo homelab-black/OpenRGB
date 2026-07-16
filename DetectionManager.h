@@ -149,7 +149,14 @@ public:
     | Functions to access device lists                      |
     \*-----------------------------------------------------*/
     std::vector<i2c_smbus_interface*>&  GetI2CBuses();
-    std::vector<RGBController*>         GetRGBControllers();
+    std::vector<RGBController*>&        GetRGBControllers();
+
+    /*-----------------------------------------------------*\
+    | Lock the RGBControllers list around external           |
+    | iteration; registration runs on other threads          |
+    \*-----------------------------------------------------*/
+    void                                LockRGBControllers();
+    void                                UnlockRGBControllers();
 
     /*-----------------------------------------------------*\
     | I2C Bus Detector Registration Function                |
