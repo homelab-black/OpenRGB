@@ -141,8 +141,7 @@ public:
     static DetectionManager*            get();
 
     /*-----------------------------------------------------*\
-    | Tear down all detected devices on exit so controllers |
-    | restore hardware/onboard control in their destructors.|
+    | Function for cleaning up on exit                      |
     \*-----------------------------------------------------*/
     void                                Cleanup();
 
@@ -186,9 +185,8 @@ public:
     void                                RegisterI2CBus(i2c_smbus_interface *bus);
 
     /*-----------------------------------------------------*\
-    | Register from detectors or hotplug callbacks.         |
-    | detection_path is how the global DEVICE_LEFT callback |
-    | callback finds the controller.                        |
+    | Functions for registering and unregistering           |
+    | RGBControllers                                        |
     \*-----------------------------------------------------*/
     void                                RegisterRGBController(RGBController *rgb_controller, const std::string& detection_path = "");
     void                                UnregisterRGBController(RGBController *rgb_controller);
@@ -214,10 +212,8 @@ private:
     std::vector<i2c_smbus_interface*>           i2c_buses;
 
     /*-----------------------------------------------------*\
-    | RGBControllersMutex guards the list (not the          |
-    | controllers) so registration is safe from any thread. |
-    | Leaf lock: never held across SignalUpdate, detector   |
-    | calls, or controller deletes.                         |
+    | List of RGBControllers managed by DetectionManager,   |
+    | guarded with mutex                                    |
     \*-----------------------------------------------------*/
     std::vector<RGBController*>                 rgb_controllers;
     std::mutex                                  RGBControllersMutex;

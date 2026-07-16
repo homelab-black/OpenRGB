@@ -141,7 +141,6 @@ DetectionManager::DetectionManager()
     dynamic_detectors_processed     = false;
     initial_detection               = true;
 
-
 #ifdef __linux__
 #ifdef __GLIBC__
     hidapi_libusb_handle            = nullptr;
@@ -211,7 +210,6 @@ void DetectionManager::Cleanup()
     ProcessPreDetectionHooks();
     ProcessCleanup();
 }
-
 
 std::vector<RGBController*> DetectionManager::GetRGBControllers()
 {
@@ -430,10 +428,9 @@ void DetectionManager::RegisterRGBController(RGBController *rgb_controller, cons
     /*-----------------------------------------------------*\
     | Add the new controller to the list                    |
     \*-----------------------------------------------------*/
-    {
-        std::lock_guard<std::mutex> lock(RGBControllersMutex);
-        rgb_controllers.push_back(rgb_controller);
-    }
+    RGBControllersMutex.lock();
+    rgb_controllers.push_back(rgb_controller);
+    RGBControllersMutex.unlock();
 
     /*-----------------------------------------------------*\
     | Signal Device List Update                             |
@@ -454,16 +451,16 @@ void DetectionManager::UnregisterRGBController(RGBController* rgb_controller)
     | Find the controller to remove and remove it from the  |
     | master list                                           |
     \*-----------------------------------------------------*/
+    RGBControllersMutex.lock();
+
+    std::vector<RGBController*>::iterator rgb_it = std::find(rgb_controllers.begin(), rgb_controllers.end(), rgb_controller);
+
+    if(rgb_it != rgb_controllers.end())
     {
-        std::lock_guard<std::mutex> lock(RGBControllersMutex);
-
-        std::vector<RGBController*>::iterator rgb_it = std::find(rgb_controllers.begin(), rgb_controllers.end(), rgb_controller);
-
-        if(rgb_it != rgb_controllers.end())
-        {
-            rgb_controllers.erase(rgb_it);
-        }
+        rgb_controllers.erase(rgb_it);
     }
+
+    RGBControllersMutex.unlock();
 
     /*-----------------------------------------------------*\
     | Signal Device List Update                             |
@@ -774,9 +771,6 @@ void DetectionManager::BackgroundDetectDevices()
     \*-----------------------------------------------------*/
     detection_percent     = 100;
     SignalUpdate(DETECTIONMANAGER_UPDATE_REASON_DETECTION_PROGRESS_CHANGED);
-
-#if !(HID_HOTPLUG_ENABLED)
-#endif
 
     /*-----------------------------------------------------*\
     | Signal that detection is complete                     |
@@ -1591,11 +1585,10 @@ void DetectionManager::ProcessCleanup()
     | registration lands wholly before (deleted with this   |
     | pass) or wholly after the clear (survives it)         |
     \*-----------------------------------------------------*/
-    {
-        std::lock_guard<std::mutex> lock(RGBControllersMutex);
-        rgb_controllers_copy = rgb_controllers;
-        rgb_controllers.clear();
-    }
+    RGBControllersMutex.lock();
+    rgb_controllers_copy = rgb_controllers;
+    rgb_controllers.clear();
+    RGBControllersMutex.unlock();
 
     /*-----------------------------------------------------*\
     | Signal the list cleared callback                      |
@@ -1918,17 +1911,17 @@ int DetectionManager::UnplugCallbackFunction(hid_hotplug_callback_handle /*callb
         \*--------------------------------------------------*/
         std::vector<RGBController*> on_path;
 
-        {
-            std::lock_guard<std::mutex> lock(dm->RGBControllersMutex);
+        dm->RGBControllersMutex.lock();
 
-            for(RGBController* controller : dm->rgb_controllers)
+        for(RGBController* controller : dm->rgb_controllers)
+        {
+            if(controller->detection_path == path)
             {
-                if(controller->detection_path == path)
-                {
-                    on_path.push_back(controller);
-                }
+                on_path.push_back(controller);
             }
         }
+
+        dm->RGBControllersMutex.unlock();
 
         for(RGBController* controller : on_path)
         {

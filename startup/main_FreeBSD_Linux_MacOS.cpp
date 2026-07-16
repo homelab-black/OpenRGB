@@ -89,8 +89,7 @@ int main(int argc, char* argv[])
     }
 
     /*-----------------------------------------------------*\
-    | Tear down devices so destructors restore              |
-    | hardware/onboard control.                             |
+    | Clean up detected devices so destructors can run.     |
     \*-----------------------------------------------------*/
     DetectionManager::get()->Cleanup();
 
