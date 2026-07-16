@@ -125,7 +125,7 @@ i2c_smbus_amdadl::i2c_smbus_amdadl(ADL_CONTEXT_HANDLE context, int adapter_index
             this->info.pci_subsystem_vendor = sbv_id;
             this->info.pci_subsystem_device = sbd_id;
             this->info.port_id              = 1;
-            this->adapter_index = adapter_index;
+            this->adapter_index             = adapter_index;
             strcpy(this->info.device_name, "AMD ADL");
         }
     }
