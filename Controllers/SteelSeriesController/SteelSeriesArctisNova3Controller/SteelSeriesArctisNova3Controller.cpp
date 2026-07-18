@@ -136,13 +136,6 @@ void SteelSeriesArctisNova3Controller::SetDirect(unsigned char zone_id, RGBColor
 
     usb_buf[0x25] = 0x02;
 
-    usb_buf[0x26] = RGBGetRValue(color);
-    usb_buf[0x27] = RGBGetGValue(color);
-    usb_buf[0x28] = RGBGetBValue(color);
-    usb_buf[0x29] = RGBGetRValue(color);
-    usb_buf[0x2A] = RGBGetGValue(color);
-    usb_buf[0x2B] = RGBGetBValue(color);
-
     usb_buf[0x2D] = RGBGetRValue(color);
     usb_buf[0x2E] = RGBGetGValue(color);
     usb_buf[0x2F] = RGBGetBValue(color);
@@ -172,13 +165,6 @@ void SteelSeriesArctisNova3Controller::SetBreathe(unsigned char zone_id, RGBColo
     usb_buf[0x17] = 0x96;
 
     usb_buf[0x25] = 0x03;
-
-    usb_buf[0x26] = RGBGetRValue(color);
-    usb_buf[0x27] = RGBGetGValue(color);
-    usb_buf[0x28] = RGBGetBValue(color);
-    usb_buf[0x29] = RGBGetRValue(color);
-    usb_buf[0x2A] = RGBGetGValue(color);
-    usb_buf[0x2B] = RGBGetBValue(color);
 
     usb_buf[0x30] = 0x7F;
     usb_buf[0x31] = RGBGetRValue(color);
