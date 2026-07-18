@@ -32,6 +32,7 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
         case CORSAIR_SLIPSTREAM_WIRELESS_PID1:
         case CORSAIR_SLIPSTREAM_WIRELESS_V2_PID1:
         case CORSAIR_SLIPSTREAM_WIRELESS_PID2:
+        case CORSAIR_K70_CORE_RGB_TKL_WL_PID:
             write_cmd   = CORSAIR_V2_WRITE_WIRELESS_ID;
             pid         = GetAddress(0x12);
             break;
@@ -101,7 +102,20 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     \*---------------------------------------------------------*/
     if(light_ctrl == CORSAIR_V2_LIGHT_CTRL2)
     {
+        /*-----------------------------------------------------*\
+        | Drain any stale replies first - over a wireless       |
+        |   receiver, delayed responses from earlier commands   |
+        |   can desync this probe and cause a false fallback    |
+        \*-----------------------------------------------------*/
+        ClearPacketBuffer();
         result = StartTransaction(0);
+        if(result > 0)
+        {
+            LOG_DEBUG("[%s] Endpoint %02X probe failed (%02X), retrying", device_name.c_str(), light_ctrl, result);
+            StopTransaction(0);
+            ClearPacketBuffer();
+            result = StartTransaction(0);
+        }
         if(result > 0)
         {
             light_ctrl = CORSAIR_V2_LIGHT_CTRL1;
@@ -309,15 +323,74 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
     uint16_t remaining      = data_size;
 
     uint8_t buffer[CORSAIR_V2_PACKET_SIZE];
+    uint8_t read_buf[CORSAIR_V2_PACKET_SIZE];
     memset(buffer, 0, CORSAIR_V2_PACKET_SIZE);
 
     ClearPacketBuffer();
-    StartTransaction(0);
+    unsigned char tx_result = StartTransaction(0);
+    if(tx_result != 0)
+    {
+        /*-----------------------------------------------------*\
+        | Handle may be stuck open from a previous session -    |
+        |   close it and retry once (mirrors SignalRGB logic)   |
+        \*-----------------------------------------------------*/
+        LOG_DEBUG("[%s] SetLEDs open handle failed (%02X), closing and retrying", device_name.c_str(), tx_result);
+        StopTransaction(0);
+        tx_result = StartTransaction(0);
+    }
+    if(tx_result != 0)
+    {
+        /*-----------------------------------------------------*\
+        | Device may have dropped out of software mode (sleep,  |
+        |   power cycle) - re-assert it and retry the open      |
+        \*-----------------------------------------------------*/
+        LOG_DEBUG("[%s] SetLEDs open still failing - re-asserting SW mode", device_name.c_str());
+        SetRenderMode(CORSAIR_V2_MODE_SW);
+        ClearPacketBuffer();
+        tx_result = StartTransaction(0);
+    }
+    if(tx_result != 0)
+    {
+        /*-----------------------------------------------------*\
+        | The chosen lighting endpoint may be wrong.  A sleeping|
+        |   or re-linking wireless device fails the constructor |
+        |   endpoint probe, so light_ctrl can be left on an     |
+        |   endpoint the device does not actually support (e.g. |
+        |   the K70 Core TKL Wireless only accepts 0x22).  This |
+        |   also means the first frames after a wireless        |
+        |   reconnect can fail until the link is up - the       |
+        |   keepalive thread retries here every update period,  |
+        |   so control recovers on its own once the device      |
+        |   wakes.  Try the alternate endpoint; if it opens,    |
+        |   keep it and skip this frame - the caller formats    |
+        |   data for the endpoint, so the next frame will be    |
+        |   built correctly for it.                             |
+        \*-----------------------------------------------------*/
+        uint8_t prev_ctrl   = light_ctrl;
+        light_ctrl          = (light_ctrl == CORSAIR_V2_LIGHT_CTRL2) ? CORSAIR_V2_LIGHT_CTRL1 : CORSAIR_V2_LIGHT_CTRL2;
+        ClearPacketBuffer();
+        tx_result           = StartTransaction(0);
+        if(tx_result == 0)
+        {
+            LOG_DEBUG("[%s] Lighting endpoint switched %02X -> %02X, skipping this frame", device_name.c_str(), prev_ctrl, light_ctrl);
+            StopTransaction(0);
+            return;
+        }
+        light_ctrl          = prev_ctrl;
+    }
+
+    /*---------------------------------------------------------*\
+    | Lighting data packets (0x06/0x07) are addressed with the  |
+    |   plain device ID: bit 3 (0x08) is only set on control    |
+    |   commands.  Receivers drop data packets with 0x08 set.   |
+    \*---------------------------------------------------------*/
+    uint8_t data_cmd        = (write_cmd == CORSAIR_V2_WRITE_WIRELESS_ID) ? (CORSAIR_V2_WRITE_WIRELESS_ID & 0x07) : write_cmd;
+
     /*---------------------------------------------------------*\
     | Set the data header in packet 1 with the data length      |
     |   signaling how many packets to expect to the device      |
     \*---------------------------------------------------------*/
-    buffer[1]               = write_cmd;
+    buffer[1]               = data_cmd;
     buffer[2]               = CORSAIR_V2_CMD_BLK_W1;
     buffer[4]               = data_size & 0xFF;
     buffer[5]               = data_size >> 8;
@@ -337,7 +410,12 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+        /*-----------------------------------------------------*\
+        | Read the ack into a separate buffer - reading into    |
+        |   the send buffer corrupts the headers of the         |
+        |   continuation packets when a reply arrives           |
+        \*-----------------------------------------------------*/
+        hid_read_timeout(dev, read_buf, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
     }
 
     remaining              -= copy_bytes;
@@ -362,7 +440,7 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
         if(!skip_reads)
         {
-            hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+            hid_read_timeout(dev, read_buf, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
         }
 
         remaining          -= copy_bytes;

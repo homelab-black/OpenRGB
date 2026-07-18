@@ -1042,6 +1042,47 @@ static const corsair_v2_device k70_core_rgb_tkl_device =
     &corsair_K70_CORE_TKL_layout
 };
 
+/*-------------------------------------------------------------*\
+|  Corsair K70 Core RGB TKL Wireless (wired) 1B1C:2B00          |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       6 Rows, 17 Columns                                      |
+\*-------------------------------------------------------------*/
+static const corsair_v2_device k70_core_rgb_tkl_wl_device =
+{
+    CORSAIR_K70_CORE_RGB_TKL_WL_PID,
+    DEVICE_TYPE_KEYBOARD,
+    6,
+    17,
+    {
+        &k70_core_rgb_tkl_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_K70_CORE_TKL_layout
+};
+
+static const corsair_v2_device k70_core_rgb_tkl_wl2_device =
+{
+    CORSAIR_K70_CORE_RGB_TKL_WL2_PID,
+    DEVICE_TYPE_KEYBOARD,
+    6,
+    17,
+    {
+        &k70_core_rgb_tkl_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_K70_CORE_TKL_layout
+};
+
 
 /*-------------------------------------------------------------*\
 |  Corsair K70 RGB TKL Champion Series 1B1C:1BB9                |
@@ -1527,6 +1568,8 @@ const corsair_v2_device* corsair_v2_device_list_data[] =
     &k60_rgb_pro_tkl_device_w,
     &k70_core_rgb_device,
     &k70_core_rgb_tkl_device,
+    &k70_core_rgb_tkl_wl_device,
+    &k70_core_rgb_tkl_wl2_device,
     &k70_rgb_pro_device,
     &k70_rgb_pro_v2_device,
     &k70_rgb_tkl_device,
