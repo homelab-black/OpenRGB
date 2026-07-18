@@ -542,7 +542,7 @@ void DetectionManager::BackgroundThreadFunction()
     | be necessary to be separate from the                  |
     | DeviceDetectionMutex, even though their states are    |
     | nearly identical.                                     |
-    \------------------------------------------------------*/
+    \*-----------------------------------------------------*/
     std::unique_lock lock(BackgroundThreadStateMutex);
 
     while(background_thread_running)
