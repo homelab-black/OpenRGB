@@ -714,7 +714,7 @@ void ResourceManager::UpdateDeviceList()
 
     /*-----------------------------------------------------*\
     | Insert hardware controllers into controller list.     |
-    | Hold the detection lock across the copy so a           |
+    | Hold the detection lock across the copy so a          |
     | concurrent registration cannot invalidate the list.   |
     \*-----------------------------------------------------*/
     DetectionManager::get()->LockRGBControllers();

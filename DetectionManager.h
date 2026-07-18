@@ -152,8 +152,8 @@ public:
     std::vector<RGBController*>&        GetRGBControllers();
 
     /*-----------------------------------------------------*\
-    | Lock the RGBControllers list around external           |
-    | iteration; registration runs on other threads          |
+    | Lock the RGBControllers list around external          |
+    | iteration; registration runs on other threads         |
     \*-----------------------------------------------------*/
     void                                LockRGBControllers();
     void                                UnlockRGBControllers();

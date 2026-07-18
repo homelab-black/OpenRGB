@@ -1586,7 +1586,6 @@ void DetectionManager::ProcessCleanup()
     | Make a copy of the list so that the controllers can   |
     | be deleted after the list is cleared                  |
     \*-----------------------------------------------------*/
-
     std::vector<RGBController *> rgb_controllers_copy;
 
     /*-----------------------------------------------------*\
@@ -1848,8 +1847,8 @@ void DetectionManager::StartHIDHotplug()
 {
     /*-----------------------------------------------------*\
     | One global callback per event and stack. DEVICE_LEFT  |
-    | resolves controllers by detection_path at event time —|
-    | no stored pointer for a rescan to invalidate.         |
+    | resolves controllers by detection_path at event time, |
+    | not a stored pointer for a rescan to invalidate.      |
     \*-----------------------------------------------------*/
     hid_hotplug_register_callback(0, 0, HID_API_HOTPLUG_EVENT_DEVICE_ARRIVED, HID_API_HOTPLUG_ENUMERATE, &DetectionManager::HotplugCallbackFunction, nullptr, &hotplug_callback_handle);
     hid_hotplug_register_callback(0, 0, HID_API_HOTPLUG_EVENT_DEVICE_LEFT,    0,                         &DetectionManager::UnplugCallbackFunction,  nullptr, &unplug_callback_handle);
@@ -1915,7 +1914,7 @@ int DetectionManager::UnplugCallbackFunction(hid_hotplug_callback_handle /*callb
         std::string path = std::string(device->path);
 
         /*--------------------------------------------------*\
-        | Resolve controllers on this node now — no pointer  |
+        | Resolve controllers on this node now; no pointer   |
         | was stored, so a rescan cannot have invalidated one|
         \*--------------------------------------------------*/
         std::vector<RGBController*> on_path;
