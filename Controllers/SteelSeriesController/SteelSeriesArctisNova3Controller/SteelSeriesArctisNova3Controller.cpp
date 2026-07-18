@@ -166,6 +166,10 @@ void SteelSeriesArctisNova3Controller::SetBreathe(unsigned char zone_id, RGBColo
 
     usb_buf[0x25] = 0x03;
 
+    usb_buf[0x29] = RGBGetRValue(color);
+    usb_buf[0x2A] = RGBGetGValue(color);
+    usb_buf[0x2B] = RGBGetBValue(color);
+
     usb_buf[0x30] = 0x7F;
     usb_buf[0x31] = RGBGetRValue(color);
     usb_buf[0x32] = RGBGetGValue(color);
