@@ -1913,10 +1913,10 @@ int DetectionManager::UnplugCallbackFunction(hid_hotplug_callback_handle /*callb
 
         std::string path = std::string(device->path);
 
-        /*--------------------------------------------------*\
-        | Resolve controllers on this node now; no pointer   |
-        | was stored, so a rescan cannot have invalidated one|
-        \*--------------------------------------------------*/
+        /*-------------------------------------------------*\
+        | Resolve controllers on this node now; no pointer  |
+        | was stored, so a rescan cannot invalidate one.    |
+        \*-------------------------------------------------*/
         std::vector<RGBController*> on_path;
 
         dm->RGBControllersMutex.lock();
