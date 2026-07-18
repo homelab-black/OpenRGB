@@ -599,7 +599,7 @@ void RGBController_RGBFusion2BlackwellGPU::DeviceSaveMode()
 {
     /*-----------------------------------------------------------------------*\
     | FIXME: For the RADEON_9000 layout, DeviceUpdateLEDs only writes one     |
-    | hardware zone to avoid flicker, but SaveConfig persists all zones — so  |
+    | hardware zone to avoid flicker, but SaveConfig persists all zones, so   |
     | the unwritten zones save stale colors. A save-specific full-zone write  |
     | is likely needed here before SaveConfig. See the FIXME in               |
     | DeviceUpdateLEDs (RADEON_9000_GAMING_LAYOUT case).                      |
