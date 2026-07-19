@@ -100,14 +100,19 @@ static uint8_t WaveDirectionToWire(unsigned int dir)
 }
 
 /*---------------------------------------------------------*\
-| Minimum interval between color-only re-sends to a zone    |
-| running an animated firmware effect. Each re-send         |
-| restarts the effect phase, so rapid color streams are     |
-| coalesced (latest color wins; stragglers flush on the     |
-| next reconcile trigger). Static/Direct/Off restarts are   |
-| invisible and stay full rate.                             |
+| Color-only re-sends to a running animated effect restart  |
+| its phase on the wire (no phase parameter or in-place     |
+| color update exists on 0x8070/0x8071). Isolated changes   |
+| (manual picks) send immediately; changes within the       |
+| stream window of the previous one are deferred to the     |
+| effect's next phase boundary, computed from the last      |
+| send time and period, so the restart lands where the      |
+| animation already is. Effects faster than the minimum     |
+| period skip the dance: their restart is imperceptible.    |
 \*---------------------------------------------------------*/
-static const std::chrono::milliseconds HIDPP20_EFFECT_COALESCE_MS(250);
+static const uint64_t HIDPP20_STREAM_WINDOW_MS    = 1000;
+static const uint64_t HIDPP20_PHASE_WINDOW_MS     = 100;
+static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 
 /*---------------------------------------------------------*\
 | Effects that render an RGB parameter. Others get color 0  |
@@ -2026,6 +2031,9 @@ void RGBController_LogitechHIDPP20::SetupZones()
     zone_committed_valid.assign(caps.zone_clusters.size(), false);
     zone_last_effect_send.assign(caps.zone_clusters.size(),
                                  std::chrono::steady_clock::time_point());
+    zone_last_color_change.assign(caps.zone_clusters.size(),
+                                  std::chrono::steady_clock::time_point());
+    zone_last_seen_color.assign(caps.zone_clusters.size(), 0);
 
     SetupColors();
 }
@@ -3571,12 +3579,15 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
 
 /*---------------------------------------------------------*\
 | Diff desired against committed and send only changed      |
-| zones. Color-only updates to animated effects are         |
-| coalesced (each send restarts the effect phase); the      |
-| zone stays dirty and flushes on a later reconcile (any    |
-| UI event or the repaint tick). Unresolvable effects       |
-| commit too: the skip is permanent for that value, so      |
-| there is no retry storm.                                  |
+| zones. Mode and param changes always send immediately.    |
+| Color-only changes to a running animated effect send      |
+| immediately when isolated (a manual pick), but a stream   |
+| of changes is deferred to the effect's next phase         |
+| boundary so the restart lands where the animation         |
+| already is; the power thread's paint flush fires a        |
+| reconcile at the boundary so the last color of a burst    |
+| always lands. Unresolvable effects commit too: the skip   |
+| is permanent for that value, so there is no retry storm.  |
 \*---------------------------------------------------------*/
 void RGBController_LogitechHIDPP20::ReconcileZones()
 {
@@ -3593,16 +3604,50 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             continue;
         }
 
-        bool animated = (want.mode_value > 0 && want.mode_value != 0x0001);
+        bool animated   = (want.mode_value > 0 && want.mode_value != 0x0001);
+        bool color_only = animated && zone_committed_valid[i]
+                       && zone_committed[i].mode_value == want.mode_value
+                       && zone_committed[i].speed      == want.speed
+                       && zone_committed[i].brightness == want.brightness
+                       && zone_committed[i].direction  == want.direction;
 
-        if(animated && zone_committed_valid[i]
-           && zone_committed[i].mode_value == want.mode_value
-           && zone_committed[i].speed      == want.speed
-           && zone_committed[i].brightness == want.brightness
-           && zone_committed[i].direction  == want.direction
-           && (now - zone_last_effect_send[i]) < HIDPP20_EFFECT_COALESCE_MS)
+        if(color_only)
         {
-            continue;
+            bool isolated = false;
+
+            if(want.color != zone_last_seen_color[i])
+            {
+                isolated = (now - zone_last_color_change[i])
+                         >= std::chrono::milliseconds(HIDPP20_STREAM_WINDOW_MS);
+                zone_last_seen_color[i]   = want.color;
+                zone_last_color_change[i] = now;
+            }
+
+            uint16_t period_ms = (want.mode_value == 0x000B || want.mode_value == 0x0017)
+                               ? RippleSpeedSliderToPeriodMs(want.speed)
+                               : SpeedSliderToPeriodMs(want.speed);
+
+            if(!isolated && period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
+            {
+                uint64_t since_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>
+                                    (now - zone_last_effect_send[i]).count();
+                uint64_t in_phase = since_ms % period_ms;
+
+                if(in_phase > HIDPP20_PHASE_WINDOW_MS
+                && in_phase < period_ms - HIDPP20_PHASE_WINDOW_MS)
+                {
+                    /*-------------------------------------*\
+                    | Mid-phase: hold the send until the    |
+                    | next boundary. Without a power        |
+                    | thread to fire the flush, send now    |
+                    | rather than risk losing the color.    |
+                    \*-------------------------------------*/
+                    if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
+                    {
+                        continue;
+                    }
+                }
+            }
         }
 
         ApplyZoneState(i, want);
@@ -3610,6 +3655,7 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
         zone_committed[i]        = want;
         zone_committed_valid[i]  = true;
         zone_last_effect_send[i] = now;
+        zone_last_seen_color[i]  = want.color;
     }
 }
 

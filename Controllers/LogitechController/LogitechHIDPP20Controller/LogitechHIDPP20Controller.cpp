@@ -190,6 +190,7 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->frame_counter                = 0;
     this->retry_paint_deadline_.store(std::chrono::steady_clock::time_point{});
     this->retry_paint_attempt_.store(0);
+    this->paint_flush_deadline_.store(std::chrono::steady_clock::time_point{});
     this->wake_full_repaint_pending_.store(false);
     this->init_generation      = 0;
     this->log_tag              = "[LogitechHID++ " + std::string(path) + "]";
@@ -4576,6 +4577,40 @@ void LogitechHIDPP20Controller::TickRetryPaintIfPending()
     }
 }
 
+bool LogitechHIDPP20Controller::SchedulePaintFlush(uint32_t delay_ms)
+{
+    if(!power_thread_running.load())
+    {
+        return false;
+    }
+
+    paint_flush_deadline_.store(std::chrono::steady_clock::now()
+                                + std::chrono::milliseconds(delay_ms));
+    return true;
+}
+
+void LogitechHIDPP20Controller::TickPaintFlushIfPending()
+{
+    std::chrono::steady_clock::time_point deadline = paint_flush_deadline_.load();
+
+    if(deadline == std::chrono::steady_clock::time_point{})
+    {
+        return;
+    }
+
+    if(std::chrono::steady_clock::now() < deadline)
+    {
+        return;
+    }
+
+    paint_flush_deadline_.store(std::chrono::steady_clock::time_point{});
+
+    if(request_repaint_fn)
+    {
+        request_repaint_fn();
+    }
+}
+
 /*---------------------------------------------------------*\
 | Per-key lighting (0x8081)                                 |
 \*---------------------------------------------------------*/
@@ -7112,6 +7147,7 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         | not recursively inside another call.              |
         \*-------------------------------------------------*/
         TickRetryPaintIfPending();
+        TickPaintFlushIfPending();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }

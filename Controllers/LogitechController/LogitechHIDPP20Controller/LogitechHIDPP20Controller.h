@@ -815,6 +815,18 @@ public:
     void            TickRetryPaintIfPending();
 
     /*-----------------------------------------------------*\
+    | Deferred paint flush. The RGB controller's            |
+    | reconcile defers a color-only effect re-send to a     |
+    | phase boundary; the power thread fires                |
+    | request_repaint_fn when the deadline expires so the   |
+    | final color lands even if no UI event follows.        |
+    | Returns false when no power thread is running to      |
+    | fire it (caller sends immediately instead).           |
+    \*-----------------------------------------------------*/
+    bool            SchedulePaintFlush(uint32_t delay_ms);
+    void            TickPaintFlushIfPending();
+
+    /*-----------------------------------------------------*\
     | Observed per-key prep sequence. Two                   |
     | SetEffectByIndex calls cloned byte-for-byte from a    |
     | wire capture on a G502 X PLUS.                        |
@@ -921,6 +933,12 @@ private:
     \*-----------------------------------------------------*/
     std::atomic<std::chrono::steady_clock::time_point>  retry_paint_deadline_;
     std::atomic<uint8_t>                                retry_paint_attempt_;
+
+    /*-----------------------------------------------------*\
+    | Phase-boundary paint flush deadline; zero = none      |
+    | pending.                                              |
+    \*-----------------------------------------------------*/
+    std::atomic<std::chrono::steady_clock::time_point>  paint_flush_deadline_;
     std::atomic<bool>                                   wake_full_repaint_pending_;
     uint32_t                    init_generation;
     std::string                 log_tag;

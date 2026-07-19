@@ -101,6 +101,8 @@ private:
     std::vector<HIDPP20ZoneState> zone_committed;
     std::vector<bool>             zone_committed_valid;
     std::vector<std::chrono::steady_clock::time_point> zone_last_effect_send;
+    std::vector<std::chrono::steady_clock::time_point> zone_last_color_change;
+    std::vector<RGBColor>         zone_last_seen_color;
     int                         last_picked_global_value = HIDPP20_MODE_VALUE_UNSET;
     bool                        internal_reapply         = false;
 
