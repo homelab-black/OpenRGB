@@ -3450,16 +3450,6 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
         last_picked_global_value = current.value;
     }
 
-    /*-----------------------------------------------------*\
-    | The phase-timed paint flush rides the power thread;   |
-    | start it on any mode apply, not just Direct, so       |
-    | deferred color re-sends can fire. Idempotent.         |
-    \*-----------------------------------------------------*/
-    if(zone_state)
-    {
-        controller->StartPowerManager();
-    }
-
     ReconcileZones();
 
     /*-----------------------------------------------------*\
@@ -3710,12 +3700,6 @@ void RGBController_LogitechHIDPP20::DeviceUpdateZoneMode(int zone)
     }
 
     controller->ClaimSWControlIfNeeded();
-
-    /*-----------------------------------------------------*\
-    | The phase-timed paint flush rides the power thread;   |
-    | a zone-level set may be the first apply. Idempotent.  |
-    \*-----------------------------------------------------*/
-    controller->StartPowerManager();
 
     int zam = zones[zone].active_mode;
 

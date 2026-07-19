@@ -817,14 +817,13 @@ public:
     /*-----------------------------------------------------*\
     | Deferred paint flush. The RGB controller's            |
     | reconcile defers a color-only effect re-send to a     |
-    | phase boundary; the power thread fires                |
-    | request_repaint_fn when the deadline expires so the   |
-    | final color lands even if no UI event follows.        |
-    | Returns false when no power thread is running to      |
-    | fire it (caller sends immediately instead).           |
+    | phase boundary; a dedicated flush thread (lazily      |
+    | started, power thread not required: 0x8070 devices    |
+    | never run one) fires request_repaint_fn when the      |
+    | deadline expires so the deferred color always lands.  |
+    | Keeps the earliest pending deadline across zones.     |
     \*-----------------------------------------------------*/
     bool            SchedulePaintFlush(uint32_t delay_ms);
-    void            TickPaintFlushIfPending();
 
     /*-----------------------------------------------------*\
     | Observed per-key prep sequence. Two                   |
@@ -936,9 +935,16 @@ private:
 
     /*-----------------------------------------------------*\
     | Phase-boundary paint flush deadline; zero = none      |
-    | pending.                                              |
+    | pending. Fired by the dedicated flush thread.         |
     \*-----------------------------------------------------*/
     std::atomic<std::chrono::steady_clock::time_point>  paint_flush_deadline_;
+    std::thread*                                        flush_thread = nullptr;
+    std::mutex                                          flush_mutex;
+    std::condition_variable                             flush_cv;
+    std::atomic<bool>                                   flush_thread_running{false};
+
+    void            FlushThreadFunc();
+    void            StopPaintFlushThread();
     std::atomic<bool>                                   wake_full_repaint_pending_;
     uint32_t                    init_generation;
     std::string                 log_tag;

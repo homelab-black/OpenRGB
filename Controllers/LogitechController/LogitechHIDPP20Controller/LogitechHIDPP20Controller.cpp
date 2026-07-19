@@ -257,6 +257,7 @@ LogitechHIDPP20Controller::~LogitechHIDPP20Controller()
     \*-----------------------------------------------------*/
     StopSenderThread();
     StopPowerManager();
+    StopPaintFlushThread();
 
     if(dev)
     {
@@ -3848,6 +3849,7 @@ void LogitechHIDPP20Controller::Shutdown()
     \*-----------------------------------------------------*/
     StopSenderThread();
     StopPowerManager();
+    StopPaintFlushThread();
 
     /*-----------------------------------------------------*\
     | Release SW control                                    |
@@ -4579,49 +4581,88 @@ void LogitechHIDPP20Controller::TickRetryPaintIfPending()
 
 bool LogitechHIDPP20Controller::SchedulePaintFlush(uint32_t delay_ms)
 {
-    if(!power_thread_running.load())
-    {
-        return false;
-    }
-
-    /*-----------------------------------------------------*\
-    | Keep the earliest pending deadline: zones defer to    |
-    | different phase boundaries and the nearest one must   |
-    | fire first (later zones re-defer on that reconcile).  |
-    \*-----------------------------------------------------*/
     std::chrono::steady_clock::time_point when = std::chrono::steady_clock::now()
                                                + std::chrono::milliseconds(delay_ms);
-    std::chrono::steady_clock::time_point cur  = paint_flush_deadline_.load();
 
-    if(cur == std::chrono::steady_clock::time_point{} || when < cur)
     {
-        paint_flush_deadline_.store(when);
+        std::lock_guard<std::mutex> lock(flush_mutex);
+
+        /*-------------------------------------------------*\
+        | Keep the earliest pending deadline: zones defer   |
+        | to different phase boundaries and the nearest     |
+        | one must fire first (later zones re-defer on      |
+        | that reconcile).                                  |
+        \*-------------------------------------------------*/
+        std::chrono::steady_clock::time_point cur = paint_flush_deadline_.load();
+
+        if(cur == std::chrono::steady_clock::time_point{} || when < cur)
+        {
+            paint_flush_deadline_.store(when);
+        }
+
+        if(!flush_thread_running.load())
+        {
+            flush_thread_running.store(true);
+            flush_thread = new std::thread(&LogitechHIDPP20Controller::FlushThreadFunc, this);
+        }
     }
+
+    flush_cv.notify_all();
     return true;
 }
 
-void LogitechHIDPP20Controller::TickPaintFlushIfPending()
+void LogitechHIDPP20Controller::FlushThreadFunc()
 {
-    std::chrono::steady_clock::time_point deadline = paint_flush_deadline_.load();
+    std::unique_lock<std::mutex> lock(flush_mutex);
 
-    if(deadline == std::chrono::steady_clock::time_point{})
+    while(flush_thread_running.load())
     {
-        return;
+        std::chrono::steady_clock::time_point deadline = paint_flush_deadline_.load();
+
+        if(deadline == std::chrono::steady_clock::time_point{})
+        {
+            flush_cv.wait_for(lock, std::chrono::milliseconds(500));
+            continue;
+        }
+
+        if(std::chrono::steady_clock::now() < deadline)
+        {
+            flush_cv.wait_until(lock, deadline);
+            continue;
+        }
+
+        paint_flush_deadline_.store(std::chrono::steady_clock::time_point{});
+
+        /*-------------------------------------------------*\
+        | Fire outside the lock; the callback runs          |
+        | DeviceUpdateLEDs and may schedule the next        |
+        | flush, which takes flush_mutex.                   |
+        \*-------------------------------------------------*/
+        lock.unlock();
+
+        LOG_DEBUG("%s paint flush firing", LOG_TAG);
+
+        if(request_repaint_fn)
+        {
+            request_repaint_fn();
+        }
+
+        lock.lock();
+    }
+}
+
+void LogitechHIDPP20Controller::StopPaintFlushThread()
+{
+    flush_thread_running.store(false);
+    flush_cv.notify_all();
+
+    if(flush_thread && flush_thread->joinable())
+    {
+        flush_thread->join();
     }
 
-    if(std::chrono::steady_clock::now() < deadline)
-    {
-        return;
-    }
-
-    paint_flush_deadline_.store(std::chrono::steady_clock::time_point{});
-
-    LOG_DEBUG("%s paint flush firing", LOG_TAG);
-
-    if(request_repaint_fn)
-    {
-        request_repaint_fn();
-    }
+    delete flush_thread;
+    flush_thread = nullptr;
 }
 
 /*---------------------------------------------------------*\
@@ -7160,7 +7201,6 @@ void LogitechHIDPP20Controller::PowerThreadFunc()
         | not recursively inside another call.              |
         \*-------------------------------------------------*/
         TickRetryPaintIfPending();
-        TickPaintFlushIfPending();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
