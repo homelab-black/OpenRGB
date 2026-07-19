@@ -3432,6 +3432,17 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
     const bool new_pick   = zone_state && !internal_reapply
                          && (current.value != last_picked_global_value);
 
+    /*-----------------------------------------------------*\
+    | Direct is the streaming mode: it feeds the draw       |
+    | buffer and never claims zones holding an explicit     |
+    | effect (those keep rendering the buffer through       |
+    | their own effect). It is also what plugins force at   |
+    | startup for a safe fast-update path. Firmware effect  |
+    | and Off picks still stamp every zone.                 |
+    \*-----------------------------------------------------*/
+    const bool claim_all = new_pick
+                        && (current.value != HIDPP20_MODE_VALUE_DIRECT);
+
     for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
     {
         if(!zone_state)
@@ -3439,7 +3450,7 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
             zone_desired[i]               = DesiredFromMode(current, i);
             zone_desired[i].tracks_global = true;
         }
-        else if(new_pick || (!internal_reapply && zone_desired[i].tracks_global))
+        else if(claim_all || (!internal_reapply && zone_desired[i].tracks_global))
         {
             StampZoneToGlobal(i, current);
         }
