@@ -9,8 +9,39 @@
 
 #pragma once
 
+#include <chrono>
+#include <map>
+#include <set>
 #include "RGBController.h"
 #include "LogitechHIDPP20Controller.h"
+
+/*---------------------------------------------------------*\
+| mode.value scheme: values >= 0 are HID++ effect ids,      |
+| stable across clusters and devices. The wire wants the    |
+| per-cluster effect index instead, which varies between    |
+| clusters, so it is resolved at send time. Negative        |
+| values are pseudo-modes with no firmware effect id.       |
+\*---------------------------------------------------------*/
+static const int HIDPP20_MODE_VALUE_DIRECT = -1;
+static const int HIDPP20_MODE_VALUE_OFF    = -2;
+static const int HIDPP20_MODE_VALUE_UNSET  = -3;
+
+/*---------------------------------------------------------*\
+| Desired rendering state of one cluster: the effect it     |
+| should run, the zone's color, and the effect params.      |
+| tracks_global marks a zone that follows device-level      |
+| applies; a zone-level set clears it until the next        |
+| device-level effect pick stamps it back.                  |
+\*---------------------------------------------------------*/
+struct HIDPP20ZoneState
+{
+    int          mode_value    = HIDPP20_MODE_VALUE_DIRECT;
+    RGBColor     color         = 0;
+    int          speed         = 0;
+    int          brightness    = 100;
+    unsigned int direction     = 0;
+    bool         tracks_global = true;
+};
 
 class RGBController_LogitechHIDPP20 : public RGBController
 {
@@ -46,13 +77,32 @@ private:
     void                        OnRepaintRequest();
 
     /*-----------------------------------------------------*\
-    | Per-zone modes: resolve a mode by effect id to a      |
-    | cluster's own effect index and send one               |
-    | SetZoneEffect; ZoneOverrideActive tests whether a     |
-    | zone holds a valid per-zone mode override.            |
+    | Zone state model, for every device with clusters      |
+    | (per-key devices route their animated fall-through    |
+    | here too, without zone stamping).                     |
+    | zone_desired is the single representation of what     |
+    | each cluster should show; zone_committed is what      |
+    | the wire last got. ReconcileZones diffs them and      |
+    | sends only changed zones, coalescing color-only       |
+    | updates to animated effects. The UI entry points      |
+    | (mode/zone mode/LED updates) only mutate desired      |
+    | state; the reapply/save paths invalidate committed    |
+    | state to force a full re-send.                        |
     \*-----------------------------------------------------*/
-    bool                        ApplyClusterEffect(size_t cluster_pos, const mode& m, RGBColor color);
-    bool                        ZoneOverrideActive(size_t zone_idx) const;
+    bool                        IsZoneStateLayout() const;
+    int                         FindZoneModeIndexByValue(size_t zone_idx, int value) const;
+    HIDPP20ZoneState            DesiredFromMode(const mode& m, size_t zone_idx) const;
+    void                        StampZoneToGlobal(size_t zone_idx, const mode& global_mode);
+    void                        ApplyGlobalToZones(const mode& current);
+    void                        ReconcileZones();
+    bool                        ApplyZoneState(size_t cluster_pos, const HIDPP20ZoneState& s);
+
+    std::vector<HIDPP20ZoneState> zone_desired;
+    std::vector<HIDPP20ZoneState> zone_committed;
+    std::vector<bool>             zone_committed_valid;
+    std::vector<std::chrono::steady_clock::time_point> zone_last_effect_send;
+    int                         last_picked_global_value = HIDPP20_MODE_VALUE_UNSET;
+    bool                        internal_reapply         = false;
 
     /*-----------------------------------------------------*\
     | Per-key frame body. Registered with the               |
