@@ -1330,6 +1330,21 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     }
 
     /*-----------------------------------------------------*\
+    | Custom: manual per-key painting with the keymap.      |
+    | Direct stays the plugin/SDK stream intake; Static     |
+    | is the fixed-color zone effect.                       |
+    \*-----------------------------------------------------*/
+    if(caps.has_perkey || PerKey8080Capable())
+    {
+        mode Custom;
+        Custom.name       = "Custom";
+        Custom.value      = HIDPP20_MODE_VALUE_CUSTOM;
+        Custom.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+        Custom.color_mode = MODE_COLORS_PER_LED;
+        modes.push_back(Custom);
+    }
+
+    /*-----------------------------------------------------*\
     | Direct mode: zone-only devices (G560, G810            |
     | family). One LED per cluster, colors ride             |
     | per-zone Static writes.                               |
@@ -1435,24 +1450,6 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
                 fx_mode.flags &= ~MODE_FLAG_HAS_BRIGHTNESS;
             }
 
-            /*---------------------------------------------*\
-            | Static is the manual painting mode. On        |
-            | per-key devices it goes per-LED and rides     |
-            | the per-key frame path instead of a single-   |
-            | color cluster fill, so picking Static gives   |
-            | the keymap and per-key painting; Direct       |
-            | stays the plugin/SDK stream intake.           |
-            \*---------------------------------------------*/
-            if(fx.effect_id == 0x0001
-               && (caps.has_perkey || PerKey8080Capable()))
-            {
-                fx_mode.flags      &= ~MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
-                fx_mode.flags      |= MODE_FLAG_HAS_PER_LED_COLOR;
-                fx_mode.color_mode  = MODE_COLORS_PER_LED;
-                fx_mode.colors_min  = 0;
-                fx_mode.colors_max  = 0;
-                fx_mode.colors.clear();
-            }
             modes.push_back(fx_mode);
         }
     }
@@ -1472,7 +1469,8 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         for(size_t i = 0; i < modes.size(); i++)
         {
-            if(modes[i].value != HIDPP20_MODE_VALUE_DIRECT)
+            if(modes[i].value != HIDPP20_MODE_VALUE_DIRECT
+            && modes[i].value != HIDPP20_MODE_VALUE_CUSTOM)
             {
                 modes[i].flags |= MODE_FLAG_MANUAL_SAVE;
             }
@@ -3359,12 +3357,11 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     last_nondirect_mode = active_mode;
 
     /*-----------------------------------------------------*\
-    | Static on per-key devices is manual painting: same    |
-    | per-key frame path as Direct, no cluster fill.        |
+    | Custom is manual per-key painting: same per-key       |
+    | frame path as Direct, no cluster fill.                |
     \*-----------------------------------------------------*/
     if((caps.has_perkey || PerKey8080Capable())
-       && current.value == 0x0001
-       && current.color_mode == MODE_COLORS_PER_LED)
+       && current.value == HIDPP20_MODE_VALUE_CUSTOM)
     {
         /*-------------------------------------------------*\
         | Per-key frames override the cluster effect layer  |
