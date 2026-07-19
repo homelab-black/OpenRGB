@@ -1544,6 +1544,17 @@ void RGBController_LogitechHIDPP20::OnRepaintRequest()
         }
     }
     DeviceUpdateLEDs();
+
+    /*-----------------------------------------------------*\
+    | Per-key devices exit DeviceUpdateLEDs through the     |
+    | per-key branches without reconciling, so a deferred   |
+    | cluster color flush would never land there. A second  |
+    | reconcile on zone-state devices is a no-op.           |
+    \*-----------------------------------------------------*/
+    if(!zone_desired.empty())
+    {
+        ReconcileZones();
+    }
 }
 
 RGBController_LogitechHIDPP20::~RGBController_LogitechHIDPP20()
@@ -3489,6 +3500,25 @@ HIDPP20ZoneState RGBController_LogitechHIDPP20::DesiredFromMode(const mode& m, s
         else if(m.color_mode == MODE_COLORS_MODE_SPECIFIC && !m.colors.empty())
         {
             s.color = m.colors[0];
+
+            /*---------------------------------------------*\
+            | A black mode color renders these effects      |
+            | invisible and usually means "never set";      |
+            | borrow the first painted color from the draw  |
+            | buffer instead. The Visualizer is excluded:   |
+            | color 0 selects its self-cycle mode.          |
+            \*---------------------------------------------*/
+            if(s.color == 0 && m.value != 0x0007)
+            {
+                for(size_t k = 0; k < colors.size(); k++)
+                {
+                    if(colors[k] != 0)
+                    {
+                        s.color = colors[k];
+                        break;
+                    }
+                }
+            }
         }
     }
     return s;
