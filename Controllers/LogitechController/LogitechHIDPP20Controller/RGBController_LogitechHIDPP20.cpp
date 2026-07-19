@@ -117,27 +117,32 @@ static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 | in the zone state so color paints never dirty them.       |
 \*---------------------------------------------------------*/
 /*---------------------------------------------------------*\
-| Effects that run a long timed loop; their restarts group  |
-| so zones with the same effect and period share a          |
-| starting point. Ripple and the Decomposition/Signature    |
-| family use their timer as a frame delay, not a loop, and  |
-| are excluded. The Visualizer loops only in self-cycle     |
-| mode (color 0); with a set color it is audio-pulsed.      |
+| Long timed loops group by family, so zones with the same  |
+| underlying loop and period share a starting point even    |
+| across effect ids: the self-cycle Visualizer runs the     |
+| same color loop as Spectrum Cycle with audio modulation   |
+| on top, and the saturation variants are the same loops    |
+| as their base effects. Ripple and Decomposition/          |
+| Signature use their timer as a frame delay, not a loop,   |
+| and never group. Returns -1 for non-looping effects; the  |
+| Visualizer loops only in self-cycle mode (color 0).       |
 \*---------------------------------------------------------*/
-static bool EffectLoops(const HIDPP20ZoneState& s)
+static int EffectLoopFamily(const HIDPP20ZoneState& s)
 {
     switch(s.mode_value)
     {
         case 0x0003:    // Spectrum Cycle
-        case 0x0004:    // Color Wave
-        case 0x000A:    // Breathing
         case 0x0015:    // Cycle (saturation variant)
+            return 0x0003;
+        case 0x0007:    // Audio Visualizer (modulated color loop)
+            return (s.color == 0) ? 0x0003 : -1;
+        case 0x0004:    // Color Wave
         case 0x0016:    // Wave (saturation variant)
-            return true;
-        case 0x0007:    // Audio Visualizer
-            return (s.color == 0);
+            return 0x0004;
+        case 0x000A:    // Breathing
+            return 0x000A;
         default:
-            return false;
+            return -1;
     }
 }
 
@@ -3722,9 +3727,11 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
         zone_last_effect_send[i] = std::chrono::steady_clock::now();
         sent[i] = true;
 
-        if(EffectLoops(want) && period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
+        int family = EffectLoopFamily(want);
+
+        if(family >= 0 && period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
         {
-            std::pair<int, int> key(want.mode_value, want.speed);
+            std::pair<int, int> key(family, want.speed);
 
             if(std::find(restarted_groups.begin(), restarted_groups.end(), key)
                == restarted_groups.end())
@@ -3749,9 +3756,8 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             const HIDPP20ZoneState& want = zone_desired[j];
 
             if(sent[j] || !zone_committed_valid[j]
-               || !EffectLoops(want)
-               || want.mode_value != restarted_groups[g].first
-               || want.speed      != restarted_groups[g].second)
+               || EffectLoopFamily(want) != restarted_groups[g].first
+               || want.speed             != restarted_groups[g].second)
             {
                 continue;
             }
