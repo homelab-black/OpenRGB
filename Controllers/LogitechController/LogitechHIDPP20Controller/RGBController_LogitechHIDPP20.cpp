@@ -116,6 +116,31 @@ static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 | Effects that render an RGB parameter. Others get color 0  |
 | in the zone state so color paints never dirty them.       |
 \*---------------------------------------------------------*/
+/*---------------------------------------------------------*\
+| Effects that run a long timed loop; their restarts group  |
+| so zones with the same effect and period share a          |
+| starting point. Ripple and the Decomposition/Signature    |
+| family use their timer as a frame delay, not a loop, and  |
+| are excluded. The Visualizer loops only in self-cycle     |
+| mode (color 0); with a set color it is audio-pulsed.      |
+\*---------------------------------------------------------*/
+static bool EffectLoops(const HIDPP20ZoneState& s)
+{
+    switch(s.mode_value)
+    {
+        case 0x0003:    // Spectrum Cycle
+        case 0x0004:    // Color Wave
+        case 0x000A:    // Breathing
+        case 0x0015:    // Cycle (saturation variant)
+        case 0x0016:    // Wave (saturation variant)
+            return true;
+        case 0x0007:    // Audio Visualizer
+            return (s.color == 0);
+        default:
+            return false;
+    }
+}
+
 static bool EffectUsesColor(int mode_value)
 {
     switch(mode_value)
@@ -3434,14 +3459,15 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
 
     /*-----------------------------------------------------*\
     | Direct is the streaming mode: it feeds the draw       |
-    | buffer and never claims zones holding an explicit     |
-    | effect (those keep rendering the buffer through       |
-    | their own effect). It is also what plugins force at   |
-    | startup for a safe fast-update path. Firmware effect  |
-    | and Off picks still stamp every zone.                 |
+    | buffer and stamps NO zone; every zone keeps its own   |
+    | mode and renders the buffer through it. It is also    |
+    | what plugins force at startup for a safe fast-update  |
+    | path. A zone reaches Direct rendering explicitly:     |
+    | zone-level set, Follow Device Mode resync, or the     |
+    | initial state. Firmware effect and Off picks still    |
+    | stamp every zone.                                     |
     \*-----------------------------------------------------*/
-    const bool claim_all = new_pick
-                        && (current.value != HIDPP20_MODE_VALUE_DIRECT);
+    const bool direct_stream = (current.value == HIDPP20_MODE_VALUE_DIRECT);
 
     for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
     {
@@ -3450,7 +3476,8 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
             zone_desired[i]               = DesiredFromMode(current, i);
             zone_desired[i].tracks_global = true;
         }
-        else if(claim_all || (!internal_reapply && zone_desired[i].tracks_global))
+        else if(!direct_stream
+             && (new_pick || (!internal_reapply && zone_desired[i].tracks_global)))
         {
             StampZoneToGlobal(i, current);
         }
@@ -3624,15 +3651,11 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
 
         /*-------------------------------------------------*\
         | Phase timing only matters where a color pairs     |
-        | with a visible period cycle: Breathing and the    |
-        | Ripple variants (the latter fall under the fast   |
-        | period exemption in practice). The Visualizer is  |
-        | audio-driven, a restart resets no visible         |
-        | rhythm, so its color changes land immediately.    |
+        | with a visible loop: Breathing. Ripple's timer    |
+        | is a frame delay, the Visualizer is audio-        |
+        | driven; both take color changes immediately.      |
         \*-------------------------------------------------*/
-        bool cyclic     = (want.mode_value == 0x000A
-                        || want.mode_value == 0x000B
-                        || want.mode_value == 0x0017);
+        bool cyclic     = (want.mode_value == 0x000A);
         bool color_only = cyclic && zone_committed_valid[i]
                        && zone_committed[i].mode_value == want.mode_value
                        && zone_committed[i].speed      == want.speed
@@ -3699,7 +3722,7 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
         zone_last_effect_send[i] = std::chrono::steady_clock::now();
         sent[i] = true;
 
-        if(phase_managed)
+        if(EffectLoops(want) && period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
         {
             std::pair<int, int> key(want.mode_value, want.speed);
 
@@ -3712,12 +3735,12 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
     }
 
     /*-----------------------------------------------------*\
-    | Sync groups: a cyclic restart resets that zone's      |
-    | loop, so restart every other zone running the same    |
-    | effect at the same period in the same pass. All       |
-    | members share one phase origin from here on; their    |
-    | boundaries coincide, so later joint restarts at a     |
-    | boundary are invisible.                               |
+    | Sync groups: restarting one timed loop resets its     |
+    | starting point, so restart every other zone running   |
+    | the same effect at the same period in the same pass.  |
+    | All members share one phase origin from here on;      |
+    | their boundaries coincide, so later joint restarts    |
+    | at a boundary are invisible.                          |
     \*-----------------------------------------------------*/
     for(size_t g = 0; g < restarted_groups.size(); g++)
     {
@@ -3726,6 +3749,7 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             const HIDPP20ZoneState& want = zone_desired[j];
 
             if(sent[j] || !zone_committed_valid[j]
+               || !EffectLoops(want)
                || want.mode_value != restarted_groups[g].first
                || want.speed      != restarted_groups[g].second)
             {
