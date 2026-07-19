@@ -3658,9 +3658,15 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
 
         ApplyZoneState(i, want);
 
-        zone_committed[i]        = want;
-        zone_committed_valid[i]  = true;
-        zone_last_effect_send[i] = now;
+        zone_committed[i]       = want;
+        zone_committed_valid[i] = true;
+
+        /*-------------------------------------------------*\
+        | Each zone's loop restarts when its own ACKed      |
+        | send lands, so stamp the phase origin per zone    |
+        | after the send, not with the pass start time.     |
+        \*-------------------------------------------------*/
+        zone_last_effect_send[i] = std::chrono::steady_clock::now();
     }
 }
 
