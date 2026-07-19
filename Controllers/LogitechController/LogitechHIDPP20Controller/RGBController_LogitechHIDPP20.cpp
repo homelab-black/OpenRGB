@@ -1414,16 +1414,36 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
             }
 
             mode fx_mode;
-            if(ModeFromEffect(fx, per_led, fx_mode))
+            if(!ModeFromEffect(fx, per_led, fx_mode))
             {
-                if(!effect_brightness
-                && (fx.effect_id == 0x0003 || fx.effect_id == 0x0004 || fx.effect_id == 0x000A))
-                {
-                    fx_mode.flags &= ~MODE_FLAG_HAS_BRIGHTNESS;
-                }
-
-                modes.push_back(fx_mode);
+                continue;
             }
+
+            if(!effect_brightness
+            && (fx.effect_id == 0x0003 || fx.effect_id == 0x0004 || fx.effect_id == 0x000A))
+            {
+                fx_mode.flags &= ~MODE_FLAG_HAS_BRIGHTNESS;
+            }
+
+            /*---------------------------------------------*\
+            | Static is the manual painting mode. On        |
+            | per-key devices it goes per-LED and rides     |
+            | the per-key frame path instead of a single-   |
+            | color cluster fill, so picking Static gives   |
+            | the keymap and per-key painting; Direct       |
+            | stays the plugin/SDK stream intake.           |
+            \*---------------------------------------------*/
+            if(fx.effect_id == 0x0001
+               && (caps.has_perkey || PerKey8080Capable()))
+            {
+                fx_mode.flags      &= ~MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+                fx_mode.flags      |= MODE_FLAG_HAS_PER_LED_COLOR;
+                fx_mode.color_mode  = MODE_COLORS_PER_LED;
+                fx_mode.colors_min  = 0;
+                fx_mode.colors_max  = 0;
+                fx_mode.colors.clear();
+            }
+            modes.push_back(fx_mode);
         }
     }
 
@@ -3278,6 +3298,19 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | it so a later forced Direct keeps displaying it.      |
     \*-----------------------------------------------------*/
     last_nondirect_mode = active_mode;
+
+    /*-----------------------------------------------------*\
+    | Static on per-key devices is manual painting: same    |
+    | per-key frame path as Direct, no cluster fill.        |
+    \*-----------------------------------------------------*/
+    if((caps.has_perkey || PerKey8080Capable())
+       && current.value == 0x0001
+       && current.color_mode == MODE_COLORS_PER_LED)
+    {
+        sent_colors.clear();
+        DeviceUpdateLEDs();
+        return;
+    }
 
     sent_colors.clear();
 
