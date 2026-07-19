@@ -102,15 +102,13 @@ static uint8_t WaveDirectionToWire(unsigned int dir)
 /*---------------------------------------------------------*\
 | Color-only re-sends to a running animated effect restart  |
 | its phase on the wire (no phase parameter or in-place     |
-| color update exists on 0x8070/0x8071). Isolated changes   |
-| (manual picks) send immediately; changes within the       |
-| stream window of the previous one are deferred to the     |
-| effect's next phase boundary, computed from the last      |
-| send time and period, so the restart lands where the      |
-| animation already is. Effects faster than the minimum     |
-| period skip the dance: their restart is imperceptible.    |
+| color update exists on 0x8070/0x8071). They are always    |
+| deferred to the effect's next phase boundary, computed    |
+| from the last send time and period, so the restart lands  |
+| where the animation already is; the latest color wins at  |
+| the boundary. Effects faster than the minimum period      |
+| skip the dance: their restart is imperceptible.           |
 \*---------------------------------------------------------*/
-static const uint64_t HIDPP20_STREAM_WINDOW_MS    = 1000;
 static const uint64_t HIDPP20_PHASE_WINDOW_MS     = 100;
 static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 
@@ -2031,9 +2029,6 @@ void RGBController_LogitechHIDPP20::SetupZones()
     zone_committed_valid.assign(caps.zone_clusters.size(), false);
     zone_last_effect_send.assign(caps.zone_clusters.size(),
                                  std::chrono::steady_clock::time_point());
-    zone_last_color_change.assign(caps.zone_clusters.size(),
-                                  std::chrono::steady_clock::time_point());
-    zone_last_seen_color.assign(caps.zone_clusters.size(), 0);
 
     SetupColors();
 }
@@ -3590,14 +3585,13 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
 /*---------------------------------------------------------*\
 | Diff desired against committed and send only changed      |
 | zones. Mode and param changes always send immediately.    |
-| Color-only changes to a running animated effect send      |
-| immediately when isolated (a manual pick), but a stream   |
-| of changes is deferred to the effect's next phase         |
-| boundary so the restart lands where the animation         |
-| already is; the power thread's paint flush fires a        |
-| reconcile at the boundary so the last color of a burst    |
-| always lands. Unresolvable effects commit too: the skip   |
-| is permanent for that value, so there is no retry storm.  |
+| Color-only changes to a running animated effect are       |
+| always deferred to the effect's next phase boundary so    |
+| the restart lands where the animation already is; the     |
+| power thread's paint flush fires a reconcile at the       |
+| boundary so the latest color always lands. Unresolvable   |
+| effects commit too: the skip is permanent for that        |
+| value, so there is no retry storm.                        |
 \*---------------------------------------------------------*/
 void RGBController_LogitechHIDPP20::ReconcileZones()
 {
@@ -3623,26 +3617,11 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
 
         if(color_only)
         {
-            bool isolated = false;
-
-            if(want.color != zone_last_seen_color[i])
-            {
-                isolated = (now - zone_last_color_change[i])
-                         >= std::chrono::milliseconds(HIDPP20_STREAM_WINDOW_MS);
-                zone_last_seen_color[i]   = want.color;
-                zone_last_color_change[i] = now;
-            }
-
             uint16_t period_ms = (want.mode_value == 0x000B || want.mode_value == 0x0017)
                                ? RippleSpeedSliderToPeriodMs(want.speed)
                                : SpeedSliderToPeriodMs(want.speed);
 
-            if(isolated)
-            {
-                LOG_DEBUG("[LogitechHID++2.0] zone %u isolated color change, sending now",
-                          caps.zone_clusters[i].index);
-            }
-            else if(period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
+            if(period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
             {
                 uint64_t since_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>
                                     (now - zone_last_effect_send[i]).count();
@@ -3682,7 +3661,6 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
         zone_committed[i]        = want;
         zone_committed_valid[i]  = true;
         zone_last_effect_send[i] = now;
-        zone_last_seen_color[i]  = want.color;
     }
 }
 

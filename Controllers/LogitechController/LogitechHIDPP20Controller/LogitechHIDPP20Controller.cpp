@@ -4584,8 +4584,19 @@ bool LogitechHIDPP20Controller::SchedulePaintFlush(uint32_t delay_ms)
         return false;
     }
 
-    paint_flush_deadline_.store(std::chrono::steady_clock::now()
-                                + std::chrono::milliseconds(delay_ms));
+    /*-----------------------------------------------------*\
+    | Keep the earliest pending deadline: zones defer to    |
+    | different phase boundaries and the nearest one must   |
+    | fire first (later zones re-defer on that reconcile).  |
+    \*-----------------------------------------------------*/
+    std::chrono::steady_clock::time_point when = std::chrono::steady_clock::now()
+                                               + std::chrono::milliseconds(delay_ms);
+    std::chrono::steady_clock::time_point cur  = paint_flush_deadline_.load();
+
+    if(cur == std::chrono::steady_clock::time_point{} || when < cur)
+    {
+        paint_flush_deadline_.store(when);
+    }
     return true;
 }
 
