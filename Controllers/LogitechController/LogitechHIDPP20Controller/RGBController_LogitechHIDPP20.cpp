@@ -3575,13 +3575,17 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
 /*---------------------------------------------------------*\
 | Diff desired against committed and send only changed      |
 | zones. Mode and param changes always send immediately.    |
-| Color-only changes to a running animated effect are       |
-| always deferred to the effect's next phase boundary so    |
-| the restart lands where the animation already is; the     |
-| power thread's paint flush fires a reconcile at the       |
-| boundary so the latest color always lands. Unresolvable   |
-| effects commit too: the skip is permanent for that        |
-| value, so there is no retry storm.                        |
+| Color-only changes to a running cyclic effect are         |
+| deferred to the effect's next phase boundary so the       |
+| restart lands where the animation already is; the flush   |
+| thread fires a reconcile at the boundary so the latest    |
+| color always lands. Any send that restarts a cyclic       |
+| effect also restarts every other zone running the same    |
+| effect at the same period, so grouped zones share one     |
+| phase origin and stay in sync; at a shared boundary the   |
+| joint restart is invisible. Unresolvable effects commit   |
+| too: the skip is permanent for that value, so there is    |
+| no retry storm.                                           |
 \*---------------------------------------------------------*/
 void RGBController_LogitechHIDPP20::ReconcileZones()
 {
@@ -3589,7 +3593,16 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
 
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-    for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
+    size_t n = caps.zone_clusters.size();
+    if(n > zone_desired.size())
+    {
+        n = zone_desired.size();
+    }
+
+    std::vector<bool>                     sent(n, false);
+    std::vector<std::pair<int, int>>      restarted_groups;
+
+    for(size_t i = 0; i < n; i++)
     {
         const HIDPP20ZoneState& want = zone_desired[i];
 
@@ -3615,44 +3628,43 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
                        && zone_committed[i].brightness == want.brightness
                        && zone_committed[i].direction  == want.direction;
 
-        if(color_only)
+        uint16_t period_ms = (want.mode_value == 0x000B || want.mode_value == 0x0017)
+                           ? RippleSpeedSliderToPeriodMs(want.speed)
+                           : SpeedSliderToPeriodMs(want.speed);
+
+        bool phase_managed = cyclic && (period_ms > HIDPP20_PHASE_MIN_PERIOD_MS);
+
+        if(color_only && phase_managed)
         {
-            uint16_t period_ms = (want.mode_value == 0x000B || want.mode_value == 0x0017)
-                               ? RippleSpeedSliderToPeriodMs(want.speed)
-                               : SpeedSliderToPeriodMs(want.speed);
+            uint64_t since_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>
+                                (now - zone_last_effect_send[i]).count();
+            uint64_t in_phase = since_ms % period_ms;
 
-            if(period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
+            if(in_phase > HIDPP20_PHASE_WINDOW_MS
+            && in_phase < period_ms - HIDPP20_PHASE_WINDOW_MS)
             {
-                uint64_t since_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>
-                                    (now - zone_last_effect_send[i]).count();
-                uint64_t in_phase = since_ms % period_ms;
-
-                if(in_phase > HIDPP20_PHASE_WINDOW_MS
-                && in_phase < period_ms - HIDPP20_PHASE_WINDOW_MS)
+                /*-----------------------------------------*\
+                | Mid-phase: hold the send until the next   |
+                | boundary. Without a flush thread to       |
+                | fire it, send now rather than risk        |
+                | losing the color.                         |
+                \*-----------------------------------------*/
+                if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
                 {
-                    /*-------------------------------------*\
-                    | Mid-phase: hold the send until the    |
-                    | next boundary. Without a power        |
-                    | thread to fire the flush, send now    |
-                    | rather than risk losing the color.    |
-                    \*-------------------------------------*/
-                    if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
-                    {
-                        LOG_DEBUG("[LogitechHID++2.0] zone %u color deferred %ums to phase boundary (period %ums)",
-                                  caps.zone_clusters[i].index,
-                                  (unsigned int)(period_ms - in_phase),
-                                  (unsigned int)period_ms);
-                        continue;
-                    }
+                    LOG_DEBUG("[LogitechHID++2.0] zone %u color deferred %ums to phase boundary (period %ums)",
+                              caps.zone_clusters[i].index,
+                              (unsigned int)(period_ms - in_phase),
+                              (unsigned int)period_ms);
+                    continue;
+                }
 
-                    LOG_DEBUG("[LogitechHID++2.0] zone %u no flush timer, sending mid-phase",
-                              caps.zone_clusters[i].index);
-                }
-                else
-                {
-                    LOG_DEBUG("[LogitechHID++2.0] zone %u at phase boundary (in_phase %ums), sending",
-                              caps.zone_clusters[i].index, (unsigned int)in_phase);
-                }
+                LOG_DEBUG("[LogitechHID++2.0] zone %u no flush timer, sending mid-phase",
+                          caps.zone_clusters[i].index);
+            }
+            else
+            {
+                LOG_DEBUG("[LogitechHID++2.0] zone %u at phase boundary (in_phase %ums), sending",
+                          caps.zone_clusters[i].index, (unsigned int)in_phase);
             }
         }
 
@@ -3667,6 +3679,50 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
         | after the send, not with the pass start time.     |
         \*-------------------------------------------------*/
         zone_last_effect_send[i] = std::chrono::steady_clock::now();
+        sent[i] = true;
+
+        if(phase_managed)
+        {
+            std::pair<int, int> key(want.mode_value, want.speed);
+
+            if(std::find(restarted_groups.begin(), restarted_groups.end(), key)
+               == restarted_groups.end())
+            {
+                restarted_groups.push_back(key);
+            }
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Sync groups: a cyclic restart resets that zone's      |
+    | loop, so restart every other zone running the same    |
+    | effect at the same period in the same pass. All       |
+    | members share one phase origin from here on; their    |
+    | boundaries coincide, so later joint restarts at a     |
+    | boundary are invisible.                               |
+    \*-----------------------------------------------------*/
+    for(size_t g = 0; g < restarted_groups.size(); g++)
+    {
+        for(size_t j = 0; j < n; j++)
+        {
+            const HIDPP20ZoneState& want = zone_desired[j];
+
+            if(sent[j] || !zone_committed_valid[j]
+               || want.mode_value != restarted_groups[g].first
+               || want.speed      != restarted_groups[g].second)
+            {
+                continue;
+            }
+
+            LOG_DEBUG("[LogitechHID++2.0] zone %u restarted for group sync",
+                      caps.zone_clusters[j].index);
+
+            ApplyZoneState(j, want);
+
+            zone_committed[j]        = want;
+            zone_last_effect_send[j] = std::chrono::steady_clock::now();
+            sent[j] = true;
+        }
     }
 }
 
