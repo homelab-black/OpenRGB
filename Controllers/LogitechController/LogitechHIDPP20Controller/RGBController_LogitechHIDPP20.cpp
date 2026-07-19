@@ -2655,6 +2655,12 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             {
                 controller->ScheduleRetryPaint();
             }
+
+            /*---------------------------------------------*\
+            | Per-key writes override the cluster effect    |
+            | layer; committed cluster state is stale now.  |
+            \*---------------------------------------------*/
+            zone_committed_valid.assign(zone_committed_valid.size(), false);
         }
         else
         {
@@ -2784,6 +2790,14 @@ void RGBController_LogitechHIDPP20::SendPerKeyFrame(std::vector<RGBColor>& snaps
     {
         return;
     }
+
+    /*-----------------------------------------------------*\
+    | Per-key frames override the cluster effect layer on   |
+    | the wire; the committed cluster state is no longer    |
+    | trustworthy, so the next effect pick must re-send     |
+    | even if it matches.                                   |
+    \*-----------------------------------------------------*/
+    zone_committed_valid.assign(zone_committed_valid.size(), false);
 
     uint8_t perkey_idx = (caps.idx_perkey_v2 != 0) ? caps.idx_perkey_v2 : caps.idx_perkey_v1;
 
@@ -3296,10 +3310,10 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     const mode& current = modes[active_mode];
 
     /*-----------------------------------------------------*\
-    | Direct mode. Zone-state devices stamp Direct into     |
-    | every tracking zone and reconcile; per-key and        |
-    | headset devices invalidate delta tracking so the      |
-    | next DeviceUpdateLEDs sends a full frame.             |
+    | Direct mode: the stream intake. Zone-state devices    |
+    | stamp nothing and keep their display; per-key         |
+    | devices arm the intake without repainting so the      |
+    | running effect survives until a stream arrives.       |
     \*-----------------------------------------------------*/
     if(current.value == HIDPP20_MODE_VALUE_DIRECT)
     {
@@ -3322,18 +3336,25 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                 active_mode = last_nondirect_mode;
             }
         }
+        else if(internal_reapply)
+        {
+            /*---------------------------------------------*\
+            | Reconnect/wake reapply restores the per-key   |
+            | frame in full.                                |
+            \*---------------------------------------------*/
+            sent_colors.clear();
+            DeviceUpdateLEDs();
+        }
         else
         {
             /*---------------------------------------------*\
-            | Per-key frames override the cluster effect    |
-            | layer on the wire; the committed cluster      |
-            | state is no longer trustworthy, so the next   |
-            | effect pick must re-send even if it matches.  |
+            | Direct arms the stream intake only: no        |
+            | repaint, so a running firmware effect keeps   |
+            | going until a stream or UI paint actually     |
+            | arrives. Clearing the delta makes the first   |
+            | arriving frame a full push.                   |
             \*---------------------------------------------*/
-            zone_committed_valid.assign(zone_committed_valid.size(), false);
-
             sent_colors.clear();
-            DeviceUpdateLEDs();
         }
 
         /*-------------------------------------------------*\
@@ -3363,14 +3384,6 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     if((caps.has_perkey || PerKey8080Capable())
        && current.value == HIDPP20_MODE_VALUE_CUSTOM)
     {
-        /*-------------------------------------------------*\
-        | Per-key frames override the cluster effect layer  |
-        | on the wire; the committed cluster state is no    |
-        | longer trustworthy, so the next effect pick must  |
-        | re-send even if it matches.                       |
-        \*-------------------------------------------------*/
-        zone_committed_valid.assign(zone_committed_valid.size(), false);
-
         sent_colors.clear();
         DeviceUpdateLEDs();
         return;
