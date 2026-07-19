@@ -3287,6 +3287,14 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         }
         else
         {
+            /*---------------------------------------------*\
+            | Per-key frames override the cluster effect    |
+            | layer on the wire; the committed cluster      |
+            | state is no longer trustworthy, so the next   |
+            | effect pick must re-send even if it matches.  |
+            \*---------------------------------------------*/
+            zone_committed_valid.assign(zone_committed_valid.size(), false);
+
             sent_colors.clear();
             DeviceUpdateLEDs();
         }
@@ -3319,6 +3327,14 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
        && current.value == 0x0001
        && current.color_mode == MODE_COLORS_PER_LED)
     {
+        /*-------------------------------------------------*\
+        | Per-key frames override the cluster effect layer  |
+        | on the wire; the committed cluster state is no    |
+        | longer trustworthy, so the next effect pick must  |
+        | re-send even if it matches.                       |
+        \*-------------------------------------------------*/
+        zone_committed_valid.assign(zone_committed_valid.size(), false);
+
         sent_colors.clear();
         DeviceUpdateLEDs();
         return;
@@ -3362,6 +3378,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
                 controller->SetPerKey8080(by_type);
             }
 
+            zone_committed_valid.assign(zone_committed_valid.size(), false);
             return;
         }
 
@@ -3380,6 +3397,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         {
             controller->SetAllPerKeyColor(ToRGBColor(0, 0, 0));
             controller->PerKeyFrameEnd();
+            zone_committed_valid.assign(zone_committed_valid.size(), false);
             return;
         }
 
