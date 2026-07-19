@@ -113,6 +113,16 @@ static const uint64_t HIDPP20_PHASE_WINDOW_MS     = 100;
 static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 
 /*---------------------------------------------------------*\
+| A device-level effect pick does not claim a zone whose    |
+| mode was explicitly set within this window. Profile       |
+| loads restore zone modes and re-apply the device mode     |
+| within milliseconds of each other, in no guaranteed       |
+| order; without this, the device apply stamps over zones   |
+| the restore already set.                                  |
+\*---------------------------------------------------------*/
+static const uint64_t HIDPP20_ZONE_SET_PROTECT_MS = 5000;
+
+/*---------------------------------------------------------*\
 | Effects that render an RGB parameter. Others get color 0  |
 | in the zone state so color paints never dirty them.       |
 \*---------------------------------------------------------*/
@@ -2079,6 +2089,8 @@ void RGBController_LogitechHIDPP20::SetupZones()
     zone_committed_valid.assign(caps.zone_clusters.size(), false);
     zone_last_effect_send.assign(caps.zone_clusters.size(),
                                  std::chrono::steady_clock::time_point());
+    zone_explicit_set.assign(caps.zone_clusters.size(),
+                             std::chrono::steady_clock::time_point());
 
     SetupColors();
 }
@@ -3528,6 +3540,8 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
     \*-----------------------------------------------------*/
     const bool direct_stream = (current.value == HIDPP20_MODE_VALUE_DIRECT);
 
+    const std::chrono::steady_clock::time_point apply_now = std::chrono::steady_clock::now();
+
     for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
     {
         if(!zone_state)
@@ -3538,6 +3552,22 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
         else if(!direct_stream
              && (new_pick || (!internal_reapply && zone_desired[i].tracks_global)))
         {
+            /*---------------------------------------------*\
+            | Profile loads restore zone modes and re-apply |
+            | the device mode within milliseconds, in no    |
+            | guaranteed order; do not claim a zone whose   |
+            | mode was explicitly set moments ago.          |
+            \*---------------------------------------------*/
+            if(i < zone_explicit_set.size()
+               && zone_desired[i].mode_value != current.value
+               && (apply_now - zone_explicit_set[i])
+                  < std::chrono::milliseconds(HIDPP20_ZONE_SET_PROTECT_MS))
+            {
+                LOG_DEBUG("[LogitechHID++2.0] zone %u recently set, kept through device apply",
+                          caps.zone_clusters[i].index);
+                continue;
+            }
+
             StampZoneToGlobal(i, current);
         }
     }
@@ -3884,6 +3914,11 @@ void RGBController_LogitechHIDPP20::DeviceUpdateZoneMode(int zone)
                         && zm.value == modes[active_mode].value);
 
         zone_desired[zone] = s;
+
+        if((size_t)zone < zone_explicit_set.size())
+        {
+            zone_explicit_set[zone] = std::chrono::steady_clock::now();
+        }
     }
 
     ReconcileZones();
