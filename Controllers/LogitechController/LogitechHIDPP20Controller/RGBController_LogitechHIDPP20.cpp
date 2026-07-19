@@ -3455,6 +3455,16 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
         last_picked_global_value = current.value;
     }
 
+    /*-----------------------------------------------------*\
+    | The phase-timed paint flush rides the power thread;   |
+    | start it on any mode apply, not just Direct, so       |
+    | deferred color re-sends can fire. Idempotent.         |
+    \*-----------------------------------------------------*/
+    if(zone_state)
+    {
+        controller->StartPowerManager();
+    }
+
     ReconcileZones();
 
     /*-----------------------------------------------------*\
@@ -3627,7 +3637,12 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
                                ? RippleSpeedSliderToPeriodMs(want.speed)
                                : SpeedSliderToPeriodMs(want.speed);
 
-            if(!isolated && period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
+            if(isolated)
+            {
+                LOG_DEBUG("[LogitechHID++2.0] zone %u isolated color change, sending now",
+                          caps.zone_clusters[i].index);
+            }
+            else if(period_ms > HIDPP20_PHASE_MIN_PERIOD_MS)
             {
                 uint64_t since_ms = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>
                                     (now - zone_last_effect_send[i]).count();
@@ -3644,8 +3659,20 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
                     \*-------------------------------------*/
                     if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
                     {
+                        LOG_DEBUG("[LogitechHID++2.0] zone %u color deferred %ums to phase boundary (period %ums)",
+                                  caps.zone_clusters[i].index,
+                                  (unsigned int)(period_ms - in_phase),
+                                  (unsigned int)period_ms);
                         continue;
                     }
+
+                    LOG_DEBUG("[LogitechHID++2.0] zone %u no flush timer, sending mid-phase",
+                              caps.zone_clusters[i].index);
+                }
+                else
+                {
+                    LOG_DEBUG("[LogitechHID++2.0] zone %u at phase boundary (in_phase %ums), sending",
+                              caps.zone_clusters[i].index, (unsigned int)in_phase);
                 }
             }
         }
@@ -3695,6 +3722,12 @@ void RGBController_LogitechHIDPP20::DeviceUpdateZoneMode(int zone)
     }
 
     controller->ClaimSWControlIfNeeded();
+
+    /*-----------------------------------------------------*\
+    | The phase-timed paint flush rides the power thread;   |
+    | a zone-level set may be the first apply. Idempotent.  |
+    \*-----------------------------------------------------*/
+    controller->StartPowerManager();
 
     int zam = zones[zone].active_mode;
 

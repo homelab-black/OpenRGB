@@ -4605,6 +4605,8 @@ void LogitechHIDPP20Controller::TickPaintFlushIfPending()
 
     paint_flush_deadline_.store(std::chrono::steady_clock::time_point{});
 
+    LOG_DEBUG("%s paint flush firing", LOG_TAG);
+
     if(request_repaint_fn)
     {
         request_repaint_fn();
