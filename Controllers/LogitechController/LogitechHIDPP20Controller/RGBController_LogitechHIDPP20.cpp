@@ -123,6 +123,17 @@ static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 static const uint64_t HIDPP20_ZONE_SET_PROTECT_MS = 5000;
 
 /*---------------------------------------------------------*\
+| Frame-delay effects (Ripple) restart visibly on every     |
+| re-send, so their color is locked at apply time and       |
+| never follows the draw buffer; recoloring takes an        |
+| explicit mode, param, or swatch change.                   |
+\*---------------------------------------------------------*/
+static bool EffectColorLockedWhileRunning(int mode_value)
+{
+    return (mode_value == 0x000B || mode_value == 0x0017);
+}
+
+/*---------------------------------------------------------*\
 | Effects that render an RGB parameter. Others get color 0  |
 | in the zone state so color paints never dirty them.       |
 \*---------------------------------------------------------*/
@@ -2693,7 +2704,9 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
     {
         for(size_t i = 0; i < caps.zone_clusters.size() && i < colors.size(); i++)
         {
-            if(i >= zone_desired.size() || !EffectUsesColor(zone_desired[i].mode_value))
+            if(i >= zone_desired.size()
+               || !EffectUsesColor(zone_desired[i].mode_value)
+               || EffectColorLockedWhileRunning(zone_desired[i].mode_value))
             {
                 continue;
             }
@@ -2739,6 +2752,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
 
         if(current.value > 0
            && EffectUsesColor(current.value)
+           && !EffectColorLockedWhileRunning(current.value)
            && current.color_mode == MODE_COLORS_MODE_SPECIFIC)
         {
             for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
