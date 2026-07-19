@@ -2720,6 +2720,34 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         controller->UpgradeSwControlAfterFirstPaint();
         return;
     }
+
+    /*-----------------------------------------------------*\
+    | Per-key devices running a mode-specific cluster       |
+    | effect (Breathing on the mice): with a black (auto)   |
+    | mode color the effect follows the draw buffer, so     |
+    | recompute the borrowed color on every paint and let   |
+    | the reconcile land it phase-timed. An explicitly set  |
+    | mode color stays fixed.                               |
+    \*-----------------------------------------------------*/
+    if(!zone_desired.empty() && (unsigned int)active_mode < modes.size())
+    {
+        const mode& current = modes[active_mode];
+
+        if(current.value > 0
+           && EffectUsesColor(current.value)
+           && current.color_mode == MODE_COLORS_MODE_SPECIFIC)
+        {
+            for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
+            {
+                if(zone_desired[i].mode_value == current.value)
+                {
+                    zone_desired[i].color = DesiredFromMode(current, i).color;
+                }
+            }
+
+            ReconcileZones();
+        }
+    }
 }
 
 /*---------------------------------------------------------*\
