@@ -3640,15 +3640,22 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
                                 (now - zone_last_effect_send[i]).count();
             uint64_t in_phase = since_ms % period_ms;
 
-            if(in_phase > HIDPP20_PHASE_WINDOW_MS
-            && in_phase < period_ms - HIDPP20_PHASE_WINDOW_MS)
+            /*---------------------------------------------*\
+            | A legal color re-send moment is only a loop   |
+            | boundary at least one full cycle after the    |
+            | last restart. Right after a send in_phase is  |
+            | small again; accepting that side without the  |
+            | full-cycle gate lets a rapid stream restart   |
+            | the effect on every change and pin it at the  |
+            | start of the cycle. The low side exists only  |
+            | for the flush firing a tick late.             |
+            \*---------------------------------------------*/
+            bool at_boundary = (since_ms + HIDPP20_PHASE_WINDOW_MS >= period_ms)
+                            && (in_phase >= period_ms - HIDPP20_PHASE_WINDOW_MS
+                             || in_phase <= HIDPP20_PHASE_WINDOW_MS);
+
+            if(!at_boundary)
             {
-                /*-----------------------------------------*\
-                | Mid-phase: hold the send until the next   |
-                | boundary. Without a flush thread to       |
-                | fire it, send now rather than risk        |
-                | losing the color.                         |
-                \*-----------------------------------------*/
                 if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
                 {
                     LOG_DEBUG("[LogitechHID++2.0] zone %u color deferred %ums to phase boundary (period %ums)",
