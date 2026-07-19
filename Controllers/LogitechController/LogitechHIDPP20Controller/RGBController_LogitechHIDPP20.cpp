@@ -3237,6 +3237,21 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         if(IsZoneStateLayout())
         {
             ApplyGlobalToZones(current);
+
+            /*---------------------------------------------*\
+            | Direct opens the stream intake and changes    |
+            | no zone, so keep the device mode display on   |
+            | the last real mode when a plugin or SDK       |
+            | client forces Direct. Both are fire-and-      |
+            | forget: nothing reads the mode back before    |
+            | streaming. A fresh device (no real mode yet)  |
+            | keeps showing Direct.                         |
+            \*---------------------------------------------*/
+            if((unsigned int)last_nondirect_mode < modes.size()
+               && modes[last_nondirect_mode].value != HIDPP20_MODE_VALUE_DIRECT)
+            {
+                active_mode = last_nondirect_mode;
+            }
         }
         else
         {
@@ -3257,6 +3272,12 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 
         return;
     }
+
+    /*-----------------------------------------------------*\
+    | Any non-Direct apply is a real device mode; remember  |
+    | it so a later forced Direct keeps displaying it.      |
+    \*-----------------------------------------------------*/
+    last_nondirect_mode = active_mode;
 
     sent_colors.clear();
 
