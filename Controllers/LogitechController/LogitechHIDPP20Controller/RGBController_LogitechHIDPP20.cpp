@@ -1113,7 +1113,7 @@ static bool ModeFromEffect(const HIDPP20Effect& fx, bool per_led_colors, mode& o
 
         case 0x0004:    // Color Wave
         {
-            out.name           = "Color Wave";
+            out.name           = "Rainbow Wave";
             out.value          = fx.effect_id;
             out.flags          = MODE_FLAG_HAS_SPEED
                                | MODE_FLAG_HAS_BRIGHTNESS;
@@ -1178,7 +1178,7 @@ static bool ModeFromEffect(const HIDPP20Effect& fx, bool per_led_colors, mode& o
             | no period range override for Wave);           |
             | saturation is hardcoded on the wire.          |
             \*---------------------------------------------*/
-            out.name           = "Color Wave";
+            out.name           = "Rainbow Wave";
             out.value          = fx.effect_id;
             out.flags          = MODE_FLAG_HAS_SPEED
                                | MODE_FLAG_HAS_BRIGHTNESS
