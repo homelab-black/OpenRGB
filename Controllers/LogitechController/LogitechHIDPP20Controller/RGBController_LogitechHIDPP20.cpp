@@ -99,6 +99,25 @@ static uint8_t WaveDirectionToWire(unsigned int dir)
     }
 }
 
+/*---------------------------------------------------------*\
+| mode.value scheme: values >= 0 are HID++ effect ids,      |
+| stable across clusters and devices. The wire wants the    |
+| per-cluster effect index instead, which varies between    |
+| clusters, so it is resolved at send time. Negative        |
+| values are pseudo-modes with no firmware effect id.       |
+\*---------------------------------------------------------*/
+static const int HIDPP20_MODE_VALUE_DIRECT = -1;
+static const int HIDPP20_MODE_VALUE_OFF    = -2;
+
+static RGBColor ModeSpecificColor(const mode& m)
+{
+    if(m.color_mode == MODE_COLORS_MODE_SPECIFIC && !m.colors.empty())
+    {
+        return m.colors[0];
+    }
+    return ToRGBColor(0, 0, 0);
+}
+
 /**------------------------------------------------------------------*\
     @name Logitech HID++ 2.0
     @category Keyboard,Mouse,Headset
@@ -890,6 +909,278 @@ static const Kb8080Strip* FindKb8080Strip(uint16_t pid_wired, uint16_t pid_wirel
     return(nullptr);
 }
 
+static bool ClusterHasEffect(const HIDPP20ZoneCluster& cluster, uint16_t effect_id)
+{
+    for(size_t i = 0; i < cluster.effects.size(); i++)
+    {
+        if(cluster.effects[i].effect_id == effect_id)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*---------------------------------------------------------*\
+| Build an OpenRGB mode from a discovered effect.           |
+| per_led_colors selects per-LED color UX for color-        |
+| bearing effects (device-global modes on multi-cluster     |
+| devices); zone modes and single-cluster devices use a     |
+| single mode-specific color. Returns false for effect      |
+| ids with no mode mapping.                                 |
+\*---------------------------------------------------------*/
+static bool ModeFromEffect(const HIDPP20Effect& fx, bool per_led_colors, mode& out)
+{
+    switch(fx.effect_id)
+    {
+        case 0x0001:    // Static / Fixed Color
+        {
+            out.name       = "Static";
+            out.value      = fx.effect_id;
+
+            /*---------------------------------------------*\
+            | Multi-cluster devices (mice with logo/        |
+            | scroll/DPI) get per-LED colors so each        |
+            | zone can be painted independently in          |
+            | Static. Single-cluster devices and zone       |
+            | modes keep the single-color                   |
+            | MODE_COLORS_MODE_SPECIFIC UX.                 |
+            \*---------------------------------------------*/
+            if(per_led_colors)
+            {
+                out.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
+                out.color_mode = MODE_COLORS_PER_LED;
+            }
+            else
+            {
+                out.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+                out.colors_min = 1;
+                out.colors_max = 1;
+                out.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                out.colors.resize(1);
+            }
+            return true;
+        }
+
+        case 0x0003:    // Color Cycle / Spectrum
+        {
+            out.name           = "Spectrum Cycle";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 80;     /* ~4.9s, lively medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.color_mode     = MODE_COLORS_NONE;
+            return true;
+        }
+
+        case 0x000A:    // Breathing
+        {
+            out.name           = "Breathing";
+            out.value          = fx.effect_id;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 70;     /* ~6.8s, calm medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+
+            /*---------------------------------------------*\
+            | See Static above, multi-cluster gets          |
+            | per-LED colors.                               |
+            \*---------------------------------------------*/
+            if(per_led_colors)
+            {
+                out.flags      = MODE_FLAG_HAS_PER_LED_COLOR
+                               | MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+                out.color_mode = MODE_COLORS_PER_LED;
+            }
+            else
+            {
+                out.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                               | MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+                out.colors_min = 1;
+                out.colors_max = 1;
+                out.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                out.colors.resize(1);
+            }
+            return true;
+        }
+
+        case 0x0007:    // Audio visualizer (G560 factory default)
+        {
+            /*---------------------------------------------*\
+            | Pulses brightness with audio. A painted       |
+            | zone pulses its own color; a black zone       |
+            | self-cycles like the factory default.         |
+            \*---------------------------------------------*/
+            out.name       = "Audio Visualizer";
+            out.value      = fx.effect_id;
+            out.speed_min  = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max  = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed      = 80;     /* ~4.9s, near the 5s firmware default */
+
+            if(per_led_colors)
+            {
+                out.flags      = MODE_FLAG_HAS_PER_LED_COLOR
+                               | MODE_FLAG_HAS_SPEED;
+                out.color_mode = MODE_COLORS_PER_LED;
+            }
+            else
+            {
+                out.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                               | MODE_FLAG_HAS_SPEED;
+                out.colors_min = 1;
+                out.colors_max = 1;
+                out.color_mode = MODE_COLORS_MODE_SPECIFIC;
+                out.colors.resize(1);
+            }
+            return true;
+        }
+
+        case 0x0004:    // Color Wave
+        {
+            out.name           = "Color Wave";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 80;     /* ~4.9s, lively medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.color_mode     = MODE_COLORS_NONE;
+            return true;
+        }
+
+        case 0x000B:    // Ripple
+        {
+            out.name           = "Ripple";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                               | MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 70;     /* ~6.8s, calm medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.colors_min     = 1;
+            out.colors_max     = 1;
+            out.color_mode     = MODE_COLORS_MODE_SPECIFIC;
+            out.colors.resize(1);
+            return true;
+        }
+
+        case 0x0015:    // Cycle (saturation variant)
+        {
+            /*---------------------------------------------*\
+            | Saturation-bearing variant of 0x0003.         |
+            | Same UI (speed = period, brightness =         |
+            | intensity); the saturation byte is            |
+            | hardcoded full on the wire.                   |
+            \*---------------------------------------------*/
+            out.name           = "Spectrum Cycle";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 80;     /* ~4.9s, lively medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.color_mode     = MODE_COLORS_NONE;
+            return true;
+        }
+
+        case 0x0016:    // Wave (saturation variant)
+        {
+            /*---------------------------------------------*\
+            | Saturation-bearing variant of 0x0004.         |
+            | Period is a BE16 ms value on the standard     |
+            | 1..20s range (Solaar's LEDEffects table has   |
+            | no period range override for Wave);           |
+            | saturation is hardcoded on the wire.          |
+            \*---------------------------------------------*/
+            out.name           = "Color Wave";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS
+                               | MODE_FLAG_HAS_DIRECTION_LR
+                               | MODE_FLAG_HAS_DIRECTION_UD
+                               | MODE_FLAG_HAS_DIRECTION_HV;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 80;     /* ~4.9s, lively medium */
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.direction      = MODE_DIRECTION_RIGHT;
+            out.color_mode     = MODE_COLORS_NONE;
+            return true;
+        }
+
+        case 0x0017:    // Ripple (saturation variant)
+        {
+            /*---------------------------------------------*\
+            | Saturation-bearing variant of 0x000B.         |
+            | Carries color + period only, no intensity     |
+            | param, so no brightness slider. Saturation    |
+            | is hardcoded full on the wire.                |
+            \*---------------------------------------------*/
+            out.name           = "Ripple";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                               | MODE_FLAG_HAS_SPEED;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 70;     /* mid, fast ripple range */
+            out.colors_min     = 1;
+            out.colors_max     = 1;
+            out.color_mode     = MODE_COLORS_MODE_SPECIFIC;
+            out.colors.resize(1);
+            return true;
+        }
+
+        case 0x000E:    // Decomposition
+        case 0x000F:    // Signature1
+        case 0x0010:    // Signature2
+        {
+            /*---------------------------------------------*\
+            | Animated, no user color (period + intensity   |
+            | only), per Solaar's LEDEffects table. Wire    |
+            | param offsets handled in SetZoneEffect.       |
+            \*---------------------------------------------*/
+            out.name           = (fx.effect_id == 0x000E) ? "Decomposition"
+                               : (fx.effect_id == 0x000F) ? "Signature 1"
+                               :                            "Signature 2";
+            out.value          = fx.effect_id;
+            out.flags          = MODE_FLAG_HAS_SPEED
+                               | MODE_FLAG_HAS_BRIGHTNESS;
+            out.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
+            out.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
+            out.speed          = 80;
+            out.brightness_min = 1;
+            out.brightness_max = 100;
+            out.brightness     = 100;
+            out.color_mode     = MODE_COLORS_NONE;
+            return true;
+        }
+
+        default:
+            return false;
+    }
+}
+
 RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Controller* controller_ptr, std::function<void ()> callback)
 {
     controller = controller_ptr;
@@ -951,7 +1242,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         mode Direct;
         Direct.name       = "Direct";
-        Direct.value      = 0;
+        Direct.value      = HIDPP20_MODE_VALUE_DIRECT;
         Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
         Direct.color_mode = MODE_COLORS_PER_LED;
         modes.push_back(Direct);
@@ -965,7 +1256,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         mode Direct;
         Direct.name       = "Direct";
-        Direct.value      = 0;
+        Direct.value      = HIDPP20_MODE_VALUE_DIRECT;
         Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
         Direct.color_mode = MODE_COLORS_PER_LED;
         modes.push_back(Direct);
@@ -981,7 +1272,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         mode Direct;
         Direct.name       = "Direct";
-        Direct.value      = 0;
+        Direct.value      = HIDPP20_MODE_VALUE_DIRECT;
         Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
         Direct.color_mode = MODE_COLORS_PER_LED;
         modes.push_back(Direct);
@@ -993,7 +1284,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         mode Off;
         Off.name       = "Off";
-        Off.value      = 0xFF;
+        Off.value      = HIDPP20_MODE_VALUE_OFF;
         Off.flags      = 0;
         Off.color_mode = MODE_COLORS_NONE;
         modes.push_back(Off);
@@ -1009,21 +1300,23 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         mode Direct;
         Direct.name       = "Direct";
-        Direct.value      = 0;
+        Direct.value      = HIDPP20_MODE_VALUE_DIRECT;
         Direct.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
         Direct.color_mode = MODE_COLORS_PER_LED;
         modes.push_back(Direct);
     }
 
     /*-----------------------------------------------------*\
-    | Effect modes from zone cluster discovery              |
-    | Scan effects from the first cluster (effects          |
-    | are usually the same across clusters)                 |
+    | Effect modes from zone cluster discovery. The         |
+    | device-global list is the intersection of effect      |
+    | ids across all clusters so the global control         |
+    | never skips a zone. Effects a cluster has beyond      |
+    | the intersection are reachable through that zone's    |
+    | own mode list (SetupZones).                           |
     \*-----------------------------------------------------*/
     if(caps.has_zone_effects && !caps.zone_clusters.empty() && !caps.is_headset_rgb_hostmode)
     {
         const HIDPP20ZoneCluster& cluster = caps.zone_clusters[0];
-
         /*-------------------------------------------------*\
         | Per-LED effect colors: multi-cluster devices      |
         | whose only paint path is zone effects, one color  |
@@ -1031,9 +1324,9 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         | color: the UI repaints per-key on any per-LED     |
         | mode set, which overwrites the zone effect.       |
         \*-------------------------------------------------*/
-        const bool per_led_colors = (caps.zone_clusters.size() > 1)
-                                 && !caps.has_perkey
-                                 && !PerKey8080Capable();
+        const bool per_led = (caps.zone_clusters.size() > 1)
+                          && !caps.has_perkey
+                          && !PerKey8080Capable();
 
         /*-------------------------------------------------*\
         | 0x8070 keyboard firmware ignores the Cycle, Wave  |
@@ -1049,277 +1342,30 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
         {
             const HIDPP20Effect& fx = cluster.effects[i];
 
-            switch(fx.effect_id)
+            bool in_all = true;
+            for(size_t c = 1; c < caps.zone_clusters.size(); c++)
             {
-                case 0x0001:    // Static / Fixed Color
+                if(!ClusterHasEffect(caps.zone_clusters[c], fx.effect_id))
                 {
-                    mode Static;
-                    Static.name       = "Static";
-                    Static.value      = fx.index;
-
-                    if(per_led_colors)
-                    {
-                        Static.flags      = MODE_FLAG_HAS_PER_LED_COLOR;
-                        Static.color_mode = MODE_COLORS_PER_LED;
-                    }
-                    else
-                    {
-                        Static.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
-                        Static.colors_min = 1;
-                        Static.colors_max = 1;
-                        Static.color_mode = MODE_COLORS_MODE_SPECIFIC;
-                        Static.colors.resize(1);
-                    }
-                    modes.push_back(Static);
+                    in_all = false;
                     break;
                 }
+            }
+            if(!in_all)
+            {
+                continue;
+            }
 
-                case 0x0003:    // Color Cycle / Spectrum
+            mode fx_mode;
+            if(ModeFromEffect(fx, per_led, fx_mode))
+            {
+                if(!effect_brightness
+                && (fx.effect_id == 0x0003 || fx.effect_id == 0x0004 || fx.effect_id == 0x000A))
                 {
-                    mode Cycle;
-                    Cycle.name           = "Spectrum Cycle";
-                    Cycle.value          = fx.index;
-                    Cycle.flags          = MODE_FLAG_HAS_SPEED;
-                    if(effect_brightness)
-                    {
-                        Cycle.flags     |= MODE_FLAG_HAS_BRIGHTNESS;
-                    }
-                    Cycle.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Cycle.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Cycle.speed          = 80;     /* ~4.9s, lively medium */
-                    Cycle.brightness_min = 1;
-                    Cycle.brightness_max = 100;
-                    Cycle.brightness     = 100;
-                    Cycle.color_mode     = MODE_COLORS_NONE;
-                    modes.push_back(Cycle);
-                    break;
+                    fx_mode.flags &= ~MODE_FLAG_HAS_BRIGHTNESS;
                 }
 
-                case 0x000A:    // Breathing
-                {
-                    mode Breathing;
-                    Breathing.name           = "Breathing";
-                    Breathing.value          = fx.index;
-                    Breathing.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Breathing.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Breathing.speed          = 70;     /* ~6.8s, calm medium */
-                    Breathing.brightness_min = 1;
-                    Breathing.brightness_max = 100;
-                    Breathing.brightness     = 100;
-
-                    if(per_led_colors)
-                    {
-                        Breathing.flags      = MODE_FLAG_HAS_PER_LED_COLOR
-                                             | MODE_FLAG_HAS_SPEED
-                                             | MODE_FLAG_HAS_BRIGHTNESS;
-                        Breathing.color_mode = MODE_COLORS_PER_LED;
-                    }
-                    else
-                    {
-                        Breathing.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
-                                             | MODE_FLAG_HAS_SPEED
-                                             | MODE_FLAG_HAS_BRIGHTNESS;
-                        Breathing.colors_min = 1;
-                        Breathing.colors_max = 1;
-                        Breathing.color_mode = MODE_COLORS_MODE_SPECIFIC;
-                        Breathing.colors.resize(1);
-                    }
-
-                    if(!effect_brightness)
-                    {
-                        Breathing.flags &= ~MODE_FLAG_HAS_BRIGHTNESS;
-                    }
-
-                    modes.push_back(Breathing);
-                    break;
-                }
-
-                case 0x0007:    // Audio visualizer (G560 factory default)
-                {
-                    /*-------------------------------------*\
-                    | Pulses brightness with audio. A       |
-                    | painted zone pulses its own           |
-                    | color; a black zone self-cycles       |
-                    | like the factory default.             |
-                    \*-------------------------------------*/
-                    mode Visualizer;
-                    Visualizer.name       = "Audio Visualizer";
-                    Visualizer.value      = fx.index;
-                    Visualizer.speed_min  = HIDPP20_SPEED_SLIDER_MIN;
-                    Visualizer.speed_max  = HIDPP20_SPEED_SLIDER_MAX;
-                    Visualizer.speed      = 80;     /* ~4.9s, near the 5s firmware default */
-
-                    if(per_led_colors)
-                    {
-                        Visualizer.flags      = MODE_FLAG_HAS_PER_LED_COLOR
-                                              | MODE_FLAG_HAS_SPEED;
-                        Visualizer.color_mode = MODE_COLORS_PER_LED;
-                    }
-                    else
-                    {
-                        Visualizer.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
-                                              | MODE_FLAG_HAS_SPEED;
-                        Visualizer.colors_min = 1;
-                        Visualizer.colors_max = 1;
-                        Visualizer.color_mode = MODE_COLORS_MODE_SPECIFIC;
-                        Visualizer.colors.resize(1);
-                    }
-                    modes.push_back(Visualizer);
-                    break;
-                }
-
-                case 0x0004:    // Color Wave
-                {
-                    mode Wave;
-                    Wave.name           = "Color Wave";
-                    Wave.value          = fx.index;
-                    Wave.flags          = MODE_FLAG_HAS_SPEED;
-                    if(effect_brightness)
-                    {
-                        Wave.flags     |= MODE_FLAG_HAS_BRIGHTNESS;
-                    }
-                    Wave.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Wave.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Wave.speed          = 80;     /* ~4.9s, lively medium */
-                    Wave.brightness_min = 1;
-                    Wave.brightness_max = 100;
-                    Wave.brightness     = 100;
-                    Wave.color_mode     = MODE_COLORS_NONE;
-                    modes.push_back(Wave);
-                    break;
-                }
-
-                case 0x000B:    // Ripple
-                {
-                    mode Ripple;
-                    Ripple.name           = "Ripple";
-                    Ripple.value          = fx.index;
-                    Ripple.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
-                                          | MODE_FLAG_HAS_SPEED
-                                          | MODE_FLAG_HAS_BRIGHTNESS;
-                    Ripple.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Ripple.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Ripple.speed          = 70;     /* ~6.8s, calm medium */
-                    Ripple.brightness_min = 1;
-                    Ripple.brightness_max = 100;
-                    Ripple.brightness     = 100;
-                    Ripple.colors_min     = 1;
-                    Ripple.colors_max     = 1;
-                    Ripple.color_mode     = MODE_COLORS_MODE_SPECIFIC;
-                    Ripple.colors.resize(1);
-                    modes.push_back(Ripple);
-                    break;
-                }
-
-                case 0x0015:    // Cycle (saturation variant)
-                {
-                    /*-------------------------------------*\
-                    | Saturation-bearing variant of 0x0003. |
-                    | Same UI (speed = period, brightness = |
-                    | intensity); the saturation byte is    |
-                    | hardcoded full on the wire.           |
-                    \*-------------------------------------*/
-                    mode Cycle;
-                    Cycle.name           = "Spectrum Cycle";
-                    Cycle.value          = fx.index;
-                    Cycle.flags          = MODE_FLAG_HAS_SPEED
-                                         | MODE_FLAG_HAS_BRIGHTNESS;
-                    Cycle.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Cycle.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Cycle.speed          = 80;     /* ~4.9s, lively medium */
-                    Cycle.brightness_min = 1;
-                    Cycle.brightness_max = 100;
-                    Cycle.brightness     = 100;
-                    Cycle.color_mode     = MODE_COLORS_NONE;
-                    modes.push_back(Cycle);
-                    break;
-                }
-
-                case 0x0016:    // Wave (saturation variant)
-                {
-                    /*-------------------------------------*\
-                    | Saturation-bearing variant of 0x0004. |
-                    | Period is a BE16 ms value on the      |
-                    | standard 1..20s range (Solaar's       |
-                    | LEDEffects table has no period range  |
-                    | override for Wave); saturation is     |
-                    | hardcoded on the wire.                |
-                    \*-------------------------------------*/
-                    mode Wave;
-                    Wave.name           = "Color Wave";
-                    Wave.value          = fx.index;
-                    Wave.flags          = MODE_FLAG_HAS_SPEED
-                                        | MODE_FLAG_HAS_BRIGHTNESS
-                                        | MODE_FLAG_HAS_DIRECTION_LR
-                                        | MODE_FLAG_HAS_DIRECTION_UD
-                                        | MODE_FLAG_HAS_DIRECTION_HV;
-                    Wave.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Wave.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Wave.speed          = 80;     /* ~4.9s, lively medium */
-                    Wave.brightness_min = 1;
-                    Wave.brightness_max = 100;
-                    Wave.brightness     = 100;
-                    Wave.direction      = MODE_DIRECTION_RIGHT;
-                    Wave.color_mode     = MODE_COLORS_NONE;
-                    modes.push_back(Wave);
-                    break;
-                }
-
-                case 0x0017:    // Ripple (saturation variant)
-                {
-                    /*-------------------------------------*\
-                    | Saturation-bearing variant of         |
-                    | 0x000B. Carries color + period        |
-                    | only, no intensity param, so no       |
-                    | brightness slider. Saturation         |
-                    | is hardcoded full on the wire.        |
-                    \*-------------------------------------*/
-                    mode Ripple;
-                    Ripple.name           = "Ripple";
-                    Ripple.value          = fx.index;
-                    Ripple.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
-                                          | MODE_FLAG_HAS_SPEED;
-                    Ripple.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Ripple.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Ripple.speed          = 70;     /* mid, fast ripple range */
-                    Ripple.colors_min     = 1;
-                    Ripple.colors_max     = 1;
-                    Ripple.color_mode     = MODE_COLORS_MODE_SPECIFIC;
-                    Ripple.colors.resize(1);
-                    modes.push_back(Ripple);
-                    break;
-                }
-
-                case 0x000E:    // Decomposition
-                case 0x000F:    // Signature1
-                case 0x0010:    // Signature2
-                {
-                    /*-------------------------------------*\
-                    | Animated, no user color (period +     |
-                    | intensity only), per Solaar's         |
-                    | LEDEffects table. Wire param          |
-                    | offsets handled in SetZoneEffect.     |
-                    \*-------------------------------------*/
-                    mode Anim;
-                    Anim.name           = (fx.effect_id == 0x000E) ? "Decomposition"
-                                        : (fx.effect_id == 0x000F) ? "Signature 1"
-                                        :                            "Signature 2";
-                    Anim.value          = fx.index;
-                    Anim.flags          = MODE_FLAG_HAS_SPEED
-                                        | MODE_FLAG_HAS_BRIGHTNESS;
-                    Anim.speed_min      = HIDPP20_SPEED_SLIDER_MIN;
-                    Anim.speed_max      = HIDPP20_SPEED_SLIDER_MAX;
-                    Anim.speed          = 80;
-                    Anim.brightness_min = 1;
-                    Anim.brightness_max = 100;
-                    Anim.brightness     = 100;
-                    Anim.color_mode     = MODE_COLORS_NONE;
-                    modes.push_back(Anim);
-                    break;
-                }
-
-                default:
-                    break;
+                modes.push_back(fx_mode);
             }
         }
     }
@@ -1339,7 +1385,7 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
     {
         for(size_t i = 0; i < modes.size(); i++)
         {
-            if(modes[i].name != "Direct")
+            if(modes[i].value != HIDPP20_MODE_VALUE_DIRECT)
             {
                 modes[i].flags |= MODE_FLAG_MANUAL_SAVE;
             }
@@ -1833,6 +1879,41 @@ void RGBController_LogitechHIDPP20::SetupZones()
             new_zone.leds_min   = 1;
             new_zone.leds_max   = 1;
             new_zone.leds_count = 1;
+
+            /*---------------------------------------------*\
+            | Per-zone mode list from this cluster's own    |
+            | effects. active_mode stays -1 (follow the     |
+            | device mode) until the user overrides it.     |
+            | Off rides Static black; effect 0x0000 is      |
+            | the fallback for clusters without Static.     |
+            \*---------------------------------------------*/
+            if(ClusterHasEffect(cluster, 0x0001) || ClusterHasEffect(cluster, 0x0000))
+            {
+                mode zone_off;
+                zone_off.name       = "Off";
+                zone_off.value      = HIDPP20_MODE_VALUE_OFF;
+                zone_off.flags      = 0;
+                zone_off.color_mode = MODE_COLORS_NONE;
+                new_zone.modes.push_back(zone_off);
+            }
+
+            for(size_t j = 0; j < cluster.effects.size(); j++)
+            {
+                mode zone_mode;
+                if(ModeFromEffect(cluster.effects[j], false, zone_mode))
+                {
+                    new_zone.modes.push_back(zone_mode);
+                }
+            }
+
+            if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
+            {
+                for(size_t j = 0; j < new_zone.modes.size(); j++)
+                {
+                    new_zone.modes[j].flags |= MODE_FLAG_MANUAL_SAVE;
+                }
+            }
+
             zones.push_back(new_zone);
 
             led new_led;
@@ -2449,7 +2530,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         const mode& current = modes[active_mode];
 
         bool          full_update = (sent_colors.size() != colors.size());
-        bool          is_direct   = (current.name == "Direct");
+        bool          is_direct   = (current.value == HIDPP20_MODE_VALUE_DIRECT);
         uint16_t      period      = SpeedSliderToPeriodMs(current.speed);
         unsigned char brightness  = (current.flags & MODE_FLAG_HAS_BRIGHTNESS)
                                   ? (unsigned char)current.brightness
@@ -2457,6 +2538,15 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
 
         for(size_t i = 0; i < caps.zone_clusters.size() && i < colors.size(); i++)
         {
+            /*---------------------------------------------*\
+            | An overridden zone runs its own firmware      |
+            | effect; global painting must not clobber it.  |
+            \*---------------------------------------------*/
+            if(ZoneOverrideActive(i))
+            {
+                continue;
+            }
+
             if(!full_update && sent_colors[i] == colors[i])
             {
                 continue;
@@ -2467,12 +2557,11 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
             uint8_t  eff_idx = 0;
             uint16_t eff_id  = 0;
 
+            uint16_t target = is_direct ? 0x0001 : (uint16_t)current.value;
+
             for(size_t j = 0; j < cluster.effects.size(); j++)
             {
-                bool match = is_direct ? (cluster.effects[j].effect_id == 0x0001)
-                                       : (cluster.effects[j].index == (uint8_t)current.value);
-
-                if(match)
+                if(cluster.effects[j].effect_id == target)
                 {
                     eff_idx = cluster.effects[j].index;
                     eff_id  = cluster.effects[j].effect_id;
@@ -2493,6 +2582,20 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
         }
 
         sent_colors.assign(colors.begin(), colors.end());
+
+        /*-------------------------------------------------*\
+        | Keep overridden zones marked uncommitted so a     |
+        | later override-clear repaints them even when      |
+        | colors[i] never changed.                          |
+        \*-------------------------------------------------*/
+        for(size_t i = 0; i < sent_colors.size(); i++)
+        {
+            if(ZoneOverrideActive(i))
+            {
+                sent_colors[i] = HIDPP20_UNCOMMITTED;
+            }
+        }
+
         controller->UpgradeSwControlAfterFirstPaint();
         return;
     }
@@ -3050,10 +3153,28 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | next DeviceUpdateLEDs sends a full frame with         |
     | actual colors.                                        |
     \*-----------------------------------------------------*/
-    if(current.name == "Direct")
+    if(current.value == HIDPP20_MODE_VALUE_DIRECT)
     {
         sent_colors.clear();
         DeviceUpdateLEDs();
+
+        /*-------------------------------------------------*\
+        | Re-establish per-zone overrides. The painting     |
+        | path skips overridden clusters, and the reapply   |
+        | paths (reconnect, heal, link change) land here.   |
+        \*-------------------------------------------------*/
+        if(caps.has_zone_effects && !caps.has_perkey && !PerKey8080Capable()
+           && !caps.is_headset_rgb_hostmode)
+        {
+            for(size_t i = 0; i < caps.zone_clusters.size() && i < zones.size(); i++)
+            {
+                if(ZoneOverrideActive(i))
+                {
+                    const mode& zm = zones[i].modes[zones[i].active_mode];
+                    ApplyClusterEffect(i, zm, ModeSpecificColor(zm));
+                }
+            }
+        }
 
         /*-------------------------------------------------*\
         | Start power manager (reader + power               |
@@ -3086,7 +3207,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     \*-----------------------------------------------------*/
     if(PerKey8080Capable())
     {
-        if(current.value == 0xFF)
+        if(current.value == HIDPP20_MODE_VALUE_OFF)
         {
             std::vector<std::pair<uint16_t, std::vector<std::pair<uint8_t, RGBColor>>>> by_type;
 
@@ -3121,7 +3242,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
         /*-------------------------------------------------*\
         | Off mode via per-key: set all LEDs to black       |
         \*-------------------------------------------------*/
-        if(current.value == 0xFF)
+        if(current.value == HIDPP20_MODE_VALUE_OFF)
         {
             controller->SetAllPerKeyColor(ToRGBColor(0, 0, 0));
             controller->PerKeyFrameEnd();
@@ -3159,136 +3280,43 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
 
     /*-----------------------------------------------------*\
     | Zone effect modes (devices without per-key, or        |
-    | animated effects that can't be done via per-key)      |
-    |                                                       |
-    | persist branching: 0x8070: ephemeral by default;      |
-    | becomes persist=true only when DeviceSaveMode has     |
-    | set save_pending. 0x8071/0x0600: keeps the pre-       |
-    | existing per-branch hardcoded values (Off=false,      |
-    | Effect=true) pending 0x8071 save research.            |
+    | animated effects that can't be done via per-key).     |
+    | One write per cluster; a zone holding a per-zone      |
+    | override keeps its own mode instead of the global     |
+    | one, so the reapply paths restore overrides too.      |
+    | Global Off rides the Off pseudo-mode per cluster.     |
+    | Per-key devices reaching this loop have per-key       |
+    | zones, never per-zone overrides.                      |
     \*-----------------------------------------------------*/
-    const bool is_8070 = (caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS);
-
-    /*-----------------------------------------------------*\
-    | Off mode: set static black on all clusters            |
-    \*-----------------------------------------------------*/
-    if(current.value == 0xFF)
-    {
-        const bool off_persist = is_8070 ? save_pending : false;
-
-        for(size_t i = 0; i < caps.zone_clusters.size(); i++)
-        {
-            for(size_t j = 0; j < caps.zone_clusters[i].effects.size(); j++)
-            {
-                if(caps.zone_clusters[i].effects[j].effect_id == 0x0001)
-                {
-                    controller->SetZoneEffect(
-                        caps.zone_clusters[i].index,
-                        caps.zone_clusters[i].effects[j].index,
-                        0x0001, 0, 0, 0, 0, 100, 0, off_persist);
-                    break;
-                }
-            }
-        }
-        controller->UpgradeSwControlAfterFirstPaint();
-        return;
-    }
-
-    /*-----------------------------------------------------*\
-    | Effect mode: apply to all clusters.                   |
-    |                                                       |
-    | Color source per cluster:                             |
-    | MODE_COLORS_PER_LED: current.colors[i] maps to        |
-    | caps.zone_clusters[i]                                 |
-    | (one LED per cluster on the                           |
-    | 0x8070 zone path)                                     |
-    | MODE_COLORS_MODE_SPECIFIC, current.colors[0] for all  |
-    | MODE_COLORS_NONE: zero (effect ignores RGB)           |
-    \*-----------------------------------------------------*/
-    uint16_t period = SpeedSliderToPeriodMs(current.speed);
-
-    /*-----------------------------------------------------*\
-    | Brightness defaults to 100 for modes that             |
-    | don't expose a brightness slider; those               |
-    | modes ignore the value at the wire level              |
-    | anyway. Modes flagged HAS_BRIGHTNESS take             |
-    | the user-set value from current.brightness.           |
-    \*-----------------------------------------------------*/
-    unsigned char brightness = (current.flags & MODE_FLAG_HAS_BRIGHTNESS)
-                             ? (unsigned char)current.brightness
-                             : 100;
+    const bool zone_mode_device = !caps.has_perkey && !PerKey8080Capable()
+                               && !caps.is_headset_rgb_hostmode;
 
     for(size_t i = 0; i < caps.zone_clusters.size(); i++)
     {
-        uint16_t eff_id = 0;
+        const mode* m = &current;
 
-        const std::vector<HIDPP20Effect>& cluster_effects = caps.zone_clusters[i].effects;
-        for(size_t j = 0; j < cluster_effects.size(); j++)
+        if(zone_mode_device && ZoneOverrideActive(i))
         {
-            if(cluster_effects[j].index == (uint8_t)current.value)
-            {
-                eff_id = cluster_effects[j].effect_id;
-                break;
-            }
+            m = &zones[i].modes[zones[i].active_mode];
         }
-
-        unsigned char r = 0, g = 0, b = 0;
 
         /*-------------------------------------------------*\
         | Per-LED modes carry their colors in               |
         | the LED buffer, not the mode color                |
         | list, the UI paints leds/colors.                  |
         \*-------------------------------------------------*/
-        if(current.color_mode == MODE_COLORS_PER_LED && i < colors.size())
+        RGBColor cluster_color = ToRGBColor(0, 0, 0);
+
+        if(m->color_mode == MODE_COLORS_PER_LED && i < colors.size())
         {
-            r = RGBGetRValue(colors[i]);
-            g = RGBGetGValue(colors[i]);
-            b = RGBGetBValue(colors[i]);
+            cluster_color = colors[i];
         }
-        else if(current.color_mode == MODE_COLORS_MODE_SPECIFIC && !current.colors.empty())
+        else
         {
-            r = RGBGetRValue(current.colors[0]);
-            g = RGBGetGValue(current.colors[0]);
-            b = RGBGetBValue(current.colors[0]);
+            cluster_color = ModeSpecificColor(*m);
         }
 
-        /*-------------------------------------------------*\
-        | Ripple wants a narrower, much faster period       |
-        | range (2..200ms) than the breathing/wave          |
-        | baseline of 1..20s. Both Ripple variants, 0x000B  |
-        | and the saturation 0x0017: use the fast range;    |
-        | this mirrors Solaar's LEDEffects table, where     |
-        | only Ripple carries a period range override.      |
-        | Cycle (0x0003/0x0015) and Wave (0x0004/0x0016)    |
-        | stay on the standard 1..20s range.                |
-        \*-------------------------------------------------*/
-        uint16_t cluster_period = (eff_id == 0x000B
-                                || eff_id == 0x0017)
-                                ? RippleSpeedSliderToPeriodMs(current.speed)
-                                : period;
-
-        /*-------------------------------------------------*\
-        | 0x8071/0x0600: persist=true matches what the      |
-        | observed vendor-app wire capture does for every   |
-        | mode-set on these devices. With persist=false     |
-        | the firmware appears to accept the command        |
-        | without actually committing the new effect,       |
-        | which is consistent with Static (which gets       |
-        | prepped with persist=true at startup) being the   |
-        | only effect that visibly works.                   |
-        |                                                   |
-        | 0x8070: ephemeral (persist=false) on live         |
-        | writes; DeviceSaveMode flips save_pending         |
-        | true to replay the active mode with               |
-        | persist=true and commit to NVM.                   |
-        \*-------------------------------------------------*/
-        const bool effect_persist = is_8070 ? save_pending : true;
-
-        controller->SetZoneEffect(
-            caps.zone_clusters[i].index,
-            current.value,
-            eff_id, r, g, b, cluster_period, brightness,
-            WaveDirectionToWire(current.direction), effect_persist);
+        ApplyClusterEffect(i, *m, cluster_color);
     }
 
     /*-----------------------------------------------------*\
@@ -3298,6 +3326,194 @@ void RGBController_LogitechHIDPP20::DeviceUpdateMode()
     | stay at flags=6 forever and the firmware would never  |
     | send onUserActivity events for idle/sleep.            |
     \*-----------------------------------------------------*/
+    controller->UpgradeSwControlAfterFirstPaint();
+}
+
+bool RGBController_LogitechHIDPP20::ZoneOverrideActive(size_t zone_idx) const
+{
+    return zone_idx < zones.size()
+        && zones[zone_idx].active_mode >= 0
+        && zones[zone_idx].active_mode < (int)zones[zone_idx].modes.size();
+}
+
+/*---------------------------------------------------------*\
+| Resolve a mode to this cluster's own effect index and     |
+| send one SetZoneEffect. The wire takes per-cluster        |
+| indices, which vary between clusters, so a cluster        |
+| that doesn't advertise the effect is skipped rather       |
+| than sent a stale index.                                  |
+\*---------------------------------------------------------*/
+bool RGBController_LogitechHIDPP20::ApplyClusterEffect(size_t cluster_pos, const mode& m, RGBColor color)
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    if(cluster_pos >= caps.zone_clusters.size())
+    {
+        return false;
+    }
+
+    const HIDPP20ZoneCluster& cluster = caps.zone_clusters[cluster_pos];
+    const bool is_8070 = (caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS);
+    const bool is_off  = (m.value == HIDPP20_MODE_VALUE_OFF);
+
+    /*-----------------------------------------------------*\
+    | Off rides Static black; effect 0x0000 (Disabled) is   |
+    | the fallback for clusters without Static.             |
+    \*-----------------------------------------------------*/
+    uint16_t target = is_off ? 0x0001 : (uint16_t)m.value;
+
+    const HIDPP20Effect* fx = nullptr;
+
+    for(size_t j = 0; j < cluster.effects.size(); j++)
+    {
+        if(cluster.effects[j].effect_id == target)
+        {
+            fx = &cluster.effects[j];
+            break;
+        }
+    }
+
+    if(fx == nullptr && is_off)
+    {
+        for(size_t j = 0; j < cluster.effects.size(); j++)
+        {
+            if(cluster.effects[j].effect_id == 0x0000)
+            {
+                fx = &cluster.effects[j];
+                break;
+            }
+        }
+    }
+
+    if(fx == nullptr)
+    {
+        LOG_TRACE("[LogitechHID++2.0] cluster %u lacks effect 0x%04X, skipped",
+                  cluster.index, target);
+        return false;
+    }
+
+    if(is_off)
+    {
+        controller->SetZoneEffect(cluster.index, fx->index, fx->effect_id,
+                                  0, 0, 0, 0, 100, 0,
+                                  is_8070 ? save_pending : false);
+        return true;
+    }
+
+    /*-----------------------------------------------------*\
+    | Ripple wants a narrower, much faster period range     |
+    | (2..200ms) than the breathing/wave baseline of        |
+    | 1..20s, mirroring Solaar's LEDEffects table where     |
+    | only Ripple carries a period range override.          |
+    \*-----------------------------------------------------*/
+    uint16_t period = (fx->effect_id == 0x000B || fx->effect_id == 0x0017)
+                    ? RippleSpeedSliderToPeriodMs(m.speed)
+                    : SpeedSliderToPeriodMs(m.speed);
+
+    /*-----------------------------------------------------*\
+    | Brightness defaults to 100 for modes without a        |
+    | brightness slider; those ignore the value at the      |
+    | wire level anyway.                                    |
+    \*-----------------------------------------------------*/
+    unsigned char brightness = (m.flags & MODE_FLAG_HAS_BRIGHTNESS)
+                             ? (unsigned char)m.brightness
+                             : 100;
+
+    /*-----------------------------------------------------*\
+    | Persist: 0x8071/0x0600 use persist=true, matching     |
+    | the observed vendor-app wire capture for every        |
+    | mode-set; with persist=false the firmware accepts     |
+    | the command without committing the new effect.        |
+    | 0x8070 live writes are ephemeral; DeviceSaveMode      |
+    | sets save_pending to replay the active state with     |
+    | persist=true and commit to NVM.                       |
+    \*-----------------------------------------------------*/
+    controller->SetZoneEffect(cluster.index, fx->index, fx->effect_id,
+                              RGBGetRValue(color),
+                              RGBGetGValue(color),
+                              RGBGetBValue(color),
+                              period, brightness,
+                              WaveDirectionToWire(m.direction),
+                              is_8070 ? save_pending : true);
+    return true;
+}
+
+/*---------------------------------------------------------*\
+| Per-zone mode set. Zone index equals cluster position     |
+| on the zone-effect layout (one zone per cluster).         |
+| active_mode -1 (follow device mode) repaints the zone     |
+| from the device-global mode.                              |
+\*---------------------------------------------------------*/
+void RGBController_LogitechHIDPP20::DeviceUpdateZoneMode(int zone)
+{
+    std::lock_guard<std::recursive_mutex> frame_guard(controller->TransactionMutex());
+
+    if(!controller->IsOnline())
+    {
+        return;
+    }
+
+    if(controller->GetPowerState() == HIDPP20_POWER_SLEEPING)
+    {
+        return;
+    }
+
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    if(!caps.has_zone_effects || caps.has_perkey || PerKey8080Capable()
+       || caps.is_headset_rgb_hostmode)
+    {
+        return;
+    }
+
+    if(zone < 0 || (size_t)zone >= zones.size()
+       || (size_t)zone >= caps.zone_clusters.size())
+    {
+        return;
+    }
+
+    controller->ClaimSWControlIfNeeded();
+
+    if(ZoneOverrideActive((size_t)zone))
+    {
+        const mode& zm = zones[zone].modes[zones[zone].active_mode];
+
+        /*-------------------------------------------------*\
+        | Mark the zone uncommitted so global painting      |
+        | repaints it after the override is cleared.        |
+        \*-------------------------------------------------*/
+        if((size_t)zone < sent_colors.size())
+        {
+            sent_colors[zone] = HIDPP20_UNCOMMITTED;
+        }
+
+        ApplyClusterEffect((size_t)zone, zm, ModeSpecificColor(zm));
+        controller->UpgradeSwControlAfterFirstPaint();
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Follow device mode: repaint just this cluster from    |
+    | the global mode.                                      |
+    \*-----------------------------------------------------*/
+    if((unsigned int)active_mode >= modes.size())
+    {
+        return;
+    }
+
+    const mode& current = modes[active_mode];
+
+    if(current.color_mode == MODE_COLORS_PER_LED)
+    {
+        if((size_t)zone < sent_colors.size())
+        {
+            sent_colors[zone] = HIDPP20_UNCOMMITTED;
+        }
+        DeviceUpdateLEDs();
+        return;
+    }
+
+    ApplyClusterEffect((size_t)zone, current, ModeSpecificColor(current));
     controller->UpgradeSwControlAfterFirstPaint();
 }
 
@@ -3316,7 +3532,8 @@ void RGBController_LogitechHIDPP20::DeviceSaveMode()
     | 0x8070: replay the active mode through                |
     | DeviceUpdateMode with save_pending true so the        |
     | zone effect writes go out with persist=true,          |
-    | committing the currently-live effect to flash.        |
+    | committing the effective device state (global mode    |
+    | plus any per-zone overrides) to flash.                |
     \*-----------------------------------------------------*/
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
     if(caps.rgb_feature_page != HIDPP20_FEAT_COLOR_LED_EFFECTS)

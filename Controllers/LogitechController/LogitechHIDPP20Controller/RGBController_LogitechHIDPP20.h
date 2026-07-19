@@ -27,6 +27,7 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone);
     void        DeviceSaveMode();
 
     bool        ReapplyActiveMode();
@@ -43,6 +44,15 @@ private:
     | when no animation is driving updates.                 |
     \*-----------------------------------------------------*/
     void                        OnRepaintRequest();
+
+    /*-----------------------------------------------------*\
+    | Per-zone modes: resolve a mode by effect id to a      |
+    | cluster's own effect index and send one               |
+    | SetZoneEffect; ZoneOverrideActive tests whether a     |
+    | zone holds a valid per-zone mode override.            |
+    \*-----------------------------------------------------*/
+    bool                        ApplyClusterEffect(size_t cluster_pos, const mode& m, RGBColor color);
+    bool                        ZoneOverrideActive(size_t zone_idx) const;
 
     /*-----------------------------------------------------*\
     | Per-key frame body. Registered with the               |
