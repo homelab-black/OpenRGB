@@ -9,6 +9,10 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <cctype>
+#include <cstdlib>
+#include <thread>
+
 #include "CorsairPeripheralV2Controller.h"
 #include "StringUtils.h"
 
@@ -35,6 +39,17 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
         case CORSAIR_K70_CORE_RGB_TKL_WL_PID:
             write_cmd   = CORSAIR_V2_WRITE_WIRELESS_ID;
             pid         = GetAddress(0x12);
+
+            /*-----------------------------------------------------*\
+            | The child device may still be re-linking (e.g. right  |
+            |   after a receiver hotplug or power-on) and answer    |
+            |   with an empty PID - give it a few seconds           |
+            \*-----------------------------------------------------*/
+            for(int retry = 0; (retry < 10) && ((pid == 0) || (pid == (unsigned int)-1)); retry++)
+            {
+                std::this_thread::sleep_for(500ms);
+                pid     = GetAddress(0x12);
+            }
             break;
 
         case CORSAIR_K57_RGB_WIRED_PID:
@@ -100,6 +115,34 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     |   If lighting control endpoint 2 is unavailable           |
     |   then use endpoint 1.                                    |
     \*---------------------------------------------------------*/
+    /*---------------------------------------------------------*\
+    | Wireless receivers push connect/disconnect and battery    |
+    |   events on a second vendor interface - open it so the    |
+    |   keepalive thread can listen passively for device wake   |
+    \*---------------------------------------------------------*/
+    if(IsWireless())
+    {
+        OpenNotificationChannel();
+
+        /*-----------------------------------------------------*\
+        | Report battery level (property 0x0F, in tenths of a   |
+        |   percent) at startup                                 |
+        \*-----------------------------------------------------*/
+        unsigned int battery = GetAddress(0x0F);
+        if(battery != (unsigned int)-1)
+        {
+            LOG_INFO("[%s] Battery level: %u.%u%%", device_name.c_str(), battery / 10, battery % 10);
+        }
+
+        /*-----------------------------------------------------*\
+        | Report the device's idle/sleep configuration          |
+        |   (0x0D = idle mode enabled, 0x37 = timeout in ms)    |
+        \*-----------------------------------------------------*/
+        unsigned int idle_mode    = GetAddress(0x0D);
+        unsigned int idle_timeout = GetAddress(0x37);
+        LOG_INFO("[%s] Idle mode: %u, idle timeout: %u ms", device_name.c_str(), idle_mode, idle_timeout);
+    }
+
     if(light_ctrl == CORSAIR_V2_LIGHT_CTRL2)
     {
         /*-----------------------------------------------------*\
@@ -128,7 +171,62 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
 
 CorsairPeripheralV2Controller::~CorsairPeripheralV2Controller()
 {
+    if(notif_dev)
+    {
+        hid_close(notif_dev);
+    }
     hid_close(dev);
+}
+
+void CorsairPeripheralV2Controller::OpenNotificationChannel()
+{
+    /*---------------------------------------------------------*\
+    | Find the sibling HID interface carrying usage page 0xFF42 |
+    |   usage 2 for the same VID/PID as the control interface   |
+    \*---------------------------------------------------------*/
+    unsigned short pid  = 0;
+    std::string loc     = location;
+
+    for(size_t i = 0; i < loc.length(); i++)
+    {
+        loc[i] = (char)tolower(loc[i]);
+    }
+
+    size_t pos = loc.find("pid_");
+    if(pos != std::string::npos)
+    {
+        pid = (unsigned short)strtoul(loc.substr(pos + 4, 4).c_str(), nullptr, 16);
+    }
+
+    if(pid == 0)
+    {
+        return;
+    }
+
+    hid_device_info* info_list = hid_enumerate(0x1B1C, pid);
+
+    for(hid_device_info* info = info_list; info; info = info->next)
+    {
+        if((info->usage_page == 0xFF42) && (info->usage == 0x0002))
+        {
+            notif_dev = hid_open_path(info->path);
+            break;
+        }
+    }
+
+    hid_free_enumeration(info_list);
+
+    LOG_DEBUG("[%s] Notification channel %s", device_name.c_str(), notif_dev ? "opened" : "not found");
+}
+
+int CorsairPeripheralV2Controller::ReadNotification(uint8_t* data, size_t length)
+{
+    if(!notif_dev)
+    {
+        return 0;
+    }
+
+    return hid_read_timeout(notif_dev, data, length, 0);
 }
 
 const corsair_v2_device* CorsairPeripheralV2Controller::GetDeviceData()
@@ -201,6 +299,30 @@ void CorsairPeripheralV2Controller::SetRenderMode(corsair_v2_device_mode mode)
     }
 }
 
+bool CorsairPeripheralV2Controller::IsWireless()
+{
+    return (write_cmd == CORSAIR_V2_WRITE_WIRELESS_ID);
+}
+
+void CorsairPeripheralV2Controller::EnsureSoftwareMode(bool force)
+{
+    /*---------------------------------------------------------*\
+    | Setting the mode resets the device's lighting session, so |
+    |   only set it when the device is not already in software  |
+    |   mode (mirrors SignalRGB's SetMode).  The mode read-back |
+    |   after setting also gives the transition time to settle  |
+    |   before the caller sends a frame.                        |
+    \*---------------------------------------------------------*/
+    unsigned int mode = GetAddress(0x03);
+
+    if(force || (mode != CORSAIR_V2_MODE_SW))
+    {
+        LOG_DEBUG("[%s] Device mode reads %u - asserting software mode", device_name.c_str(), mode);
+        SetRenderMode(CORSAIR_V2_MODE_SW);
+        GetAddress(0x03);
+    }
+}
+
 void CorsairPeripheralV2Controller::LightingControl(uint8_t opt1)
 {
     uint8_t buffer[CORSAIR_V2_WRITE_SIZE];
@@ -262,8 +384,10 @@ unsigned int CorsairPeripheralV2Controller::GetAddress(uint8_t address)
 unsigned char CorsairPeripheralV2Controller::StartTransaction(uint8_t opt1)
 {
     uint8_t buffer[CORSAIR_V2_WRITE_SIZE];
+    uint8_t read_buf[CORSAIR_V2_WRITE_SIZE];
 
     memset(buffer, 0, CORSAIR_V2_WRITE_SIZE);
+    memset(read_buf, 0, CORSAIR_V2_WRITE_SIZE);
 
     buffer[1]   = write_cmd;
     buffer[2]   = CORSAIR_V2_CMD_START_TX;
@@ -272,12 +396,30 @@ unsigned char CorsairPeripheralV2Controller::StartTransaction(uint8_t opt1)
 
     hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
 
-    if(!skip_reads)
+    if(skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        return 0;
     }
 
-    return buffer[2];
+    /*---------------------------------------------------------*\
+    | Read the reply into a separate buffer - reading into the  |
+    |   send buffer leaves the sent command byte (0x0D) behind  |
+    |   on timeout, which callers misread as an error reply.    |
+    |   A timeout is not a device error: retry the read once    |
+    |   (wireless replies can be slow) before reporting it.     |
+    \*---------------------------------------------------------*/
+    int rd = hid_read_timeout(dev, read_buf, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+    if(rd <= 0)
+    {
+        rd = hid_read_timeout(dev, read_buf, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+    }
+    if(rd <= 0)
+    {
+        LOG_DEBUG("[%s] StartTransaction reply timed out", device_name.c_str());
+        return 0xFE;
+    }
+
+    return read_buf[2];
 }
 
 void CorsairPeripheralV2Controller::StopTransaction(uint8_t opt1)
@@ -461,6 +603,25 @@ void CorsairPeripheralV2Controller::UpdateHWMode(uint16_t mode, corsair_v2_color
         SetRenderMode(CORSAIR_V2_MODE_SW);
         return;
     }
+
+    /*---------------------------------------------------------*\
+    | Writing hardware modes is not implemented.                |
+    |                                                           |
+    | Findings from attempting it on the K70 Core RGB TKL       |
+    |   Wireless (2026-07):                                     |
+    |   - Endpoint handles only open while the device is in     |
+    |     software mode; the mode switch must come last.        |
+    |   - Handle 1 opens on the LightingController endpoint     |
+    |     (0x22), but the block write below is rejected with    |
+    |     error 2 regardless of ordering.                       |
+    |   - A read-only sweep of endpoints 0x01-0x40 on handle 1  |
+    |     found button config (0x02), pairing IDs (0x05/0x35),  |
+    |     key remap tables (0x0F/0x11) and the serial (0x26),   |
+    |     but no stored lighting mode block anywhere.           |
+    |   The CORE-class keyboards ship with fixed onboard        |
+    |   presets and may not support storing custom hardware     |
+    |   lighting at all.                                        |
+    \*---------------------------------------------------------*/
 
     /*
     SetRenderMode(CORSAIR_V2_MODE_HW);
