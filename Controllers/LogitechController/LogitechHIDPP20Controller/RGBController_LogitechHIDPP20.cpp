@@ -3608,8 +3608,18 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             continue;
         }
 
-        bool animated   = (want.mode_value > 0 && want.mode_value != 0x0001);
-        bool color_only = animated && zone_committed_valid[i]
+        /*-------------------------------------------------*\
+        | Phase timing only matters where a color pairs     |
+        | with a visible period cycle: Breathing and the    |
+        | Ripple variants (the latter fall under the fast   |
+        | period exemption in practice). The Visualizer is  |
+        | audio-driven, a restart resets no visible         |
+        | rhythm, so its color changes land immediately.    |
+        \*-------------------------------------------------*/
+        bool cyclic     = (want.mode_value == 0x000A
+                        || want.mode_value == 0x000B
+                        || want.mode_value == 0x0017);
+        bool color_only = cyclic && zone_committed_valid[i]
                        && zone_committed[i].mode_value == want.mode_value
                        && zone_committed[i].speed      == want.speed
                        && zone_committed[i].brightness == want.brightness
