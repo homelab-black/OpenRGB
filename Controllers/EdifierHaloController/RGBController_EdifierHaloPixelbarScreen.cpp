@@ -22,24 +22,27 @@
     @comment
 \*-------------------------------------------------------------------*/
 
-struct CategoryDefinition {
+struct CategoryDefinition
+{
     std::string name;
     unsigned char category_id;
 };
 
-RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen(std::shared_ptr<EdifierHaloController> controller_ptr)
+RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen(EdifierHaloController* controller_ptr)
 {
-    controller          = controller_ptr;
+    controller                = controller_ptr;
+    first_leds_update_ignored = false;
+    first_mode_update_ignored = false;
 
-    name                = "Edifier Halo Pixelbar - Screen";
+    name                = "Edifier Halo Pixelbar - Pixel Display";
     vendor              = "Edifier";
     type                = DEVICE_TYPE_SPEAKER;
-    description         = "Edifier Halo PixelBar Screen Color";
+    description         = "Edifier Halo PixelBar Pixel Display Color";
     serial              = controller->GetSerial();
     location            = controller->GetLocation();
 
     // Clock 1 to Clock 11 (11 built-in clock styles)
-    for (unsigned char i = 0; i < 11; ++i)
+    for(unsigned char i = 0; i < 11; ++i)
     {
         mode m;
         m.name           = "Clock " + std::to_string(i + 1);
@@ -49,23 +52,23 @@ RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen
         m.colors_min     = 1;
         m.colors_max     = 1;
         m.colors.resize(1);
-        m.colors[0]      = ToRGBColor(240, 180, 200);
         modes.push_back(m);
     }
 
     // Default built-in layouts for other categories
-    std::vector<CategoryDefinition> categories = {
+    std::vector<CategoryDefinition> categories =
+    {
         { "Gaming",     1 },
-        { "Working",    2 },
-        { "Studying",   3 },
+        { "Work",       2 },
+        { "Study",      3 },
         { "Cats",       4 },
         { "Dogs",       5 },
-        { "Memes",      6 },
+        { "Buzzwords",  6 },
         { "Cyberpunk",  7 },
-        { "Visualizer", 8 }
+        { "Spectrum",   8 }
     };
 
-    for (const auto& cat : categories)
+    for(const CategoryDefinition& cat : categories)
     {
         mode m;
         m.name           = cat.name;
@@ -75,19 +78,8 @@ RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen
         m.colors_min     = 1;
         m.colors_max     = 1;
         m.colors.resize(1);
-        m.colors[0]      = ToRGBColor(240, 180, 200);
         modes.push_back(m);
     }
-
-    // Off mode
-    mode off_mode;
-    off_mode.name           = "Off";
-    off_mode.value          = 0xFFFF;
-    off_mode.flags          = 0;
-    off_mode.color_mode     = MODE_COLORS_NONE;
-    off_mode.colors_min     = 0;
-    off_mode.colors_max     = 0;
-    modes.push_back(off_mode);
 
     // Default to Clock 1 mode
     active_mode = 0;
@@ -97,6 +89,7 @@ RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen
 
 RGBController_EdifierHaloPixelbarScreen::~RGBController_EdifierHaloPixelbarScreen()
 {
+    delete controller;
 }
 
 void RGBController_EdifierHaloPixelbarScreen::SetupZones()
@@ -118,12 +111,17 @@ void RGBController_EdifierHaloPixelbarScreen::SetupZones()
 
 void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateLEDs()
 {
-    int active_idx = GetActiveMode();
-    unsigned char r = 240;
-    unsigned char g = 180;
-    unsigned char b = 200;
+    if(!first_leds_update_ignored)
+    {
+        first_leds_update_ignored = true;
+        return;
+    }
 
-    if (!colors.empty())
+    unsigned char r = 255;
+    unsigned char g = 255;
+    unsigned char b = 255;
+
+    if(!colors.empty())
     {
         RGBColor color = colors[0];
         r = RGBGetRValue(color);
@@ -131,17 +129,8 @@ void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateLEDs()
         b = RGBGetBValue(color);
     }
 
-    unsigned int mode_val = modes[active_idx].value;
-
-    if (mode_val == 0xFFFF) // Off
-    {
-        controller->SetPixelScreenColor(0, 0, 0);
-    }
-    else
-    {
-        // For all other modes, color updates are sent using SetPixelScreenColor
-        controller->SetPixelScreenColor(r, g, b);
-    }
+    // For all other modes, color updates are sent using SetPixelScreenColor
+    controller->SetPixelScreenColor(r, g, b);
 }
 
 void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateZoneLEDs(int)
@@ -156,12 +145,18 @@ void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateSingleLED(int)
 
 void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateMode()
 {
-    int active_idx = GetActiveMode();
-    unsigned char r = 240;
-    unsigned char g = 180;
-    unsigned char b = 200;
+    if(!first_mode_update_ignored)
+    {
+        first_mode_update_ignored = true;
+        return;
+    }
 
-    if (!colors.empty())
+    int active_idx = GetActiveMode();
+    unsigned char r = 255;
+    unsigned char g = 255;
+    unsigned char b = 255;
+
+    if(!colors.empty())
     {
         RGBColor color = colors[0];
         r = RGBGetRValue(color);
@@ -170,23 +165,15 @@ void RGBController_EdifierHaloPixelbarScreen::DeviceUpdateMode()
     }
 
     unsigned int mode_val = modes[active_idx].value;
+    unsigned char category = (mode_val >> 8) & 0xFF;
+    unsigned char index    = mode_val & 0xFF;
 
-    if (mode_val == 0xFFFF) // Off
+    if(category == 0) // Clock category (11 built-in styles)
     {
-        controller->SetPixelScreenColor(0, 0, 0);
+        controller->SetScreenScene(0, index, r, g, b);
     }
-    else
+    else // Other categories (Gaming, Working, etc.) use the default built-in layouts
     {
-        unsigned char category = (mode_val >> 8) & 0xFF;
-        unsigned char index    = mode_val & 0xFF;
-
-        if (category == 0) // Clock category (11 built-in styles)
-        {
-            controller->SetScreenScene(0, index);
-        }
-        else // Other categories (Gaming, Working, etc.) use the default built-in layouts
-        {
-            controller->SetScreenUIModel(category, r, g, b);
-        }
+        controller->SetScreenUIModel(category, r, g, b);
     }
 }

@@ -35,7 +35,7 @@ DetectedControllers DetectEdifierHaloControllers(hid_device_info* info, const st
 
     if(dev)
     {
-        std::shared_ptr<EdifierHaloController> controller = std::make_shared<EdifierHaloController>(dev, info->path);
+        EdifierHaloController* controller = new EdifierHaloController(dev, info->path);
 
         RGBController_EdifierHaloPixelbarAmbient* ambient_controller = new RGBController_EdifierHaloPixelbarAmbient(controller);
         RGBController_EdifierHaloPixelbarScreen* screen_controller = new RGBController_EdifierHaloPixelbarScreen(controller);

@@ -18,7 +18,7 @@
 class RGBController_EdifierHaloPixelbarScreen : public RGBController
 {
 public:
-    RGBController_EdifierHaloPixelbarScreen(std::shared_ptr<EdifierHaloController> controller_ptr);
+    RGBController_EdifierHaloPixelbarScreen(EdifierHaloController* controller_ptr);
     ~RGBController_EdifierHaloPixelbarScreen();
 
     void        SetupZones();
@@ -29,5 +29,7 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    std::shared_ptr<EdifierHaloController> controller;
+    EdifierHaloController* controller;
+    bool first_leds_update_ignored;
+    bool first_mode_update_ignored;
 };

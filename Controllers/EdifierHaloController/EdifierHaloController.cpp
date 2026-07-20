@@ -83,7 +83,16 @@ std::string EdifierHaloController::GetLocation() const
 void EdifierHaloController::SetAmbientLightPower(bool enabled)
 {
     unsigned char mode = enabled ? 0x01 : 0x00;
-    unsigned char payload[] = { 0x00, 0x00, 0x00, 0x00, mode, 0xFF, 0xFF };
+    unsigned char payload[] =
+    {
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        mode,
+        0xFF,
+        0xFF
+    };
     SendEdifierPacket(0x6b, payload, sizeof(payload));
 }
 
@@ -97,7 +106,8 @@ void EdifierHaloController::SetAmbientLight(unsigned char effect, unsigned char 
     if (speed < 1) speed = 1;
     if (speed > 10) speed = 10;
 
-    unsigned char payload[] = {
+    unsigned char payload[] =
+    {
         0x13,
         effect,
         r,
@@ -111,13 +121,20 @@ void EdifierHaloController::SetAmbientLight(unsigned char effect, unsigned char 
 
 void EdifierHaloController::SetPixelScreenColor(unsigned char r, unsigned char g, unsigned char b)
 {
-    unsigned char payload[] = { 0x03, r, g, b };
+    unsigned char payload[] =
+    {
+        0x03,
+        r,
+        g,
+        b
+    };
     SendEdifierPacket(0xef, payload, sizeof(payload));
 }
 
 void EdifierHaloController::SetScreenUIModel(unsigned char model_id, unsigned char r, unsigned char g, unsigned char b)
 {
-    unsigned char payload[] = {
+    unsigned char payload[] =
+    {
         0x02,
         r,
         g,
@@ -131,13 +148,14 @@ void EdifierHaloController::SetScreenUIModel(unsigned char model_id, unsigned ch
     SendEdifierPacket(0xef, payload, sizeof(payload));
 }
 
-void EdifierHaloController::SetScreenScene(unsigned char category, unsigned char index)
+void EdifierHaloController::SetScreenScene(unsigned char category, unsigned char index, unsigned char r, unsigned char g, unsigned char b)
 {
-    unsigned char payload[] = {
+    unsigned char payload[] =
+    {
         0x01, // group
-        0xf0,
-        0xb4,
-        0xc8,
+        r,
+        g,
+        b,
         0x00,
         0x01,
         category,
