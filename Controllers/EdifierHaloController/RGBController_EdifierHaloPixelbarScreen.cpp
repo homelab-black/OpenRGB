@@ -49,9 +49,6 @@ RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen
         m.value          = (0 << 8) | i;
         m.flags          = MODE_FLAG_HAS_PER_LED_COLOR;
         m.color_mode     = MODE_COLORS_PER_LED;
-        m.colors_min     = 1;
-        m.colors_max     = 1;
-        m.colors.resize(1);
         modes.push_back(m);
     }
 
@@ -75,9 +72,6 @@ RGBController_EdifierHaloPixelbarScreen::RGBController_EdifierHaloPixelbarScreen
         m.value          = (cat.category_id << 8) | 0;
         m.flags          = MODE_FLAG_HAS_PER_LED_COLOR;
         m.color_mode     = MODE_COLORS_PER_LED;
-        m.colors_min     = 1;
-        m.colors_max     = 1;
-        m.colors.resize(1);
         modes.push_back(m);
     }
 
