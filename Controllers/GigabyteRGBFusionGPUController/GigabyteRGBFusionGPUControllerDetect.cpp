@@ -17,6 +17,8 @@
 #include "pci_ids.h"
 
 #define GIGABYTEGPU_CONTROLLER_NAME "Gigabyte RGB Fusion GPU"
+#define GIGABYTE_GTX1060_AORUS_371D_SUB_DEV         0x371D
+
 
 bool TestForGigabyteRGBFusionGPUController(i2c_smbus_interface* bus, unsigned char address)
 {
@@ -103,6 +105,7 @@ REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1050 Ti G1 Gaming Rev A1",      
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1050 Ti G1 Gaming",                  DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1050TI_DEV,       GIGABYTE_SUB_VEN,   GIGABYTE_GTX1050TI_G1_GAMING_SUB_DEV,           0x48);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1060 G1 Gaming",                     DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1060_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_GTX1060_G1_GAMING_SUB_DEV,             0x48);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1060 G1 Gaming OC",                  DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1060_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_GTX1060_G1_GAMING_OC_SUB_DEV,          0x47);
+REGISTER_I2C_PCI_DETECTOR("Gigabyte GTX 1060 Aorus 6G (371D)",                       DetectGigabyteRGBFusionGPUControllers, NVIDIA_VEN, NVIDIA_GTX1060_DEV, GIGABYTE_SUB_VEN, GIGABYTE_GTX1060_AORUS_371D_SUB_DEV, 0x57);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1060 Xtreme Gaming V1",              DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1060_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_GTX1060_XTREME_V1_SUB_DEV_D,           0x47);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1060 Xtreme Gaming V1",              DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1060_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_GTX1060_XTREME_V1_SUB_DEV_H,           0x47);
 REGISTER_I2C_PCI_DETECTOR("Gigabyte GeForce GTX 1060 Xtreme Gaming V2",              DetectGigabyteRGBFusionGPUControllers,  NVIDIA_VEN, NVIDIA_GTX1060_DEV,         GIGABYTE_SUB_VEN,   GIGABYTE_GTX1060_XTREME_V2_SUB_DEV_D,           0x47);
