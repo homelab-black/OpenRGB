@@ -26,6 +26,7 @@ static const int HIDPP20_MODE_VALUE_DIRECT = -1;
 static const int HIDPP20_MODE_VALUE_OFF    = -2;
 static const int HIDPP20_MODE_VALUE_UNSET  = -3;
 static const int HIDPP20_MODE_VALUE_CUSTOM = -4;
+static const int HIDPP20_MODE_VALUE_DARK_VISUALIZER = -5;
 
 /*---------------------------------------------------------*\
 | Desired rendering state of one cluster: the effect it     |

@@ -172,6 +172,7 @@ static bool EffectUsesColor(int mode_value)
     switch(mode_value)
     {
         case HIDPP20_MODE_VALUE_DIRECT:
+        case HIDPP20_MODE_VALUE_DARK_VISUALIZER:
         case 0x0001:    // Static
         case 0x0007:    // Audio Visualizer
         case 0x000A:    // Breathing
@@ -181,6 +182,42 @@ static bool EffectUsesColor(int mode_value)
         default:
             return false;
     }
+}
+
+/*---------------------------------------------------------*\
+| Dark Visualizer: a pseudo-mode offered alongside the      |
+| stock Audio Visualizer (0x0007). It audio-pulses the      |
+| zone's literal color, but a black zone renders black      |
+| instead of the firmware self-cycle: painted zones emit    |
+| 0x0007, black zones emit Static black.                    |
+\*---------------------------------------------------------*/
+static mode MakeDarkVisualizerMode(bool per_led_colors)
+{
+    mode out;
+
+    out.name       = "Dark Visualizer";
+    out.value      = HIDPP20_MODE_VALUE_DARK_VISUALIZER;
+    out.speed_min  = HIDPP20_SPEED_SLIDER_MIN;
+    out.speed_max  = HIDPP20_SPEED_SLIDER_MAX;
+    out.speed      = 80;
+
+    if(per_led_colors)
+    {
+        out.flags      = MODE_FLAG_HAS_PER_LED_COLOR
+                       | MODE_FLAG_HAS_SPEED;
+        out.color_mode = MODE_COLORS_PER_LED;
+    }
+    else
+    {
+        out.flags      = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR
+                       | MODE_FLAG_HAS_SPEED;
+        out.colors_min = 1;
+        out.colors_max = 1;
+        out.color_mode = MODE_COLORS_MODE_SPECIFIC;
+        out.colors.resize(1);
+    }
+
+    return out;
 }
 
 /*---------------------------------------------------------*\
@@ -1462,6 +1499,15 @@ RGBController_LogitechHIDPP20::RGBController_LogitechHIDPP20(LogitechHIDPP20Cont
             }
 
             modes.push_back(fx_mode);
+
+            /*---------------------------------------------*\
+            | Offer Dark Visualizer next to the stock Audio |
+            | Visualizer (0x0007)                           |
+            \*---------------------------------------------*/
+            if(fx.effect_id == 0x0007)
+            {
+                modes.push_back(MakeDarkVisualizerMode(per_led));
+            }
         }
     }
 
@@ -2056,6 +2102,17 @@ void RGBController_LogitechHIDPP20::SetupZones()
                     zone_mode.colors.clear();
                 }
                 new_zone.modes.push_back(zone_mode);
+
+                /*-----------------------------------------*\
+                | Offer Dark Visualizer right after the     |
+                | stock Audio Visualizer (0x0007) so the    |
+                | per-zone list order matches the device-   |
+                | global one                                |
+                \*-----------------------------------------*/
+                if(cluster.effects[j].effect_id == 0x0007)
+                {
+                    new_zone.modes.push_back(MakeDarkVisualizerMode(true));
+                }
             }
 
             if(caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS)
@@ -3709,13 +3766,20 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
     const bool is_8070   = (caps.rgb_feature_page == HIDPP20_FEAT_COLOR_LED_EFFECTS);
     const bool is_off    = (s.mode_value == HIDPP20_MODE_VALUE_OFF);
     const bool is_direct = (s.mode_value == HIDPP20_MODE_VALUE_DIRECT);
+    const bool is_dark   = (s.mode_value == HIDPP20_MODE_VALUE_DARK_VISUALIZER);
+    const bool off_like  = is_off || (is_dark && s.color == 0);
 
     /*-----------------------------------------------------*\
     | Direct rides Static with the zone's live color. Off   |
-    | rides Static black; effect 0x0000 (Disabled) is the   |
-    | fallback for clusters without Static.                 |
+    | and a black Dark Visualizer zone ride Static black;   |
+    | effect 0x0000 (Disabled) is the fallback for clusters |
+    | without Static. A painted Dark Visualizer zone runs   |
+    | the audio pulse (0x0007), just not the black self-    |
+    | cycle the stock Audio Visualizer would.               |
     \*-----------------------------------------------------*/
-    uint16_t target = (is_off || is_direct) ? 0x0001 : (uint16_t)s.mode_value;
+    uint16_t target = (off_like || is_direct) ? 0x0001
+                    : is_dark                 ? 0x0007
+                    : (uint16_t)s.mode_value;
 
     const HIDPP20Effect* fx = nullptr;
 
@@ -3728,7 +3792,7 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
         }
     }
 
-    if(fx == nullptr && is_off)
+    if(fx == nullptr && off_like)
     {
         for(size_t j = 0; j < cluster.effects.size(); j++)
         {
@@ -3747,7 +3811,7 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
         return false;
     }
 
-    if(is_off)
+    if(off_like)
     {
         controller->SetZoneEffect(cluster.index, fx->index, fx->effect_id,
                                   0, 0, 0, 0, 100, 0,
