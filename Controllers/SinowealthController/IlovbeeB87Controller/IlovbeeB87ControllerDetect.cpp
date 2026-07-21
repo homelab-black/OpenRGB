@@ -9,6 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <cwchar>
 #include <unordered_set>
 #include "DetectionManager.h"
 #include "IlovbeeB87Controller.h"
@@ -18,6 +19,8 @@
 #define ILOVBEE_VID             0x258A
 #define ILOVBEE_B87_PID         0x0199
 #define ILOVBEE_B87_INTERFACE   1
+#define ILOVBEE_B87_USAGE_PAGE  0xFF00
+#define ILOVBEE_B87_USAGE       0x0001
 
 // Interface 1 exposes several top-level collections through one hidraw path.
 static std::unordered_set<std::string> used_paths;
@@ -30,6 +33,14 @@ void ResetIlovbeeB87ControllerPaths()
 DetectedControllers DetectIlovbeeB87Controllers(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
+
+    if((info->manufacturer_string == nullptr)
+    || (info->product_string == nullptr)
+    || (std::wcscmp(info->manufacturer_string, L"BY Tech") != 0)
+    || (std::wcscmp(info->product_string, L"B87 Keyboard") != 0))
+    {
+        return(detected_controllers);
+    }
 
     if(used_paths.find(info->path) != used_paths.end())
     {
@@ -62,5 +73,5 @@ DetectedControllers DetectIlovbeeB87Controllers(hid_device_info* info, const std
     return(detected_controllers);
 }
 
-REGISTER_HID_DETECTOR_I("ilovbee B87", DetectIlovbeeB87Controllers, ILOVBEE_VID, ILOVBEE_B87_PID, ILOVBEE_B87_INTERFACE);
+REGISTER_HID_DETECTOR_IPU("ilovbee B87", DetectIlovbeeB87Controllers, ILOVBEE_VID, ILOVBEE_B87_PID, ILOVBEE_B87_INTERFACE, ILOVBEE_B87_USAGE_PAGE, ILOVBEE_B87_USAGE);
 REGISTER_PRE_DETECTION_HOOK(ResetIlovbeeB87ControllerPaths);
