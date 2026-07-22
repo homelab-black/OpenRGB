@@ -14,8 +14,23 @@
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
+#include "KeyboardLayoutManager.h"
 
 #define CLASSIC_PACKET_DATA_LENGTH      64
+
+/*---------------------------------------------------------*\
+| The device info request answers with a string such as     |
+|                                                           |
+|     2M252,01,KB,JC,GK8120SKRGB,V1.04.04                   |
+|                                                           |
+| where the fifth field is the model and the last is the    |
+| firmware version.  Only the full size board reports the   |
+| GK8120 model, so any other answer keeps the TKL layout.   |
+\*---------------------------------------------------------*/
+#define CLASSIC_INFO_COMMAND            0x0D
+#define CLASSIC_INFO_RETRIES            10
+#define CLASSIC_INFO_TIMEOUT            150
+#define CLASSIC_FULL_SIZE_MODEL         "GK8120"
 
 /*---------------------------------------*\
 |  Modes                                  |
@@ -60,6 +75,9 @@ public:
     std::string         GetDeviceLocation();
     std::string         GetNameString();
     std::string         GetSerialString();
+    std::string         GetVendorString();
+    std::string         GetVersionString();
+    KEYBOARD_SIZE       GetKeyboardSize();
 
     int                 GetDirection(int direction);
     int                 GetDirectionRound(int direction);
@@ -71,8 +89,13 @@ protected:
     hid_device*         dev;
 
 private:
+    void                        ReadDeviceInfo();
+
     std::string                 location;
     std::string                 name;
     std::string                 serial_number;
+    std::string                 vendor;
+    std::string                 version;
+    KEYBOARD_SIZE               keyboard_size;
     std::vector<unsigned int>   led_sequence_positions;
 };

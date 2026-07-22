@@ -16,7 +16,13 @@
 #include "KeyboardLayoutManager.h"
 #include "RedSquareKeyroxTKLClassicController.h"
 
+/*---------------------------------------------------------*\
+| Both sizes share the same six row hardware matrix.  The   |
+| full size board adds the number pad in the four columns   |
+| to the right of the TKL keys.                             |
+\*---------------------------------------------------------*/
 #define KEYROX_TKL_CLASSIC_WIDTH    17
+#define KEYROX_FULL_CLASSIC_WIDTH   21
 #define KEYROX_TKL_CLASSIC_HEIGHT   6
 
 class RGBController_RedSquareKeyroxTKLClassic : public RGBController

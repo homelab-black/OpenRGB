@@ -19,6 +19,10 @@ RedSquareKeyroxTKLClassicController::RedSquareKeyroxTKLClassicController(hid_dev
     dev             = dev_handle;
     location        = info.path;
     name            = dev_name;
+    vendor          = "Red Square";
+    keyboard_size   = KEYBOARD_SIZE_TKL;
+
+    ReadDeviceInfo();
 }
 
 RedSquareKeyroxTKLClassicController::~RedSquareKeyroxTKLClassicController()
@@ -49,6 +53,106 @@ std::string RedSquareKeyroxTKLClassicController::GetSerialString()
     });
 
     return serial_string;
+}
+
+std::string RedSquareKeyroxTKLClassicController::GetVendorString()
+{
+    return(vendor);
+}
+
+std::string RedSquareKeyroxTKLClassicController::GetVersionString()
+{
+    return(version);
+}
+
+KEYBOARD_SIZE RedSquareKeyroxTKLClassicController::GetKeyboardSize()
+{
+    return(keyboard_size);
+}
+
+/*---------------------------------------------------------*\
+| Ask the keyboard which model it is.  The full size        |
+| board shares its vendor ID, product ID and product        |
+| string with the TKL sized one, so the reply to this       |
+| request is the only way to tell them apart.  A board      |
+| that does not answer keeps the TKL layout used so far.    |
+\*---------------------------------------------------------*/
+void RedSquareKeyroxTKLClassicController::ReadDeviceInfo()
+{
+    unsigned char usb_buf[CLASSIC_PACKET_DATA_LENGTH];
+    memset(usb_buf, 0x00, CLASSIC_PACKET_DATA_LENGTH);
+
+    usb_buf[0] = 0x01;
+    usb_buf[1] = CLASSIC_INFO_COMMAND;
+
+    hid_write(dev, usb_buf, CLASSIC_PACKET_DATA_LENGTH);
+
+    for(int retry = 0; retry < CLASSIC_INFO_RETRIES; retry++)
+    {
+        /*-----------------------------------------*\
+        |  The extra byte keeps the reply string    |
+        |  terminated if it fills the packet        |
+        \*-----------------------------------------*/
+        char reply[CLASSIC_PACKET_DATA_LENGTH + 1];
+        memset(reply, 0x00, CLASSIC_PACKET_DATA_LENGTH + 1);
+
+        int reply_size = hid_read_timeout(dev, (unsigned char *)reply, CLASSIC_PACKET_DATA_LENGTH, CLASSIC_INFO_TIMEOUT);
+
+        if(reply_size <= 0)
+        {
+            continue;
+        }
+
+        /*-----------------------------------------*\
+        |  Effects send reports of their own, so    |
+        |  skip anything that is not the answer     |
+        \*-----------------------------------------*/
+        if((reply[0] != 0x01) || (reply[1] != CLASSIC_INFO_COMMAND))
+        {
+            continue;
+        }
+
+        /*-----------------------------------------*\
+        |  Step over the command bytes and the      |
+        |  padding ahead of the string              |
+        \*-----------------------------------------*/
+        const char* info = &reply[2];
+
+        for(int idx = 2; idx < CLASSIC_PACKET_DATA_LENGTH; idx++, info++)
+        {
+            if(*info > ' ')
+            {
+                break;
+            }
+        }
+
+        if(*info == '\0')
+        {
+            continue;
+        }
+
+        LOG_INFO("[%s] Device info: %s", name.c_str(), info);
+
+        const char* version_field = strrchr(info, 'V');
+
+        if(version_field != NULL)
+        {
+            version = version_field;
+        }
+
+        if(strstr(info, CLASSIC_FULL_SIZE_MODEL) != NULL)
+        {
+            LOG_INFO("[%s] Full size model reported, using the 104 key layout", name.c_str());
+
+            keyboard_size   = KEYBOARD_SIZE_FULL;
+            name            = "Dark Project KD104A";
+            vendor          = "Dark Project";
+        }
+
+        return;
+    }
+
+    LOG_WARNING("[%s] Device info request went unanswered, using the 87 key layout", name.c_str());
 }
 
 int RedSquareKeyroxTKLClassicController::GetDirection(int direction)

@@ -19,7 +19,9 @@
     @direct :white_check_mark:
     @effects :white_check_mark:
     @detectors DetectRedSquareKeyroxTKLClassic
-    @comment Also named Dark Project KD87a
+    @comment Also named Dark Project KD87a when TKL sized and Dark Project
+    KD104A when full size.  Both share the same USB IDs and are told apart
+    by the model reported in the device info string.
 \*-------------------------------------------------------------------*/
 
 typedef struct
@@ -53,14 +55,39 @@ layout_values keyrox_tkl_offset_values =
     }
 };
 
+/*--------------------*\
+|  Full size (KD104A)  |
+\*--------------------*/
+layout_values keyrox_full_offset_values =
+{
+    {
+        /* ESC          F1    F2    F3    F4    F5    F6    F7    F8    F9   F10   F11   F12   PRSC  SCLK  PSBK */
+             7,         13,   16,   19,   22,   28,   31,   34,   37,   40,   43,   46,   49,   52,   55,   58,
+        /* BKTK    1     2     3     4     5     6     7     8     9     0     -     =   BSPC  INS   HOME  PGUP  NLCK  NUM/  NUM*  NUM- */
+            83,   86,   89,   92,   95,   98,  101,  104,  107,  110,  113,  116,  119,  135,  138,  141,  144,  147,  150,  153,  156,
+        /* TAB     Q     W     E     R     T     Y     U     I     O     P     [     ]     \   DEL   END   PGDN  NUM7  NUM8  NUM9  NUM+ */
+           159,  162,  165,  168,  171,  174,  177,  180,  183,  186,  199,  202,  205,  211,  214,  217,  220,  223,  226,  229,  232,
+        /* CPLK    A     S     D     F     G     H     J     K     L     ;     "     #   ENTR                    NUM4  NUM5  NUM6 */
+           235,  241,  244,  247,  250,  263,  266,  269,  272,  275,  278,  281,  284,  287,                    299,  302,  305,
+        /* LSFT  ISO\    Z     X     C     V     B     N     M     ,     .     /   RSFT                    ARWU  NUM1  NUM2  NUM3  NENT */
+           311,  314,  327,  330,  333,  336,  339,  342,  345,  348,  351,  354,  363,                    369,  375,  378,  391,  394,
+        /* LCTL  LWIN  LALT               SPC              RALT  RFNC  RMNU  RCTL              ARWL  ARWD  ARWR  NUM0  NUM. */
+           397,  400,  403,              415,              427,  430,  433,  436,              442,  455,  458,  461,  467
+    },
+    {
+        /* Add more regional layout fixes here */
+    }
+};
+
 RGBController_RedSquareKeyroxTKLClassic::RGBController_RedSquareKeyroxTKLClassic(RedSquareKeyroxTKLClassicController* controller_ptr)
 {
     controller              = controller_ptr;
 
     name                    = controller->GetNameString();
-    vendor                  = "Red Square";
+    vendor                  = controller->GetVendorString();
     type                    = DEVICE_TYPE_KEYBOARD;
-    description             = "Red Square Keyrox TKL Classic Device";
+    description             = name + " Device";
+    version                 = controller->GetVersionString();
     location                = controller->GetDeviceLocation();
     serial                  = controller->GetSerialString();
 
@@ -203,7 +230,23 @@ RGBController_RedSquareKeyroxTKLClassic::~RGBController_RedSquareKeyroxTKLClassi
 
 void RGBController_RedSquareKeyroxTKLClassic::SetupZones()
 {
-    KeyboardLayoutManager new_kb(KEYBOARD_LAYOUT_ANSI_QWERTY, KEYBOARD_SIZE_TKL, keyrox_tkl_offset_values);
+    /*---------------------------------------------------------*\
+    |  Pick the layout for the size the controller reported.    |
+    |  The number pad sits in the four matrix columns to the    |
+    |  right of the TKL keys, so the map has to be built        |
+    |  wider or those keys are dropped from it.                 |
+    \*---------------------------------------------------------*/
+    KEYBOARD_SIZE           keyboard_size   = controller->GetKeyboardSize();
+    const layout_values*    offset_values   = &keyrox_tkl_offset_values;
+    unsigned char           matrix_width    = KEYROX_TKL_CLASSIC_WIDTH;
+
+    if(keyboard_size == KEYBOARD_SIZE_FULL)
+    {
+        offset_values   = &keyrox_full_offset_values;
+        matrix_width    = KEYROX_FULL_CLASSIC_WIDTH;
+    }
+
+    KeyboardLayoutManager new_kb(KEYBOARD_LAYOUT_ANSI_QWERTY, keyboard_size, *offset_values);
 
     /*---------------------------------------------------------*\
     |  Create the keyboard zone usiung Keyboard Layout Manager  |
@@ -214,7 +257,7 @@ void RGBController_RedSquareKeyroxTKLClassic::SetupZones()
     new_zone.leds_count             = new_kb.GetKeyCount();
     new_zone.leds_min               = new_zone.leds_count;
     new_zone.leds_max               = new_zone.leds_count;
-    new_zone.matrix_map             = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT, KEYROX_TKL_CLASSIC_HEIGHT, KEYROX_TKL_CLASSIC_WIDTH);
+    new_zone.matrix_map             = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_COUNT, KEYROX_TKL_CLASSIC_HEIGHT, matrix_width);
 
     /*---------------------------------------------------------*\
     | Create LEDs for the Matrix zone                           |
