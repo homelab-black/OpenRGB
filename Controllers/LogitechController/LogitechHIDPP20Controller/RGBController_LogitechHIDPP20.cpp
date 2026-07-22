@@ -3591,6 +3591,43 @@ HIDPP20ZoneState RGBController_LogitechHIDPP20::DesiredFromMode(const mode& m, s
 }
 
 /*---------------------------------------------------------*\
+| Picking a device-level effect means the whole device      |
+| runs it, so drop the per-zone overrides back to "follow   |
+| the device" first. The rebuild in the apply that follows  |
+| then resolves every zone to the new effect, and they go   |
+| out together and in phase.                                |
+|                                                           |
+| Only this entry point does it. A profile restores per     |
+| zone modes and assigns active_mode directly rather than   |
+| calling here, so a restore never clears the zone modes    |
+| it is in the middle of putting back.                      |
+|                                                           |
+| Direct is exempt: it claims no zone, so it releases none  |
+| either. Plugins force Direct through here to open the     |
+| stream intake, and that must not drop the per-zone        |
+| effects the user set.                                     |
+\*---------------------------------------------------------*/
+void RGBController_LogitechHIDPP20::SetActiveMode(int mode)
+{
+    const bool direct = (mode >= 0 && (size_t)mode < modes.size()
+                      && modes[mode].value == HIDPP20_MODE_VALUE_DIRECT);
+
+    if(IsZoneStateLayout() && !direct)
+    {
+        AccessMutex.lock();
+
+        for(size_t i = 0; i < zones.size(); i++)
+        {
+            zones[i].active_mode = -1;
+        }
+
+        AccessMutex.unlock();
+    }
+
+    RGBController::SetActiveMode(mode);
+}
+
+/*---------------------------------------------------------*\
 | Which mode governs one cluster. A zone with its own       |
 | active_mode runs that; otherwise it follows the device    |
 | mode. active_mode < 0 is the framework's "follow the      |

@@ -56,6 +56,8 @@ public:
     void        DeviceUpdateZoneLEDs(int zone);
     void        DeviceUpdateSingleLED(int led);
 
+    void        SetActiveMode(int mode);
+
     void        DeviceUpdateMode();
     void        DeviceUpdateZoneMode(int zone);
     void        DeviceSaveMode();
