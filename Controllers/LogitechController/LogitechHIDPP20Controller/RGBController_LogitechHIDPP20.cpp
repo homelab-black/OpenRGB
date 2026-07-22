@@ -113,16 +113,6 @@ static const uint64_t HIDPP20_PHASE_WINDOW_MS     = 100;
 static const uint16_t HIDPP20_PHASE_MIN_PERIOD_MS = 400;
 
 /*---------------------------------------------------------*\
-| A device-level effect pick does not claim a zone whose    |
-| mode was explicitly set within this window. Profile       |
-| loads restore zone modes and re-apply the device mode     |
-| within milliseconds of each other, in no guaranteed       |
-| order; without this, the device apply stamps over zones   |
-| the restore already set.                                  |
-\*---------------------------------------------------------*/
-static const uint64_t HIDPP20_ZONE_SET_PROTECT_MS = 5000;
-
-/*---------------------------------------------------------*\
 | Frame-delay effects (Ripple) restart visibly on every     |
 | re-send, so their color is locked at apply time and       |
 | never follows the draw buffer; recoloring takes an        |
@@ -221,8 +211,8 @@ static mode MakeDarkVisualizerMode(bool per_led_colors)
 }
 
 /*---------------------------------------------------------*\
-| Wire-relevant equality; tracks_global is bookkeeping      |
-| and never a reason to re-send.                            |
+| Wire-relevant equality: what the device would actually    |
+| render, and so the only reason to re-send.                |
 \*---------------------------------------------------------*/
 static bool SameWireState(const HIDPP20ZoneState& a, const HIDPP20ZoneState& b)
 {
@@ -2166,8 +2156,6 @@ void RGBController_LogitechHIDPP20::SetupZones()
     zone_committed_valid.assign(caps.zone_clusters.size(), false);
     zone_last_effect_send.assign(caps.zone_clusters.size(),
                                  std::chrono::steady_clock::time_point());
-    zone_explicit_set.assign(caps.zone_clusters.size(),
-                             std::chrono::steady_clock::time_point());
 
     SetupColors();
 }
@@ -2768,21 +2756,7 @@ void RGBController_LogitechHIDPP20::DeviceUpdateLEDs()
                 continue;
             }
 
-            const mode* governing = nullptr;
-
-            if(zone_desired[i].tracks_global)
-            {
-                if((unsigned int)active_mode < modes.size())
-                {
-                    governing = &modes[active_mode];
-                }
-            }
-            else if(i < zones.size()
-                 && zones[i].active_mode >= 0
-                 && zones[i].active_mode < (int)zones[i].modes.size())
-            {
-                governing = &zones[i].modes[zones[i].active_mode];
-            }
+            const mode* governing = GoverningMode(i);
 
             if(governing != nullptr && governing->color_mode == MODE_COLORS_PER_LED)
             {
@@ -3567,23 +3541,6 @@ bool RGBController_LogitechHIDPP20::IsZoneStateLayout() const
         && !caps.is_headset_rgb_hostmode;
 }
 
-int RGBController_LogitechHIDPP20::FindZoneModeIndexByValue(size_t zone_idx, int value) const
-{
-    if(zone_idx >= zones.size())
-    {
-        return -1;
-    }
-
-    for(size_t i = 0; i < zones[zone_idx].modes.size(); i++)
-    {
-        if(zones[zone_idx].modes[i].value == value)
-        {
-            return (int)i;
-        }
-    }
-    return -1;
-}
-
 /*---------------------------------------------------------*\
 | Build a zone state from a mode. Per-LED modes take the    |
 | zone's own LED color; mode-specific ones take the mode    |
@@ -3634,37 +3591,57 @@ HIDPP20ZoneState RGBController_LogitechHIDPP20::DesiredFromMode(const mode& m, s
 }
 
 /*---------------------------------------------------------*\
-| Stamp one zone to the device-global mode: point its       |
-| active_mode at the matching zone-list entry (matched by   |
-| value, never index; -1 if this cluster lacks the          |
-| effect), mirror the global params into that entry so      |
-| the GUI shows them, and set the desired state.            |
+| Which mode governs one cluster. A zone with its own       |
+| active_mode runs that; otherwise it follows the device    |
+| mode. active_mode < 0 is the framework's "follow the      |
+| device" sentinel, the same one SetZoneActiveMode(-1)      |
+| writes, so the answer is always read from the framework   |
+| state rather than tracked alongside it.                   |
 \*---------------------------------------------------------*/
-void RGBController_LogitechHIDPP20::StampZoneToGlobal(size_t zone_idx, const mode& global_mode)
+const mode* RGBController_LogitechHIDPP20::GoverningMode(size_t zone_idx) const
 {
-    if(zone_idx >= zone_desired.size())
+    if(zone_idx < zones.size()
+       && zones[zone_idx].active_mode >= 0
+       && zones[zone_idx].active_mode < (int)zones[zone_idx].modes.size())
     {
-        return;
+        return &zones[zone_idx].modes[zones[zone_idx].active_mode];
     }
 
-    if(zone_idx < zones.size())
+    if((unsigned int)active_mode < modes.size())
     {
-        int idx = FindZoneModeIndexByValue(zone_idx, global_mode.value);
+        return &modes[active_mode];
+    }
 
-        zones[zone_idx].active_mode = idx;
+    return nullptr;
+}
 
-        if(idx >= 0)
+/*---------------------------------------------------------*\
+| Recompute every cluster's desired state from the          |
+| framework state. Cheap (no wire traffic): ReconcileZones  |
+| diffs against committed and sends only what changed, so   |
+| a device-level change rewrites every zone and goes out    |
+| in one pass, while a zone-level change reduces to that    |
+| one zone.                                                 |
+|                                                           |
+| Rebuilding rather than stamping is what makes this order  |
+| insensitive. A profile restores per-zone modes and the    |
+| device mode in either order; whichever apply runs last    |
+| resolves from the final state, so neither can overwrite   |
+| the other.                                                |
+\*---------------------------------------------------------*/
+void RGBController_LogitechHIDPP20::RebuildZoneDesired()
+{
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
+    {
+        const mode* governing = GoverningMode(i);
+
+        if(governing != nullptr)
         {
-            mode& zm = zones[zone_idx].modes[idx];
-
-            zm.speed      = global_mode.speed;
-            zm.brightness = global_mode.brightness;
-            zm.direction  = global_mode.direction;
+            zone_desired[i] = DesiredFromMode(*governing, i);
         }
     }
-
-    zone_desired[zone_idx]               = DesiredFromMode(global_mode, zone_idx);
-    zone_desired[zone_idx].tracks_global = true;
 }
 
 /*---------------------------------------------------------*\
@@ -3681,57 +3658,32 @@ void RGBController_LogitechHIDPP20::ApplyGlobalToZones(const mode& current)
 {
     const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
 
-    const bool zone_state = IsZoneStateLayout();
-    const bool new_pick   = zone_state && !internal_reapply
-                         && (current.value != last_picked_global_value);
-
     /*-----------------------------------------------------*\
     | Direct is the streaming mode: it feeds the draw       |
-    | buffer and stamps NO zone; every zone keeps its own   |
+    | buffer and claims NO zone; every zone keeps its own   |
     | mode and renders the buffer through it. It is also    |
     | what plugins force at startup for a safe fast-update  |
     | path. A zone reaches Direct rendering explicitly:     |
     | zone-level set, Follow Device Mode resync, or the     |
-    | initial state. Firmware effect and Off picks still    |
-    | stamp every zone.                                     |
+    | initial state.                                        |
     \*-----------------------------------------------------*/
     const bool direct_stream = (current.value == HIDPP20_MODE_VALUE_DIRECT);
 
-    const std::chrono::steady_clock::time_point apply_now = std::chrono::steady_clock::now();
-
-    for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
+    if(!IsZoneStateLayout())
     {
-        if(!zone_state)
+        /*-------------------------------------------------*\
+        | Per-key devices mirror the device mode into every |
+        | cluster: their zones are key zones and carry no   |
+        | mode of their own.                                |
+        \*-------------------------------------------------*/
+        for(size_t i = 0; i < caps.zone_clusters.size() && i < zone_desired.size(); i++)
         {
-            zone_desired[i]               = DesiredFromMode(current, i);
-            zone_desired[i].tracks_global = true;
-        }
-        else if(!direct_stream
-             && (new_pick || (!internal_reapply && zone_desired[i].tracks_global)))
-        {
-            /*---------------------------------------------*\
-            | Profile loads restore zone modes and re-apply |
-            | the device mode within milliseconds, in no    |
-            | guaranteed order; do not claim a zone whose   |
-            | mode was explicitly set moments ago.          |
-            \*---------------------------------------------*/
-            if(i < zone_explicit_set.size()
-               && zone_desired[i].mode_value != current.value
-               && (apply_now - zone_explicit_set[i])
-                  < std::chrono::milliseconds(HIDPP20_ZONE_SET_PROTECT_MS))
-            {
-                LOG_DEBUG("[LogitechHID++2.0] zone %u recently set, kept through device apply",
-                          caps.zone_clusters[i].index);
-                continue;
-            }
-
-            StampZoneToGlobal(i, current);
+            zone_desired[i] = DesiredFromMode(current, i);
         }
     }
-
-    if(new_pick)
+    else if(!direct_stream)
     {
-        last_picked_global_value = current.value;
+        RebuildZoneDesired();
     }
 
     ReconcileZones();
@@ -4059,30 +4011,16 @@ void RGBController_LogitechHIDPP20::DeviceUpdateZoneMode(int zone)
 
     controller->ClaimSWControlIfNeeded();
 
-    int zam = zones[zone].active_mode;
+    /*-----------------------------------------------------*\
+    | Same resolution as the device-level apply, for one    |
+    | zone: its own mode if it has one, else the device     |
+    | mode.                                                 |
+    \*-----------------------------------------------------*/
+    const mode* governing = GoverningMode((size_t)zone);
 
-    if(zam < 0 || zam >= (int)zones[zone].modes.size())
+    if(governing != nullptr)
     {
-        if((unsigned int)active_mode < modes.size())
-        {
-            StampZoneToGlobal((size_t)zone, modes[active_mode]);
-        }
-    }
-    else
-    {
-        const mode& zm = zones[zone].modes[zam];
-
-        HIDPP20ZoneState s = DesiredFromMode(zm, (size_t)zone);
-
-        s.tracks_global = ((unsigned int)active_mode < modes.size()
-                        && zm.value == modes[active_mode].value);
-
-        zone_desired[zone] = s;
-
-        if((size_t)zone < zone_explicit_set.size())
-        {
-            zone_explicit_set[zone] = std::chrono::steady_clock::now();
-        }
+        zone_desired[zone] = DesiredFromMode(*governing, (size_t)zone);
     }
 
     ReconcileZones();
@@ -4116,8 +4054,8 @@ void RGBController_LogitechHIDPP20::DeviceSaveMode()
     /*-----------------------------------------------------*\
     | Invalidate committed state so the replay emits        |
     | every zone with persist=true, not just deltas.        |
-    | internal_reapply keeps the replay from re-stamping    |
-    | zone-level divergence.                                |
+    | Zone-level divergence needs no guarding: the          |
+    | rebuild resolves each zone from its own mode.         |
     \*-----------------------------------------------------*/
     zone_committed_valid.assign(zone_committed_valid.size(), false);
 
@@ -4156,8 +4094,8 @@ bool RGBController_LogitechHIDPP20::ReapplyActiveMode()
     |    the case where active_mode changed in the GUI      |
     |    while the device was fading; that change was       |
     |    dropped then and lands here on wake.               |
-    |    internal_reapply re-sends every zone's current     |
-    |    state verbatim, preserving zone-level divergence.  |
+    |    The rebuild resolves each zone from its own        |
+    |    mode, so zone-level divergence survives.           |
     \*-----------------------------------------------------*/
     bool claimed = controller->ClaimSWControlIfNeeded();
     sent_colors.clear();

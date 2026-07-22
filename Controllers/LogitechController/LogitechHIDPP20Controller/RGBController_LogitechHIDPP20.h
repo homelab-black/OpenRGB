@@ -24,16 +24,14 @@
 \*---------------------------------------------------------*/
 static const int HIDPP20_MODE_VALUE_DIRECT = -1;
 static const int HIDPP20_MODE_VALUE_OFF    = -2;
-static const int HIDPP20_MODE_VALUE_UNSET  = -3;
 static const int HIDPP20_MODE_VALUE_CUSTOM = -4;
 static const int HIDPP20_MODE_VALUE_DARK_VISUALIZER = -5;
 
 /*---------------------------------------------------------*\
 | Desired rendering state of one cluster: the effect it     |
 | should run, the zone's color, and the effect params.      |
-| tracks_global marks a zone that follows device-level      |
-| applies; a zone-level set clears it until the next        |
-| device-level effect pick stamps it back.                  |
+| Derived from zones[i].active_mode and the device mode,    |
+| never accumulated: see RebuildZoneDesired.                |
 \*---------------------------------------------------------*/
 struct HIDPP20ZoneState
 {
@@ -42,7 +40,6 @@ struct HIDPP20ZoneState
     int          speed         = 0;
     int          brightness    = 100;
     unsigned int direction     = 0;
-    bool         tracks_global = true;
 };
 
 class RGBController_LogitechHIDPP20 : public RGBController
@@ -81,7 +78,7 @@ private:
     /*-----------------------------------------------------*\
     | Zone state model, for every device with clusters      |
     | (per-key devices route their animated fall-through    |
-    | here too, without zone stamping).                     |
+    | here too, mirroring the device mode instead).         |
     | zone_desired is the single representation of what     |
     | each cluster should show; zone_committed is what      |
     | the wire last got. ReconcileZones diffs them and      |
@@ -92,9 +89,9 @@ private:
     | state to force a full re-send.                        |
     \*-----------------------------------------------------*/
     bool                        IsZoneStateLayout() const;
-    int                         FindZoneModeIndexByValue(size_t zone_idx, int value) const;
     HIDPP20ZoneState            DesiredFromMode(const mode& m, size_t zone_idx) const;
-    void                        StampZoneToGlobal(size_t zone_idx, const mode& global_mode);
+    const mode*                 GoverningMode(size_t zone_idx) const;
+    void                        RebuildZoneDesired();
     void                        ApplyGlobalToZones(const mode& current);
     void                        ReconcileZones();
     bool                        ApplyZoneState(size_t cluster_pos, const HIDPP20ZoneState& s);
@@ -103,8 +100,6 @@ private:
     std::vector<HIDPP20ZoneState> zone_committed;
     std::vector<bool>             zone_committed_valid;
     std::vector<std::chrono::steady_clock::time_point> zone_last_effect_send;
-    std::vector<std::chrono::steady_clock::time_point> zone_explicit_set;
-    int                         last_picked_global_value = HIDPP20_MODE_VALUE_UNSET;
     int                         last_nondirect_mode      = 0;
     bool                        internal_reapply         = false;
 
