@@ -10,6 +10,8 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <mutex>
+#include <thread>
 #include "LogManager.h"
 #include "RGBController.h"
 #include "StringUtils.h"
@@ -67,6 +69,18 @@
     }                                                                               \
 
 using namespace std::chrono_literals;
+
+/*---------------------------------------------------------*\
+| Depth of SignalUpdate callback walks on this thread. A    |
+| callback that unregisters during its own walk must not    |
+| wait for that walk to finish, which would be waiting on   |
+| itself; it is already executing, so its owner is alive    |
+| and no other thread can free it meanwhile.                |
+\*---------------------------------------------------------*/
+namespace
+{
+    thread_local unsigned int rgbcontroller_signal_walk_depth = 0;
+}
 
 RGBController::RGBController()
 {
@@ -1834,6 +1848,23 @@ void RGBController::RegisterUpdateCallback(RGBControllerCallback new_callback, v
     UpdateMutex.unlock();
 }
 
+/*---------------------------------------------------------*\
+| Wait until no callback walk is in flight, so the          |
+| caller may free the callback owner once this returns.     |
+| Skipped when the caller is itself inside a walk on        |
+| this thread (see rgbcontroller_signal_walk_depth).        |
+\*---------------------------------------------------------*/
+void RGBController::DrainSignalWalks()
+{
+    if(rgbcontroller_signal_walk_depth != 0)
+    {
+        return;
+    }
+
+    std::unique_lock<std::mutex> wait_lock(SignalMutex);
+    SignalDrained.wait(wait_lock, [this]{ return SignalWalks == 0; });
+}
+
 void RGBController::UnregisterUpdateCallback(void * callback_arg)
 {
     UpdateMutex.lock();
@@ -1846,6 +1877,12 @@ void RGBController::UnregisterUpdateCallback(void * callback_arg)
         }
     }
     UpdateMutex.unlock();
+
+    /*-----------------------------------------------------*\
+    | Drain in-flight walks so the caller may free the      |
+    | callback owner once this returns                      |
+    \*-----------------------------------------------------*/
+    DrainSignalWalks();
 }
 
 void RGBController::ClearCallbacks()
@@ -1854,19 +1891,64 @@ void RGBController::ClearCallbacks()
     UpdateCallbacks.clear();
     UpdateCallbackArgs.clear();
     UpdateMutex.unlock();
+
+    /*-----------------------------------------------------*\
+    | Drain in-flight walks so the caller may free the      |
+    | callback owners once this returns                     |
+    \*-----------------------------------------------------*/
+    DrainSignalWalks();
 }
 
 void RGBController::SignalUpdate(unsigned int update_reason)
 {
-    SignalMutex.lock();
     /*-----------------------------------------------------*\
-    | Client info has changed, call the callbacks           |
+    | Copy the callback list under UpdateMutex and mark a   |
+    | walk in flight, then release before invoking so no    |
+    | lock is held across callback code. A frozen           |
+    | controller (shutting down) walks nothing.             |
     \*-----------------------------------------------------*/
-    for(unsigned int callback_idx = 0; callback_idx < UpdateCallbacks.size(); callback_idx++)
+    std::vector<RGBControllerCallback>  callbacks;
+    std::vector<void *>                 callback_args;
+
+    UpdateMutex.lock();
     {
-        UpdateCallbacks[callback_idx](UpdateCallbackArgs[callback_idx], update_reason, this);
+        std::lock_guard<std::mutex> walk_lock(SignalMutex);
+
+        if(SignalFrozen)
+        {
+            UpdateMutex.unlock();
+            return;
+        }
+
+        SignalWalks++;
     }
-    SignalMutex.unlock();
+    callbacks       = UpdateCallbacks;
+    callback_args   = UpdateCallbackArgs;
+    UpdateMutex.unlock();
+
+    /*-----------------------------------------------------*\
+    | Invoke the copied callbacks with no lock held         |
+    \*-----------------------------------------------------*/
+    rgbcontroller_signal_walk_depth++;
+    for(unsigned int callback_idx = 0; callback_idx < callbacks.size(); callback_idx++)
+    {
+        callbacks[callback_idx](callback_args[callback_idx], update_reason, this);
+    }
+    rgbcontroller_signal_walk_depth--;
+
+    /*-----------------------------------------------------*\
+    | Wake anyone draining once the last walk is out        |
+    \*-----------------------------------------------------*/
+    {
+        std::lock_guard<std::mutex> walk_lock(SignalMutex);
+
+        SignalWalks--;
+
+        if(SignalWalks == 0)
+        {
+            SignalDrained.notify_all();
+        }
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -1887,9 +1969,21 @@ void RGBController::Shutdown()
     AccessMutex.lock();
 
     /*-----------------------------------------------------*\
-    | Lock the signal mutex                                 |
+    | Freeze the controller so no further SignalUpdate      |
+    | walks its callbacks, then drain any walk already in   |
+    | flight. Nothing is held across teardown, so a late or |
+    | cross-controller SignalUpdate returns at the frozen   |
+    | check instead of blocking forever.                    |
     \*-----------------------------------------------------*/
-    SignalMutex.lock();
+    UpdateMutex.lock();
+    {
+        std::lock_guard<std::mutex> walk_lock(SignalMutex);
+        SignalFrozen = true;
+    }
+    UpdateMutex.unlock();
+
+    std::unique_lock<std::mutex> wait_lock(SignalMutex);
+    SignalDrained.wait(wait_lock, [this]{ return SignalWalks == 0; });
 }
 
 void RGBController::UpdateLEDs()

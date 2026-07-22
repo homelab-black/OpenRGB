@@ -15,6 +15,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <shared_mutex>
 #include "RGBControllerInterface.h"
@@ -319,7 +320,27 @@ private:
     std::vector<RGBControllerCallback>  UpdateCallbacks;
     std::vector<void *>                 UpdateCallbackArgs;
 
+    /*-----------------------------------------------------*\
+    | Callback walk state, guarded by SignalMutex. The      |
+    | mutex is never held across callback code: a walk      |
+    | copies the callback list, releases, then invokes.     |
+    |                                                       |
+    | SignalWalks  : walks in flight for this controller.   |
+    | SignalFrozen : set at Shutdown; no further walks run, |
+    |                so a late SignalUpdate returns rather  |
+    |                than blocking on teardown.             |
+    |                                                       |
+    | Unregister/ClearCallbacks/Shutdown remove or freeze   |
+    | the list then wait out any walk already running, so   |
+    | on return a removed callback is not executing and     |
+    | cannot start again, and its owner may be freed.       |
+    \*-----------------------------------------------------*/
     std::mutex                          SignalMutex;
+    std::condition_variable             SignalDrained;
+    unsigned int                        SignalWalks     = 0;
+    bool                                SignalFrozen    = false;
+
+    void                                DrainSignalWalks();
 
     /*-----------------------------------------------------*\
     | Private path used internally by DetectionManager      |
