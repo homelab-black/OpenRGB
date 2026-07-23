@@ -107,8 +107,8 @@ OpenRGBDevicePage::~OpenRGBDevicePage()
     | skipped this during rescan because the controller was |
     | already removed from the list but not yet deleted,    |
     | leaving a dangling callback that a running effect     |
-    | could invoke. UnregisterUpdateCallback drains any     |
-    | in-flight SignalUpdate before returning, so no walk   |
+    | could invoke. UnregisterUpdateCallback waits for any  |
+    | in-flight SignalUpdate before returning, so no call   |
     | can invoke this page after it is freed.               |
     \*-----------------------------------------------------*/
     device->UnregisterUpdateCallback(this);

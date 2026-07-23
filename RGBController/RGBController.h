@@ -321,26 +321,26 @@ private:
     std::vector<void *>                 UpdateCallbackArgs;
 
     /*-----------------------------------------------------*\
-    | Callback walk state, guarded by SignalMutex. The      |
-    | mutex is never held across callback code: a walk      |
+    | Callback call state, guarded by SignalMutex. The      |
+    | mutex is never held across callback code: a call      |
     | copies the callback list, releases, then invokes.     |
     |                                                       |
-    | SignalWalks  : walks in flight for this controller.   |
-    | SignalFrozen : set at Shutdown; no further walks run, |
+    | SignalCalls  : calls in flight for this controller.   |
+    | SignalFrozen : set at Shutdown; no further calls run, |
     |                so a late SignalUpdate returns rather  |
     |                than blocking on teardown.             |
     |                                                       |
     | Unregister/ClearCallbacks/Shutdown remove or freeze   |
-    | the list then wait out any walk already running, so   |
+    | the list then wait out any call already running, so   |
     | on return a removed callback is not executing and     |
     | cannot start again, and its owner may be freed.       |
     \*-----------------------------------------------------*/
     std::mutex                          SignalMutex;
-    std::condition_variable             SignalDrained;
-    unsigned int                        SignalWalks     = 0;
+    std::condition_variable             SignalCallsDone;
+    unsigned int                        SignalCalls     = 0;
     bool                                SignalFrozen    = false;
 
-    void                                DrainSignalWalks();
+    void                                WaitSignalCalls();
 
     /*-----------------------------------------------------*\
     | Private path used internally by DetectionManager      |
