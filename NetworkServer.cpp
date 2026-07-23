@@ -97,6 +97,8 @@ NetworkClientInfo::NetworkClientInfo()
     client_protocol_version = 0;
     client_is_local         = false;
     client_is_local_client  = false;
+    send_thread             = nullptr;
+    send_running            = false;
 }
 
 NetworkClientInfo::~NetworkClientInfo()
@@ -104,8 +106,27 @@ NetworkClientInfo::~NetworkClientInfo()
     if(client_sock != INVALID_SOCKET)
     {
         LOG_INFO("[%s] Closing server connection: %s", NETWORKSERVER, client_ip.c_str());
+
+        /*-------------------------------------------------*\
+        | Stop the send thread before closing the socket.   |
+        | SD_BOTH (not just SD_RECEIVE) unblocks a send     |
+        | stuck on a slow client, so the join cannot hang.  |
+        \*-------------------------------------------------*/
+        if(send_thread)
+        {
+            send_running = false;
+            shutdown(client_sock, SD_BOTH);
+            send_cv.notify_all();
+            send_thread->join();
+            delete send_thread;
+            send_thread = nullptr;
+        }
+        else
+        {
+            shutdown(client_sock, SD_RECEIVE);
+        }
+
         delete client_listen_thread;
-        shutdown(client_sock, SD_RECEIVE);
         closesocket(client_sock);
     }
 }
@@ -996,6 +1017,14 @@ void NetworkServer::ConnectionThreadFunction(int socket_idx)
         \*---------------------------------------------------------*/
         client_info->client_listen_thread = new std::thread(&NetworkServer::ListenThreadFunction, this, client_info);
         client_info->client_listen_thread->detach();
+
+        /*-------------------------------------------------*\
+        | Start the per-client SignalUpdate send thread. It |
+        | is joinable (not detached) so the client          |
+        | destructor can stop and join it cleanly.          |
+        \*-------------------------------------------------*/
+        client_info->send_running = true;
+        client_info->send_thread  = new std::thread(&NetworkServer::ClientSendThreadFunction, this, client_info);
 
         ServerClients.push_back(client_info);
         ServerClientsMutex.unlock();
@@ -4043,15 +4072,19 @@ void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * contr
     if(found)
     {
         /*-------------------------------------------------*\
-        | Send to each connected client with protocol 6 or  |
-        | higher                                            |
+        | Queue to each connected client with protocol 6+.  |
+        | ServerClientsMutex is held across the loop so a   |
+        | client cannot be deleted while we enqueue to it.  |
         \*-------------------------------------------------*/
+        ServerClientsMutex.lock();
+
         for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
         {
-            if(ServerClients[client_idx]->client_protocol_version >= 6)
+            NetworkClientInfo* client_info = ServerClients[client_idx];
+
+            if(client_info->client_protocol_version >= 6)
             {
-                SOCKET          client_sock         = ServerClients[client_idx]->client_sock;
-                unsigned int    protocol_version    = ServerClients[client_idx]->client_protocol_version;
+                unsigned int    protocol_version    = client_info->client_protocol_version;
                 NetPacketHeader reply_hdr;
                 unsigned char*  reply_data;
                 unsigned int    reply_size;
@@ -4154,19 +4187,120 @@ void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * contr
                 InitNetPacketHeader(&reply_hdr, controller_id, NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE, reply_size);
 
                 /*-----------------------------------------*\
-                | Send packet                               |
+                | Build one contiguous packet and queue     |
+                | it for the client's send thread rather    |
+                | than sending here. This runs inside       |
+                | RGBController::SignalUpdate, so a         |
+                | blocking send would stall the callback    |
+                | drain and deadlock a rescan. The          |
+                | packet is a self- contained copy, safe    |
+                | to send after the controller is gone.     |
                 \*-----------------------------------------*/
-                send_in_progress.lock();
-                send(client_sock, (const char *)&reply_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
-                send(client_sock, (const char *)reply_data, reply_size, MSG_NOSIGNAL);
-                send_in_progress.unlock();
+                std::vector<unsigned char> packet(sizeof(NetPacketHeader) + reply_size);
+                memcpy(packet.data(), &reply_hdr, sizeof(NetPacketHeader));
+                memcpy(packet.data() + sizeof(NetPacketHeader), reply_data, reply_size);
 
-                /*-----------------------------------------*\
-                | Delete data                               |
-                \*-----------------------------------------*/
                 delete[] reply_data;
+
+                {
+                    std::lock_guard<std::mutex> queue_lock(client_info->send_mutex);
+
+                    if(update_reason == RGBCONTROLLER_UPDATE_REASON_UPDATELEDS)
+                    {
+                        /*---------------------------------*\
+                        | Coalesce: a newer frame for       |
+                        | this controller replaces the      |
+                        | pending one, keeping the queue    |
+                        | bounded under a stalled client.   |
+                        \*---------------------------------*/
+                        std::map<unsigned int, std::list<NetworkClientInfo::SendQueueEntry>::iterator>::iterator existing = client_info->send_coalesce.find(controller_id);
+
+                        if(existing != client_info->send_coalesce.end())
+                        {
+                            existing->second->packet = std::move(packet);
+                        }
+                        else
+                        {
+                            client_info->send_queue.push_back(NetworkClientInfo::SendQueueEntry{controller_id, true, std::move(packet)});
+                            client_info->send_coalesce[controller_id] = std::prev(client_info->send_queue.end());
+                        }
+                    }
+                    else
+                    {
+                        /*---------------------------------*\
+                        | Non-coalescable event. Backstop   |
+                        | a stalled client by dropping      |
+                        | the oldest at the cap.            |
+                        \*---------------------------------*/
+                        if(client_info->send_queue.size() >= NETWORKSERVER_SIGNAL_QUEUE_MAX)
+                        {
+                            NetworkClientInfo::SendQueueEntry& oldest = client_info->send_queue.front();
+
+                            if(oldest.coalescable)
+                            {
+                                client_info->send_coalesce.erase(oldest.controller_id);
+                            }
+
+                            client_info->send_queue.pop_front();
+                            LOG_WARNING("[%s] SignalUpdate queue full for client %s, dropping oldest packet", NETWORKSERVER, client_info->client_ip.c_str());
+                        }
+
+                        client_info->send_queue.push_back(NetworkClientInfo::SendQueueEntry{controller_id, false, std::move(packet)});
+                    }
+                }
+
+                client_info->send_cv.notify_one();
             }
         }
+
+        ServerClientsMutex.unlock();
+    }
+}
+
+/*---------------------------------------------------------*\
+| Per-client SignalUpdate send thread. Does the             |
+| blocking send here instead of inside                      |
+| RGBController::SignalUpdate, so a slow client backs       |
+| up only its own queue and blocks only its own thread.     |
+| The signal path and the callback drain are never          |
+| blocked, so a rescan cannot deadlock on an SDK send.      |
+\*---------------------------------------------------------*/
+void NetworkServer::ClientSendThreadFunction(NetworkClientInfo* client_info)
+{
+    while(true)
+    {
+        std::vector<unsigned char> packet;
+
+        {
+            std::unique_lock<std::mutex> queue_lock(client_info->send_mutex);
+            client_info->send_cv.wait(queue_lock, [client_info]{ return !client_info->send_queue.empty() || !client_info->send_running; });
+
+            if(!client_info->send_running)
+            {
+                break;
+            }
+
+            NetworkClientInfo::SendQueueEntry& front = client_info->send_queue.front();
+
+            if(front.coalescable)
+            {
+                client_info->send_coalesce.erase(front.controller_id);
+            }
+
+            packet = std::move(front.packet);
+            client_info->send_queue.pop_front();
+        }
+
+        /*-------------------------------------------------*\
+        | send_in_progress still serializes against         |
+        | response sends to this client. A per-client       |
+        | send mutex (so one slow client cannot stall       |
+        | sends to others) is the follow-up once            |
+        | responses are routed the same way.                |
+        \*-------------------------------------------------*/
+        send_in_progress.lock();
+        send(client_info->client_sock, (const char *)packet.data(), (int)packet.size(), MSG_NOSIGNAL);
+        send_in_progress.unlock();
     }
 }
 
