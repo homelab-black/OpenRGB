@@ -71,16 +71,9 @@
 using namespace std::chrono_literals;
 
 /*---------------------------------------------------------*\
-| Depth of SignalUpdate callback calls on this thread. A    |
-| callback that unregisters during its own call must not    |
-| wait for that call to finish, which would be waiting on   |
-| itself; it is already executing, so its owner is alive    |
-| and no other thread can free it meanwhile.                |
+| One counter per thread, shared across all controllers.    |
 \*---------------------------------------------------------*/
-namespace
-{
-    thread_local unsigned int rgbcontroller_signal_call_depth = 0;
-}
+thread_local unsigned int RGBController::SignalCallDepth = 0;
 
 RGBController::RGBController()
 {
@@ -1852,11 +1845,11 @@ void RGBController::RegisterUpdateCallback(RGBControllerCallback new_callback, v
 | Wait until no callback call is in flight, so the          |
 | caller may free the callback owner once this returns.     |
 | Skipped when the caller is itself inside a call on        |
-| this thread (see rgbcontroller_signal_call_depth).        |
+| this thread (see SignalCallDepth).                        |
 \*---------------------------------------------------------*/
 void RGBController::WaitSignalCalls()
 {
-    if(rgbcontroller_signal_call_depth != 0)
+    if(SignalCallDepth != 0)
     {
         return;
     }
@@ -1929,12 +1922,12 @@ void RGBController::SignalUpdate(unsigned int update_reason)
     /*-----------------------------------------------------*\
     | Invoke the copied callbacks with no lock held         |
     \*-----------------------------------------------------*/
-    rgbcontroller_signal_call_depth++;
+    SignalCallDepth++;
     for(unsigned int callback_idx = 0; callback_idx < callbacks.size(); callback_idx++)
     {
         callbacks[callback_idx](callback_args[callback_idx], update_reason, this);
     }
-    rgbcontroller_signal_call_depth--;
+    SignalCallDepth--;
 
     /*-----------------------------------------------------*\
     | Wake anyone waiting once the last call is out         |

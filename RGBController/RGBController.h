@@ -343,6 +343,16 @@ private:
     void                                WaitSignalCalls();
 
     /*-----------------------------------------------------*\
+    | Depth of SignalUpdate callback calls on this thread.  |
+    | Per-thread and shared across all controllers, not     |
+    | per-instance, so WaitSignalCalls can tell when a      |
+    | callback is unregistering from inside its own call    |
+    | and must not wait on itself. Not guarded by           |
+    | SignalMutex; thread_local needs no lock.              |
+    \*-----------------------------------------------------*/
+    static thread_local unsigned int    SignalCallDepth;
+
+    /*-----------------------------------------------------*\
     | Private path used internally by DetectionManager      |
     | for HID hotplug path tracking                         |
     \*-----------------------------------------------------*/
