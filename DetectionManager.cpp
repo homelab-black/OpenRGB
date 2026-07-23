@@ -24,6 +24,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <hidapi_darwin.h>
+#endif
+
 using namespace std::chrono_literals;
 
 /*---------------------------------------------------------*\
@@ -1296,6 +1300,22 @@ void DetectionManager::BackgroundHIDInit()
     int hid_status = hid_init();
 
     LOG_DEBUG("[%s] Initializing HID interfaces: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
+
+#ifdef __APPLE__
+    /*-----------------------------------------------------------------*\
+    | Some keyboards (e.g. the Sinowealth AULA F99) expose a single      |
+    | IOHIDDevice covering ALL their HID collections on macOS. hidapi's  |
+    | Darwin backend opens devices exclusively by default (it seizes     |
+    | them via kIOHIDOptionsTypeSeizeDevice, and hid_init resets this to  |
+    | TRUE), which also seizes the consumer-control collection and stops  |
+    | macOS from acting on media/volume keys (Fn+F11/F12) while OpenRGB   |
+    | holds the device open. Open non-exclusively so the OS keeps         |
+    | receiving media/volume events. Must run after hid_init (which sets  |
+    | the flag back to 1) and before any device is opened.               |
+    \*-----------------------------------------------------------------*/
+    hid_darwin_set_open_exclusive(0);
+    LOG_DEBUG("[%s] macOS: opening HID devices non-exclusively (preserves media/volume keys)", DETECTIONMANAGER);
+#endif
 
 #ifdef __linux__
 #ifdef __GLIBC__
