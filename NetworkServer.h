@@ -14,9 +14,12 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <list>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <queue>
+#include <vector>
 #include "LogManager.h"
 #include "RGBController.h"
 #include "NetworkProtocol.h"
@@ -28,6 +31,15 @@
 
 #define MAXSOCK 32
 #define TCP_TIMEOUT_SECONDS 5
+
+/*---------------------------------------------------------*\
+| Backstop cap on a client's outbound SignalUpdate queue.   |
+| UPDATELEDS coalesces per controller so this is only hit   |
+| by a flood of non-coalescable events to a stalled client; |
+| the oldest are dropped (and logged) rather than grow      |
+| without bound.                                            |
+\*---------------------------------------------------------*/
+#define NETWORKSERVER_SIGNAL_QUEUE_MAX 1024
 
 typedef void (*NetServerCallback)(void*);
 
@@ -45,6 +57,31 @@ public:
     std::string     client_ip;
     bool            client_is_local;
     bool            client_is_local_client;
+
+    /*-----------------------------------------------------*\
+    | Per-client outbound queue for SignalUpdate packets.   |
+    | A dedicated send thread drains it, so a slow client   |
+    | never blocks RGBController::SignalUpdate (which would |
+    | stall the callback drain and deadlock a rescan).      |
+    |                                                       |
+    | UPDATELEDS packets coalesce per controller: a newer   |
+    | frame replaces the pending one in place, so a stalled |
+    | client's queue stays bounded to one packet per        |
+    | controller and it gets the latest state on recovery.  |
+    \*-----------------------------------------------------*/
+    struct SendQueueEntry
+    {
+        unsigned int                controller_id;
+        bool                        coalescable;
+        std::vector<unsigned char>  packet;
+    };
+
+    std::list<SendQueueEntry>                                   send_queue;
+    std::map<unsigned int, std::list<SendQueueEntry>::iterator> send_coalesce;
+    std::mutex                                                  send_mutex;
+    std::condition_variable                                     send_cv;
+    std::thread*                                                send_thread;
+    std::atomic<bool>                                           send_running;
 };
 
 typedef struct
@@ -220,6 +257,7 @@ private:
     void                                ConnectionThreadFunction(int socket_idx);
     void                                ControllerListenThread(NetworkServerControllerThread* this_thread);
     void                                ListenThreadFunction(NetworkClientInfo* client_info);
+    void                                ClientSendThreadFunction(NetworkClientInfo* client_info);
     void                                ProfileManagerListenThread(NetworkServerControllerThread* this_thread);
 
     /*-----------------------------------------------------*\
