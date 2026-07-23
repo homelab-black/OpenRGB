@@ -1,7 +1,7 @@
 /*---------------------------------------------------------*\
-| RedSquareKeyroxTKLClassicController.cpp                   |
+| WitmodKeyboardController.cpp                               |
 |                                                           |
-|   Driver for Red Square Keyrox TKL Classic                |
+|   Driver for Witmod keyboards                             |
 |                                                           |
 |   vlack                                       03 May 2023 |
 |                                                           |
@@ -10,37 +10,37 @@
 \*---------------------------------------------------------*/
 
 #include "LogManager.h"
-#include "RedSquareKeyroxTKLClassicController.h"
+#include "WitmodKeyboardController.h"
 
 using namespace std::chrono_literals;
 
-RedSquareKeyroxTKLClassicController::RedSquareKeyroxTKLClassicController(hid_device *dev_handle, const hid_device_info &info, std::string dev_name)
+WitmodKeyboardController::WitmodKeyboardController(hid_device *dev_handle, const hid_device_info &info, std::string dev_name)
 {
     dev             = dev_handle;
     location        = info.path;
     name            = dev_name;
-    vendor          = "Red Square";
+    vendor          = "Witmod";
     keyboard_size   = KEYBOARD_SIZE_TKL;
 
     ReadDeviceInfo();
 }
 
-RedSquareKeyroxTKLClassicController::~RedSquareKeyroxTKLClassicController()
+WitmodKeyboardController::~WitmodKeyboardController()
 {
     hid_close(dev);
 }
 
-std::string RedSquareKeyroxTKLClassicController::GetDeviceLocation()
+std::string WitmodKeyboardController::GetDeviceLocation()
 {
     return("HID: " + location);
 }
 
-std::string RedSquareKeyroxTKLClassicController::GetNameString()
+std::string WitmodKeyboardController::GetNameString()
 {
     return(name);
 }
 
-std::string RedSquareKeyroxTKLClassicController::GetSerialString()
+std::string WitmodKeyboardController::GetSerialString()
 {
     wchar_t serial_wchar[128];
     hid_get_serial_number_string(dev, serial_wchar, 128);
@@ -55,48 +55,48 @@ std::string RedSquareKeyroxTKLClassicController::GetSerialString()
     return serial_string;
 }
 
-std::string RedSquareKeyroxTKLClassicController::GetVendorString()
+std::string WitmodKeyboardController::GetVendorString()
 {
     return(vendor);
 }
 
-std::string RedSquareKeyroxTKLClassicController::GetVersionString()
+std::string WitmodKeyboardController::GetVersionString()
 {
     return(version);
 }
 
-KEYBOARD_SIZE RedSquareKeyroxTKLClassicController::GetKeyboardSize()
+KEYBOARD_SIZE WitmodKeyboardController::GetKeyboardSize()
 {
     return(keyboard_size);
 }
 
 /*---------------------------------------------------------*\
-| Ask the keyboard which model it is.  The full size        |
-| board shares its vendor ID, product ID and product        |
-| string with the TKL sized one, so the reply to this       |
-| request is the only way to tell them apart.  A board      |
-| that does not answer keeps the TKL layout used so far.    |
+| Ask the keyboard which model it is.  The boards share      |
+| their vendor ID, product ID and product string, so the    |
+| model in the reply to this request is the only way to      |
+| tell the sizes apart.  A board that does not answer, or    |
+| reports an unknown model, keeps the default TKL layout.    |
 \*---------------------------------------------------------*/
-void RedSquareKeyroxTKLClassicController::ReadDeviceInfo()
+void WitmodKeyboardController::ReadDeviceInfo()
 {
-    unsigned char usb_buf[CLASSIC_PACKET_DATA_LENGTH];
-    memset(usb_buf, 0x00, CLASSIC_PACKET_DATA_LENGTH);
+    unsigned char usb_buf[WITMOD_PACKET_DATA_LENGTH];
+    memset(usb_buf, 0x00, WITMOD_PACKET_DATA_LENGTH);
 
     usb_buf[0] = 0x01;
-    usb_buf[1] = CLASSIC_INFO_COMMAND;
+    usb_buf[1] = WITMOD_INFO_COMMAND;
 
-    hid_write(dev, usb_buf, CLASSIC_PACKET_DATA_LENGTH);
+    hid_write(dev, usb_buf, WITMOD_PACKET_DATA_LENGTH);
 
-    for(int retry = 0; retry < CLASSIC_INFO_RETRIES; retry++)
+    for(int retry = 0; retry < WITMOD_INFO_RETRIES; retry++)
     {
         /*-----------------------------------------*\
         |  The extra byte keeps the reply string    |
         |  terminated if it fills the packet        |
         \*-----------------------------------------*/
-        char reply[CLASSIC_PACKET_DATA_LENGTH + 1];
-        memset(reply, 0x00, CLASSIC_PACKET_DATA_LENGTH + 1);
+        char reply[WITMOD_PACKET_DATA_LENGTH + 1];
+        memset(reply, 0x00, WITMOD_PACKET_DATA_LENGTH + 1);
 
-        int reply_size = hid_read_timeout(dev, (unsigned char *)reply, CLASSIC_PACKET_DATA_LENGTH, CLASSIC_INFO_TIMEOUT);
+        int reply_size = hid_read_timeout(dev, (unsigned char *)reply, WITMOD_PACKET_DATA_LENGTH, WITMOD_INFO_TIMEOUT);
 
         if(reply_size <= 0)
         {
@@ -107,7 +107,7 @@ void RedSquareKeyroxTKLClassicController::ReadDeviceInfo()
         |  Effects send reports of their own, so    |
         |  skip anything that is not the answer     |
         \*-----------------------------------------*/
-        if((reply[0] != 0x01) || (reply[1] != CLASSIC_INFO_COMMAND))
+        if((reply[0] != 0x01) || (reply[1] != WITMOD_INFO_COMMAND))
         {
             continue;
         }
@@ -118,7 +118,7 @@ void RedSquareKeyroxTKLClassicController::ReadDeviceInfo()
         \*-----------------------------------------*/
         const char* info = &reply[2];
 
-        for(int idx = 2; idx < CLASSIC_PACKET_DATA_LENGTH; idx++, info++)
+        for(int idx = 2; idx < WITMOD_PACKET_DATA_LENGTH; idx++, info++)
         {
             if(*info > ' ')
             {
@@ -140,22 +140,32 @@ void RedSquareKeyroxTKLClassicController::ReadDeviceInfo()
             version = version_field;
         }
 
-        if(strstr(info, CLASSIC_FULL_SIZE_MODEL) != NULL)
+        if(strstr(info, WITMOD_MODEL_GK8120) != NULL)
         {
-            LOG_INFO("[%s] Full size model reported, using the 104 key layout", name.c_str());
+            LOG_INFO("[%s] GK8120 full size board, using the 104 key layout", name.c_str());
 
             keyboard_size   = KEYBOARD_SIZE_FULL;
-            name            = "Dark Project KD104A";
-            vendor          = "Dark Project";
+            name            = "Witmod GK8120";
+        }
+        else if(strstr(info, WITMOD_MODEL_GK8110) != NULL)
+        {
+            LOG_INFO("[%s] GK8110 TKL board, using the 87 key layout", name.c_str());
+
+            keyboard_size   = KEYBOARD_SIZE_TKL;
+            name            = "Witmod GK8110";
+        }
+        else
+        {
+            LOG_WARNING("[%s] Unrecognised model, defaulting to the 87 key layout", name.c_str());
         }
 
         return;
     }
 
-    LOG_WARNING("[%s] Device info request went unanswered, using the 87 key layout", name.c_str());
+    LOG_WARNING("[%s] Device info request went unanswered, defaulting to the 87 key layout", name.c_str());
 }
 
-int RedSquareKeyroxTKLClassicController::GetDirection(int direction)
+int WitmodKeyboardController::GetDirection(int direction)
 {
     switch(direction)
     {
@@ -176,7 +186,7 @@ int RedSquareKeyroxTKLClassicController::GetDirection(int direction)
     }
 }
 
-int RedSquareKeyroxTKLClassicController::GetDirectionRound(int direction)
+int WitmodKeyboardController::GetDirectionRound(int direction)
 {
     switch(direction)
     {
@@ -189,14 +199,14 @@ int RedSquareKeyroxTKLClassicController::GetDirectionRound(int direction)
     }
 }
 
-void RedSquareKeyroxTKLClassicController::SetMode(mode m)
+void WitmodKeyboardController::SetMode(mode m)
 {
     /*---------------------------------------------*\
     |  Mode set command                             |
     \*---------------------------------------------*/
 
-    unsigned char usb_buf[CLASSIC_PACKET_DATA_LENGTH];
-    memset(usb_buf, 0x00, CLASSIC_PACKET_DATA_LENGTH);
+    unsigned char usb_buf[WITMOD_PACKET_DATA_LENGTH];
+    memset(usb_buf, 0x00, WITMOD_PACKET_DATA_LENGTH);
 
     usb_buf[0] = 0x01;
     usb_buf[1] = 0x07;
@@ -218,7 +228,7 @@ void RedSquareKeyroxTKLClassicController::SetMode(mode m)
         usb_buf[14] = RGBGetBValue(m.colors[1]); // back B
     }
 
-    if(m.value == CLASSIC_RADAR_MODE_VALUE || m.value == CLASSIC_RUNNING_LINE_MODE_VALUE)
+    if(m.value == WITMOD_RADAR_MODE_VALUE || m.value == WITMOD_RUNNING_LINE_MODE_VALUE)
     {
         usb_buf[15] = GetDirectionRound(m.direction);
     }
@@ -229,19 +239,19 @@ void RedSquareKeyroxTKLClassicController::SetMode(mode m)
 
     usb_buf[16] = m.color_mode == MODE_COLORS_RANDOM;
 
-    hid_write(dev, usb_buf, CLASSIC_PACKET_DATA_LENGTH);
+    hid_write(dev, usb_buf, WITMOD_PACKET_DATA_LENGTH);
     // sleep is necessary
     std::this_thread::sleep_for(10ms);
 }
 
-void RedSquareKeyroxTKLClassicController::SetLEDsData(std::vector<RGBColor> colors, std::vector<led> leds)
+void WitmodKeyboardController::SetLEDsData(std::vector<RGBColor> colors, std::vector<led> leds)
 {
     /*---------------------------------------------*\
     |  LEDs data set command                        |
     \*---------------------------------------------*/
 
-    unsigned char usb_buf[CLASSIC_PACKET_DATA_LENGTH * 8];
-    memset(usb_buf, 0x00, CLASSIC_PACKET_DATA_LENGTH * 8);
+    unsigned char usb_buf[WITMOD_PACKET_DATA_LENGTH * 8];
+    memset(usb_buf, 0x00, WITMOD_PACKET_DATA_LENGTH * 8);
 
     for(unsigned int i = 0; i < colors.size(); i++)
     {
@@ -253,19 +263,19 @@ void RedSquareKeyroxTKLClassicController::SetLEDsData(std::vector<RGBColor> colo
 
     for(unsigned int i = 0; i < 8; i++)
     {
-        unsigned char packet[CLASSIC_PACKET_DATA_LENGTH];
-        memset(packet, 0x00, CLASSIC_PACKET_DATA_LENGTH);
+        unsigned char packet[WITMOD_PACKET_DATA_LENGTH];
+        memset(packet, 0x00, WITMOD_PACKET_DATA_LENGTH);
 
         packet[0] = 0x01;
         packet[1] = 0x0F;
         packet[4] = i;  // package number
         packet[5] = i == 7 ? 0x12 : 0x36; // package size
 
-        for (int x = 6; x < CLASSIC_PACKET_DATA_LENGTH; x++)
+        for (int x = 6; x < WITMOD_PACKET_DATA_LENGTH; x++)
         {
-            packet[x] = usb_buf[CLASSIC_PACKET_DATA_LENGTH * i + x];
+            packet[x] = usb_buf[WITMOD_PACKET_DATA_LENGTH * i + x];
         }
-        hid_write(dev, packet, CLASSIC_PACKET_DATA_LENGTH);
+        hid_write(dev, packet, WITMOD_PACKET_DATA_LENGTH);
     }
 
     // sleep is necessary
