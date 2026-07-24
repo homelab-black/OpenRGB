@@ -88,7 +88,7 @@ RGBController_WitmodKeyboard::RGBController_WitmodKeyboard(WitmodKeyboardControl
     name                    = controller->GetNameString();
     vendor                  = controller->GetVendorString();
     type                    = DEVICE_TYPE_KEYBOARD;
-    description             = name + " Device";
+    description             = "Witmod Keyboard Device";
     version                 = controller->GetVersionString();
     location                = controller->GetDeviceLocation();
     serial                  = controller->GetSerialString();
