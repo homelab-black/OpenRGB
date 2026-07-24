@@ -1,13 +1,14 @@
 /*---------------------------------------------------------*\
-| SteelSeriesAerox5Controller.h                             |
+| RGBController_SteelSeriesRival5.h                         |
 |                                                           |
-|   Driver for the Steelseries Aerox 5                      |
+|   RGBController for SteelSeries Rival 5                   |
 |                                                           |
-|   Bobby Quantum (BobbyQuantum)                19 May 2024 |
+|   A Ingram (Woodsy900)                        20 Jul 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
+
 
 #pragma once
 
@@ -26,6 +27,7 @@ static const steelseries_mouse rival_5 =
     
     {
         0x04, // Direct
+        0x07  // Reactive
     },
 
 
@@ -60,7 +62,7 @@ public:
 
     void Save() override;
     void SetLightEffectAll(uint8_t effect) override;
-
+    void SetBrightness(uint8_t brightness);
     void SetColor(
         unsigned char zone_id,
         unsigned char red,
@@ -68,10 +70,15 @@ public:
         unsigned char blue,
         unsigned char brightness
     ) override;
-
+    void SetReactiveColor(
+        bool on,
+        uint8_t r,
+        uint8_t g,
+        uint8_t b
+    );
     void UpdateLEDs(const std::vector<RGBColor>& colors);
 
 private:
     uint8_t zone_colors[10][3];
-
+    uint8_t current_brightness = 0xFF;
 };

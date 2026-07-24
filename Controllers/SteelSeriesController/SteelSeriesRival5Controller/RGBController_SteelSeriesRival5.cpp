@@ -1,10 +1,16 @@
-#include "RGBController_SteelSeriesRival5.h"
+/*---------------------------------------------------------*\
+| RGBController_SteelSeriesRival5.h                         |
+|                                                           |
+|   RGBController for SteelSeries Rival 5                   |
+|                                                           |
+|   A Ingram (Woodsy900)                        20 Jul 2026 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
-/*RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMouseController* controller_ptr)
-{
-    controller = controller_ptr;
-}
-*/
+
+#include "RGBController_SteelSeriesRival5.h"
 
 RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMouseController* controller_ptr)
 {
@@ -21,12 +27,22 @@ RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMous
     mode Direct;
     Direct.name             = "Direct";
     Direct.value            = STEELSERIES_MOUSE_EFFECT_DIRECT;
-    Direct.flags            = MODE_FLAG_HAS_PER_LED_COLOR;
+    Direct.flags            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
     Direct.color_mode       = MODE_COLORS_PER_LED;
     Direct.brightness_min   = 0x00;
     Direct.brightness_max   = STEELSERIES_MOUSE_BRIGHTNESS_MAX;
     Direct.brightness       = STEELSERIES_MOUSE_BRIGHTNESS_MAX;
 
+    mode Reactive;
+    Reactive.name           = "Reactive";
+    Reactive.value          = STEELSERIES_MOUSE_EFFECT_REACTIVE;   // any unique value; define e.g. 0x26
+    Reactive.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
+    Reactive.color_mode     = MODE_COLORS_MODE_SPECIFIC;
+    Reactive.colors_min     = 1;
+    Reactive.colors_max     = 1;
+    Reactive.colors.resize(1);
+    Reactive.colors[0]      = ToRGBColor(255, 255, 255);
+    modes.push_back(Reactive);
 
     steelseries_mouse mouse = controller->GetMouse();
 
@@ -36,6 +52,10 @@ RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMous
         {
             case STEELSERIES_MOUSE_EFFECT_DIRECT:
                 modes.push_back(Direct);
+                break;
+        
+            case STEELSERIES_MOUSE_EFFECT_REACTIVE:
+                modes.push_back(Reactive);
                 break;
         }
     }
@@ -80,10 +100,9 @@ void RGBController_SteelSeriesRival5::SetupZones()
 
 void RGBController_SteelSeriesRival5::DeviceUpdateLEDs()
 {
-    printf("DeviceUpdateLEDs()\n");
-
-    static_cast<SteelSeriesRival5Controller*>(controller)
-        ->UpdateLEDs(colors);
+    auto* ctrl = static_cast<SteelSeriesRival5Controller*>(controller);
+    ctrl->SetBrightness((uint8_t)modes[active_mode].brightness);  // guarded, so ~free under effects
+    ctrl->UpdateLEDs(colors);
 }
 
 void RGBController_SteelSeriesRival5::DeviceUpdateZoneLEDs(int)
@@ -101,9 +120,21 @@ void RGBController_SteelSeriesRival5::DeviceUpdateSingleLED(int)
 }
 void RGBController_SteelSeriesRival5::DeviceUpdateMode()
 {
-    DeviceUpdateLEDs();
+    auto* ctrl = static_cast<SteelSeriesRival5Controller*>(controller);
+    if(modes[active_mode].name == "Reactive")
+    {
+        RGBColor c = modes[active_mode].colors[0];
+        ctrl->SetReactiveColor(true, RGBGetRValue(c), RGBGetGValue(c), RGBGetBValue(c));
+        // optional: also send an all-black 0x21 frame here if you want clicks-only (no steady base)
+    }
+    else
+    {
+        ctrl->SetReactiveColor(false, 0, 0, 0);   // leaving Reactive must disable it (it's persistent in HW)
+        DeviceUpdateLEDs();
+    }
 }
 
 void RGBController_SteelSeriesRival5::DeviceSaveMode()
 {
 }
+
