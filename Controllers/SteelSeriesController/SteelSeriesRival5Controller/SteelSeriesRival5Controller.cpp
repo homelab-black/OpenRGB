@@ -1,13 +1,14 @@
 /*---------------------------------------------------------*\
-| SteelSeriesAerox5Controller.cpp                           |
+| RGBController_SteelSeriesRival5.h                         |
 |                                                           |
-|   Driver for the Steelseries Aerox 5                      |
+|   RGBController for SteelSeries Rival 5                   |
 |                                                           |
-|   Bobby Quantum (BobbyQuantum)                19 May 2024 |
+|   A Ingram (Woodsy900)                        20 Jul 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
+
 
 #include "SteelSeriesRival5Controller.h"
 #include "LogManager.h"
@@ -107,4 +108,24 @@ void SteelSeriesRival5Controller::UpdateLEDs(
         "Rival5 feature report result: %d\n",
         result
     );
+}
+
+void SteelSeriesRival5Controller::SetBrightness(uint8_t brightness)
+{
+    if(brightness == current_brightness) return;   // only on change
+    current_brightness = brightness;
+
+    uint8_t report[64] = {0};
+    report[1] = 0x23;
+    report[2] = brightness;                          // 0x00–0x64
+    hid_send_feature_report(dev, report, sizeof(report));
+}
+
+void SteelSeriesRival5Controller::SetReactiveColor(bool on, uint8_t r, uint8_t g, uint8_t b)
+{
+    uint8_t report[64] = {0};
+    report[1] = 0x26;
+    if(on) { report[2] = 0x01; report[3] = 0x00; report[4] = r; report[5] = g; report[6] = b; }
+    // off → bytes stay 0x00 → [00 26 00 00 00 00 00]
+    hid_send_feature_report(dev, report, sizeof(report));
 }
