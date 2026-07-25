@@ -10,8 +10,6 @@
 #pragma once
 
 #include <chrono>
-#include <map>
-#include <set>
 #include "RGBController.h"
 #include "LogitechHIDPP20Controller.h"
 
