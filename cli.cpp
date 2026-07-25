@@ -23,6 +23,10 @@
 #include "LogManager.h"
 #include "Colors.h"
 
+#ifdef __linux__
+#include "DetectionManager.h"
+#endif
+
 /*-------------------------------------------------------------*\
 | Quirk for MSVC; which doesn't support this case-insensitive   |
 | function                                                      |
@@ -51,6 +55,7 @@ enum
     RET_FLAG_CLI_POST_DETECTION = 32,
     RET_FLAG_START_SERVER       = 64,
     RET_FLAG_NO_AUTO_CONNECT    = 128,
+    RET_FLAG_GENERATE_UDEV_RULES = 256,
 };
 
 struct DeviceOptions
@@ -433,6 +438,7 @@ void OptionHelp()
     help_text += "--autostart-check                        Check if OpenRGB starting at login is enabled.\n";
     help_text += "--autostart-disable                      Disable OpenRGB starting at login.\n";
     help_text += "--autostart-enable arguments             Enable OpenRGB to start at login. Requires arguments to give to OpenRGB at login.\n";
+    help_text += "--generate-udev-rules [filename]         Generate the OpenRGB udev rules file and save it to the given filename.\n";
 
     std::cout << help_text << std::endl;
 }
@@ -934,6 +940,11 @@ bool OptionSaveProfile(std::string argument)
     return(true);
 }
 
+void OptionGenerateUdevRules(std::string argument)
+{
+    DetectionManager::get()->GenerateUdevRules(argument);
+}
+
 int ProcessOptions(Options* options, std::vector<RGBController *>& rgb_controllers)
 {
     unsigned int ret_flags  = 0;
@@ -1107,6 +1118,13 @@ int ProcessOptions(Options* options, std::vector<RGBController *>& rgb_controlle
         else if(option == "--save-profile" || option == "-sp")
         {
             OptionSaveProfile(arg_path.generic_u8string());
+
+            arg_index++;
+        }
+
+        else if(option == "--generate-udev-rules")
+        {
+            OptionGenerateUdevRules(arg_path.generic_u8string());
 
             arg_index++;
         }
