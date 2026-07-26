@@ -17,10 +17,10 @@
 
 AcerNitroHidKeyboardController::AcerNitroHidKeyboardController(hid_device *dev_handle, const char *path)
 {
-    this->location = path;
-    this->dev = dev_handle;
+    this->location  = path;
+    this->dev       = dev_handle;
 
-    device_name = "Acer Nitro HID Keyboard";    
+    device_name     = "Acer Nitro HID Keyboard";    
 }
 
 AcerNitroHidKeyboardController::~AcerNitroHidKeyboardController()
