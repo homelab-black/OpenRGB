@@ -22,11 +22,12 @@
 //     @comment
 // \*-------------------------------------------------------------------*/
 
-RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(AcerNitroHidKeyboardController* controller_ptr)
+RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shared_ptr<AcerNitroHidKeyboardController> controller)
 {
-    controller                  = controller_ptr;
+    this->controller            = controller;
+    device_id = 0x21;
 
-    name                        = controller->GetDeviceName();
+    name                        = "Acer Nitro HID Keyboard";
     vendor                      = "Acer";
     type                        = DEVICE_TYPE_LAPTOP;
     description                 = "Acer Nitro HID Keyboard Device";
@@ -163,14 +164,10 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(AcerNitro
 RGBController_AcerNitroHidKeyboard::~RGBController_AcerNitroHidKeyboard()
 {
     Shutdown();
-
-    delete controller;
 }
 
 void RGBController_AcerNitroHidKeyboard::SetupZones()
 {
-    // zones.clear();
-
     zone* new_zone          = new zone;
 
     new_zone->name          = "Keyboard Backlight Zone";
@@ -198,12 +195,9 @@ void RGBController_AcerNitroHidKeyboard::SetupZones()
 }
 
 void RGBController_AcerNitroHidKeyboard::DeviceUpdateLEDs(){
-    // auto brightness = GetZoneModeBrightness(0, ACER_HID_MODE_DIRECT);
-    LOG_DEBUG("1");
     auto& current_mode = modes[active_mode];
     if (current_mode.value == ACER_HID_MODE_DIRECT) {
-        controller->SetLEDs(colors, current_mode.brightness);
-        // controller->SetLEDs(colors, 100);
+        controller->SetLEDs(colors, current_mode.brightness, device_id);
     } else {
         RGBColor color = current_mode.colors.size()==0? (RGBColor)0 :  current_mode.colors[0];
         unsigned char direction = 1;
@@ -211,10 +205,8 @@ void RGBController_AcerNitroHidKeyboard::DeviceUpdateLEDs(){
             direction = 2;
         }
         LOG_DEBUG("direction: %d", direction);
-        controller->SetAllLEDs(color, current_mode.brightness, current_mode.speed, direction, current_mode.value);
-        // controller->SetAllLEDs(current_mode.colors[0], current_mode.brightness, 0, 1, current_mode.value);
+        controller->SetAllLEDs(color, current_mode.brightness, current_mode.speed, direction, current_mode.value, device_id);
     }
-    
 }
 
 

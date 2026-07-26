@@ -1,13 +1,13 @@
-// /*---------------------------------------------------------*\
-// | HyperXDRAMController.h                                    |
-// |                                                           |
-// |   Driver for HyperX/Kingston Fury RAM                     |
-// |                                                           |
-// |   Adam Honse (CalcProgrammer1)                19 Jun 2019 |
-// |                                                           |
-// |   This file is part of the OpenRGB project                |
-// |   SPDX-License-Identifier: GPL-2.0-or-later               |
-// \*---------------------------------------------------------*/
+/*---------------------------------------------------------*\
+| RGBController_AcerNitroHidKeyboard.cpp                    |
+|                                                           |
+|   Driver for Acer Nitro Keyboard                          |
+|                                                           |
+|   Marek Pokropiński                            26.07.2026 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #pragma once
 
@@ -45,13 +45,12 @@ public:
     std::string GetSerial() const;
     std::string GetLocation() const;
 
-    void SetLEDs(const std::vector<RGBColor> &colors, unsigned char brightness);
-    void SetAllLEDs(const RGBColor &color, unsigned char brightness, unsigned char speed, unsigned char direction, unsigned char mode);
+    void SetLEDs(const std::vector<RGBColor> &colors, unsigned char brightness, unsigned char device_id);
+    void SetAllLEDs(const RGBColor &color, unsigned char brightness, unsigned char speed, unsigned char direction, unsigned char mode, unsigned char device_id);
 
 private:
     hid_device *dev;
     std::string device_name;
-    // std::string serial;
     std::string location;
     std::mutex device_mutex;
 };

@@ -12,12 +12,9 @@
 #include <vector>
 #include "DetectionManager.h"
 #include "AcerNitroHidKeyboardController.h"
-#include "i2c_smbus.h"
 #include "LogManager.h"
-#include "pci_ids.h"
 #include "RGBController_AcerNitroHidKeyboard.h"
-
-using namespace std::chrono_literals;
+#include "RGBController_AcerNitroHidLed.h"
 
 /*---------------------------------------------------------*\
 | HID vendor and product IDs for ENEK EC in Acer Nitro      |
@@ -34,10 +31,16 @@ DetectedControllers DetectAcerHIDControllers(hid_device_info* info, const std::s
     dev = hid_open_path(info->path);
     if(dev)
     {
-        AcerNitroHidKeyboardController* controller = new AcerNitroHidKeyboardController(dev, info->path);
-        RGBController_AcerNitroHidKeyboard* rgb_controller = new RGBController_AcerNitroHidKeyboard(controller);
+        /*-------------------------------------------------*\
+        | Controller is shared between keyboard and onboard |
+        | led                                               |
+        \*-------------------------------------------------*/
+        std::shared_ptr<AcerNitroHidKeyboardController> controller = std::make_shared<AcerNitroHidKeyboardController>(dev, info->path);
+        RGBController_AcerNitroHidKeyboard* rgb_kb_controller = new RGBController_AcerNitroHidKeyboard(controller);
+        RGBController_AcerNitroHidLed* rgb_led_controller = new RGBController_AcerNitroHidLed(controller);
 
-        detected_controllers.push_back(rgb_controller);
+        detected_controllers.push_back(rgb_kb_controller);
+        detected_controllers.push_back(rgb_led_controller);
         LOG_INFO("[AcerNitroHidKeyboardControllerDetect] Detected AcerNitroHidKeyboardController at %s", info->path);
     }
     else

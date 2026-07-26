@@ -17,7 +17,7 @@
 class RGBController_AcerNitroHidKeyboard : public RGBController
 {
 public:
-    RGBController_AcerNitroHidKeyboard(AcerNitroHidKeyboardController* controller_ptr);
+    RGBController_AcerNitroHidKeyboard(std::shared_ptr<AcerNitroHidKeyboardController> controller);
     ~RGBController_AcerNitroHidKeyboard();
 
     void        SetupZones();
@@ -29,5 +29,6 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    AcerNitroHidKeyboardController* controller;
+    std::shared_ptr<AcerNitroHidKeyboardController> controller;
+    unsigned int device_id;
 };

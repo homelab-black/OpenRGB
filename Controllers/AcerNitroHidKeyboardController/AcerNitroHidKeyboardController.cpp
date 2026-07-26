@@ -42,7 +42,7 @@ std::string AcerNitroHidKeyboardController::GetDeviceName() const
 }
 
 
-void AcerNitroHidKeyboardController::SetLEDs(const std::vector<RGBColor>& colors, unsigned char brightness)
+void AcerNitroHidKeyboardController::SetLEDs(const std::vector<RGBColor>& colors, unsigned char brightness, unsigned char device_id)
 {
     std::lock_guard<std::mutex> guard(device_mutex);
 
@@ -59,13 +59,13 @@ void AcerNitroHidKeyboardController::SetLEDs(const std::vector<RGBColor>& colors
         | Send packet                                       |
         \*-------------------------------------------------*/
         unsigned char zone_select = (unsigned char)(1<<led_idx);
-        unsigned char packet[ACER_HID_PACKET_SIZE] = {0xa4, 0x21, ACER_HID_MODE_STATIC, brightness, 0, 1, r, g, b, zone_select, 0};
+        unsigned char packet[ACER_HID_PACKET_SIZE] = {0xa4, device_id, ACER_HID_MODE_STATIC, brightness, 0, 1, r, g, b, zone_select, 0};
         hid_send_feature_report(dev, packet, ACER_HID_PACKET_SIZE);
     }
 }
 
 
-void AcerNitroHidKeyboardController::SetAllLEDs(const RGBColor &color, unsigned char brightness, unsigned char speed, unsigned char direction, unsigned char mode)
+void AcerNitroHidKeyboardController::SetAllLEDs(const RGBColor &color, unsigned char brightness, unsigned char speed, unsigned char direction, unsigned char mode, unsigned char device_id)
 {
     std::lock_guard<std::mutex> guard(device_mutex);
 
@@ -81,6 +81,6 @@ void AcerNitroHidKeyboardController::SetAllLEDs(const RGBColor &color, unsigned 
     | Zone select = All zones                               |
     \*-----------------------------------------------------*/
     unsigned char zone_select = 0x0f;
-    unsigned char packet[ACER_HID_PACKET_SIZE] = {0xa4, 0x21, mode, brightness, speed, direction, r, g, b, zone_select, 0};
+    unsigned char packet[ACER_HID_PACKET_SIZE] = {0xa4, device_id, mode, brightness, speed, direction, r, g, b, zone_select, 0};
     hid_send_feature_report(dev, packet, ACER_HID_PACKET_SIZE);
 }
