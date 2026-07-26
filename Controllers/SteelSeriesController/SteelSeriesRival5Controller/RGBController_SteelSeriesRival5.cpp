@@ -151,9 +151,9 @@ void RGBController_SteelSeriesRival5::DeviceUpdateMode()
 
 void RGBController_SteelSeriesRival5::DeviceSaveMode()
 {
- /*---------------------------------------------------------*\
- | Note: Rival 5 does not have a "save" command              |
- |    The Rival 5 saves the current state automatically      |
- \*---------------------------------------------------------*/
+ /*--------------------------------------------------------*\
+ | Note: Rival 5 does not have a "save" command             |
+ |    The Rival 5 saves the current state automatically     |
+ \*--------------------------------------------------------*/
 }
 

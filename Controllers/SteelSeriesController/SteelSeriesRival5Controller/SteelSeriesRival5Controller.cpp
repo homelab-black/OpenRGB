@@ -44,16 +44,16 @@ steelseries_mouse SteelSeriesRival5Controller::GetMouse()
 std::string SteelSeriesRival5Controller::GetFirmwareVersion()
 {
     return "";
- /*---------------------------------------------------------*\
- | Note: Rival 5 does not have a "Get firmware" command      |
- \*---------------------------------------------------------*/
+ /*--------------------------------------------------------*\
+ | Note: Rival 5 does not have a "Get firmware" command     |
+ \*--------------------------------------------------------*/
 }
 
 void SteelSeriesRival5Controller::SetLightEffectAll(uint8_t)
 {
- /*---------------------------------------------------------*\
- | Note: Not Used                                            |
- \*---------------------------------------------------------*/
+ /*--------------------------------------------------------*\
+ | Note: Not Used                                           |
+ \*--------------------------------------------------------*/
 }
 
 void SteelSeriesRival5Controller::SetRainbowEffect(bool enable)
@@ -76,10 +76,10 @@ void SteelSeriesRival5Controller::SetRainbowEffect(bool enable)
 
 void SteelSeriesRival5Controller::Save()
 {
- /*---------------------------------------------------------*\
- | Note: Rival 5 does not have a "save" command              |
- |       The Rival 5 saves the current state automatically   |
- \*---------------------------------------------------------*/
+ /*--------------------------------------------------------*\
+ | Note: Rival 5 does not have a "save" command             |
+ |       The Rival 5 saves the current state automatically  |
+ \*--------------------------------------------------------*/
 }
 
 void SteelSeriesRival5Controller::SetColor(
