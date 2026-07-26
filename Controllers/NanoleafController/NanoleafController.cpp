@@ -208,7 +208,8 @@ void NanoleafController::UpdateLEDs(std::vector<RGBColor>& colors)
         free(message);
     }
     else if((model == NANOLEAF_CANVAS_MODEL)
-         || (model == NANOLEAF_SHAPES_MODEL))
+         || (model == NANOLEAF_SHAPES_MODEL)
+         || (model == NANOLEAF_LINES_MODEL))
     {
         /*---------------------------------------------------------*\
         | Protocol V2 - https://forum.nanoleaf.me/docs              |
