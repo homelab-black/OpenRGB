@@ -38,9 +38,9 @@ RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<Ace
     Direct.value                = ACER_HID_MODE_DIRECT;
     Direct.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS ;
     Direct.color_mode           = MODE_COLORS_PER_LED;
-    Direct.brightness_min = 0;
-    Direct.brightness_max = 100;
-    Direct.brightness = 100;
+    Direct.brightness_min       = 0;
+    Direct.brightness_max       = 100;
+    Direct.brightness           = 100;
 
     modes.push_back(Direct);
 
@@ -49,43 +49,43 @@ RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<Ace
     Static.value                = ACER_HID_MODE_STATIC;
     Static.flags                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR  | MODE_FLAG_HAS_BRIGHTNESS;
     Static.color_mode           = MODE_COLORS_MODE_SPECIFIC;
-    Static.brightness_min = 0;
-    Static.brightness_max = 100;
-    Static.brightness = 100;
-    Static.colors_min       = 1;
-    Static.colors_max       = 1;
+    Static.brightness_min       = 0;
+    Static.brightness_max       = 100;
+    Static.brightness           = 100;
+    Static.colors_min           = 1;
+    Static.colors_max           = 1;
     Static.colors.resize(1);
-    Static.speed = 0;
+    Static.speed                = 0;
 
     modes.push_back(Static);
 
     mode Breathing;
-    Breathing.name                 = "Breathing";
-    Breathing.value                = ACER_HID_MODE_BREATHING;
-    Breathing.flags                = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR  | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Breathing.color_mode           = MODE_COLORS_MODE_SPECIFIC;
-    Breathing.brightness_min = 0;
-    Breathing.brightness_max = 100;
-    Breathing.brightness = 100;
-    Breathing.colors_min       = 1;
-    Breathing.colors_max       = 1;
-    Breathing.speed_min = 1;
-    Breathing.speed_max = 5;
-    Breathing.speed = 4;
+    Breathing.name              = "Breathing";
+    Breathing.value             = ACER_HID_MODE_BREATHING;
+    Breathing.flags             = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR  | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    Breathing.color_mode        = MODE_COLORS_MODE_SPECIFIC;
+    Breathing.brightness_min    = 0;
+    Breathing.brightness_max    = 100;
+    Breathing.brightness        = 100;
+    Breathing.colors_min        = 1;
+    Breathing.colors_max        = 1;
+    Breathing.speed_min         = 1;
+    Breathing.speed_max         = 5;
+    Breathing.speed             = 4;
     Breathing.colors.resize(1);    
     modes.push_back(Breathing);
 
    mode Neon;
-    Neon.name                 = "Neon";
-    Neon.value                = ACER_HID_MODE_NEON;
-    Neon.flags                = MODE_FLAG_REQUIRES_ENTIRE_DEVICE | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Neon.color_mode           = MODE_COLORS_NONE;
-    Neon.brightness_min = 0;
-    Neon.brightness_max = 100;
-    Neon.brightness = 100;
-    Neon.speed_min = 1;
-    Neon.speed_max = 5;
-    Neon.speed = 4;  
+    Neon.name               = "Neon";
+    Neon.value              = ACER_HID_MODE_NEON;
+    Neon.flags              = MODE_FLAG_REQUIRES_ENTIRE_DEVICE | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    Neon.color_mode         = MODE_COLORS_NONE;
+    Neon.brightness_min     = 0;
+    Neon.brightness_max     = 100;
+    Neon.brightness         = 100;
+    Neon.speed_min          = 1;
+    Neon.speed_max          = 5;
+    Neon.speed              = 4;  
     modes.push_back(Neon);
 
     SetupZones();
@@ -121,7 +121,7 @@ void RGBController_AcerNitroHidLed::DeviceUpdateLEDs(){
     if (current_mode.value == ACER_HID_MODE_DIRECT) {
         controller->SetLEDs(colors, current_mode.brightness, device_id);
     } else {
-        RGBColor color = current_mode.colors.size()==0? (RGBColor)0 :  current_mode.colors[0];
+        RGBColor color = current_mode.colors.size()==0 ? (RGBColor)0 :  current_mode.colors[0];
         unsigned char direction = 1;
         if (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR && modes[active_mode].direction) {
             direction = 2;

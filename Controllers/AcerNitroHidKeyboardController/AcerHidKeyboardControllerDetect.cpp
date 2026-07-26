@@ -35,9 +35,9 @@ DetectedControllers DetectAcerHIDControllers(hid_device_info* info, const std::s
         | Controller is shared between keyboard and onboard |
         | led                                               |
         \*-------------------------------------------------*/
-        std::shared_ptr<AcerNitroHidKeyboardController> controller = std::make_shared<AcerNitroHidKeyboardController>(dev, info->path);
-        RGBController_AcerNitroHidKeyboard* rgb_kb_controller = new RGBController_AcerNitroHidKeyboard(controller);
-        RGBController_AcerNitroHidLed* rgb_led_controller = new RGBController_AcerNitroHidLed(controller);
+        std::shared_ptr<AcerNitroHidKeyboardController> controller  = std::make_shared<AcerNitroHidKeyboardController>(dev, info->path);
+        RGBController_AcerNitroHidKeyboard* rgb_kb_controller       = new RGBController_AcerNitroHidKeyboard(controller);
+        RGBController_AcerNitroHidLed* rgb_led_controller           = new RGBController_AcerNitroHidLed(controller);
 
         detected_controllers.push_back(rgb_kb_controller);
         detected_controllers.push_back(rgb_led_controller);

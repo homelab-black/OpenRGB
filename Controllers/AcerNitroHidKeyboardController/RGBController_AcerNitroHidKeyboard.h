@@ -20,13 +20,12 @@ public:
     RGBController_AcerNitroHidKeyboard(std::shared_ptr<AcerNitroHidKeyboardController> controller);
     ~RGBController_AcerNitroHidKeyboard();
 
-    void        SetupZones();
+    void SetupZones();
 
-    void        DeviceUpdateLEDs();
-    void        DeviceUpdateZoneLEDs(int zone);
-    void        DeviceUpdateSingleLED(int led);
-
-    void        DeviceUpdateMode();
+    void DeviceUpdateLEDs();
+    void DeviceUpdateZoneLEDs(int zone);
+    void DeviceUpdateSingleLED(int led);
+    void DeviceUpdateMode();
 
 private:
     std::shared_ptr<AcerNitroHidKeyboardController> controller;
