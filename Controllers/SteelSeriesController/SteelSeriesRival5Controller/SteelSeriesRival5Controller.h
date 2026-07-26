@@ -1,14 +1,13 @@
 /*---------------------------------------------------------*\
-| RGBController_SteelSeriesRival5.h                         |
+| SteelSeriesRival5Controller.h                             |
 |                                                           |
-|   RGBController for SteelSeries Rival 5                   |
+|  SteelSeriesRival5Controller for SteelSeries Rival 5      |
 |                                                           |
-|   A Ingram (Woodsy900)                        20 Jul 2026 |
+|  A Ingram (Woodsy900)                        20 Jul 2026  |
 |                                                           |
-|   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-or-later               |
+|  This file is part of the OpenRGB project                 |
+|  SPDX-License-Identifier: GPL-2.0-or-later                |
 \*---------------------------------------------------------*/
-
 
 #pragma once
 
@@ -24,12 +23,11 @@
 
 static const steelseries_mouse rival_5 =
 {
-    
     {
         0x04, // Direct
-        0x07  // Reactive
+        0x07, // Reactive
+        0x08  // Rainbow (for Rival 5, this is a static rainbow effect that cannot be changed)
     },
-
 
     {
         { "Scroll Wheel",  0 },
@@ -47,21 +45,23 @@ static const steelseries_mouse rival_5 =
 
 class SteelSeriesRival5Controller : public SteelSeriesMouseController
 {
-public:
-    SteelSeriesRival5Controller(
-        hid_device* dev_handle,
-        steelseries_type proto_type,
-        const char* path,
-        std::string dev_name
-    );
 
-    ~SteelSeriesRival5Controller();
+    public:
+        SteelSeriesRival5Controller(
+            hid_device* dev_handle,
+            steelseries_type proto_type,
+            const char* path,
+            std::string dev_name
+        );
+
+        ~SteelSeriesRival5Controller();
 
     std::string GetFirmwareVersion() override;
     steelseries_mouse GetMouse() override;
 
     void Save() override;
     void SetLightEffectAll(uint8_t effect) override;
+    void SetRainbowEffect(bool enable);
     void SetBrightness(uint8_t brightness);
     void SetColor(
         unsigned char zone_id,

@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_SteelSeriesRival5.h                         |
+| RGBController_SteelSeriesRival5.cpp                       |
 |                                                           |
 |   RGBController for SteelSeries Rival 5                   |
 |                                                           |
@@ -8,7 +8,6 @@
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
-
 
 #include "RGBController_SteelSeriesRival5.h"
 
@@ -42,7 +41,15 @@ RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMous
     Reactive.colors_max     = 1;
     Reactive.colors.resize(1);
     Reactive.colors[0]      = ToRGBColor(255, 255, 255);
-    modes.push_back(Reactive);
+
+    mode Rainbow;
+    Rainbow.name            = "Rainbow";
+    Rainbow.value           = STEELSERIES_MOUSE_EFFECT_RAINBOW;
+    Rainbow.color_mode      = MODE_COLORS_NONE;
+    Rainbow.flags           = MODE_FLAG_HAS_BRIGHTNESS;
+    Rainbow.brightness_min  = 0x00;
+    Rainbow.brightness_max  = STEELSERIES_MOUSE_BRIGHTNESS_MAX;        
+    Rainbow.brightness      = STEELSERIES_MOUSE_BRIGHTNESS_MAX;
 
     steelseries_mouse mouse = controller->GetMouse();
 
@@ -57,6 +64,10 @@ RGBController_SteelSeriesRival5::RGBController_SteelSeriesRival5(SteelSeriesMous
             case STEELSERIES_MOUSE_EFFECT_REACTIVE:
                 modes.push_back(Reactive);
                 break;
+            
+            case STEELSERIES_MOUSE_EFFECT_RAINBOW:     
+                modes.push_back(Rainbow);
+                break;
         }
     }
 
@@ -69,7 +80,6 @@ RGBController_SteelSeriesRival5::~RGBController_SteelSeriesRival5()
 
     delete controller;
 }
-
 
 void RGBController_SteelSeriesRival5::SetupZones()
 {
@@ -107,34 +117,43 @@ void RGBController_SteelSeriesRival5::DeviceUpdateLEDs()
 
 void RGBController_SteelSeriesRival5::DeviceUpdateZoneLEDs(int)
 {
-    printf("DeviceUpdateZoneLEDs()\n");
-
     DeviceUpdateLEDs();
 }
 
 void RGBController_SteelSeriesRival5::DeviceUpdateSingleLED(int)
 {
-    printf("DeviceUpdateSingleLED()\n");
-
     DeviceUpdateLEDs();
 }
+
 void RGBController_SteelSeriesRival5::DeviceUpdateMode()
 {
     auto* ctrl = static_cast<SteelSeriesRival5Controller*>(controller);
     if(modes[active_mode].name == "Reactive")
     {
         RGBColor c = modes[active_mode].colors[0];
-        ctrl->SetReactiveColor(true, RGBGetRValue(c), RGBGetGValue(c), RGBGetBValue(c));
-        // optional: also send an all-black 0x21 frame here if you want clicks-only (no steady base)
+        ctrl->SetReactiveColor(
+            true, 
+            RGBGetRValue(c), 
+            RGBGetGValue(c), 
+            RGBGetBValue(c)
+        );
+    }
+    else if(modes[active_mode].name == "Rainbow")
+    {
+        ctrl->SetRainbowEffect(true);
     }
     else
     {
-        ctrl->SetReactiveColor(false, 0, 0, 0);   // leaving Reactive must disable it (it's persistent in HW)
+        ctrl->SetReactiveColor(false,0,0,0);   // leaving Reactive must disable it (it's persistent in HW)
         DeviceUpdateLEDs();
     }
 }
 
 void RGBController_SteelSeriesRival5::DeviceSaveMode()
 {
+ /*---------------------------------------------------------*\
+ | Note: Rival 5 does not have a "save" command              |
+ |    The Rival 5 saves the current state automatically      |
+ \*---------------------------------------------------------*/
 }
 

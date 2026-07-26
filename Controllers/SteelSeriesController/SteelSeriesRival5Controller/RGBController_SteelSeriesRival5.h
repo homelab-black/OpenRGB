@@ -21,11 +21,9 @@ public:
     ~RGBController_SteelSeriesRival5();
 
     void        SetupZones();
-
     void        DeviceUpdateLEDs();
     void        DeviceUpdateZoneLEDs(int zone);
     void        DeviceUpdateSingleLED(int led);
-
     void        DeviceUpdateMode();
     void        DeviceSaveMode();
 
