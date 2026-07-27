@@ -502,6 +502,16 @@ void DetectionManager::BeginDetection()
     \*-----------------------------------------------------*/
     if(detection_ready)
     {
+        /*-------------------------------------------------*\
+        | Flag detection as in progress here rather than in |
+        | the background thread.  WaitForDetection() must   |
+        | not be able to return between this call and the   |
+        | thread actually starting, or a caller that only   |
+        | wants the finished device list, such as the CLI,  |
+        | gets an empty one.                                |
+        \*-------------------------------------------------*/
+        detection_in_progress = true;
+
         RunInBackgroundThread(std::bind(&DetectionManager::BackgroundDetectDevices, this));
     }
 }
@@ -518,6 +528,19 @@ std::string DetectionManager::GetDetectionString()
 
 void DetectionManager::WaitForDetection()
 {
+    /*-----------------------------------------------------*\
+    | Taking the mutex is not enough on its own: detection  |
+    | runs in a background thread and there is a window     |
+    | between BeginDetection() and that thread taking the   |
+    | mutex where it would be free.  Wait for the in        |
+    | progress flag to clear first, then take the mutex to  |
+    | make sure the detection thread is done.               |
+    \*-----------------------------------------------------*/
+    while(detection_in_progress.load())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
     DetectDevicesMutex.lock();
     DetectDevicesMutex.unlock();
 }
