@@ -76,7 +76,7 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
 
     modes.push_back(Breathing);
 
-   mode Neon;
+    mode Neon;
     Neon.name                   = "Neon";
     Neon.value                  = ACER_HID_MODE_NEON;
     Neon.flags                  = MODE_FLAG_REQUIRES_ENTIRE_DEVICE | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
