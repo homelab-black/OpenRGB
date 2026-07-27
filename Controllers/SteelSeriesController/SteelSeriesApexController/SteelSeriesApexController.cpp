@@ -100,7 +100,10 @@ void SteelSeriesApexController::SetMode(unsigned char mode, std::vector<RGBColor
 
 void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
 {
-    unsigned char buf[APEX_PACKET_LENGTH];
+    unsigned char buf[(
+        device_pid == STEELSERIES_APEX_9_TKL_PID ||
+        device_pid == STEELSERIES_APEX_9_MINI_PID)
+         ? APEX_9_PACKET_LENGTH : APEX_PACKET_LENGTH];
     int num_keys = sizeof(keys) / sizeof(*keys);
     unsigned char packet_id = APEX_GEN1_PACKET_ID_DIRECT;
 
@@ -150,7 +153,10 @@ void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_send_feature_report(dev, buf, APEX_PACKET_LENGTH);
+    hid_send_feature_report(dev, buf, (
+        device_pid == STEELSERIES_APEX_9_TKL_PID ||
+        device_pid == STEELSERIES_APEX_9_MINI_PID)
+        ? APEX_9_PACKET_LENGTH : APEX_PACKET_LENGTH);
 }
 
 /*---------------------------------------------------------*\
