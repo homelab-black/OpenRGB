@@ -32,6 +32,11 @@ using namespace std::chrono_literals;
 const char* DETECTIONMANAGER = "DetectionManager";
 
 /*---------------------------------------------------------*\
+| Upper bound for WaitForDetection(), in milliseconds       |
+\*---------------------------------------------------------*/
+#define DETECTION_WAIT_TIMEOUT_MS   60000
+
+/*---------------------------------------------------------*\
 | Warning Dialog Strings                                    |
 \*---------------------------------------------------------*/
 const char* I2C_ERR_WIN =   QT_TRANSLATE_NOOP("DetectionManager",
@@ -536,9 +541,22 @@ void DetectionManager::WaitForDetection()
     | progress flag to clear first, then take the mutex to  |
     | make sure the detection thread is done.               |
     \*-----------------------------------------------------*/
-    while(detection_in_progress.load())
+    /*-----------------------------------------------------*\
+    | Bounded, so that a detection that never starts cannot |
+    | hang the caller forever: waiting too long is a bug,   |
+    | but blocking startup indefinitely would be worse      |
+    \*-----------------------------------------------------*/
+    unsigned int waited_ms = 0;
+
+    while(detection_in_progress.load() && waited_ms < DETECTION_WAIT_TIMEOUT_MS)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        waited_ms += 10;
+    }
+
+    if(detection_in_progress.load())
+    {
+        LOG_WARNING("[%s] Gave up waiting for detection after %u ms", DETECTIONMANAGER, waited_ms);
     }
 
     DetectDevicesMutex.lock();
