@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for Acer Nitro HID Keyboard               |
 |                                                           |
-|   Marek Pokropiński                            26.07.2026 |
+|   Marek Pokropiński                           Jul 27 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -73,6 +73,7 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Breathing.speed_max         = 9;
     Breathing.speed             = 4;
     Breathing.colors.resize(1);    
+
     modes.push_back(Breathing);
 
    mode Neon;
@@ -86,8 +87,8 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Neon.speed_min              = 1;
     Neon.speed_max              = 9;
     Neon.speed                  = 4;  
-    modes.push_back(Neon);
 
+    modes.push_back(Neon);
 
     mode Wave;
     Wave.name                   = "Wave";
@@ -100,9 +101,9 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Wave.speed_min              = 1;
     Wave.speed_max              = 9;
     Wave.speed                  = 4;
-    Wave.direction              = 0;   
-    modes.push_back(Wave);
+    Wave.direction              = 0;
 
+    modes.push_back(Wave);
     
     mode Shifting;
     Shifting.name               = "Shifting";
@@ -114,7 +115,8 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Shifting.brightness         = 100;
     Shifting.speed_min          = 1;
     Shifting.speed_max          = 9;
-    Shifting.speed              = 4; 
+    Shifting.speed              = 4;
+
     modes.push_back(Shifting);
 
     mode Zoom;
@@ -127,7 +129,8 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Zoom.brightness             = 100;
     Zoom.speed_min              = 1;
     Zoom.speed_max              = 9;
-    Zoom.speed                  = 4;   
+    Zoom.speed                  = 4;
+
     modes.push_back(Zoom);
 
     mode Meteor;
@@ -141,6 +144,7 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Meteor.speed_min            = 1;
     Meteor.speed_max            = 9;
     Meteor.speed                = 4;
+
     modes.push_back(Meteor);
 
     mode Twinkling;
@@ -155,7 +159,8 @@ RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shar
     Twinkling.colors_max        = 1;
     Twinkling.speed_min         = 1;
     Twinkling.speed_max         = 9;
-    Twinkling.speed             = 4;  
+    Twinkling.speed             = 4;
+
     modes.push_back(Twinkling);
 
     SetupZones();
@@ -177,15 +182,12 @@ void RGBController_AcerNitroHidKeyboard::SetupZones()
     new_zone->leds_count    = 4;
 
     zones.push_back(*new_zone);
-    
 
     for(std::size_t zone_idx = 0; zone_idx < ACER_HID_NUM_ZONES; zone_idx++)
     {
         led* new_led        = new led();
-
         new_led->name       = "Keyboard Backlight Zone ";
         new_led->name.append(std::to_string(zone_idx + 1));
-
         new_led->value      = (unsigned int)leds.size();
 
         leds.push_back(*new_led);
@@ -195,21 +197,21 @@ void RGBController_AcerNitroHidKeyboard::SetupZones()
 }
 
 void RGBController_AcerNitroHidKeyboard::DeviceUpdateLEDs(){
-    auto& current_mode = modes[active_mode];
-    if (current_mode.value == ACER_HID_MODE_DIRECT) {
+    mode& current_mode = modes[active_mode];
+    if(current_mode.value == ACER_HID_MODE_DIRECT) {
         controller->SetLEDs(colors, current_mode.brightness, device_id);
-    } else {
-        RGBColor color = current_mode.colors.size()==0? (RGBColor)0 :  current_mode.colors[0];
+    }
+    else 
+    {
+        RGBColor color          = current_mode.colors.size()==0? (RGBColor)0 :  current_mode.colors[0];
         unsigned char direction = 1;
-        if (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR && modes[active_mode].direction) {
-            direction = 2;
+        if((modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR) && modes[active_mode].direction) 
+        {
+            direction           = 2;
         }
-        LOG_DEBUG("direction: %d", direction);
         controller->SetAllLEDs(color, current_mode.brightness, current_mode.speed, direction, current_mode.value, device_id);
     }
 }
-
-
 
 void RGBController_AcerNitroHidKeyboard::DeviceUpdateZoneLEDs(int)
 {

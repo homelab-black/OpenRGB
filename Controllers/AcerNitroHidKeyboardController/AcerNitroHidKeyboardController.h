@@ -3,7 +3,7 @@
 |                                                           |
 |   Driver for Acer Nitro Keyboard                          |
 |                                                           |
-|   Marek Pokropiński                            26.07.2026 |
+|   Marek Pokropiński                           Jul 27 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |

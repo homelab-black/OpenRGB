@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for Acer Nitro HID LED                    |
 |                                                           |
-|   Marek Pokropiński                            26.07.2026 |
+|   Marek Pokropiński                           Jul 27 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -72,7 +72,8 @@ RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<Ace
     Breathing.speed_min         = 1;
     Breathing.speed_max         = 5;
     Breathing.speed             = 4;
-    Breathing.colors.resize(1);    
+    Breathing.colors.resize(1);
+
     modes.push_back(Breathing);
 
    mode Neon;
@@ -85,7 +86,8 @@ RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<Ace
     Neon.brightness         = 100;
     Neon.speed_min          = 1;
     Neon.speed_max          = 5;
-    Neon.speed              = 4;  
+    Neon.speed              = 4;
+
     modes.push_back(Neon);
 
     SetupZones();
@@ -112,26 +114,25 @@ void RGBController_AcerNitroHidLed::SetupZones()
     new_led->value      = (unsigned int)leds.size();
     leds.push_back(*new_led);
     
-
     SetupColors();
 }
 
 void RGBController_AcerNitroHidLed::DeviceUpdateLEDs(){
-    auto& current_mode = modes[active_mode];
-    if (current_mode.value == ACER_HID_MODE_DIRECT) {
+    mode& current_mode = modes[active_mode];
+    if(current_mode.value == ACER_HID_MODE_DIRECT) {
         controller->SetLEDs(colors, current_mode.brightness, device_id);
-    } else {
-        RGBColor color = current_mode.colors.size()==0 ? (RGBColor)0 :  current_mode.colors[0];
+    }
+    else 
+    {
+        RGBColor color          = current_mode.colors.size()==0? (RGBColor)0 :  current_mode.colors[0];
         unsigned char direction = 1;
-        if (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR && modes[active_mode].direction) {
-            direction = 2;
+        if((modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR) && modes[active_mode].direction) 
+        {
+            direction           = 2;
         }
-        LOG_DEBUG("direction: %d", direction);
         controller->SetAllLEDs(color, current_mode.brightness, current_mode.speed, direction, current_mode.value, device_id);
     }
 }
-
-
 
 void RGBController_AcerNitroHidLed::DeviceUpdateZoneLEDs(int)
 {

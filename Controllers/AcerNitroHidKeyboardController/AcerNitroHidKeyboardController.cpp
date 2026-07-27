@@ -3,7 +3,7 @@
 |                                                           |
 |   Driver for Acer Nitro Keyboard                          |
 |                                                           |
-|   Marek Pokropiński                            26.07.2026 |
+|   Marek Pokropiński                           Jul 27 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -41,7 +41,6 @@ std::string AcerNitroHidKeyboardController::GetDeviceName() const
     return(device_name);
 }
 
-
 void AcerNitroHidKeyboardController::SetLEDs(const std::vector<RGBColor>& colors, unsigned char brightness, unsigned char device_id)
 {
     std::lock_guard<std::mutex> guard(device_mutex);
@@ -63,7 +62,6 @@ void AcerNitroHidKeyboardController::SetLEDs(const std::vector<RGBColor>& colors
         hid_send_feature_report(dev, packet, ACER_HID_PACKET_SIZE);
     }
 }
-
 
 void AcerNitroHidKeyboardController::SetAllLEDs(const RGBColor &color, unsigned char brightness, unsigned char speed, unsigned char direction, unsigned char mode, unsigned char device_id)
 {
