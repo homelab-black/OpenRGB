@@ -25,7 +25,7 @@
 RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<AcerNitroHidKeyboardController> controller)
 {
     this->controller            = controller;
-    device_id = 0x65;
+    device_id                   = 0x65;
 
     name                        = "Acer Nitro HID LED Device";
     vendor                      = "Acer";
