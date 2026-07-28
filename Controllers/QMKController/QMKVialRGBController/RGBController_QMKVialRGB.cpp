@@ -142,15 +142,23 @@ RGBController_QMKVialRGB::RGBController_QMKVialRGB(QMKVialRGBController* control
         modes[active_mode].speed = cur_speed;
     }
 
-    if(modes[active_mode].color_mode == MODE_COLORS_MODE_SPECIFIC)
-    {
-        hsv_t       hsv_color;
-        hsv_color.hue                   = (unsigned int)((float)cur_hue * (360.0f / 256.0f));
-        hsv_color.saturation            = cur_sat;
-        hsv_color.value                 = cur_val;
+    /*-----------------------------------------------------*\
+    | Get the keyboard's global HSV setting and assign to   |
+    | all modes as the default color.                       |
+    \*-----------------------------------------------------*/
+    hsv_t       hsv_color;
+    hsv_color.hue                   = (unsigned int)((float)cur_hue * (360.0f / 256.0f));
+    hsv_color.saturation            = cur_sat;
+    hsv_color.value                 = cur_val;
 
-        RGBColor    rgb_color           = hsv2rgb(&hsv_color);
-        modes[active_mode].colors[0]    = rgb_color;
+    RGBColor    rgb_color           = hsv2rgb(&hsv_color);
+
+    for(size_t i = 0; i < modes.size(); i++)
+    {
+        if(modes[i].color_mode == MODE_COLORS_MODE_SPECIFIC)
+        {
+            modes[i].colors[0] = rgb_color;
+        }
     }
 
     SetupZones();
