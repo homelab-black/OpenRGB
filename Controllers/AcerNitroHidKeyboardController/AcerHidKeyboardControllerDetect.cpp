@@ -19,8 +19,10 @@
 | HID vendor and product IDs for ENEK EC in Acer Nitro      |
 \*---------------------------------------------------------*/
 
-#define ACER_ENEC_VID 0x0CF2
-#define ACER_ENEC_PID 0x5130
+#define ACER_ENEC_VID           0x0CF2
+#define ACER_ENEC_PID           0x5130
+#define ACER_ENEC_USAGE_PAGE    0xFF5A
+#define ACER_ENEC_USAGE         0x01
 
 DetectedControllers DetectAcerHIDControllers(hid_device_info* info, const std::string&)
 {
@@ -45,4 +47,4 @@ DetectedControllers DetectAcerHIDControllers(hid_device_info* info, const std::s
     return(detected_controllers);
 }
 
-REGISTER_HID_DETECTOR("AcerNitroHidKeyboardController", DetectAcerHIDControllers, ACER_ENEC_VID, ACER_ENEC_PID);
+REGISTER_HID_DETECTOR_PU("AcerNitroHidKeyboardController", DetectAcerHIDControllers, ACER_ENEC_VID, ACER_ENEC_PID, ACER_ENEC_USAGE_PAGE, ACER_ENEC_USAGE);
