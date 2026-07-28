@@ -10,7 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_AcerNitroHidLed.h"
-#include "LogManager.h"
+
 // /**------------------------------------------------------------------*\
 //     @name Acer Nitro HID Led
 //     @category Laptop
@@ -77,16 +77,16 @@ RGBController_AcerNitroHidLed::RGBController_AcerNitroHidLed(std::shared_ptr<Ace
     modes.push_back(Breathing);
 
     mode Neon;
-    Neon.name               = "Neon";
-    Neon.value              = ACER_HID_MODE_NEON;
-    Neon.flags              = MODE_FLAG_REQUIRES_ENTIRE_DEVICE | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
-    Neon.color_mode         = MODE_COLORS_NONE;
-    Neon.brightness_min     = 0;
-    Neon.brightness_max     = 100;
-    Neon.brightness         = 100;
-    Neon.speed_min          = 1;
-    Neon.speed_max          = 5;
-    Neon.speed              = 4;
+    Neon.name                   = "Neon";
+    Neon.value                  = ACER_HID_MODE_NEON;
+    Neon.flags                  = MODE_FLAG_REQUIRES_ENTIRE_DEVICE | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+    Neon.color_mode             = MODE_COLORS_NONE;
+    Neon.brightness_min         = 0;
+    Neon.brightness_max         = 100;
+    Neon.brightness             = 100;
+    Neon.speed_min              = 1;
+    Neon.speed_max              = 5;
+    Neon.speed                  = 4;
 
     modes.push_back(Neon);
 
@@ -109,17 +109,19 @@ void RGBController_AcerNitroHidLed::SetupZones()
     new_zone->leds_count    = 1;
     zones.push_back(*new_zone);
     
-    led* new_led        = new led();
-    new_led->name       = "LED";
-    new_led->value      = (unsigned int)leds.size();
+    led* new_led            = new led();
+    new_led->name           = "LED";
+    new_led->value          = (unsigned int)leds.size();
     leds.push_back(*new_led);
     
     SetupColors();
 }
 
-void RGBController_AcerNitroHidLed::DeviceUpdateLEDs(){
+void RGBController_AcerNitroHidLed::DeviceUpdateLEDs()
+{
     mode& current_mode = modes[active_mode];
-    if(current_mode.value == ACER_HID_MODE_DIRECT) {
+    if(current_mode.value == ACER_HID_MODE_DIRECT) 
+    {
         controller->SetLEDs(colors, current_mode.brightness, device_id);
     }
     else 

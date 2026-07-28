@@ -10,7 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_AcerNitroHidKeyboard.h"
-#include "LogManager.h"
+
 // /**------------------------------------------------------------------*\
 //     @name Acer Nitro HID Keyboard
 //     @category Laptop
@@ -25,7 +25,7 @@
 RGBController_AcerNitroHidKeyboard::RGBController_AcerNitroHidKeyboard(std::shared_ptr<AcerNitroHidKeyboardController> controller)
 {
     this->controller            = controller;
-    device_id = 0x21;
+    device_id                   = 0x21;
 
     name                        = "Acer Nitro HID Keyboard";
     vendor                      = "Acer";
@@ -196,9 +196,11 @@ void RGBController_AcerNitroHidKeyboard::SetupZones()
     SetupColors();
 }
 
-void RGBController_AcerNitroHidKeyboard::DeviceUpdateLEDs(){
+void RGBController_AcerNitroHidKeyboard::DeviceUpdateLEDs()
+{
     mode& current_mode = modes[active_mode];
-    if(current_mode.value == ACER_HID_MODE_DIRECT) {
+    if(current_mode.value == ACER_HID_MODE_DIRECT) 
+    {
         controller->SetLEDs(colors, current_mode.brightness, device_id);
     }
     else 

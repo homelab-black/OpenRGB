@@ -9,11 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include <cstring>
 #include "AcerNitroHidKeyboardController.h"
-#include "StringUtils.h"
-#include "LogManager.h"
-#include <cstdio>
 
 AcerNitroHidKeyboardController::AcerNitroHidKeyboardController(hid_device *dev_handle, const char *path)
 {

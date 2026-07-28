@@ -12,15 +12,15 @@
 #include <vector>
 #include "DetectionManager.h"
 #include "AcerNitroHidKeyboardController.h"
-#include "LogManager.h"
 #include "RGBController_AcerNitroHidKeyboard.h"
 #include "RGBController_AcerNitroHidLed.h"
 
 /*---------------------------------------------------------*\
 | HID vendor and product IDs for ENEK EC in Acer Nitro      |
 \*---------------------------------------------------------*/
-#define ACER_ENEC_VID         0x0CF2
-#define ACER_ENEC_PID         0x5130
+
+#define ACER_ENEC_VID 0x0CF2
+#define ACER_ENEC_PID 0x5130
 
 DetectedControllers DetectAcerHIDControllers(hid_device_info* info, const std::string&)
 {
