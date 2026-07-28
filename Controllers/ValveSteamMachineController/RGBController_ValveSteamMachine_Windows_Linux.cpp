@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_ValveSteamMachine_Linux.cpp                 |
+| RGBController_ValveSteamMachine_Windows_Linux.cpp         |
 |                                                           |
 |   RGBController for Valve Steam Machine LEDs              |
 |                                                           |
@@ -9,7 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include "RGBController_ValveSteamMachine_Linux.h"
+#include "RGBController_ValveSteamMachine_Windows_Linux.h"
 #include <cctype>
 
 /**------------------------------------------------------------------*\
@@ -31,7 +31,7 @@ RGBController_ValveSteamMachine::RGBController_ValveSteamMachine(ValveSteamMachi
     vendor                      = "Valve";
     type                        = DEVICE_TYPE_LEDSTRIP;
     description                 = "Valve Steam Machine Device";
-    location                    = controller->GetLEDPath(0);
+    location                    = controller->GetLocation();
 
     /*-----------------------------------------------------*\
     | If the device supports hardware effects, add them as  |

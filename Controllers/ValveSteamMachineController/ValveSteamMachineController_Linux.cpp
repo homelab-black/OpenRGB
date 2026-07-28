@@ -43,12 +43,8 @@ void ValveSteamMachineController::AddLED(std::string led_path)
     led_paths.push_back(path);
 
     /*-----------------------------------------------------*\
-    | Open the brightness and multi_intensity files         |
+    | Open the multi_intensity files                        |
     \*-----------------------------------------------------*/
-    std::ofstream brightness_file;
-    brightness_file.open(path + "brightness");
-    led_brightness.push_back(std::move(brightness_file));
-
     std::ofstream multi_intensity_file;
     multi_intensity_file.open(path + "multi_intensity");
     led_multi_intensity.push_back(std::move(multi_intensity_file));
@@ -100,14 +96,9 @@ size_t ValveSteamMachineController::GetLEDCount()
     return(led_paths.size());
 }
 
-std::string ValveSteamMachineController::GetLEDPath(unsigned int led_idx)
+std::string ValveSteamMachineController::GetLocation()
 {
-    if(led_idx < led_paths.size())
-    {
-        return(led_paths[led_idx]);
-    }
-
-    return("");
+    return(led_paths[0]);
 }
 
 std::vector<std::string> ValveSteamMachineController::GetAvailableEffects()

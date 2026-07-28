@@ -25,15 +25,12 @@ public:
 
     void                        AddLED(std::string led_path);
     size_t                      GetLEDCount();
-
-    std::string                 GetLEDPath(unsigned int led_idx);
+    std::string                 GetLocation();
 
     std::vector<std::string>    GetAvailableEffects();
     unsigned int                GetBrightness();
     unsigned int                GetDelay();
     std::string                 GetEffect();
-
-    bool                        SupportsEffects();
 
     void                        SetLEDColor(unsigned int led_idx, unsigned char red, unsigned char grn, unsigned char blu);
     void                        SetEffect(std::string effect);
@@ -44,7 +41,6 @@ private:
     std::string                 name;
 
     std::vector<std::string>    led_paths;
-    std::vector<std::ofstream>  led_brightness;
     std::vector<std::ofstream>  led_multi_intensity;
     std::vector<std::ofstream>  led_effect;
     std::ofstream               led_brightness_scale;
