@@ -22,6 +22,28 @@
 
 inline constexpr const char * BOARD_UNSUPPORTED_ERROR =  "No Config Found For Board";
 
+// Some boards (B860 so far) don't understand the per-LED report (0x51), only this
+// 290-byte report (0x50, 18x16-byte zone blocks). One solid color per zone, no per-LED
+// addressing. param14 also picks a couple of onboard effects but isn't a clean speed/
+// bitmask - see #5600.
+struct StaticZoneBlock
+{
+    unsigned char effect        = 0x01;                                 // 0x01 = onboard effect, 0x02 = direct color
+    Color         color         { 0, 0, 0 };
+    unsigned char reserved1[5]  = { 0x00, 0xFF, 0x00, 0x00, 0x00 };      // unknown, constant
+    unsigned char reserved2[4]  = { 0xFF, 0xFF, 0xFF, 0xFF };            // unknown, constant
+    unsigned char effect_param  = 0x03;                                 // onboard effect id, 0x00 for direct
+    unsigned char param14       = 0x14;                                 // cycle/static/off toggle, see above
+    unsigned char param15       = 0x1E;                                 // constant
+};
+
+struct FeaturePacket_StaticZone_761
+{
+    unsigned char    report_id  = 0x50;
+    StaticZoneBlock  blocks[18];
+    unsigned char    trailing   = 0x00;
+};
+
 class MSIMysticLight761Controller
 {
 public:
@@ -118,7 +140,7 @@ public:
 
     DIRECT_MODE     GetSupportedDirectMode()
     {
-        return DIRECT_MODE_PER_LED;
+        return static_zone_protocol ? DIRECT_MODE_ZONE_BASED : DIRECT_MODE_PER_LED;
     }
 
     struct ZoneConfig
@@ -135,11 +157,14 @@ private:
     std::string                                             location;
     std::string                                             version_aprom;
     std::string                                             version_ldrom;
-    FeaturePacket_761* data;
+    FeaturePacket_761*                                       data;
+    bool                                                     static_zone_protocol = false;
+    FeaturePacket_StaticZone_761                             static_data;
 
     bool            ReadSettings();
     bool            ReadFwVersion();
     void            ReadName();
+    int             GetStaticZoneIndex(MSI_ZONE zone);
 
     ZoneData* GetZoneData
             (
