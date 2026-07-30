@@ -182,6 +182,7 @@
 #define RAZER_DEATHADDER_V2_PRO_WIRED_PID               0x007C
 #define RAZER_DEATHADDER_V2_PRO_WIRELESS_PID            0x007D
 #define RAZER_DIAMONDBACK_CHROMA_PID                    0x004C
+#define RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID          0x00B3
 #define RAZER_IMPERATOR_PID                             0x002F
 #define RAZER_LANCEHEAD_TE_WIRED_PID                    0x0060
 #define RAZER_LANCEHEAD_2017_WIRED_PID                  0x0059

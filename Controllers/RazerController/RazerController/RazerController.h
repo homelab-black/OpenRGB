@@ -13,8 +13,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 #include <hidapi.h>
 #include "RGBController.h"
 #include "DeviceGuardManager.h"
@@ -354,5 +356,16 @@ private:
     std::atomic<bool>                                   keepalive_thread_run;
     std::thread *                                       keepalive_thread;
 
+    /*---------------------------------------------------------*\
+    | Last direct mode frame, re-asserted by the keepalive      |
+    | thread for the mouse paired through the Mouse Dock Pro    |
+    \*---------------------------------------------------------*/
+    std::mutex                                          leds_mutex;
+    std::vector<RGBColor>                               last_frame_colors;
+    std::atomic<int>                                    reassert_count;
+    std::atomic<bool>                                   frame_pending;
+
     void KeepaliveThreadFunction();
+    void razer_clear_frame_cache();
+    void razer_send_frame(RGBColor* colors);
 };

@@ -5103,6 +5103,70 @@ static const razer_device basilisk_v3_pro_35k_wireless_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Basilisk V3 Pro 35K via Mouse Dock Pro 1532:00A4       |
+|                                                               |
+|  When paired to the Mouse Dock Pro's HyperPolling receiver    |
+|  the mouse does not enumerate with its own PID.  Commands     |
+|  sent to the dock with transaction ID 0x1F are forwarded to   |
+|  the paired mouse, while the dock's own LEDs use 0xFF.        |
+|                                                               |
+|  Zone "Scroll Wheel"                                          |
+|       Single                                                  |
+|       1 LED                                                   |
+|                                                               |
+|  Zone "Logo"                                                  |
+|       Single                                                  |
+|       1 LED                                                   |
+|                                                               |
+|  Zone "LED Strip"                                             |
+|       Linear                                                  |
+|       11 LED                                                  |
+\*-------------------------------------------------------------*/
+static const razer_zone basilisk_v3_pro_35k_dock_scroll_wheel_zone =
+{
+    "Scroll Wheel",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_zone basilisk_v3_pro_35k_dock_logo_zone =
+{
+    "Logo",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_zone basilisk_v3_pro_35k_dock_ledstrip_zone =
+{
+    "LED Strip",
+    ZONE_TYPE_LINEAR,
+    1,
+    11
+};
+
+static const razer_device basilisk_v3_pro_35k_dock_device =
+{
+    "Razer Basilisk V3 Pro 35K (Mouse Dock Pro)",
+    RAZER_MOUSE_DOCK_PRO_PID,
+    DEVICE_TYPE_MOUSE,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x1F,
+    1,
+    13,
+    {
+        &basilisk_v3_pro_35k_dock_scroll_wheel_zone,
+        &basilisk_v3_pro_35k_dock_logo_zone,
+        &basilisk_v3_pro_35k_dock_ledstrip_zone,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Basilisk V3 PRO 35K Phantom Green Wired 1532:00D6      |
 |                                                               |
 |  Zone "Scroll Wheel"                                          |
@@ -5884,6 +5948,68 @@ static const razer_device diamondback_chroma_device =
         &diamondback_chroma_led_strip_zone,
         &diamondback_chroma_logo_zone,
         &diamondback_chroma_scroll_wheel_zone,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
+|  Razer HyperPolling Wireless Dongle 1532:00B3                 |
+|                                                               |
+|  Used by mice paired to the HyperPolling dongle, such as the  |
+|  Basilisk V3 Pro 35K.  Zones match the Basilisk V3 Pro 35K.   |
+|                                                               |
+|  Zone "Scroll Wheel"                                          |
+|       Single                                                  |
+|       1 LED                                                   |
+|                                                               |
+|  Zone "Logo"                                                  |
+|       Single                                                  |
+|       1 LED                                                   |
+|                                                               |
+|  Zone "LED Strip"                                             |
+|       Linear                                                  |
+|       11 LED                                                  |
+\*-------------------------------------------------------------*/
+static const razer_zone hyperpolling_wireless_dongle_scroll_wheel_zone =
+{
+    "Scroll Wheel",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_zone hyperpolling_wireless_dongle_logo_zone =
+{
+    "Logo",
+    ZONE_TYPE_SINGLE,
+    1,
+    1
+};
+
+static const razer_zone hyperpolling_wireless_dongle_ledstrip_zone =
+{
+    "LED Strip",
+    ZONE_TYPE_LINEAR,
+    1,
+    11
+};
+
+static const razer_device hyperpolling_wireless_dongle_device =
+{
+    "Razer HyperPolling Wireless Dongle",
+    RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID,
+    DEVICE_TYPE_MOUSE,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x1F,
+    1,
+    13,
+    {
+        &hyperpolling_wireless_dongle_scroll_wheel_zone,
+        &hyperpolling_wireless_dongle_logo_zone,
+        &hyperpolling_wireless_dongle_ledstrip_zone,
         NULL,
         NULL,
         NULL
@@ -9508,6 +9634,7 @@ const razer_device* razer_device_list[] =
     &basilisk_v3_pro_wireless_device,
     &basilisk_v3_pro_35k_wired_device,
     &basilisk_v3_pro_35k_wireless_device,
+    &basilisk_v3_pro_35k_dock_device,
     &basilisk_v3_pro_35k_pg_wired_device,
     &basilisk_v3_pro_35k_pg_wireless_device,
     &basilisk_v3_pro_35k_pg_bluetooth_device,
@@ -9526,6 +9653,7 @@ const razer_device* razer_device_list[] =
     &deathadder_v2_pro_wired_device,
     &deathadder_v2_pro_wireless_device,
     &diamondback_chroma_device,
+    &hyperpolling_wireless_dongle_device,
     &lancehead_2017_wired_device,
     &lancehead_2017_wireless_device,
     &lancehead_2019_wired_device,
