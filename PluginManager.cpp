@@ -291,7 +291,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     entry.info.URL                          = plugin_url.toStdString();
     entry.info.Version                      = plugin_version.toStdString();
     entry.id                                = plugin_id;
-    entry.incompatible                      = (plugin_api_version == OPENRGB_PLUGIN_API_VERSION);
+    entry.incompatible                      = true;
     entry.is_system                         = is_system;
     entry.loader                            = loader;
     entry.path                              = path_string;
@@ -299,11 +299,21 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     entry.widget                            = nullptr;
 
     /*-----------------------------------------------------*\
+    | If metadata indicates a mismatching API version,      |
+    | skip loading                                          |
+    \*-----------------------------------------------------*/
+    if(plugin_api_version != OPENRGB_PLUGIN_API_VERSION)
+    {
+        LOG_WARNING("[%s] Plugin %s has an incompatible API version", PLUGINMANAGER, path_string.c_str());
+        goto add_plugin_entry;
+    }
+
+    /*-----------------------------------------------------*\
     | Check to see if this plugin's ID already exists       |
     \*-----------------------------------------------------*/
     for(plugin_idx = 0; plugin_idx < ActivePlugins.size(); plugin_idx++)
     {
-        if(plugin_id == ActivePlugins[plugin_idx].id)
+        if(plugin_id == ActivePlugins[plugin_idx].id && !ActivePlugins[plugin_idx].incompatible)
         {
             entry.info.Description          = "This plugin has a duplicate ID as an already loaded plugin and cannot be loaded.";
             LOG_WARNING("[%s] Plugin ID %s already in list.", PLUGINMANAGER, plugin_id.toStdString().c_str());
@@ -311,11 +321,6 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
         }
     }
 
-    /*-----------------------------------------------------*\
-    | If metadata indicates a matching API version,         |
-    | continue loading                                      |
-    \*-----------------------------------------------------*/
-    if(plugin_api_version == OPENRGB_PLUGIN_API_VERSION)
     {
         QObject*        instance            = loader->instance();
 
