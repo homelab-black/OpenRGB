@@ -31,6 +31,7 @@
 #include <nlohmann/json.hpp>
 #include <mbedtls/aes.h>
 #include "CRC.h"
+#include "LogManager.h"
 #include "TuyaController.h"
 
 using json = nlohmann::json;
@@ -130,6 +131,7 @@ bool TuyaController::SendPacket(unsigned int command, const std::string& json_pa
 
     if(!port.connected && !port.tcp_client_connect())
     {
+        LOG_WARNING("[Tuya] Could not connect to device %s at %s", device_id.c_str(), ip_address.c_str());
         return false;
     }
 
@@ -140,7 +142,17 @@ bool TuyaController::SendPacket(unsigned int command, const std::string& json_pa
     \*-------------------------------------------------------*/
     port.set_receive_timeout(1, 0);
 
-    port.tcp_write((char*)packet.data(), (int)packet.size());
+    int bytes_written = port.tcp_write((char*)packet.data(), (int)packet.size());
+
+    if(bytes_written != (int)packet.size())
+    {
+        LOG_ERROR("[Tuya] Failed to write full packet to device %s at %s (wrote %d of %d bytes)",
+                  device_id.c_str(), ip_address.c_str(), bytes_written, (int)packet.size());
+    }
+    else
+    {
+        LOG_DEBUG("[Tuya] Sent command 0x%02X to device %s at %s", command, device_id.c_str(), ip_address.c_str());
+    }
 
     /*-----------------------------------------------------*\
     | Drain and discard the reply. This driver is send-only |
@@ -152,7 +164,7 @@ bool TuyaController::SendPacket(unsigned int command, const std::string& json_pa
     port.tcp_listen(receive_buffer, sizeof(receive_buffer));
     port.tcp_close();
 
-    return true;
+    return(bytes_written == (int)packet.size());
 }
 
 void TuyaController::SetColorHSV(unsigned int hue, unsigned int saturation, unsigned int value)
