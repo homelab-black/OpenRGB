@@ -1,13 +1,10 @@
-/*---------------------------------------------------------*\
-| NanoleafController.h                                      |
-|                                                           |
-|   Driver for Nanoleaf                                     |
-|                                                           |
-|   Nikita Rushmanov                            13 Jan 2022 |
-|                                                           |
-|   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-or-later               |
-\*---------------------------------------------------------*/
+/*-----------------------------------------*\
+|  NanoleafController.h                     |
+|                                           |
+|  API Interface for Nanoleaf devices       |
+|                                           |
+|  Nikita Rushmanov 01/13/2022              |
+\*-----------------------------------------*/
 
 #pragma once
 
@@ -18,6 +15,7 @@
 #define NANOLEAF_LIGHT_PANELS_MODEL         "NL22"
 #define NANOLEAF_CANVAS_MODEL               "NL29"
 #define NANOLEAF_SHAPES_MODEL               "NL42"
+#define NANOLEAF_LINES_MODEL                "NL59"
 
 class NanoleafController
 {

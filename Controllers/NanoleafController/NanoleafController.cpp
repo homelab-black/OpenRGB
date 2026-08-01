@@ -1,18 +1,14 @@
-/*---------------------------------------------------------*\
-| NanoleafController.cpp                                    |
-|                                                           |
-|   Driver for Nanoleaf                                     |
-|                                                           |
-|   Nikita Rushmanov                            13 Jan 2022 |
-|                                                           |
-|   This file is part of the OpenRGB project                |
-|   SPDX-License-Identifier: GPL-2.0-or-later               |
-\*---------------------------------------------------------*/
+/*-----------------------------------------*\
+|  NanoleafController.cpp                   |
+|                                           |
+|  API Interface for Nanoleaf devices       |
+|                                           |
+|  Nikita Rushmanov 01/13/2022              |
+\*-----------------------------------------*/
 
 #include "NanoleafController.h"
 #include "LogManager.h"
 #include "httplib.h"
-#include "JsonUtils.h"
 
 long APIRequest(std::string method, std::string location, std::string URI, json* request_data = nullptr, json* response_data = nullptr)
 {
@@ -35,11 +31,8 @@ long APIRequest(std::string method, std::string location, std::string URI, json*
     {
         httplib::Result result = client.Get(URI.c_str());
 
-        if(httplib::Error::Success == result.error())
-        {
-            status  = result->status;
-            body    = result->body;
-        }
+        status  = result->status;
+        body    = result->body;
     }
     else if(method == "PUT")
     {
@@ -47,42 +40,30 @@ long APIRequest(std::string method, std::string location, std::string URI, json*
         {
             httplib::Result result = client.Put(URI.c_str(), request_data->dump(), "application/json");
 
-            if(httplib::Error::Success == result.error())
-            {
-                status  = result->status;
-                body    = result->body;
-            }
+            status  = result->status;
+            body    = result->body;
         }
         else
         {
             httplib::Result result = client.Put(URI.c_str());
 
-            if(httplib::Error::Success == result.error())
-            {
-                status  = result->status;
-                body    = result->body;
-            }
+            status  = result->status;
+            body    = result->body;
         }
     }
     else if(method == "DELETE")
     {
         httplib::Result result = client.Delete(URI.c_str());
 
-        if(httplib::Error::Success == result.error())
-        {
-            status  = result->status;
-            body    = result->body;
-        }
+        status  = result->status;
+        body    = result->body;
     }
     else if(method == "POST")
     {
         httplib::Result result = client.Post(URI.c_str());
 
-        if(httplib::Error::Success == result.error())
-        {
-            status  = result->status;
-            body    = result->body;
-        }
+        status  = result->status;
+        body    = result->body;
     }
 
     /*-------------------------------------------------------------*\
@@ -92,7 +73,7 @@ long APIRequest(std::string method, std::string location, std::string URI, json*
     {
         if(response_data)
         {
-            JsonUtils::JsonParse(body, *response_data);
+            *response_data = json::parse(body);
         }
     }
     else
@@ -186,13 +167,13 @@ void NanoleafController::UpdateLEDs(std::vector<RGBColor>& colors)
         | 1         W               White channel (ignored)         |
         | 1         transitionTime  Transition time (x 100ms)       |
         \*---------------------------------------------------------*/
-        std::size_t size    = panel_ids.size();
+        uint8_t size        = panel_ids.size();
 
         uint8_t* message    = (uint8_t*)malloc((size * 7) + 1);
 
         message[0]          = (uint8_t)size;                                /* nPanels          */
 
-        for(unsigned int i = 0; i < size; i++)
+        for(int i = 0; i < size; i++)
         {
             message[(7 * i) + 0 + 1] = (uint8_t)panel_ids[i];               /* panelId          */
             message[(7 * i) + 1 + 1] = (uint8_t)1;                          /* nFrames          */
@@ -203,12 +184,13 @@ void NanoleafController::UpdateLEDs(std::vector<RGBColor>& colors)
             message[(7 * i) + 6 + 1] = (uint8_t)0;                          /* transitionTime   */
         }
 
-        external_control_socket.udp_write((char*)message, ((int)size * 7) + 1);
+        external_control_socket.udp_write((char*)message, (size * 7) + 1);
 
         free(message);
     }
-    else if((model == NANOLEAF_CANVAS_MODEL)
-         || (model == NANOLEAF_SHAPES_MODEL))
+    else if ((model == NANOLEAF_CANVAS_MODEL)
+        || (model == NANOLEAF_SHAPES_MODEL)
+        || (model == NANOLEAF_LINES_MODEL))
     {
         /*---------------------------------------------------------*\
         | Protocol V2 - https://forum.nanoleaf.me/docs              |
@@ -224,14 +206,14 @@ void NanoleafController::UpdateLEDs(std::vector<RGBColor>& colors)
         | 1         W               White channel (ignored)         |
         | 2         transitionTime  Transition time (x 100ms)       |
         \*---------------------------------------------------------*/
-        std::size_t size    = panel_ids.size();
+        uint8_t size        = panel_ids.size();
 
         uint8_t* message    = (uint8_t*)malloc((size * 8) + 2);
 
         message[0]          = (uint8_t)(size >> 8);                         /* nPanels H        */
         message[1]          = (uint8_t)(size & 0xFF);                       /* nPanels L        */
 
-        for(unsigned int i = 0; i < size; i++)
+        for(int i = 0; i < size; i++)
         {
             message[(8 * i) + 0 + 2] = (uint8_t)(panel_ids[i] >> 8);        /* panelId H        */
             message[(8 * i) + 1 + 2] = (uint8_t)(panel_ids[i] & 0xFF);      /* panelId L        */
@@ -243,7 +225,7 @@ void NanoleafController::UpdateLEDs(std::vector<RGBColor>& colors)
             message[(8 * i) + 7 + 2] = (uint8_t)0;                          /* transitionTime L */
         }
 
-        external_control_socket.udp_write((char *)message, ((int)size * 8) + 2);
+        external_control_socket.udp_write((char *)message, (size * 8) + 2);
 
         free(message);
     }
@@ -274,8 +256,9 @@ void NanoleafController::StartExternalControl()
             selectedEffect = NANOLEAF_DIRECT_MODE_EFFECT_NAME;
         }
     }
-    else if((model == NANOLEAF_CANVAS_MODEL)
-         || (model == NANOLEAF_SHAPES_MODEL))
+    else if ((model == NANOLEAF_CANVAS_MODEL)
+        || (model == NANOLEAF_SHAPES_MODEL)
+        || (model == NANOLEAF_LINES_MODEL))
     {
         /*---------------------------------------------------------*\
         | Protocol v2 does not return anything, use device IP and   |
