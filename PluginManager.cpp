@@ -170,6 +170,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     /*-----------------------------------------------------*\
     | Prepare variables and open plugin settings            |
     \*-----------------------------------------------------*/
+    std::string             path_string     = path.generic_u8string();
     OpenRGBPluginInterface* plugin          = nullptr;
     unsigned int            plugin_idx;
     json                    plugin_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Plugins");
@@ -183,7 +184,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
         {
             LOG_WARNING("[%s] Checking remove %d, %s", PLUGINMANAGER, plugin_remove_idx, to_string(plugin_settings["plugins_remove"][plugin_remove_idx]).c_str());
 
-            if(plugin_settings["plugins_remove"][plugin_remove_idx] == path.generic_u8string())
+            if(plugin_settings["plugins_remove"][plugin_remove_idx] == path_string)
             {
                 /*-----------------------------------------*\
                 | Delete the plugin file                    |
@@ -209,7 +210,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     {
         if(path == ActivePlugins[plugin_idx].path)
         {
-            LOG_WARNING("[%s] Plugin file %s already in list, skipping.", PLUGINMANAGER, path.c_str());
+            LOG_WARNING("[%s] Plugin file %s already in list, skipping.", PLUGINMANAGER, path_string.c_str());
             return;
         }
     }
@@ -217,7 +218,6 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     /*-----------------------------------------------------*\
     | Create a QPluginLoader and extract the metadata       |
     \*-----------------------------------------------------*/
-    std::string         path_string         = path.generic_u8string();
     QPluginLoader*      loader              = new QPluginLoader(QString::fromStdString(path_string));
     QJsonObject         metadata            = loader->metaData();
     unsigned int        plugin_api_version  = 0;
@@ -233,7 +233,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     }
     else
     {
-        LOG_WARNING("[%s] Plugin %s does not have a MetaData field, skipping.", PLUGINMANAGER, path.c_str());
+        LOG_WARNING("[%s] Plugin %s does not have a MetaData field, skipping.", PLUGINMANAGER, path_string.c_str());
         return;
     }
 
@@ -243,7 +243,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     }
     else
     {
-        LOG_WARNING("[%s] Plugin %s does not have an OpenRGBPluginAPIVersion field, skipping.", PLUGINMANAGER, path.c_str());
+        LOG_WARNING("[%s] Plugin %s does not have an OpenRGBPluginAPIVersion field, skipping.", PLUGINMANAGER, path_string.c_str());
         return;
     }
 
@@ -253,7 +253,7 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
     }
     else
     {
-        LOG_WARNING("[%s] Plugin %s does not have an Id field, skipping.", PLUGINMANAGER, path.c_str());
+        LOG_WARNING("[%s] Plugin %s does not have an Id field, skipping.", PLUGINMANAGER, path_string.c_str());
         return;
     }
 
@@ -321,13 +321,13 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
 
         if(!loader->isLoaded())
         {
-            LOG_WARNING("[%s] Plugin %s cannot be loaded: %s", PLUGINMANAGER, path.c_str(), loader->errorString().toStdString().c_str());
+            LOG_WARNING("[%s] Plugin %s cannot be loaded: %s", PLUGINMANAGER, path_string.c_str(), loader->errorString().toStdString().c_str());
             goto add_plugin_entry;
         }
 
         if(!instance)
         {
-            LOG_WARNING("[%s] Plugin %s cannot be instantiated.", PLUGINMANAGER, path.c_str());
+            LOG_WARNING("[%s] Plugin %s cannot be instantiated.", PLUGINMANAGER, path_string.c_str());
             goto add_plugin_entry;
         }
 
@@ -338,13 +338,13 @@ void PluginManager::AddPlugin(const filesystem::path& path, bool is_system)
 
         if(!plugin)
         {
-            LOG_WARNING("[%s] Plugin %s cannot be casted to OpenRGBPluginInterface", PLUGINMANAGER, path.c_str());
+            LOG_WARNING("[%s] Plugin %s cannot be casted to OpenRGBPluginInterface", PLUGINMANAGER, path_string.c_str());
             goto add_plugin_entry;
         }
 
         if(plugin->GetPluginAPIVersion() != OPENRGB_PLUGIN_API_VERSION)
         {
-            LOG_WARNING("[%s] Plugin %s has a compatible API version", PLUGINMANAGER, path.c_str());
+            LOG_WARNING("[%s] Plugin %s has an incompatible API version", PLUGINMANAGER, path_string.c_str());
             goto add_plugin_entry;
         }
 
@@ -433,7 +433,7 @@ void PluginManager::RemovePlugin(const filesystem::path& path)
 {
     unsigned int plugin_idx;
 
-    LOG_TRACE("[%s] Attempting to remove plugin %s", PLUGINMANAGER, path.c_str());
+    LOG_TRACE("[%s] Attempting to remove plugin %s", PLUGINMANAGER, path.generic_u8string().c_str());
 
     /*-----------------------------------------------------*\
     | Search active plugins to see if this path already     |
@@ -453,7 +453,7 @@ void PluginManager::RemovePlugin(const filesystem::path& path)
     \*-----------------------------------------------------*/
     if(plugin_idx == ActivePlugins.size())
     {
-        LOG_TRACE("[%s] Plugin %s not active", PLUGINMANAGER, path.c_str());
+        LOG_TRACE("[%s] Plugin %s not active", PLUGINMANAGER, path.generic_u8string().c_str());
         return;
     }
 
@@ -463,7 +463,7 @@ void PluginManager::RemovePlugin(const filesystem::path& path)
     \*-----------------------------------------------------*/
     if(ActivePlugins[plugin_idx].loader->isLoaded())
     {
-        LOG_TRACE("[%s] Plugin %s is active, unloading", PLUGINMANAGER, path.c_str());
+        LOG_TRACE("[%s] Plugin %s is active, unloading", PLUGINMANAGER, path.generic_u8string().c_str());
         UnloadPlugin(&ActivePlugins[plugin_idx]);
     }
 
