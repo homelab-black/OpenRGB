@@ -22,6 +22,7 @@
 #define STEELSERIES_AEROX_3_WIRELESS_WIRED_PID          0x183A
 #define STEELSERIES_AEROX_3_CS2_WIRELESS_PID            0x1878
 #define STEELSERIES_AEROX_3_CS2_WIRELESS_WIRED_PID      0x187A
+#define STEELSERIES_AEROX_3_GEN2_WIRELESS_PID           0x1890
 #define STEELSERIES_AEROX_5_WIRELESS_PID                0x1852
 #define STEELSERIES_AEROX_5_WIRELESS_WIRED_PID          0x1854
 #define STEELSERIES_AEROX_5_DESTINY_WIRELESS_PID        0x185C
@@ -136,5 +137,6 @@ typedef enum
     AEROX_5_DIABLO_WIRELESS_WIRED  = 0x15,
     AEROX_9_WIRELESS               = 0x16,
     AEROX_9_WIRELESS_WIRED         = 0x17,
-    RIVAL_5                        = 0x19
+    RIVAL_5                        = 0x19,
+    AEROX_3_GEN2_WIRELESS          = 0x18,
 } steelseries_type;

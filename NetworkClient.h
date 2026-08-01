@@ -12,6 +12,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <list>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -98,6 +99,12 @@ public:
 
     void                                StartClient();
     void                                StopClient();
+
+    /*-----------------------------------------------------*\
+    | Controller teardown functions                         |
+    \*-----------------------------------------------------*/
+    void                                DeleteOrphanedControllers();
+    void                                TakeOrphanedControllers(std::vector<RGBController*>& orphaned);
 
     void                                SendRequest_ControllerData(unsigned int dev_id);
     void                                SendRequest_RescanDevices();
@@ -195,10 +202,13 @@ private:
     unsigned int                        requested_controller_index;
     std::mutex                          send_in_progress;
 
-    NetPacketHeader                     response_header;
-    unsigned char*                      response_data_ptr;
-    std::mutex                          waiting_on_response_mutex;
-    std::condition_variable             waiting_on_response_cv;
+    /*-----------------------------------------------------*\
+    | Response queue                                        |
+    \*-----------------------------------------------------*/
+    std::list<NetworkClientListenerThreadQueueEntry>
+                                        response_queue;
+    std::mutex                          response_queue_mutex;
+    std::condition_variable             response_queue_cv;
 
     /*-----------------------------------------------------*\
     | Client information                                    |
@@ -245,6 +255,7 @@ private:
     \*-----------------------------------------------------*/
     std::mutex                          ControllerListMutex;
     std::vector<RGBController*>         server_controllers;
+    std::vector<RGBController*>         orphaned_controllers;
     std::vector<unsigned int>           server_controller_ids;
 
     /*-----------------------------------------------------*\
@@ -295,6 +306,12 @@ private:
     | Private ProfileManager functions                      |
     \*-----------------------------------------------------*/
     std::vector<std::string>*           ProcessReply_ProfileList(unsigned int data_size, unsigned char* data_ptr);
+
+    /*-----------------------------------------------------*\
+    | Response queue helper                                 |
+    \*-----------------------------------------------------*/
+    NetworkClientListenerThreadQueueEntry
+                                        WaitForResponse(unsigned int expected_pkt_id);
 
     /*-----------------------------------------------------*\
     | Private helper functions                              |
