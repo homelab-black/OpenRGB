@@ -137,6 +137,7 @@ typedef enum
     AEROX_5_DIABLO_WIRELESS_WIRED  = 0x15,
     AEROX_9_WIRELESS               = 0x16,
     AEROX_9_WIRELESS_WIRED         = 0x17,
+    RIVAL_5                        = 0x19,
     AEROX_3_GEN2_WIRELESS          = 0x18,
     RIVAL_5                        = 0x19
 } steelseries_type;
