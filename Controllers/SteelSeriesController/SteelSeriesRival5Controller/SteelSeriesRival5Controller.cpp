@@ -87,11 +87,9 @@ void SteelSeriesRival5Controller::SetColor(
     unsigned char red,
     unsigned char green,
     unsigned char blue,
-    unsigned char brightness
+    unsigned char /*brightness*/
 )
 {
-    (void)brightness;
-
     if(zone_id >= 10)
     {
         return;
