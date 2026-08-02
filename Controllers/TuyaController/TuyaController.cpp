@@ -76,8 +76,8 @@ static std::vector<unsigned char> TuyaAesEcbEncrypt(const std::string& key, cons
 TuyaController::TuyaController(std::string ip, std::string device_id, std::string local_key)
 {
     ip_address      = ip;
-    device_id       = device_id;
-    local_key       = local_key;
+    this->device_id = device_id;
+    this->local_key = local_key;
     location        = "IP: " + ip_address;
     sequence_number = 0;
 
@@ -125,7 +125,7 @@ bool TuyaController::SendPacket(unsigned int command, const std::string& json_pa
     PushU32BE(packet, length);
     packet.insert(packet.end(), payload.begin(), payload.end());
 
-    unsigned int crc = CRC::Calculate(packet.data(), packet.size(), CRC::CRC_32());
+    unsigned int crc = CRCPP::CRC::Calculate(packet.data(), packet.size(), CRCPP::CRC::CRC_32());
     PushU32BE(packet, crc);
     PushU32BE(packet, TUYA_SUFFIX);
 
