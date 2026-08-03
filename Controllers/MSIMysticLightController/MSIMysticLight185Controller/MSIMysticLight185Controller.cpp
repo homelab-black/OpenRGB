@@ -337,7 +337,15 @@ static const mystic_light_185_config board_configs[] =
     { 0x7D93, 6,  0,  0, 1, &zones_set2,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // Z790 GAMING PRO WIFI
     { 0x7D96, 0,  0,  0, 2, &zones_set13, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B760 TOMAHAWK WIFI DDR5
     { 0x7D97, 6,  0,  0, 2, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B660 MORTAR MAX WIFI DDR4
-    { 0x7D98, 0,  0,  0, 1, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // PRO B760-P WIFI DDR4
+    /*---------------------------------------------------------*\
+    | PID 0x7D98 is shared between PRO B760-P WIFI DDR4 and     |
+    | PRO B760-VC WIFI II.  On the -VC variant, per-LED direct  |
+    | mode produces no output through either the sync or the    |
+    | per-zone path, and because Direct is registered first it  |
+    | becomes the default mode, leaving the board dark.         |
+    | Hardware effect modes over report 0x52 work correctly.    |
+    \*---------------------------------------------------------*/
+    { 0x7D98, 0,  0,  0, 1, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_DISABLED },      // PRO B760-P WIFI DDR4 / PRO B760-VC WIFI II
     { 0x7D99, 6,  0,  0, 1, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // PRO B760M-A WIFI DDR4
     { 0x7E01, 0,  0,  0, 1, &zones_set11, MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MAG B760M MORTAR MAX
     { 0x7E03, 6,  0,  0, 0, &zones_set6,  MSIMysticLight185Controller::DIRECT_MODE_PER_LED },       // MPG Z790I EDGE WIFI
