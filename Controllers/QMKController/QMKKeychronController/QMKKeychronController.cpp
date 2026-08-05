@@ -613,11 +613,30 @@ int QMKKeychronController::ViaSendCommand
     hid_write(dev, usb_buf, sizeof(usb_buf));
 
     /*-----------------------------------------------------*\
-    | Read response                                         |
+    | Read response. Another VIA-speaking client (e.g. the  |
+    | keyboard's official configurator) can share this raw  |
+    | HID endpoint, so a report arriving on our handle may  |
+    | belong to that client's transaction. Keep reading     |
+    | until a report carries our command byte, or the       |
+    | overall timeout runs out.                             |
     \*-----------------------------------------------------*/
-    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, 1000);
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(KEYCHRON_QHE_HID_READ_TIMEOUT);
+    int bytes_received = -1;
 
-    if(usb_buf[0] != cmd)
+    do
+    {
+        int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
+
+        if(remaining_ms <= 0)
+        {
+            return(-1);
+        }
+
+        bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, remaining_ms);
+    }
+    while(bytes_received > 0 && usb_buf[0] != cmd);
+
+    if(bytes_received <= 0 || usb_buf[0] != cmd)
     {
         return(-1);
     }
@@ -658,11 +677,26 @@ int QMKKeychronController::ViaSendCommandSub
     hid_write(dev, usb_buf, sizeof(usb_buf));
 
     /*-----------------------------------------------------*\
-    | Read response                                         |
+    | Read response. See ViaSendCommand for why this loops  |
+    | instead of trusting the first report back.            |
     \*-----------------------------------------------------*/
-    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, 1000);
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(KEYCHRON_QHE_HID_READ_TIMEOUT);
+    int bytes_received = -1;
 
-    if(usb_buf[0] != cmd || usb_buf[1] != subcmd)
+    do
+    {
+        int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
+
+        if(remaining_ms <= 0)
+        {
+            return(-1);
+        }
+
+        bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, remaining_ms);
+    }
+    while(bytes_received > 0 && (usb_buf[0] != cmd || usb_buf[1] != subcmd));
+
+    if(bytes_received <= 0 || usb_buf[0] != cmd || usb_buf[1] != subcmd)
     {
         return(-1);
     }
