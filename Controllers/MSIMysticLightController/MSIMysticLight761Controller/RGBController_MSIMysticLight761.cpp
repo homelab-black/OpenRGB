@@ -29,6 +29,17 @@ const ZoneDescription led_zones[] =
     ZoneDescription{ "JARGB 3",     MSI_ZONE_JARGB_3 },
 };
 
+// B860 boards use the manual/silkscreen naming (JARGB_V2_1/2, JRGB1) instead of the
+// older JARGB 1/2/3 naming used by the X870/B850/Z890 boards sharing this driver
+const ZoneDescription led_zones_argb_v2[] =
+{
+    ZoneDescription{ "JARGB_V2_1",  MSI_ZONE_JARGB_1 },
+    ZoneDescription{ "JARGB_V2_2",  MSI_ZONE_JARGB_2 },
+    ZoneDescription{ "JRGB1",       MSI_ZONE_J_RGB_1 },
+};
+
+#define NUMOF_ZONES_ARGB_V2 (sizeof(led_zones_argb_v2) / sizeof(ZoneDescription))
+
 static std::vector<const ZoneDescription*> zone_description;
 
 static int IndexOfZoneForType(MSI_ZONE zone_type)
@@ -61,13 +72,17 @@ RGBController_MSIMysticLight761::RGBController_MSIMysticLight761
 
     const std::vector<MSI_ZONE>* supported_zones = controller->GetSupportedZones();
 
+    bool use_argb_v2_names = (controller->GetSupportedDirectMode() == MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED);
+    const ZoneDescription* names       = use_argb_v2_names ? led_zones_argb_v2 : led_zones;
+    std::size_t            names_count = use_argb_v2_names ? NUMOF_ZONES_ARGB_V2 : NUMOF_ZONES;
+
     for(std::size_t i = 0; i < supported_zones->size(); ++i)
     {
-        for(std::size_t j = 0; j < NUMOF_ZONES; ++j)
+        for(std::size_t j = 0; j < names_count; ++j)
         {
-            if(led_zones[j].zone_type == (*supported_zones)[i])
+            if(names[j].zone_type == (*supported_zones)[i])
             {
-                zone_description.push_back(&led_zones[j]);
+                zone_description.push_back(&names[j]);
                 break;
             }
         }
@@ -311,6 +326,13 @@ void RGBController_MSIMysticLight761::SetupModes()
     if(controller->GetSupportedDirectMode() != MSIMysticLight761Controller::DIRECT_MODE_DISABLED)
     {
         SetupMode("Direct",                 MSI_MODE_DIRECT_DUMMY,                  MODE_FLAG_HAS_PER_LED_COLOR);
+    }
+
+    // firmware-driven onboard effects, no color/speed input from us
+    if(controller->GetSupportedDirectMode() == MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED)
+    {
+        SetupMode("Rainbow Cycle (Onboard)",  MSI_MODE_RAINBOW,                       0);
+        SetupMode("Rainbow Static (Onboard)", MSI_MODE_RAINBOW_WAVE,                  0);
     }
 }
 

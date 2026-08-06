@@ -14,9 +14,13 @@
 \*---------------------------------------------------------*/
 
 #include <vector>
+#include <chrono>
+#include <thread>
 #include "LogManager.h"
 #include "MSIMysticLight761Controller.h"
 #include "StringUtils.h"
+
+using namespace std::chrono_literals;
 
 #define NUM_CONFS sizeof(board_configs) / sizeof(mystic_light_761_config)
 #define COLOR_BLACK {0, 0, 0}
@@ -35,6 +39,7 @@ struct mystic_light_761_config
     int                                      numof_JRGBs;           // number of supported JRGB headers (used in per LED mode only)
     const std::vector<MSI_ZONE>*             supported_zones;       // pointer to vector of supported zones
     MSIMysticLight761Controller::DIRECT_MODE per_led_mode;          // type of direct mode support
+    bool                                      static_zone_protocol;  // uses report 0x50 instead of the per-LED 0x51 protocol
 };
 
 static const std::vector<MSI_ZONE> zone_set1 =
@@ -43,6 +48,14 @@ static const std::vector<MSI_ZONE> zone_set1 =
         MSI_ZONE_JARGB_1,
         MSI_ZONE_JARGB_2,
         MSI_ZONE_JARGB_3,
+};
+
+// B860M only has JARGB_V2_1, JARGB_V2_2, JRGB1 - no JAF/JARGB_3
+static const std::vector<MSI_ZONE> zone_set_b860 =
+{
+        MSI_ZONE_JARGB_1,
+        MSI_ZONE_JARGB_2,
+        MSI_ZONE_J_RGB_1,
 };
 
 static const std::string board_names[] =
@@ -75,6 +88,8 @@ static const std::string board_names[] =
     "MSI PRO Z890-P WIFI (MS-7E34)",
     "MSI B850 GAMING PLUS WIFI PZ (MS-7E75)",
     "MSI MAG X870E TOMAHAWK MAX WIFI PZ (MS-7E84)",
+    "MSI B860M GAMING PLUS WIFI (MS-7E42)",
+    "MSI PRO B860M-A WIFI (MS-7E42)",
 };
 
 static const mystic_light_761_config board_configs[] =
@@ -107,6 +122,8 @@ static const mystic_light_761_config board_configs[] =
     { &(board_names[25]), 0,  0,  0, 1, &zone_set1,  MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO Z890-P WIFI (MS-7E34)
     { &(board_names[26]), 0,  0,  0, 1, &zone_set1,  MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED },     // MSI B850 GAMING PLUS WIFI PZ (MS-7E75)
     { &(board_names[27]), 0,  0,  0, 1, &zone_set1,  MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MAG X870E TOMAHAWK MAX WIFI PZ (MS-7E84)
+    { &(board_names[28]), 0,  0,  0, 1, &zone_set_b860,  MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED, true },     // MSI B860M GAMING PLUS WIFI (MS-7E42)
+    { &(board_names[29]), 0,  0,  0, 1, &zone_set_b860,  MSIMysticLight761Controller::DIRECT_MODE_ZONE_BASED, true },     // MSI PRO B860M-A WIFI (MS-7E42)
 };
 
 enum MSI_ZONE setup_map [] =
@@ -217,7 +234,8 @@ MSIMysticLight761Controller::MSIMysticLight761Controller
 
     if(board_config != nullptr)
     {
-        supported_zones     = (std::vector<MSI_ZONE>*) board_config->supported_zones;
+        supported_zones      = (std::vector<MSI_ZONE>*) board_config->supported_zones;
+        static_zone_protocol = board_config->static_zone_protocol;
         unsigned int max    = 0;
 
         for(std::size_t i = 0; i < board_config->supported_zones[0].size(); i++)
@@ -278,9 +296,14 @@ MSIMysticLight761Controller::MSIMysticLight761Controller
             ReadFwVersion();
             ReadSettings();
 
-            // Push config so setting colors works
-            int res = hid_send_feature_report(dev, conf_arr, SETUP_ARRAY_SIZE);
-            LOG_INFO("Sending configuration resulted in %i\n", res);
+            // this init blast uses X870-family byte values that race with our own
+            // writes on the static zone-color protocol, so skip it there
+            if(!static_zone_protocol)
+            {
+                // Push config so setting colors works
+                int res = hid_send_feature_report(dev, conf_arr, SETUP_ARRAY_SIZE);
+                LOG_INFO("Sending configuration resulted in %i\n", res);
+            }
 
             data                        = new FeaturePacket_761;
 
@@ -335,16 +358,60 @@ MSIMysticLight761Controller::~MSIMysticLight761Controller()
     zone_configs.clear();
 }
 
+int MSIMysticLight761Controller::GetStaticZoneIndex(MSI_ZONE zone)
+{
+    int idx = get_zone_setup_index(zone);
+
+    if((idx < 0) || (idx >= 18))
+    {
+        return -1;
+    }
+
+    return idx;
+}
+
 void MSIMysticLight761Controller::SetMode
     (
-    MSI_ZONE        /*zone*/,
-    MSI_MODE        /*mode*/,
+    MSI_ZONE        zone,
+    MSI_MODE        mode,
     MSI_SPEED       /*speed*/,
     MSI_BRIGHTNESS  /*brightness*/,
     bool            /*rainbow_color*/
     )
 {
-    return; // Only supporting direct for now
+    if(!static_zone_protocol)
+    {
+        return; // Only supporting direct for now
+    }
+
+    int idx = GetStaticZoneIndex(zone);
+
+    if(idx < 0)
+    {
+        return;
+    }
+
+    if(mode == MSI_MODE_DIRECT_DUMMY)
+    {
+        // static color
+        static_data.blocks[idx].effect       = 0x02;
+        static_data.blocks[idx].effect_param = 0x00;
+        static_data.blocks[idx].param14      = 0x36;
+    }
+    else if(mode == MSI_MODE_RAINBOW_WAVE)
+    {
+        // onboard rainbow, frozen (param14 = 0x80 stops the animation)
+        static_data.blocks[idx].effect       = 0x01;
+        static_data.blocks[idx].effect_param = 0x03;
+        static_data.blocks[idx].param14      = 0x80;
+    }
+    else
+    {
+        // onboard rainbow cycle, power-on default
+        static_data.blocks[idx].effect       = 0x01;
+        static_data.blocks[idx].effect_param = 0x03;
+        static_data.blocks[idx].param14      = 0x14;
+    }
 }
 
 std::string MSIMysticLight761Controller::GetDeviceName()
@@ -390,6 +457,15 @@ bool MSIMysticLight761Controller::Update
     bool /*save*/
     )
 {
+    if(static_zone_protocol)
+    {
+        // single write is flaky here, same as the 185-byte driver's double-send workaround
+        hid_send_feature_report(dev, (unsigned char*)&static_data, sizeof(static_data));
+        std::this_thread::sleep_for(15ms);
+        int ret = hid_send_feature_report(dev, (unsigned char*)&static_data, sizeof(static_data));
+        return (ret == (int)sizeof(static_data));
+    }
+
     int ret = 0;
     bool flag = true;
     ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jaf.packet) , sizeof(FeaturePacket_PerLED_761));
@@ -427,6 +503,20 @@ void MSIMysticLight761Controller::SetZoneColor
     unsigned char   blu2
     )
 {
+    if(static_zone_protocol)
+    {
+        int idx = GetStaticZoneIndex(zone);
+
+        if(idx >= 0)
+        {
+            static_data.blocks[idx].color.R = red1;
+            static_data.blocks[idx].color.G = grn1;
+            static_data.blocks[idx].color.B = blu1;
+        }
+
+        return;
+    }
+
     for(std::size_t i = 0; i < zone_configs.size(); i++)
     {
         if(zone_configs[i].msi_zone == zone)
@@ -609,7 +699,7 @@ void MSIMysticLight761Controller::SetDirectMode
 
 bool MSIMysticLight761Controller::IsDirectModeActive()
 {
-    return true;
+    return !static_zone_protocol;
 }
 
 size_t MSIMysticLight761Controller::GetMaxDirectLeds
