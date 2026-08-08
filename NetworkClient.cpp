@@ -12,6 +12,7 @@
 #include <cstring>
 #include "LogManager.h"
 #include "NetworkClient.h"
+#include "NetworkProtocol.h"
 #include "ProfileManager.h"
 #include "ResourceManager.h"
 #include "RGBController_Network.h"
@@ -81,6 +82,7 @@ NetworkClient::NetworkClient()
                                         | NET_CLIENT_FLAG_SUPPORTS_PROFILEMANAGER
                                         | NET_CLIENT_FLAG_SUPPORTS_SETTINGSMANAGER;
     client_flags_sent                   = false;
+    client_hostname                     = GetHostname();
     client_is_local_client              = false;
     client_string_sent                  = false;
     client_sock                         = -1;
@@ -96,13 +98,205 @@ NetworkClient::NetworkClient()
     server_reinitialize                 = false;
     change_in_progress                  = false;
 
+    client_active                       = false;
+    profilemanager_thread               = NULL;
+
     ListenThread                        = NULL;
     ConnectionThread                    = NULL;
+    ReceiveQueueThread                  = NULL;
+    receive_generation                  = 0;
+    receive_queue_thread_running        = false;
+}
+
+/*---------------------------------------------------------*\
+| Packets the receive queue thread claims.  Everything else |
+| in the queue is a synchronous reply for WaitForResponse.  |
+| Must match the queueing cases in ListenThreadFunction.    |
+\*---------------------------------------------------------*/
+static bool IsCallbackPacket(unsigned int pkt_id)
+{
+    switch(pkt_id)
+    {
+        case NET_PACKET_ID_REQUEST_CONTROLLER_COUNT:
+        case NET_PACKET_ID_REQUEST_CONTROLLER_DATA:
+        case NET_PACKET_ID_SET_SERVER_FLAGS:
+        case NET_PACKET_ID_SET_SERVER_HOSTNAME:
+        case NET_PACKET_ID_SET_SERVER_NAME:
+        case NET_PACKET_ID_DEVICE_LIST_UPDATED:
+        case NET_PACKET_ID_DETECTION_STARTED:
+        case NET_PACKET_ID_DETECTION_PROGRESS_CHANGED:
+        case NET_PACKET_ID_DETECTION_COMPLETE:
+            return(true);
+
+        default:
+            return(false);
+    }
+}
+
+/*---------------------------------------------------------*\
+| Receive queue thread (see NetworkClient.h)                |
+\*---------------------------------------------------------*/
+void NetworkClient::ReceiveQueueThreadFunction()
+{
+    std::unique_lock<std::mutex> lock(receive_queue_mutex);
+
+    while(receive_queue_thread_running)
+    {
+        /*-------------------------------------------------*\
+        | Wait for a callback-emitting packet.  Replies are |
+        | left in the queue for WaitForResponse to claim.   |
+        \*-------------------------------------------------*/
+        receive_queue_cv.wait(lock, [this]
+        {
+            if(!receive_queue_thread_running)
+            {
+                return true;
+            }
+
+            for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); it++)
+            {
+                if(it->generation != receive_generation || IsCallbackPacket(it->header.pkt_id))
+                {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if(!receive_queue_thread_running)
+        {
+            return;
+        }
+
+        /*-------------------------------------------------*\
+        | Drop what a previous connection queued            |
+        \*-------------------------------------------------*/
+        for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); )
+        {
+            if(it->generation != receive_generation)
+            {
+                delete[] it->data;
+                it = receive_queue.erase(it);
+            }
+            else
+            {
+                it++;
+            }
+        }
+
+        /*-------------------------------------------------*\
+        | Take the oldest callback-emitting packet          |
+        \*-------------------------------------------------*/
+        NetworkClientListenerThreadQueueEntry entry;
+        bool                                  claimed = false;
+
+        for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); it++)
+        {
+            if(IsCallbackPacket(it->header.pkt_id))
+            {
+                entry   = *it;
+                claimed = true;
+                receive_queue.erase(it);
+                break;
+            }
+        }
+
+        if(!claimed)
+        {
+            continue;
+        }
+
+        lock.unlock();
+
+        switch(entry.header.pkt_id)
+        {
+            case NET_PACKET_ID_REQUEST_CONTROLLER_COUNT:
+                ProcessReply_ControllerIDs(entry.header.pkt_size, entry.data);
+                break;
+
+            case NET_PACKET_ID_REQUEST_CONTROLLER_DATA:
+                ProcessReply_ControllerData(entry.header.pkt_size, entry.data, entry.header.pkt_dev_id);
+                break;
+
+            case NET_PACKET_ID_SET_SERVER_FLAGS:
+                ProcessRequest_ServerFlags(entry.header.pkt_size, entry.data);
+                break;
+
+            case NET_PACKET_ID_SET_SERVER_HOSTNAME:
+                ProcessRequest_ServerHostname(entry.header.pkt_size, entry.data);
+                break;
+
+            case NET_PACKET_ID_SET_SERVER_NAME:
+                ProcessRequest_ServerString(entry.header.pkt_size, entry.data);
+                break;
+
+            case NET_PACKET_ID_DETECTION_STARTED:
+                SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_DETECTION_STARTED);
+                break;
+
+            case NET_PACKET_ID_DETECTION_PROGRESS_CHANGED:
+                ProcessRequest_DetectionProgressChanged(entry.header.pkt_size, entry.data);
+                break;
+
+            case NET_PACKET_ID_DETECTION_COMPLETE:
+                SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_DETECTION_COMPLETE);
+                break;
+
+            case NET_PACKET_ID_DEVICE_LIST_UPDATED:
+                ProcessRequest_DeviceListChanged();
+                break;
+        }
+
+        delete[] entry.data;
+
+        lock.lock();
+    }
+}
+
+void NetworkClient::StopReceiveQueueThread()
+{
+    {
+        std::lock_guard<std::mutex> lock(receive_queue_mutex);
+
+        receive_queue_thread_running = false;
+
+        for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); it++)
+        {
+            delete[] it->data;
+        }
+
+        receive_queue.clear();
+    }
+
+    receive_queue_cv.notify_all();
+
+    if(ReceiveQueueThread)
+    {
+        ReceiveQueueThread->join();
+        delete ReceiveQueueThread;
+        ReceiveQueueThread = NULL;
+    }
 }
 
 NetworkClient::~NetworkClient()
 {
     StopClient();
+
+    StopReceiveQueueThread();
+
+    /*-----------------------------------------------------*\
+    | Free the controllers set aside by StopClient, plus    |
+    | any left behind by a listener that never ran          |
+    \*-----------------------------------------------------*/
+    ControllerListMutex.lock();
+
+    orphaned_controllers.insert(orphaned_controllers.end(), server_controllers.begin(), server_controllers.end());
+
+    server_controllers.clear();
+
+    ControllerListMutex.unlock();
+
+    DeleteOrphanedControllers();
 }
 
 /*---------------------------------------------------------*\
@@ -136,6 +330,11 @@ unsigned int NetworkClient::GetProtocolVersion()
 bool NetworkClient::GetOnline()
 {
     return(server_connected && client_string_sent && protocol_initialized && server_flags_initialized && server_initialized);
+}
+
+std::string NetworkClient::GetServerHostname()
+{
+    return(server_hostname);
 }
 
 std::string NetworkClient::GetServerName()
@@ -248,6 +447,16 @@ void NetworkClient::StartClient()
     ConnectionThread = new std::thread(&NetworkClient::ConnectionThreadFunction, this);
 
     /*-----------------------------------------------------*\
+    | Start the receive queue thread.  It spans             |
+    | reconnects; entries age out by generation.            |
+    \*-----------------------------------------------------*/
+    if(!ReceiveQueueThread)
+    {
+        receive_queue_thread_running                = true;
+        ReceiveQueueThread                          = new std::thread(&NetworkClient::ReceiveQueueThreadFunction, this);
+    }
+
+    /*-----------------------------------------------------*\
     | Start the ProfileManager listen thread                |
     \*-----------------------------------------------------*/
     profilemanager_thread                           = new NetworkClientListenerThread;
@@ -270,6 +479,17 @@ void NetworkClient::StopClient()
     \*-----------------------------------------------------*/
     server_connected = false;
     client_active    = false;
+
+    /*-----------------------------------------------------*\
+    | Retire this connection's generation so requests still |
+    | waiting on a reply that is never coming wake up       |
+    \*-----------------------------------------------------*/
+    {
+        std::lock_guard<std::mutex> lock(receive_queue_mutex);
+        receive_generation++;
+    }
+
+    receive_queue_cv.notify_all();
 
     /*-----------------------------------------------------*\
     | Shut down and close the client socket                 |
@@ -296,14 +516,14 @@ void NetworkClient::StopClient()
     /*-----------------------------------------------------*\
     | Close the ProfileManager listen thread                |
     \*-----------------------------------------------------*/
-    if(profilemanager_thread->thread)
+    if(profilemanager_thread)
     {
         profilemanager_thread->online = false;
         profilemanager_thread->start_cv.notify_all();
         profilemanager_thread->thread->join();
         delete profilemanager_thread->thread;
-        profilemanager_thread->thread = nullptr;
         delete profilemanager_thread;
+        profilemanager_thread = nullptr;
     }
 
     /*-----------------------------------------------------*\
@@ -321,6 +541,36 @@ void NetworkClient::StopClient()
     | Client info has changed, call the callbacks           |
     \*-----------------------------------------------------*/
     SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_CLIENT_STOPPED);
+}
+
+/*---------------------------------------------------------*\
+| Controller teardown functions                             |
+\*---------------------------------------------------------*/
+void NetworkClient::TakeOrphanedControllers(std::vector<RGBController*>& orphaned)
+{
+    ControllerListMutex.lock();
+
+    orphaned.insert(orphaned.end(), orphaned_controllers.begin(), orphaned_controllers.end());
+
+    orphaned_controllers.clear();
+
+    ControllerListMutex.unlock();
+}
+
+void NetworkClient::DeleteOrphanedControllers()
+{
+    /*-----------------------------------------------------*\
+    | Delete outside the mutex; the controller destructor   |
+    | waits for callbacks that are already running          |
+    \*-----------------------------------------------------*/
+    std::vector<RGBController*> orphaned;
+
+    TakeOrphanedControllers(orphaned);
+
+    for(std::size_t orphaned_idx = 0; orphaned_idx < orphaned.size(); orphaned_idx++)
+    {
+        delete orphaned[orphaned_idx];
+    }
 }
 
 void NetworkClient::SendRequest_ControllerData(unsigned int dev_id)
@@ -409,61 +659,59 @@ std::vector<HIDDeviceInfo> NetworkClient::GetHIDDeviceInfo()
         send_in_progress.unlock();
 
         /*-------------------------------------------------*\
-        | Wait for response                                 |
+        | Wait for response using the response queue        |
         \*-------------------------------------------------*/
-        std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-        waiting_on_response_cv.wait(wait_lock);
+        NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_GET_HID_DEVICE_INFO);
 
         /*-------------------------------------------------*\
         | Parse response into device list                   |
         \*-------------------------------------------------*/
-        if(response_header.pkt_id == NET_PACKET_ID_GET_HID_DEVICE_INFO && response_data_ptr != NULL)
+        if(response_entry.data != NULL)
         {
-            unsigned int            device_count    = 0;
-            unsigned char*          data_ptr        = response_data_ptr;
-            unsigned int&           data_size       = response_header.pkt_size;
+            unsigned short          device_count    = 0;
+            unsigned char*          data_ptr        = response_entry.data;
+            unsigned int&           data_size       = response_entry.header.pkt_size;
             unsigned int            data_size_pkt;
 
-            COPY_DATA_FIELD(data_ptr, response_data_ptr, data_size_pkt);
+            COPY_DATA_FIELD(data_ptr, response_entry.data, data_size_pkt);
 
             if(data_size_pkt == data_size)
             {
-                COPY_DATA_FIELD(data_ptr, response_data_ptr, device_count);
+                COPY_DATA_FIELD(data_ptr, response_entry.data, device_count);
 
-                for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+                for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
                 {
                     HIDDeviceInfo   device;
 
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.vendor_id);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.product_id);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.release_number);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.usage_page);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.usage);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.interface_number);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.vendor_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.product_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.release_number);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.usage_page);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.usage);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.interface_number);
 
                     unsigned short serial_number_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, serial_number_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, serial_number_size, device.serial_number);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, serial_number_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, serial_number_size, device.serial_number);
 
                     unsigned short manufacturer_string_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, manufacturer_string_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, manufacturer_string_size, device.manufacturer_string);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, manufacturer_string_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, manufacturer_string_size, device.manufacturer_string);
 
                     unsigned short product_string_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, product_string_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, product_string_size, device.product_string);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, product_string_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, product_string_size, device.product_string);
 
                     unsigned short path_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, path_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, path_size, device.path);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, path_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, path_size, device.path);
 
                     device_info.push_back(device);
                 }
             }
 
             COPY_DATA_ERROR:
-            delete[] response_data_ptr;
-            response_data_ptr = NULL;
+            delete[] response_entry.data;
         }
     }
 
@@ -487,40 +735,38 @@ std::vector<i2c_smbus_info> NetworkClient::GetI2CBusInfo()
         send_in_progress.unlock();
 
         /*-------------------------------------------------*\
-        | Wait for response                                 |
+        | Wait for response using the response queue        |
         \*-------------------------------------------------*/
-        std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-        waiting_on_response_cv.wait(wait_lock);
+        NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_GET_I2C_BUS_INFO);
 
         /*-------------------------------------------------*\
         | Parse response into bus list                      |
         \*-------------------------------------------------*/
-        if(response_header.pkt_id == NET_PACKET_ID_GET_I2C_BUS_INFO && response_data_ptr != NULL)
+        if(response_entry.data != NULL)
         {
-            unsigned int            bus_count       = 0;
-            unsigned char*          data_ptr        = response_data_ptr;
-            unsigned int&           data_size       = response_header.pkt_size;
+            unsigned short          bus_count       = 0;
+            unsigned char*          data_ptr        = response_entry.data;
+            unsigned int&           data_size       = response_entry.header.pkt_size;
             unsigned int            data_size_pkt;
 
-            COPY_DATA_FIELD(data_ptr, response_data_ptr, data_size_pkt);
+            COPY_DATA_FIELD(data_ptr, response_entry.data, data_size_pkt);
 
             if(data_size_pkt == data_size)
             {
-                COPY_DATA_FIELD(data_ptr, response_data_ptr, bus_count);
+                COPY_DATA_FIELD(data_ptr, response_entry.data, bus_count);
 
-                for(unsigned int bus_idx = 0; bus_idx < bus_count; bus_idx++)
+                for(unsigned short bus_idx = 0; bus_idx < bus_count; bus_idx++)
                 {
                     i2c_smbus_info  bus;
 
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, bus);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, bus);
 
                     bus_info.push_back(bus);
                 }
             }
 
             COPY_DATA_ERROR:
-            delete[] response_data_ptr;
-            response_data_ptr = NULL;
+            delete[] response_entry.data;
         }
     }
 
@@ -544,41 +790,39 @@ std::vector<std::string> NetworkClient::GetSerialPorts()
         send_in_progress.unlock();
 
         /*-------------------------------------------------*\
-        | Wait for response                                 |
+        | Wait for response using the response queue        |
         \*-------------------------------------------------*/
-        std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-        waiting_on_response_cv.wait(wait_lock);
+        NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_GET_SERIAL_PORTS);
 
         /*-------------------------------------------------*\
         | Parse response into device list                   |
         \*-------------------------------------------------*/
-        if(response_header.pkt_id == NET_PACKET_ID_GET_SERIAL_PORTS && response_data_ptr != NULL)
+        if(response_entry.data != NULL)
         {
-            unsigned int            port_count      = 0;
-            unsigned char*          data_ptr        = response_data_ptr;
-            unsigned int&           data_size       = response_header.pkt_size;
+            unsigned short          port_count      = 0;
+            unsigned char*          data_ptr        = response_entry.data;
+            unsigned int&           data_size       = response_entry.header.pkt_size;
             unsigned int            data_size_pkt;
 
-            COPY_DATA_FIELD(data_ptr, response_data_ptr, data_size_pkt);
+            COPY_DATA_FIELD(data_ptr, response_entry.data, data_size_pkt);
 
             if(data_size_pkt == data_size)
             {
-                COPY_DATA_FIELD(data_ptr, response_data_ptr, port_count);
+                COPY_DATA_FIELD(data_ptr, response_entry.data, port_count);
 
-                for(unsigned int port_idx = 0; port_idx < port_count; port_idx++)
+                for(unsigned short port_idx = 0; port_idx < port_count; port_idx++)
                 {
                     std::string port_string;
                     unsigned short port_string_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, port_string_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, port_string_size, port_string);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, port_string_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, port_string_size, port_string);
 
                     serial_ports.push_back(port_string);
                 }
             }
 
             COPY_DATA_ERROR:
-            delete[] response_data_ptr;
-            response_data_ptr = NULL;
+            delete[] response_entry.data;
         }
     }
 
@@ -602,53 +846,51 @@ std::vector<USBDeviceInfo> NetworkClient::GetUSBDeviceInfo()
         send_in_progress.unlock();
 
         /*-------------------------------------------------*\
-        | Wait for response                                 |
+        | Wait for response using the response queue        |
         \*-------------------------------------------------*/
-        std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-        waiting_on_response_cv.wait(wait_lock);
+        NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_GET_USB_DEVICE_INFO);
 
         /*-------------------------------------------------*\
         | Parse response into device list                   |
         \*-------------------------------------------------*/
-        if(response_header.pkt_id == NET_PACKET_ID_GET_USB_DEVICE_INFO && response_data_ptr != NULL)
+        if(response_entry.data != NULL)
         {
-            unsigned int            device_count    = 0;
-            unsigned char*          data_ptr        = response_data_ptr;
-            unsigned int&           data_size       = response_header.pkt_size;
+            unsigned short          device_count    = 0;
+            unsigned char*          data_ptr        = response_entry.data;
+            unsigned int&           data_size       = response_entry.header.pkt_size;
             unsigned int            data_size_pkt;
 
-            COPY_DATA_FIELD(data_ptr, response_data_ptr, data_size_pkt);
+            COPY_DATA_FIELD(data_ptr, response_entry.data, data_size_pkt);
 
             if(data_size_pkt == data_size)
             {
-                COPY_DATA_FIELD(data_ptr, response_data_ptr, device_count);
+                COPY_DATA_FIELD(data_ptr, response_entry.data, device_count);
 
-                for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+                for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
                 {
                     USBDeviceInfo   device;
 
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.vendor_id);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.product_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.vendor_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.product_id);
 
                     unsigned short serial_number_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, serial_number_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, serial_number_size, device.serial_number);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, serial_number_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, serial_number_size, device.serial_number);
 
                     unsigned short manufacturer_string_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, manufacturer_string_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, manufacturer_string_size, device.manufacturer_string);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, manufacturer_string_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, manufacturer_string_size, device.manufacturer_string);
 
                     unsigned short product_string_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, product_string_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, product_string_size, device.product_string);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, product_string_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, product_string_size, device.product_string);
 
                     device_info.push_back(device);
                 }
             }
 
             COPY_DATA_ERROR:
-            delete[] response_data_ptr;
-            response_data_ptr = NULL;
+            delete[] response_entry.data;
         }
     }
 
@@ -672,49 +914,47 @@ std::vector<SerialDeviceInfo> NetworkClient::GetUSBSerialPorts()
         send_in_progress.unlock();
 
         /*-------------------------------------------------*\
-        | Wait for response                                 |
+        | Wait for response using the response queue        |
         \*-------------------------------------------------*/
-        std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-        waiting_on_response_cv.wait(wait_lock);
+        NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_GET_USB_SERIAL_PORTS);
 
         /*-------------------------------------------------*\
         | Parse response into device list                   |
         \*-------------------------------------------------*/
-        if(response_header.pkt_id == NET_PACKET_ID_GET_USB_SERIAL_PORTS && response_data_ptr != NULL)
+        if(response_entry.data != NULL)
         {
-            unsigned int            device_count    = 0;
-            unsigned char*          data_ptr        = response_data_ptr;
-            unsigned int&           data_size       = response_header.pkt_size;
+            unsigned short          device_count    = 0;
+            unsigned char*          data_ptr        = response_entry.data;
+            unsigned int&           data_size       = response_entry.header.pkt_size;
             unsigned int            data_size_pkt;
 
-            COPY_DATA_FIELD(data_ptr, response_data_ptr, data_size_pkt);
+            COPY_DATA_FIELD(data_ptr, response_entry.data, data_size_pkt);
 
             if(data_size_pkt == data_size)
             {
-                COPY_DATA_FIELD(data_ptr, response_data_ptr, device_count);
+                COPY_DATA_FIELD(data_ptr, response_entry.data, device_count);
 
-                for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+                for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
                 {
                     SerialDeviceInfo device;
 
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.vendor_id);
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, device.product_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.vendor_id);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, device.product_id);
 
                     unsigned short port_path_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, port_path_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, port_path_size, device.port_path);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, port_path_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, port_path_size, device.port_path);
 
                     unsigned short usb_path_size;
-                    COPY_DATA_FIELD(data_ptr, response_data_ptr, usb_path_size);
-                    COPY_STRING_FIELD(data_ptr, response_data_ptr, usb_path_size, device.usb_path);
+                    COPY_DATA_FIELD(data_ptr, response_entry.data, usb_path_size);
+                    COPY_STRING_FIELD(data_ptr, response_entry.data, usb_path_size, device.usb_path);
 
                     device_info.push_back(device);
                 }
             }
 
             COPY_DATA_ERROR:
-            delete[] response_data_ptr;
-            response_data_ptr = NULL;
+            delete[] response_entry.data;
         }
     }
 
@@ -774,23 +1014,21 @@ unsigned int NetworkClient::LogManager_GetLogLevel()
     send_in_progress.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for response                                     |
+    | Wait for response using the response queue            |
     \*-----------------------------------------------------*/
-    std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-    waiting_on_response_cv.wait(wait_lock);
+    NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_LOGMANAGER_GET_LOG_LEVEL);
 
     /*-----------------------------------------------------*\
     | Parse response into bus list                          |
     \*-----------------------------------------------------*/
-    if(response_header.pkt_id == NET_PACKET_ID_LOGMANAGER_GET_LOG_LEVEL && response_data_ptr != NULL)
+    if(response_entry.data != NULL)
     {
-        if(response_header.pkt_size >= sizeof(log_level))
+        if(response_entry.header.pkt_size >= sizeof(log_level))
         {
-            memcpy(&log_level, response_data_ptr, sizeof(log_level));
+            memcpy(&log_level, response_entry.data, sizeof(log_level));
         }
 
-        delete[] response_data_ptr;
-        response_data_ptr = NULL;
+        delete[] response_entry.data;
     }
 
     return(log_level);
@@ -886,24 +1124,22 @@ std::string NetworkClient::ProfileManager_DownloadProfile(std::string profile_na
     send_in_progress.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for response                                     |
+    | Wait for response using the response queue            |
     \*-----------------------------------------------------*/
-    std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-    waiting_on_response_cv.wait(wait_lock);
+    NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_PROFILEMANAGER_DOWNLOAD_PROFILE);
 
     /*-----------------------------------------------------*\
     | Parse response into bus list                          |
     \*-----------------------------------------------------*/
-    if(response_header.pkt_id == NET_PACKET_ID_PROFILEMANAGER_DOWNLOAD_PROFILE && response_data_ptr != NULL)
+    if(response_entry.data != NULL)
     {
-        unsigned int&   data_size   = response_header.pkt_size;
-        unsigned char*  data_ptr    = response_data_ptr;
+        unsigned int&   data_size   = response_entry.header.pkt_size;
+        unsigned char*  data_ptr    = response_entry.data;
 
-        COPY_STRING_FIELD(data_ptr, response_data_ptr, data_size, response_string);
+        COPY_STRING_FIELD(data_ptr, response_entry.data, data_size, response_string);
 
         COPY_DATA_ERROR:
-        delete[] response_data_ptr;
-        response_data_ptr = NULL;
+        delete[] response_entry.data;
     }
 
     return(response_string);
@@ -924,24 +1160,22 @@ std::string NetworkClient::ProfileManager_GetActiveProfile()
     send_in_progress.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for response                                     |
+    | Wait for response using the response queue            |
     \*-----------------------------------------------------*/
-    std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-    waiting_on_response_cv.wait(wait_lock);
+    NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_PROFILEMANAGER_GET_ACTIVE_PROFILE);
 
     /*-----------------------------------------------------*\
     | Parse response into bus list                          |
     \*-----------------------------------------------------*/
-    if(response_header.pkt_id == NET_PACKET_ID_PROFILEMANAGER_GET_ACTIVE_PROFILE && response_data_ptr != NULL)
+    if(response_entry.data != NULL)
     {
-        unsigned int&   data_size   = response_header.pkt_size;
-        unsigned char*  data_ptr    = response_data_ptr;
+        unsigned int&   data_size   = response_entry.header.pkt_size;
+        unsigned char*  data_ptr    = response_entry.data;
 
-        COPY_STRING_FIELD(data_ptr, response_data_ptr, data_size, response_string);
+        COPY_STRING_FIELD(data_ptr, response_entry.data, data_size, response_string);
 
         COPY_DATA_ERROR:
-        delete[] response_data_ptr;
-        response_data_ptr = NULL;
+        delete[] response_entry.data;
     }
 
     return(response_string);
@@ -977,23 +1211,22 @@ std::string NetworkClient::SettingsManager_GetSettings(std::string settings_key)
     send_in_progress.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for response                                     |
+    | Wait for response using the response queue            |
     \*-----------------------------------------------------*/
-    std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-    waiting_on_response_cv.wait(wait_lock);
+    NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS);
 
     /*-----------------------------------------------------*\
     | Parse response into bus list                          |
     \*-----------------------------------------------------*/
-    if(response_header.pkt_id == NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS && response_data_ptr != NULL)
+    if(response_entry.data != NULL)
     {
-        unsigned int&   data_size   = response_header.pkt_size;
-        unsigned char*  data_ptr    = response_data_ptr;
+        unsigned int&   data_size   = response_entry.header.pkt_size;
+        unsigned char*  data_ptr    = response_entry.data;
 
-        COPY_STRING_FIELD(data_ptr, response_data_ptr, data_size, response_string);
+        COPY_STRING_FIELD(data_ptr, response_entry.data, data_size, response_string);
 
         COPY_DATA_ERROR:
-        response_data_ptr = NULL;
+        delete[] response_entry.data;
     }
 
     return(response_string);
@@ -1015,24 +1248,22 @@ std::string NetworkClient::SettingsManager_GetSettingsSchema(std::string setting
     send_in_progress.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for response                                     |
+    | Wait for response using the response queue            |
     \*-----------------------------------------------------*/
-    std::unique_lock<std::mutex> wait_lock(waiting_on_response_mutex);
-    waiting_on_response_cv.wait(wait_lock);
+    NetworkClientListenerThreadQueueEntry response_entry = WaitForResponse(NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS_SCHEMA);
 
     /*-----------------------------------------------------*\
     | Parse response into bus list                          |
     \*-----------------------------------------------------*/
-    if(response_header.pkt_id == NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS_SCHEMA && response_data_ptr != NULL)
+    if(response_entry.data != NULL)
     {
-        unsigned int&   data_size   = response_header.pkt_size;
-        unsigned char*  data_ptr    = response_data_ptr;
+        unsigned int&   data_size   = response_entry.header.pkt_size;
+        unsigned char*  data_ptr    = response_entry.data;
 
-        COPY_STRING_FIELD(data_ptr, response_data_ptr, data_size, response_string);
+        COPY_STRING_FIELD(data_ptr, response_entry.data, data_size, response_string);
 
         COPY_DATA_ERROR:
-        delete[] response_data_ptr;
-        response_data_ptr = NULL;
+        delete[] response_entry.data;
     }
 
     return(response_string);
@@ -1614,9 +1845,10 @@ void NetworkClient::ConnectionThreadFunction()
             {
                 /*-----------------------------------------*\
                 | Once server is connected, send client     |
-                | string                                    |
+                | string and hostname                       |
                 \*-----------------------------------------*/
                 SendData_ClientString();
+                SendData_ClientHostname();
 
                 client_string_sent = true;
             }
@@ -1724,6 +1956,16 @@ void NetworkClient::ListenThreadFunction()
     LOG_INFO("[%s] Listener thread started", NETWORKCLIENT);
 
     /*-----------------------------------------------------*\
+    | Claim this connection's receive generation            |
+    \*-----------------------------------------------------*/
+    unsigned int listen_generation;
+
+    {
+        std::lock_guard<std::mutex> gen_lock(receive_queue_mutex);
+        listen_generation = ++receive_generation;
+    }
+
+    /*-----------------------------------------------------*\
     | This thread handles messages received from the server |
     \*-----------------------------------------------------*/
     while(server_connected == true)
@@ -1806,46 +2048,28 @@ void NetworkClient::ListenThreadFunction()
         \*-------------------------------------------------*/
         switch(header.pkt_id)
         {
-            case NET_PACKET_ID_REQUEST_CONTROLLER_COUNT:
-                ProcessReply_ControllerIDs(header.pkt_size, data);
-                break;
-
-            case NET_PACKET_ID_REQUEST_CONTROLLER_DATA:
-                ProcessReply_ControllerData(header.pkt_size, data, header.pkt_dev_id);
-                break;
-
             case NET_PACKET_ID_REQUEST_PROTOCOL_VERSION:
                 ProcessReply_ProtocolVersion(header.pkt_size, data);
-                break;
-
-            case NET_PACKET_ID_SET_SERVER_NAME:
-                ProcessRequest_ServerString(header.pkt_size, data);
-                break;
-
-            case NET_PACKET_ID_SET_SERVER_FLAGS:
-                ProcessRequest_ServerFlags(header.pkt_size, data);
-                break;
-
-            case NET_PACKET_ID_DEVICE_LIST_UPDATED:
-                ProcessRequest_DeviceListChanged();
-                break;
-
-            case NET_PACKET_ID_DETECTION_STARTED:
-                SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_DETECTION_STARTED);
-                break;
-
-            case NET_PACKET_ID_DETECTION_PROGRESS_CHANGED:
-                ProcessRequest_DetectionProgressChanged(header.pkt_size, data);
-                break;
-
-            case NET_PACKET_ID_DETECTION_COMPLETE:
-                SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_DETECTION_COMPLETE);
                 break;
 
             case NET_PACKET_ID_LOGMANAGER_LOGGED_ENTRY:
                 ProcessRequest_LogManager_LoggedEntry(header.pkt_size, data);
                 break;
 
+            /*---------------------------------------------*\
+            | Queue what is not handled inline; the queue   |
+            | owns the data.  Running callback packets here |
+            | would block the listener on the GUI.          |
+            \*---------------------------------------------*/
+            case NET_PACKET_ID_REQUEST_CONTROLLER_COUNT:
+            case NET_PACKET_ID_REQUEST_CONTROLLER_DATA:
+            case NET_PACKET_ID_SET_SERVER_FLAGS:
+            case NET_PACKET_ID_SET_SERVER_HOSTNAME:
+            case NET_PACKET_ID_SET_SERVER_NAME:
+            case NET_PACKET_ID_DEVICE_LIST_UPDATED:
+            case NET_PACKET_ID_DETECTION_STARTED:
+            case NET_PACKET_ID_DETECTION_PROGRESS_CHANGED:
+            case NET_PACKET_ID_DETECTION_COMPLETE:
             case NET_PACKET_ID_GET_I2C_BUS_INFO:
             case NET_PACKET_ID_GET_HID_DEVICE_INFO:
             case NET_PACKET_ID_GET_USB_DEVICE_INFO:
@@ -1855,15 +2079,19 @@ void NetworkClient::ListenThreadFunction()
             case NET_PACKET_ID_PROFILEMANAGER_DOWNLOAD_PROFILE:
             case NET_PACKET_ID_PROFILEMANAGER_GET_ACTIVE_PROFILE:
             case NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS:
+            case NET_PACKET_ID_SETTINGSMANAGER_GET_SETTINGS_SCHEMA:
                 {
-                    std::unique_lock<std::mutex> lock(waiting_on_response_mutex);
+                    std::lock_guard<std::mutex> lock(receive_queue_mutex);
 
-                    response_header     = header;
-                    response_data_ptr   = data;
-                    delete_data         = false;
+                    NetworkClientListenerThreadQueueEntry new_entry;
+                    new_entry.header                    = header;
+                    new_entry.data                      = data;
+                    new_entry.generation                = listen_generation;
 
-                    lock.unlock();
-                    waiting_on_response_cv.notify_all();
+                    receive_queue.push_back(new_entry);
+                    receive_queue_cv.notify_all();
+
+                    delete_data = false;
                 }
                 break;
 
@@ -1881,8 +2109,9 @@ void NetworkClient::ListenThreadFunction()
                     profilemanager_thread->queue_mutex.lock();
 
                     NetworkClientListenerThreadQueueEntry new_entry;
-                    new_entry.data                      = data;
                     new_entry.header                    = header;
+                    new_entry.data                      = data;
+                    new_entry.generation                = listen_generation;
 
                     profilemanager_thread->queue.push(new_entry);
                     profilemanager_thread->queue_mutex.unlock();
@@ -1901,9 +2130,7 @@ void NetworkClient::ListenThreadFunction()
 
 listen_done:
     LOG_INFO("[%s] Client socket has been closed", NETWORKCLIENT);
-    client_flags                        = NET_CLIENT_FLAG_SUPPORTS_RGBCONTROLLER
-                                        | NET_CLIENT_FLAG_SUPPORTS_PROFILEMANAGER
-                                        | NET_CLIENT_FLAG_SUPPORTS_SETTINGSMANAGER;
+
     client_flags_sent                   = false;
     client_is_local_client              = false;
     client_string_sent                  = false;
@@ -1918,23 +2145,39 @@ listen_done:
     server_initialized                  = false;
     server_connected                    = false;
 
+    /*-----------------------------------------------------*\
+    | Retire this connection's generation.  Blocked         |
+    | requests wake with a cleared response and the         |
+    | packets this connection queued age out.               |
+    \*-----------------------------------------------------*/
+    {
+        std::lock_guard<std::mutex> lock(receive_queue_mutex);
+        receive_generation++;
+    }
+
+    receive_queue_cv.notify_all();
+
+    /*-----------------------------------------------------*\
+    | Do not delete the controllers here; the front end     |
+    | still holds pointers to them. Move them to            |
+    | orphaned_controllers for the teardown thread to free  |
+    \*-----------------------------------------------------*/
     ControllerListMutex.lock();
 
-    std::vector<RGBController *> server_controllers_copy = server_controllers;
+    orphaned_controllers.insert(orphaned_controllers.end(), server_controllers.begin(), server_controllers.end());
 
     server_controllers.clear();
-
-    for(size_t server_controller_idx = 0; server_controller_idx < server_controllers_copy.size(); server_controller_idx++)
-    {
-        delete server_controllers_copy[server_controller_idx];
-    }
 
     ControllerListMutex.unlock();
 
     /*-----------------------------------------------------*\
-    | Client info has changed, call the callbacks           |
+    | Signal only an unplanned connection loss; on a        |
+    | requested stop the caller runs the teardown           |
     \*-----------------------------------------------------*/
-    SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_CLIENT_DISCONNECTED);
+    if(client_active)
+    {
+        SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_CLIENT_DISCONNECTED);
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -1958,7 +2201,11 @@ void NetworkClient::ProcessReply_ControllerData(unsigned int data_size, unsigned
     | Create a new controller from the received data    |
     \*-------------------------------------------------*/
     new_controller = new RGBController_Network(this, dev_id);
-    RGBController::SetDeviceDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), new_controller, GetProtocolVersion());
+
+    if(RGBController::SetDeviceDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), new_controller, GetProtocolVersion()) == NULL)
+    {
+        goto COPY_DATA_ERROR;
+    }
 
     /*-------------------------------------------------*\
     | Mark this controller as remote owned              |
@@ -2255,7 +2502,10 @@ void NetworkClient::ProcessRequest_RGBController_SignalUpdate(unsigned int data_
         | UpdateLEDs() sends color description              |
         \*-------------------------------------------------*/
         case RGBCONTROLLER_UPDATE_REASON_UPDATELEDS:
-            RGBController::SetColorDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), controller, GetProtocolVersion());
+            if(RGBController::SetColorDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), controller, GetProtocolVersion()) == NULL)
+            {
+                goto COPY_DATA_ERROR;
+            }
             break;
 
         /*-------------------------------------------------*\
@@ -2272,7 +2522,10 @@ void NetworkClient::ProcessRequest_RGBController_SignalUpdate(unsigned int data_
         case RGBCONTROLLER_UPDATE_REASON_SETDEVICESPECIFICCONFIGURATION:
         case RGBCONTROLLER_UPDATE_REASON_SETDEVICESPECIFICZONECONFIGURATION:
         default:
-            RGBController::SetDeviceDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), controller, GetProtocolVersion());
+            if(RGBController::SetDeviceDescription(data_ptr, data_size - (unsigned int)(data_ptr - data_start), controller, GetProtocolVersion()) == NULL)
+            {
+                goto COPY_DATA_ERROR;
+            }
 
             /*---------------------------------------------*\
             | Mark this controller as remote owned          |
@@ -2317,6 +2570,27 @@ void NetworkClient::ProcessRequest_ServerFlags(unsigned int data_size, unsigned 
     }
 
     server_flags_initialized = true;
+
+    SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_SERVER_FLAGS_RECEIVED);
+}
+
+void NetworkClient::ProcessRequest_ServerHostname(unsigned int data_size, unsigned char* data_ptr)
+{
+    /*-----------------------------------------------------*\
+    | Validate inputs                                       |
+    \*-----------------------------------------------------*/
+    if((data_size == 0) || (data_ptr == NULL))
+    {
+        return;
+    }
+
+    server_hostname.assign((char*)data_ptr, data_size);
+    server_hostname = StringUtils::remove_null_terminating_chars(server_hostname);
+
+    /*-----------------------------------------------------*\
+    | Client info has changed, call the callbacks           |
+    \*-----------------------------------------------------*/
+    SignalNetworkClientUpdate(NETWORKCLIENT_UPDATE_REASON_SERVER_HOSTNAME_RECEIVED);
 }
 
 void NetworkClient::ProcessRequest_ServerString(unsigned int data_size, unsigned char* data_ptr)
@@ -2347,6 +2621,27 @@ void NetworkClient::SendData_ClientFlags()
     send_in_progress.lock();
     send(client_sock, (char *)&reply_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
     send(client_sock, (char *)&client_flags, reply_hdr.pkt_size, MSG_NOSIGNAL);
+    send_in_progress.unlock();
+}
+
+void NetworkClient::SendData_ClientHostname()
+{
+    /*-----------------------------------------------------*\
+    | Client hostname was added in protocol 6, return if    |
+    | it is not supported                                   |
+    \*-----------------------------------------------------*/
+    if(protocol_version < 6)
+    {
+        return;
+    }
+
+    NetPacketHeader reply_hdr;
+
+    InitNetPacketHeader(&reply_hdr, 0, NET_PACKET_ID_SET_CLIENT_HOSTNAME, (unsigned int)strlen(client_hostname.c_str()) + 1);
+
+    send_in_progress.lock();
+    send(client_sock, (char *)&reply_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
+    send(client_sock, (char *)client_hostname.c_str(), reply_hdr.pkt_size, MSG_NOSIGNAL);
     send_in_progress.unlock();
 }
 
@@ -2498,6 +2793,57 @@ std::vector<std::string>* NetworkClient::ProcessReply_ProfileList(unsigned int d
 
     COPY_DATA_ERROR:
     return(profile_list);
+}
+
+/*---------------------------------------------------------*\
+| Response queue helper                                     |
+\*---------------------------------------------------------*/
+NetworkClientListenerThreadQueueEntry NetworkClient::WaitForResponse(unsigned int expected_pkt_id)
+{
+    NetworkClientListenerThreadQueueEntry result;
+
+    result.data         = NULL;
+    result.generation   = 0;
+
+    std::unique_lock<std::mutex> lock(receive_queue_mutex);
+
+    /*-----------------------------------------------------*\
+    | Wait for a reply on this connection, or for the       |
+    | connection to drop.  Without the connection test a    |
+    | request whose reply is lost waits forever.            |
+    \*-----------------------------------------------------*/
+    receive_queue_cv.wait(lock, [this, expected_pkt_id]()
+    {
+        if(!server_connected)
+        {
+            return true;
+        }
+
+        for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); it++)
+        {
+            if(it->header.pkt_id == expected_pkt_id && it->generation == receive_generation)
+            {
+                return true;
+            }
+        }
+        return false;
+    });
+
+    /*-----------------------------------------------------*\
+    | Find and remove the matching entry from the queue.    |
+    | The caller owns the data pointer from here.           |
+    \*-----------------------------------------------------*/
+    for(std::list<NetworkClientListenerThreadQueueEntry>::iterator it = receive_queue.begin(); it != receive_queue.end(); it++)
+    {
+        if(it->header.pkt_id == expected_pkt_id && it->generation == receive_generation)
+        {
+            result = *it;
+            receive_queue.erase(it);
+            break;
+        }
+    }
+
+    return result;
 }
 
 /*---------------------------------------------------------*\

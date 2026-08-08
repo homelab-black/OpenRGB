@@ -359,6 +359,7 @@
 #define ASUS_ROG_STRIX_RTX_4090_O24G_GAMING_WHITE_2             0x88F1
 #define ASUS_ROG_MATRIX_PLATINUM_RTX_4090_24G                   0x8934
 #define ASUS_TUF_RTX_5060_O8G_GAMING                            0x8A1A
+#define ASUS_TUF_RTX_5060TI_O16G_GAMING                         0x8A08
 #define ASUS_TUF_RTX_5070_O12G_GAMING                           0x89F2
 #define ASUS_TUF_RTX_5070TI_O16G_GAMING                         0x89F4
 #define ASUS_TUF_RTX_5070TI_O16G_GAMING_BTF_WHITE               0x8A37
@@ -439,6 +440,7 @@
 #define COLORFUL_IGAME_RTX_3080TI_ADVANCED_OCV2                 0x1401
 #define COLORFUL_IGAME_RTX_3080_ULTRAW_OC_10G                   0x1501
 #define COLORFUL_IGAME_RTX_3080_ULTRAW_OC_10G_2                 0x150A
+#define COLORFUL_IGAME_RTX_4070_ULTRAW_OCV                      0x1500
 #define COLORFUL_IGAME_RTX_4070_VULCAN_OCV                      0x1200
 #define COLORFUL_IGAME_RTX_4070_SUPER_ULTRA_W_OC                0x1500
 #define COLORFUL_IGAME_RTX_4070S_ULTRAW_OCV                     0x1500
@@ -584,6 +586,7 @@
 #define KFA2_RTX_2080_SUPER_EX_OC_SUB_DEV                       0x13A1
 #define KFA2_RTX_2080TI_EX_OC_SUB_DEV                           0x1323
 #define GALAX_RTX_3080_SG_SUB_DEV                               0x1455
+#define GALAX_RTX_3070_1_CLICK_OC_SUB_DEV  			0x146B
 #define GALAX_RTX_5070TI_EX_OC_SUB_DEV                          0x205C
 
 /*-----------------------------------------------------*\
@@ -749,6 +752,7 @@
 #define GIGABYTE_AORUS_RX_6750_XT_ELITE_12G_SUB_DEV             0x2407
 #define GIGABYTE_RX6800XT_GAMING_OC_SUB_DEV                     0x2328
 #define GIGABYTE_RX6900XT_XTREME_WATERFORCE_WB_SUB_DEV          0x2333
+#define GIGABYTE_AORUS_RX6900XT_MASTER_SUB_DEV                  0x2332
 #define GIGABYTE_RX6900XT_GAMING_OC_SUB_DEV                     0x232C
 #define GIGABYTE_RX9060XT_GAMING_16G_SUB_DEV                    0x2434
 #define GIGABYTE_RX9060XT_GAMING_OC_16G_SUB_DEV                 0x2429

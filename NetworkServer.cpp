@@ -97,6 +97,8 @@ NetworkClientInfo::NetworkClientInfo()
     client_protocol_version = 0;
     client_is_local         = false;
     client_is_local_client  = false;
+    client_send_thread      = nullptr;
+    client_send_running     = false;
 }
 
 NetworkClientInfo::~NetworkClientInfo()
@@ -104,8 +106,39 @@ NetworkClientInfo::~NetworkClientInfo()
     if(client_sock != INVALID_SOCKET)
     {
         LOG_INFO("[%s] Closing server connection: %s", NETWORKSERVER, client_ip.c_str());
+
+        /*-------------------------------------------------*\
+        | Stop the send thread before closing the socket.   |
+        | SD_BOTH (not just SD_RECEIVE) unblocks a send     |
+        | stuck on a slow client, so the join cannot hang.  |
+        \*-------------------------------------------------*/
+        if(client_send_thread)
+        {
+            client_send_running = false;
+            shutdown(client_sock, SD_BOTH);
+            client_send_cv.notify_all();
+            client_send_thread->join();
+            delete client_send_thread;
+            client_send_thread = nullptr;
+
+            /*---------------------------------------------*\
+            | Free any packets still queued; the entries    |
+            | own their data pointers.                      |
+            \*---------------------------------------------*/
+            for(std::list<NetworkServerClientSendQueueEntry>::iterator entry = client_send_queue.begin(); entry != client_send_queue.end(); entry++)
+            {
+                delete[] entry->data;
+            }
+
+            client_send_queue.clear();
+            client_send_coalesce.clear();
+        }
+        else
+        {
+            shutdown(client_sock, SD_RECEIVE);
+        }
+
         delete client_listen_thread;
-        shutdown(client_sock, SD_RECEIVE);
         closesocket(client_sock);
     }
 }
@@ -121,6 +154,7 @@ NetworkServer::NetworkServer()
 {
     host                        = OPENRGB_SDK_HOST;
     port_num                    = OPENRGB_SDK_PORT;
+    server_hostname             = GetHostname();
     server_online               = false;
     server_listening            = false;
     legacy_workaround_enabled   = false;
@@ -141,6 +175,7 @@ NetworkServer::NetworkServer()
 
     plugin_manager              = nullptr;
     profile_manager             = nullptr;
+    profilemanager_thread       = nullptr;
     settings_manager            = nullptr;
 }
 
@@ -186,24 +221,44 @@ unsigned int NetworkServer::GetNumClients()
     return((unsigned int)ServerClients.size());
 }
 
-const char * NetworkServer::GetClientString(unsigned int client_num)
+std::string NetworkServer::GetClientHostname(unsigned int client_num)
 {
-    const char * result;
+    std::string hostname;
 
     ServerClientsMutex.lock();
 
     if(client_num < ServerClients.size())
     {
-        result = ServerClients[client_num]->client_string.c_str();
+        hostname = ServerClients[client_num]->client_hostname;
     }
     else
     {
-        result = "";
+        hostname = "";
     }
 
     ServerClientsMutex.unlock();
 
-    return(result);
+    return(hostname);
+}
+
+std::string NetworkServer::GetClientString(unsigned int client_num)
+{
+    std::string name;
+
+    ServerClientsMutex.lock();
+
+    if(client_num < ServerClients.size())
+    {
+        name = ServerClients[client_num]->client_string.c_str();
+    }
+    else
+    {
+        name = "";
+    }
+
+    ServerClientsMutex.unlock();
+
+    return(name);
 }
 
 const char * NetworkServer::GetClientIP(unsigned int client_num)
@@ -567,14 +622,14 @@ void NetworkServer::StopServer()
     /*-----------------------------------------------------*\
     | Close the ProfileManager listen thread                |
     \*-----------------------------------------------------*/
-    if(profilemanager_thread->thread)
+    if(profilemanager_thread)
     {
         profilemanager_thread->online = false;
         profilemanager_thread->start_cv.notify_all();
         profilemanager_thread->thread->join();
         delete profilemanager_thread->thread;
-        profilemanager_thread->thread = nullptr;
         delete profilemanager_thread;
+        profilemanager_thread = nullptr;
     }
 
     /*-----------------------------------------------------*\
@@ -997,6 +1052,14 @@ void NetworkServer::ConnectionThreadFunction(int socket_idx)
         client_info->client_listen_thread = new std::thread(&NetworkServer::ListenThreadFunction, this, client_info);
         client_info->client_listen_thread->detach();
 
+        /*-------------------------------------------------*\
+        | Start the per-client send thread. It is joinable  |
+        | (not detached) so the client destructor can stop  |
+        | and join it cleanly.                              |
+        \*-------------------------------------------------*/
+        client_info->client_send_running = true;
+        client_info->client_send_thread  = new std::thread(&NetworkServer::ClientSendThreadFunction, this, client_info);
+
         ServerClients.push_back(client_info);
         ServerClientsMutex.unlock();
 
@@ -1068,7 +1131,7 @@ void NetworkServer::ControllerListenThread(NetworkServerControllerThread* this_t
 
                 delete[] queue_entry.data;
 
-                SendAck(queue_entry.client_info, queue_entry.header.pkt_id, queue_entry.header.pkt_id, status);
+                SendAck(queue_entry.client_info, queue_entry.header.pkt_dev_id, queue_entry.header.pkt_id, status);
             }
         }
         else
@@ -1136,7 +1199,7 @@ void NetworkServer::ProfileManagerListenThread(NetworkServerControllerThread* th
 
             delete[] queue_entry.data;
 
-            SendAck(queue_entry.client_info, queue_entry.header.pkt_id, queue_entry.header.pkt_id, status);
+            SendAck(queue_entry.client_info, queue_entry.header.pkt_dev_id, queue_entry.header.pkt_id, status);
         }
     }
 }
@@ -1274,6 +1337,11 @@ void NetworkServer::ListenThreadFunction(NetworkClientInfo* client_info)
             case NET_PACKET_ID_SET_CLIENT_FLAGS:
                 status = ProcessRequest_ClientFlags(client_info, header.pkt_size, data);
                 SendReply_ServerFlags(client_info);
+                break;
+
+            case NET_PACKET_ID_SET_CLIENT_HOSTNAME:
+                status = ProcessRequest_ClientHostname(client_info, header.pkt_size, data);
+                SendReply_ServerHostname(client_info);
                 break;
 
             case NET_PACKET_ID_SET_CLIENT_NAME:
@@ -1569,6 +1637,29 @@ NetPacketStatus NetworkServer::ProcessRequest_ClientFlags(NetworkClientInfo* cli
     return(NET_PACKET_STATUS_ERROR_INVALID_DATA);
 }
 
+NetPacketStatus NetworkServer::ProcessRequest_ClientHostname(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr)
+{
+    /*-----------------------------------------------------*\
+    | If data pointer is null, return                       |
+    \*-----------------------------------------------------*/
+    if(data_ptr == NULL)
+    {
+        return(NET_PACKET_STATUS_ERROR_INVALID_DATA);
+    }
+
+    ServerClientsMutex.lock();
+    client_info->client_hostname.assign((char*)data_ptr, data_size);
+    client_info->client_hostname = StringUtils::remove_null_terminating_chars(client_info->client_hostname);
+    ServerClientsMutex.unlock();
+
+    /*-------------------------------------------------*\
+    | Client info has changed, call the callbacks       |
+    \*-------------------------------------------------*/
+    SignalClientInfoChanged();
+
+    return(NET_PACKET_STATUS_OK);
+}
+
 NetPacketStatus NetworkServer::ProcessRequest_ClientProtocolVersion(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr)
 {
     unsigned int protocol_version = 0;
@@ -1646,7 +1737,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetHIDDeviceInfo(NetworkClientInfo
     std::vector<HIDDeviceInfo>  device_info     = ResourceManager::get()->GetHIDDeviceInfo();
 
     unsigned int                data_size       = 0;
-    unsigned int                device_count    = (unsigned int)device_info.size();
+    unsigned short              device_count    = (unsigned short)device_info.size();
 
     /*-----------------------------------------------------*\
     | Calculate data size                                   |
@@ -1654,7 +1745,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetHIDDeviceInfo(NetworkClientInfo
     data_size                                  += sizeof(data_size);
     data_size                                  += sizeof(device_count);
 
-    for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+    for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
     {
         data_size                              += sizeof(device_info[device_idx].vendor_id);
         data_size                              += sizeof(device_info[device_idx].product_id);
@@ -1754,7 +1845,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetI2CBusInfo(NetworkClientInfo* c
     std::vector<i2c_smbus_info> bus_info    = ResourceManager::get()->GetI2CBusInfo();
 
     unsigned int                data_size   = 0;
-    unsigned int                bus_count   = (unsigned int)bus_info.size();
+    unsigned short              bus_count   = (unsigned short)bus_info.size();
     data_size                              += sizeof(data_size);
     data_size                              += sizeof(bus_count);
     data_size                              += bus_count * sizeof(i2c_smbus_info);
@@ -1768,7 +1859,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetI2CBusInfo(NetworkClientInfo* c
     memcpy(data_ptr, &bus_count, sizeof(bus_count));
     data_ptr += sizeof(bus_count);
 
-    for(std::size_t bus_idx = 0; bus_idx < bus_info.size(); bus_idx++)
+    for(unsigned short bus_idx = 0; bus_idx < bus_count; bus_idx++)
     {
         memcpy(data_ptr, &bus_info[bus_idx], sizeof(bus_info[bus_idx]));
         data_ptr += sizeof(bus_info[bus_idx]);
@@ -1799,7 +1890,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetSerialPorts(NetworkClientInfo* 
     std::vector<std::string>    serial_ports    = ResourceManager::get()->GetSerialPorts();
 
     unsigned int                data_size       = 0;
-    unsigned int                port_count      = (unsigned int)serial_ports.size();
+    unsigned short              port_count      = (unsigned short)serial_ports.size();
 
     /*-----------------------------------------------------*\
     | Calculate data size                                   |
@@ -1807,7 +1898,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetSerialPorts(NetworkClientInfo* 
     data_size                                  += sizeof(data_size);
     data_size                                  += sizeof(port_count);
 
-    for(unsigned int port_idx = 0; port_idx < port_count; port_idx++)
+    for(unsigned short port_idx = 0; port_idx < port_count; port_idx++)
     {
         data_size                              += sizeof(unsigned short);
         data_size                              += (unsigned int)strlen(serial_ports[port_idx].c_str()) + 1;
@@ -1825,7 +1916,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetSerialPorts(NetworkClientInfo* 
     memcpy(data_ptr, &port_count, sizeof(port_count));
     data_ptr += sizeof(port_count);
 
-    for(unsigned int port_idx = 0; port_idx < port_count; port_idx++)
+    for(unsigned short port_idx = 0; port_idx < port_count; port_idx++)
     {
         unsigned short port_string_size = (unsigned short)strlen(serial_ports[port_idx].c_str()) + 1;
         memcpy(data_ptr, &port_string_size, sizeof(port_string_size));
@@ -1859,7 +1950,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetUSBDeviceInfo(NetworkClientInfo
     std::vector<USBDeviceInfo>  device_info     = ResourceManager::get()->GetUSBDeviceInfo();
 
     unsigned int                data_size       = 0;
-    unsigned int                device_count    = (unsigned int)device_info.size();
+    unsigned short              device_count    = (unsigned short)device_info.size();
 
     /*-----------------------------------------------------*\
     | Calculate data size                                   |
@@ -1867,7 +1958,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetUSBDeviceInfo(NetworkClientInfo
     data_size                                  += sizeof(data_size);
     data_size                                  += sizeof(device_count);
 
-    for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+    for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
     {
         data_size                              += sizeof(device_info[device_idx].vendor_id);
         data_size                              += sizeof(device_info[device_idx].product_id);
@@ -1943,7 +2034,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetUSBSerialPorts(NetworkClientInf
     std::vector<SerialDeviceInfo>   device_info     = ResourceManager::get()->GetUSBSerialPorts();
 
     unsigned int                    data_size       = 0;
-    unsigned int                    device_count    = (unsigned int)device_info.size();
+    unsigned short                  device_count    = (unsigned short)device_info.size();
 
     /*-----------------------------------------------------*\
     | Calculate data size                                   |
@@ -1951,7 +2042,7 @@ NetPacketStatus NetworkServer::ProcessRequest_GetUSBSerialPorts(NetworkClientInf
     data_size                                      += sizeof(data_size);
     data_size                                      += sizeof(device_count);
 
-    for(unsigned int device_idx = 0; device_idx < device_count; device_idx++)
+    for(unsigned short device_idx = 0; device_idx < device_count; device_idx++)
     {
         data_size                                  += sizeof(device_info[device_idx].vendor_id);
         data_size                                  += sizeof(device_info[device_idx].product_id);
@@ -2986,7 +3077,7 @@ NetPacketStatus NetworkServer::ProcessRequest_RGBController_SetHidden(NetworkCli
         return(NET_PACKET_STATUS_ERROR_INVALID_ID);
     }
 
-    controllers[controller_idx]->SetHidden((bool*)data_ptr);
+    controllers[controller_idx]->SetHidden(*(bool*)data_ptr);
 
     return(NET_PACKET_STATUS_OK);
 }
@@ -3645,6 +3736,27 @@ void NetworkServer::SendReply_ServerFlags(NetworkClientInfo* client_info)
     ServerClientsMutex.unlock();
 }
 
+void NetworkServer::SendReply_ServerHostname(NetworkClientInfo* client_info)
+{
+    /*---------------------------------------------------------*\
+    | Send server hostname to client only if protocol is 6 or   |
+    | greater                                                   |
+    \*---------------------------------------------------------*/
+    ServerClientsMutex.lock();
+    if(client_info->client_protocol_version >= 6)
+    {
+        NetPacketHeader reply_hdr;
+
+        InitNetPacketHeader(&reply_hdr, 0, NET_PACKET_ID_SET_SERVER_HOSTNAME, (unsigned int)strlen(server_hostname.c_str()) + 1);
+
+        send_in_progress.lock();
+        send(client_info->client_sock, (char *)&reply_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
+        send(client_info->client_sock, (char *)server_hostname.c_str(), reply_hdr.pkt_size, MSG_NOSIGNAL);
+        send_in_progress.unlock();
+    }
+    ServerClientsMutex.unlock();
+}
+
 void NetworkServer::SendReply_ServerString(NetworkClientInfo* client_info)
 {
     /*---------------------------------------------------------*\
@@ -4043,15 +4155,19 @@ void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * contr
     if(found)
     {
         /*-------------------------------------------------*\
-        | Send to each connected client with protocol 6 or  |
-        | higher                                            |
+        | Queue to each connected client with protocol 6+.  |
+        | ServerClientsMutex is held across the loop so a   |
+        | client cannot be deleted while we enqueue to it.  |
         \*-------------------------------------------------*/
+        ServerClientsMutex.lock();
+
         for(std::size_t client_idx = 0; client_idx < ServerClients.size(); client_idx++)
         {
-            if(ServerClients[client_idx]->client_protocol_version >= 6)
+            NetworkClientInfo* client_info = ServerClients[client_idx];
+
+            if(client_info->client_protocol_version >= 6)
             {
-                SOCKET          client_sock         = ServerClients[client_idx]->client_sock;
-                unsigned int    protocol_version    = ServerClients[client_idx]->client_protocol_version;
+                unsigned int    protocol_version    = client_info->client_protocol_version;
                 NetPacketHeader reply_hdr;
                 unsigned char*  reply_data;
                 unsigned int    reply_size;
@@ -4154,19 +4270,121 @@ void NetworkServer::SendRequest_RGBController_SignalUpdate(RGBController * contr
                 InitNetPacketHeader(&reply_hdr, controller_id, NET_PACKET_ID_RGBCONTROLLER_SIGNALUPDATE, reply_size);
 
                 /*-----------------------------------------*\
-                | Send packet                               |
+                | Queue the packet for the send thread.     |
+                | This runs inside SignalUpdate, so a       |
+                | blocking send would stall the callback    |
+                | drain and deadlock a rescan. The entry    |
+                | takes ownership of reply_data; the send   |
+                | thread frees it after the send, so it is  |
+                | safe to send after the controller is      |
+                | gone.                                     |
                 \*-----------------------------------------*/
-                send_in_progress.lock();
-                send(client_sock, (const char *)&reply_hdr, sizeof(NetPacketHeader), MSG_NOSIGNAL);
-                send(client_sock, (const char *)reply_data, reply_size, MSG_NOSIGNAL);
-                send_in_progress.unlock();
+                {
+                    std::lock_guard<std::mutex> queue_lock(client_info->client_send_mutex);
 
-                /*-----------------------------------------*\
-                | Delete data                               |
-                \*-----------------------------------------*/
-                delete[] reply_data;
+                    if(update_reason == RGBCONTROLLER_UPDATE_REASON_UPDATELEDS)
+                    {
+                        /*---------------------------------*\
+                        | Coalesce: a newer frame for       |
+                        | this controller replaces the      |
+                        | pending one, keeping the queue    |
+                        | bounded under a stalled client.   |
+                        \*---------------------------------*/
+                        std::map<unsigned int, std::list<NetworkServerClientSendQueueEntry>::iterator>::iterator existing = client_info->client_send_coalesce.find(controller_id);
+
+                        if(existing != client_info->client_send_coalesce.end())
+                        {
+                            delete[] existing->second->data;
+
+                            existing->second->header = reply_hdr;
+                            existing->second->data   = reply_data;
+                        }
+                        else
+                        {
+                            client_info->client_send_queue.push_back(NetworkServerClientSendQueueEntry{controller_id, true, reply_hdr, reply_data});
+                            client_info->client_send_coalesce[controller_id] = std::prev(client_info->client_send_queue.end());
+                        }
+                    }
+                    else
+                    {
+                        /*---------------------------------*\
+                        | Non-coalescable event. Backstop   |
+                        | a stalled client by dropping      |
+                        | the oldest at the cap.            |
+                        \*---------------------------------*/
+                        if(client_info->client_send_queue.size() >= NETWORKSERVER_SIGNAL_QUEUE_MAX)
+                        {
+                            NetworkServerClientSendQueueEntry& oldest = client_info->client_send_queue.front();
+
+                            if(oldest.coalescable)
+                            {
+                                client_info->client_send_coalesce.erase(oldest.controller_id);
+                            }
+
+                            delete[] oldest.data;
+
+                            client_info->client_send_queue.pop_front();
+                            LOG_WARNING("[%s] SignalUpdate queue full for client %s, dropping oldest packet", NETWORKSERVER, client_info->client_ip.c_str());
+                        }
+
+                        client_info->client_send_queue.push_back(NetworkServerClientSendQueueEntry{controller_id, false, reply_hdr, reply_data});
+                    }
+                }
+
+                client_info->client_send_cv.notify_one();
             }
         }
+
+        ServerClientsMutex.unlock();
+    }
+}
+
+/*---------------------------------------------------------*\
+| Per-client SignalUpdate send thread. The blocking send    |
+| happens here, not inside SignalUpdate, so a slow client   |
+| blocks only its own queue and thread. The callback drain  |
+| is never blocked, so a rescan cannot deadlock on a send.  |
+\*---------------------------------------------------------*/
+void NetworkServer::ClientSendThreadFunction(NetworkClientInfo* client_info)
+{
+    while(true)
+    {
+        NetworkServerClientSendQueueEntry entry;
+
+        {
+            std::unique_lock<std::mutex> queue_lock(client_info->client_send_mutex);
+            client_info->client_send_cv.wait(queue_lock, [client_info]{ return !client_info->client_send_queue.empty() || !client_info->client_send_running; });
+
+            if(!client_info->client_send_running)
+            {
+                break;
+            }
+
+            entry = client_info->client_send_queue.front();
+
+            if(entry.coalescable)
+            {
+                client_info->client_send_coalesce.erase(entry.controller_id);
+            }
+
+            client_info->client_send_queue.pop_front();
+        }
+
+        /*-------------------------------------------------*\
+        | send_in_progress still serializes against         |
+        | response sends to this client. Routing those      |
+        | through a per-client mutex is the follow-up.      |
+        \*-------------------------------------------------*/
+        send_in_progress.lock();
+        send(client_info->client_sock, (const char *)&entry.header, sizeof(NetPacketHeader), MSG_NOSIGNAL);
+        send(client_info->client_sock, (const char *)entry.data, entry.header.pkt_size, MSG_NOSIGNAL);
+        send_in_progress.unlock();
+
+        /*-------------------------------------------------*\
+        | The entry owns the data pointer; free it now that |
+        | the send is done.                                 |
+        \*-------------------------------------------------*/
+        delete[] entry.data;
     }
 }
 

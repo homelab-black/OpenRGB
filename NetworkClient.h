@@ -12,6 +12,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <list>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -44,12 +45,15 @@ enum
     NETWORKCLIENT_UPDATE_REASON_DETECTION_COMPLETE,                     /* Detection completed              */
     NETWORKCLIENT_UPDATE_REASON_PROFILEMANAGER_PROFILE_LIST_UPDATED,    /* Profile list updated             */
     NETWORKCLIENT_UPDATE_REASON_PROFILEMANAGER_ACTIVE_PROFILE_CHANGED,  /* Active profile changed           */
+    NETWORKCLIENT_UPDATE_REASON_SERVER_HOSTNAME_RECEIVED,               /* Server hostname received         */
+    NETWORKCLIENT_UPDATE_REASON_SERVER_FLAGS_RECEIVED,                  /* Server flags received            */
 };
 
 typedef struct
 {
     NetPacketHeader             header;
     unsigned char*              data;
+    unsigned int                generation;
 } NetworkClientListenerThreadQueueEntry;
 
 typedef struct
@@ -79,6 +83,7 @@ public:
     unsigned short                      GetPort();
     unsigned int                        GetProtocolVersion();
     bool                                GetOnline();
+    std::string                         GetServerHostname();
     std::string                         GetServerName();
     bool                                GetSupportsRGBControllerAPI();
     bool                                GetSupportsLogManagerAPI();
@@ -98,6 +103,12 @@ public:
 
     void                                StartClient();
     void                                StopClient();
+
+    /*-----------------------------------------------------*\
+    | Controller teardown functions                         |
+    \*-----------------------------------------------------*/
+    void                                DeleteOrphanedControllers();
+    void                                TakeOrphanedControllers(std::vector<RGBController*>& orphaned);
 
     void                                SendRequest_ControllerData(unsigned int dev_id);
     void                                SendRequest_RescanDevices();
@@ -195,15 +206,23 @@ private:
     unsigned int                        requested_controller_index;
     std::mutex                          send_in_progress;
 
-    NetPacketHeader                     response_header;
-    unsigned char*                      response_data_ptr;
-    std::mutex                          waiting_on_response_mutex;
-    std::condition_variable             waiting_on_response_cv;
+    /*-----------------------------------------------------*\
+    | Every packet the listener does not handle inline.     |
+    | Replies are claimed by WaitForResponse, callback      |
+    | packets by the receive queue thread.  Whoever         |
+    | claims an entry frees its data.                       |
+    \*-----------------------------------------------------*/
+    std::list<NetworkClientListenerThreadQueueEntry>
+                                        receive_queue;
+    std::mutex                          receive_queue_mutex;
+    std::condition_variable             receive_queue_cv;
+    unsigned int                        receive_generation;
 
     /*-----------------------------------------------------*\
     | Client information                                    |
     \*-----------------------------------------------------*/
     unsigned int                        client_flags;
+    std::string                         client_hostname;
     std::string                         client_name;
     SOCKET                              client_sock;
     net_port                            port;
@@ -215,6 +234,7 @@ private:
     \*-----------------------------------------------------*/
     unsigned int                        server_flags;
     bool                                server_flags_initialized;
+    std::string                         server_hostname;
     std::string                         server_name;
     bool                                server_connected;
     bool                                server_initialized;
@@ -234,6 +254,18 @@ private:
     NetworkClientListenerThread*        profilemanager_thread;
 
     /*-----------------------------------------------------*\
+    | Receive queue thread.  Runs the callback-emitting     |
+    | packets, which block on the GUI thread while the      |
+    | GUI may itself be blocked on a reply.  Queue order    |
+    | keeps plugin callbacks single threaded.               |
+    \*-----------------------------------------------------*/
+    std::thread*                        ReceiveQueueThread;
+    bool                                receive_queue_thread_running;
+
+    void                                ReceiveQueueThreadFunction();
+    void                                StopReceiveQueueThread();
+
+    /*-----------------------------------------------------*\
     | Callbacks                                             |
     \*-----------------------------------------------------*/
     std::mutex                          NetworkClientCallbackMutex;
@@ -245,6 +277,7 @@ private:
     \*-----------------------------------------------------*/
     std::mutex                          ControllerListMutex;
     std::vector<RGBController*>         server_controllers;
+    std::vector<RGBController*>         orphaned_controllers;
     std::vector<unsigned int>           server_controller_ids;
 
     /*-----------------------------------------------------*\
@@ -275,6 +308,7 @@ private:
     void                                ProcessRequest_DeviceListChanged();
     void                                ProcessRequest_RGBController_SignalUpdate(unsigned int data_size, unsigned char* data_ptr, unsigned int dev_id);
     void                                ProcessRequest_ServerFlags(unsigned int data_size, unsigned char* data_ptr);
+    void                                ProcessRequest_ServerHostname(unsigned int data_size, unsigned char* data_ptr);
     void                                ProcessRequest_ServerString(unsigned int data_size, unsigned char* data_ptr);
 
     void                                ProcessRequest_LogManager_LoggedEntry(unsigned int data_size, unsigned char* data_ptr);
@@ -285,6 +319,7 @@ private:
     void                                ProcessRequest_ProfileManager_ProfileLoaded(unsigned int data_size, unsigned char* data_ptr);
 
     void                                SendData_ClientFlags();
+    void                                SendData_ClientHostname();
     void                                SendData_ClientString();
     void                                SendRequest_ControllerIDs();
     void                                SendRequest_ProtocolVersion();
@@ -295,6 +330,12 @@ private:
     | Private ProfileManager functions                      |
     \*-----------------------------------------------------*/
     std::vector<std::string>*           ProcessReply_ProfileList(unsigned int data_size, unsigned char* data_ptr);
+
+    /*-----------------------------------------------------*\
+    | Response queue helper                                 |
+    \*-----------------------------------------------------*/
+    NetworkClientListenerThreadQueueEntry
+                                        WaitForResponse(unsigned int expected_pkt_id);
 
     /*-----------------------------------------------------*\
     | Private helper functions                              |

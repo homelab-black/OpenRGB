@@ -14,9 +14,12 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <list>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <queue>
+#include <vector>
 #include "LogManager.h"
 #include "RGBController.h"
 #include "NetworkProtocol.h"
@@ -29,7 +32,23 @@
 #define MAXSOCK 32
 #define TCP_TIMEOUT_SECONDS 5
 
+/*---------------------------------------------------------*\
+| Backstop cap on a client's outbound queue. UPDATELEDS     |
+| coalesces per controller, so this is only hit by a flood  |
+| of non-coalescable events to a stalled client; the oldest |
+| are dropped rather than grow without bound.               |
+\*---------------------------------------------------------*/
+#define NETWORKSERVER_SIGNAL_QUEUE_MAX 1024
+
 typedef void (*NetServerCallback)(void*);
+
+typedef struct
+{
+    unsigned int                controller_id;
+    bool                        coalescable;
+    NetPacketHeader             header;
+    unsigned char*              data;
+} NetworkServerClientSendQueueEntry;
 
 class NetworkClientInfo
 {
@@ -40,11 +59,26 @@ public:
     SOCKET          client_sock;
     unsigned int    client_flags;
     std::thread*    client_listen_thread;
+    std::string     client_hostname;
     std::string     client_string;
     unsigned int    client_protocol_version;
     std::string     client_ip;
     bool            client_is_local;
     bool            client_is_local_client;
+
+    /*-----------------------------------------------------*\
+    | Per-client outbound queue for SignalUpdate packets,   |
+    | drained by a dedicated send thread so a slow client   |
+    | never blocks SignalUpdate (which would deadlock a     |
+    | rescan). UPDATELEDS packets coalesce per controller,  |
+    | keeping the queue bounded to one per controller.      |
+    \*-----------------------------------------------------*/
+    std::list<NetworkServerClientSendQueueEntry>                                   client_send_queue;
+    std::map<unsigned int, std::list<NetworkServerClientSendQueueEntry>::iterator> client_send_coalesce;
+    std::mutex                                                                     client_send_mutex;
+    std::condition_variable                                                        client_send_cv;
+    std::thread*                                                                   client_send_thread;
+    std::atomic<bool>                                                              client_send_running;
 };
 
 typedef struct
@@ -86,7 +120,8 @@ public:
     bool                                GetOnline();
     bool                                GetListening();
     unsigned int                        GetNumClients();
-    const char *                        GetClientString(unsigned int client_num);
+    std::string                         GetClientHostname(unsigned int client_num);
+    std::string                         GetClientString(unsigned int client_num);
     const char *                        GetClientIP(unsigned int client_num);
     unsigned int                        GetClientProtocolVersion(unsigned int client_num);
 
@@ -145,6 +180,7 @@ private:
     unsigned short                      port_num;
     std::mutex                          send_in_progress;
     unsigned int                        server_flags;
+    std::string                         server_hostname;
     std::string                         server_name;
     std::atomic<bool>                   server_online;
     std::atomic<bool>                   server_listening;
@@ -220,12 +256,14 @@ private:
     void                                ConnectionThreadFunction(int socket_idx);
     void                                ControllerListenThread(NetworkServerControllerThread* this_thread);
     void                                ListenThreadFunction(NetworkClientInfo* client_info);
+    void                                ClientSendThreadFunction(NetworkClientInfo* client_info);
     void                                ProfileManagerListenThread(NetworkServerControllerThread* this_thread);
 
     /*-----------------------------------------------------*\
     | Server Protocol functions                             |
     \*-----------------------------------------------------*/
     NetPacketStatus                     ProcessRequest_ClientFlags(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr);
+    NetPacketStatus                     ProcessRequest_ClientHostname(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr);
     NetPacketStatus                     ProcessRequest_ClientProtocolVersion(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr);
     NetPacketStatus                     ProcessRequest_ClientString(NetworkClientInfo* client_info, unsigned int data_size, unsigned char* data_ptr);
     NetPacketStatus                     ProcessRequest_RescanDevices();
@@ -277,6 +315,7 @@ private:
     void                                SendReply_ControllerData(NetworkClientInfo* client_info, unsigned int dev_id, unsigned int protocol_version);
     void                                SendReply_ProtocolVersion(NetworkClientInfo* client_info);
     void                                SendReply_ServerFlags(NetworkClientInfo* client_info);
+    void                                SendReply_ServerHostname(NetworkClientInfo* client_info);
     void                                SendReply_ServerString(NetworkClientInfo* client_info);
 
     void                                SendReply_PluginList(NetworkClientInfo* client_info);

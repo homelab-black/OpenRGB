@@ -70,11 +70,6 @@
 
 using namespace std::chrono_literals;
 
-/*---------------------------------------------------------*\
-| One counter per thread, shared across all controllers.    |
-\*---------------------------------------------------------*/
-thread_local unsigned int RGBController::SignalCallDepth = 0;
-
 RGBController::RGBController()
 {
     /*-----------------------------------------------------*\
@@ -89,6 +84,9 @@ RGBController::RGBController()
     active_mode         = 0;
     flags               = 0;
     type                = DEVICE_TYPE_UNKNOWN;
+
+    SignalCalls         = 0;
+    SignalShutdown      = false;
 
     /*-----------------------------------------------------*\
     | Initialize device thread                              |
@@ -1077,7 +1075,8 @@ void RGBController::SetZoneModeDirection(unsigned int zone, unsigned int mode, u
     && (mode < zones[zone].modes.size())
     && (((zones[zone].modes[mode].flags & MODE_FLAG_HAS_DIRECTION_HV) && ((direction == MODE_DIRECTION_HORIZONTAL) || (direction == MODE_DIRECTION_VERTICAL)))
      || ((zones[zone].modes[mode].flags & MODE_FLAG_HAS_DIRECTION_LR) && ((direction == MODE_DIRECTION_LEFT) || (direction == MODE_DIRECTION_RIGHT)))
-     || ((zones[zone].modes[mode].flags & MODE_FLAG_HAS_DIRECTION_UD) && ((direction == MODE_DIRECTION_UP) || (direction == MODE_DIRECTION_DOWN)))))
+     || ((zones[zone].modes[mode].flags & MODE_FLAG_HAS_DIRECTION_UD) && ((direction == MODE_DIRECTION_UP) || (direction == MODE_DIRECTION_DOWN)))
+     || ((zones[zone].modes[mode].flags & MODE_FLAG_HAS_DIRECTION_DIAG) && (direction >= MODE_DIRECTION_UP_LEFT) && (direction <= MODE_DIRECTION_DOWN_RIGHT))))
     {
         zones[zone].modes[mode].direction = direction;
     }
@@ -1410,7 +1409,8 @@ void RGBController::SetModeDirection(unsigned int mode, unsigned int direction)
     if((mode < modes.size())
     && (((modes[mode].flags & MODE_FLAG_HAS_DIRECTION_HV) && ((direction == MODE_DIRECTION_HORIZONTAL) || (direction == MODE_DIRECTION_VERTICAL)))
      || ((modes[mode].flags & MODE_FLAG_HAS_DIRECTION_LR) && ((direction == MODE_DIRECTION_LEFT) || (direction == MODE_DIRECTION_RIGHT)))
-     || ((modes[mode].flags & MODE_FLAG_HAS_DIRECTION_UD) && ((direction == MODE_DIRECTION_UP) || (direction == MODE_DIRECTION_DOWN)))))
+     || ((modes[mode].flags & MODE_FLAG_HAS_DIRECTION_UD) && ((direction == MODE_DIRECTION_UP) || (direction == MODE_DIRECTION_DOWN)))
+     || ((modes[mode].flags & MODE_FLAG_HAS_DIRECTION_DIAG) && (direction >= MODE_DIRECTION_UP_LEFT) && (direction <= MODE_DIRECTION_DOWN_RIGHT))))
     {
         modes[mode].direction = direction;
     }
@@ -1841,27 +1841,10 @@ void RGBController::RegisterUpdateCallback(RGBControllerCallback new_callback, v
     UpdateMutex.unlock();
 }
 
-/*---------------------------------------------------------*\
-| Wait until no callback call is in flight, so the          |
-| caller may free the callback owner once this returns.     |
-| Skipped when the caller is itself inside a call on        |
-| this thread (see SignalCallDepth).                        |
-\*---------------------------------------------------------*/
-void RGBController::WaitSignalCalls()
-{
-    if(SignalCallDepth != 0)
-    {
-        return;
-    }
-
-    std::unique_lock<std::mutex> wait_lock(SignalMutex);
-    SignalCallsDone.wait(wait_lock, [this]{ return SignalCalls == 0; });
-}
-
 void RGBController::UnregisterUpdateCallback(void * callback_arg)
 {
     UpdateMutex.lock();
-    for(unsigned int callback_idx = 0; callback_idx < UpdateCallbackArgs.size(); callback_idx++ )
+    for(unsigned int callback_idx = 0; callback_idx < UpdateCallbackArgs.size(); callback_idx++)
     {
         if(UpdateCallbackArgs[callback_idx] == callback_arg)
         {
@@ -1872,10 +1855,21 @@ void RGBController::UnregisterUpdateCallback(void * callback_arg)
     UpdateMutex.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for in-flight calls so the caller may free the   |
-    | callback owner once this returns                      |
+    | If this is executing from within any controller's     |
+    | callback, return immediately rather than waiting for  |
+    | callback completion to avoid deadlock.                |
     \*-----------------------------------------------------*/
-    WaitSignalCalls();
+    //if(SignalCalls != 0)
+    //{
+    //    return;
+    //}
+
+    /*-----------------------------------------------------*\
+    | Otherwise, wait for all currently active callbacks to |
+    | complete before returning                             |
+    \*-----------------------------------------------------*/
+    //std::unique_lock<std::mutex> wait_lock(SignalMutex);
+    //SignalCallsDone.wait(wait_lock, [this]{ return SignalCalls == 0; });
 }
 
 void RGBController::ClearCallbacks()
@@ -1886,62 +1880,82 @@ void RGBController::ClearCallbacks()
     UpdateMutex.unlock();
 
     /*-----------------------------------------------------*\
-    | Wait for in-flight calls so the caller may free the   |
-    | callback owners once this returns                     |
+    | If this is executing from within any controller's     |
+    | callback, return immediately rather than waiting for  |
+    | callback completion to avoid deadlock.                |
     \*-----------------------------------------------------*/
-    WaitSignalCalls();
+    //if(SignalCalls != 0)
+    //{
+    //    return;
+    //}
+
+    /*-----------------------------------------------------*\
+    | Otherwise, wait for all currently active callbacks to |
+    | complete before returning                             |
+    \*-----------------------------------------------------*/
+    //std::unique_lock<std::mutex> wait_lock(SignalMutex);
+    //SignalCallsDone.wait(wait_lock, [this]{ return SignalCalls == 0; });
 }
 
 void RGBController::SignalUpdate(unsigned int update_reason)
 {
-    /*-----------------------------------------------------*\
-    | Copy the callback list under UpdateMutex and mark a   |
-    | call in flight, then release before invoking so no    |
-    | lock is held across callback code. A frozen           |
-    | controller (shutting down) calls nothing.             |
-    \*-----------------------------------------------------*/
     std::vector<RGBControllerCallback>  callbacks;
     std::vector<void *>                 callback_args;
 
+    /*-----------------------------------------------------*\
+    | Lock the update mutex while obtaining a copy of the   |
+    | callbacks, but release it before actually calling     |
+    | them so that any call to Register/Unregister from     |
+    | within the callback doesn't deadlock.                 |
+    \*-----------------------------------------------------*/
     UpdateMutex.lock();
-    {
-        std::lock_guard<std::mutex> call_lock(SignalMutex);
-
-        if(SignalFrozen)
-        {
-            UpdateMutex.unlock();
-            return;
-        }
-
-        SignalCalls++;
-    }
-    callbacks       = UpdateCallbacks;
-    callback_args   = UpdateCallbackArgs;
-    UpdateMutex.unlock();
 
     /*-----------------------------------------------------*\
-    | Invoke the copied callbacks with no lock held         |
+    | Lock the signal mutex and increment the signal call   |
+    | count.  Return immediately if the controller has been |
+    | shut down.                                            |
     \*-----------------------------------------------------*/
-    SignalCallDepth++;
+    //SignalMutex.lock();
+    //if(SignalShutdown)
+    //{
+    //    UpdateMutex.unlock();
+    //    return;
+    //}
+    //SignalCalls++;
+    //SignalMutex.unlock();
+
+    /*-----------------------------------------------------*\
+    | Copy the list of callbacks and unlock the update      |
+    | mutex                                                 |
+    \*-----------------------------------------------------*/
+    callbacks       = UpdateCallbacks;
+    callback_args   = UpdateCallbackArgs;
+
+    //UpdateMutex.unlock();
+
+    /*-----------------------------------------------------*\
+    | Invoke the copied callbacks                           |
+    \*-----------------------------------------------------*/
     for(unsigned int callback_idx = 0; callback_idx < callbacks.size(); callback_idx++)
     {
         callbacks[callback_idx](callback_args[callback_idx], update_reason, this);
     }
-    SignalCallDepth--;
 
+    UpdateMutex.unlock();
     /*-----------------------------------------------------*\
-    | Wake anyone waiting once the last call is out         |
+    | Decrement the signal call count once callbacks have   |
+    | been called.  Notify anyone waiting on signal calls   |
+    | to be done.                                           |
     \*-----------------------------------------------------*/
-    {
-        std::lock_guard<std::mutex> call_lock(SignalMutex);
+    //SignalMutex.lock();
+    //SignalCalls--;
 
-        SignalCalls--;
+    //if(SignalCalls == 0)
+    //{
+    //    SignalCallsDone.notify_all();
+    //}
 
-        if(SignalCalls == 0)
-        {
-            SignalCallsDone.notify_all();
-        }
-    }
+    //SignalMutex.unlock();
 }
 
 /*---------------------------------------------------------*\
@@ -1962,19 +1976,17 @@ void RGBController::Shutdown()
     AccessMutex.lock();
 
     /*-----------------------------------------------------*\
-    | Freeze the controller so no further SignalUpdate      |
-    | calls its callbacks, then wait for any call already   |
-    | in flight. Nothing is held across teardown, so a late |
-    | or cross-controller SignalUpdate returns at the       |
-    | frozen check instead of blocking forever.             |
+    | Shut down signal handling and unlock mutexes          |
     \*-----------------------------------------------------*/
     UpdateMutex.lock();
-    {
-        std::lock_guard<std::mutex> call_lock(SignalMutex);
-        SignalFrozen = true;
-    }
+    SignalMutex.lock();
+    SignalShutdown = true;
+    SignalMutex.unlock();
     UpdateMutex.unlock();
 
+    /*-----------------------------------------------------*\
+    | Wait for any remaining signal calls to complete       |
+    \*-----------------------------------------------------*/
     std::unique_lock<std::mutex> wait_lock(SignalMutex);
     SignalCallsDone.wait(wait_lock, [this]{ return SignalCalls == 0; });
 }
@@ -2873,9 +2885,15 @@ unsigned char * RGBController::GetModeDescriptionData(unsigned char* data_ptr, m
 
     /*-----------------------------------------------------*\
     | Copy in mode flags (data)                             |
+    | Strip diagonal flag for SDK v5 and earlier clients    |
     \*-----------------------------------------------------*/
-    memcpy(data_ptr, &mode.flags, sizeof(mode.flags));
-    data_ptr += sizeof(mode.flags);
+    unsigned int flags = mode.flags;
+    if(protocol_version < 6)
+    {
+        flags &= ~MODE_FLAG_HAS_DIRECTION_DIAG;
+    }
+    memcpy(data_ptr, &flags, sizeof(flags));
+    data_ptr += sizeof(flags);
 
     /*-----------------------------------------------------*\
     | Copy in mode speed_min (data)                         |
@@ -2932,9 +2950,15 @@ unsigned char * RGBController::GetModeDescriptionData(unsigned char* data_ptr, m
 
     /*-----------------------------------------------------*\
     | Copy in mode direction (data)                         |
+    | Clamp diagonal directions for SDK v5 and earlier      |
     \*-----------------------------------------------------*/
-    memcpy(data_ptr, &mode.direction, sizeof(mode.direction));
-    data_ptr += sizeof(mode.direction);
+    unsigned int dir = mode.direction;
+    if(protocol_version < 6 && dir > MODE_DIRECTION_VERTICAL)
+    {
+        dir = MODE_DIRECTION_LEFT;
+    }
+    memcpy(data_ptr, &dir, sizeof(dir));
+    data_ptr += sizeof(dir);
 
     /*-----------------------------------------------------*\
     | Copy in mode color_mode (data)                        |
@@ -3166,18 +3190,18 @@ unsigned char * RGBController::GetZoneDescriptionData(unsigned char* data_ptr, z
     if(protocol_version >= 6)
     {
         /*-------------------------------------------------*\
+        | Copy in active mode                               |
+        \*-------------------------------------------------*/
+        memcpy(data_ptr, &zone.active_mode, sizeof(zone.active_mode));
+        data_ptr += sizeof(zone.active_mode);
+
+        /*-------------------------------------------------*\
         | Copy in number of modes                           |
         \*-------------------------------------------------*/
         unsigned short num_modes            = (unsigned short)zone.modes.size();
 
         memcpy(data_ptr, &num_modes, sizeof(num_modes));
         data_ptr += sizeof(num_modes);
-
-        /*-------------------------------------------------*\
-        | Copy in active mode                               |
-        \*-------------------------------------------------*/
-        memcpy(data_ptr, &zone.active_mode, sizeof(zone.active_mode));
-        data_ptr += sizeof(zone.active_mode);
 
         /*-------------------------------------------------*\
         | Copy in modes                                     |
@@ -3252,8 +3276,8 @@ unsigned int RGBController::GetZoneDescriptionSize(zone zone, unsigned int proto
     {
         unsigned short num_modes            = (unsigned short)zone.modes.size();
 
-        data_size                          += sizeof(num_modes);
         data_size                          += sizeof(zone.active_mode);
+        data_size                          += sizeof(num_modes);
 
         for(int mode_index = 0; mode_index < num_modes; mode_index++)
         {
@@ -3881,15 +3905,15 @@ unsigned char* RGBController::SetZoneDescription(unsigned char* data_ptr, unsign
     if(protocol_version >= 6)
     {
         /*-------------------------------------------------*\
+        | Copy in active mode                               |
+        \*-------------------------------------------------*/
+        COPY_DATA_FIELD(data_ptr, data_start, zone->active_mode);
+
+        /*-------------------------------------------------*\
         | Copy in number of modes                           |
         \*-------------------------------------------------*/
         unsigned short num_modes;
         COPY_DATA_FIELD(data_ptr, data_start, num_modes);
-
-        /*-------------------------------------------------*\
-        | Copy in active mode                               |
-        \*-------------------------------------------------*/
-        COPY_DATA_FIELD(data_ptr, data_start, zone->active_mode);
 
         /*-------------------------------------------------*\
         | Copy in modes                                     |

@@ -83,6 +83,7 @@ public:
     void                        DeleteProfile(std::string profile_name);
 
     std::string                 GetActiveProfile();
+    std::vector<RGBController*> GetControllerListFromLegacyProfile(std::string profile_name, bool sizes);
     std::vector<RGBController*> GetControllerListFromProfileJson(nlohmann::json profile_json);
     std::vector<RGBController*> GetControllerListFromProfileName(std::string profile_name);
     std::vector<RGBController*> GetControllerListFromSavedConfiguration();
@@ -110,6 +111,8 @@ public:
     void                        OnProfileAboutToLoad();
     void                        OnProfileLoaded(std::string profile_json_string);
 
+    void                        MigrateLegacyProfiles();
+
     /*-----------------------------------------------------*\
     | Callback Registration Functions                       |
     \*-----------------------------------------------------*/
@@ -122,6 +125,7 @@ public:
     bool                        SaveProfile(std::string profile_name);
     bool                        SaveProfileCustom(std::string profile_name, std::vector<RGBController*> controllers, RGBColor base_color, bool base_color_enabled, std::vector<std::string> enabled_plugins);
     bool                        SaveProfileFromJSON(nlohmann::json profile_json);
+    bool                        SaveProfileFromPlugin(std::string profile_name, std::string plugin_name, nlohmann::json plugin_data);
     bool                        SaveConfiguration();
 
     void                        SetActiveProfile(std::string profile_name);

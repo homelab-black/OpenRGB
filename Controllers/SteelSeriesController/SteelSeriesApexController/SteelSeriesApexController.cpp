@@ -36,6 +36,19 @@ static unsigned int keys[] =
     0x63, 0xFB
 };
 
+/*---------------------------------------------------------*\
+| Models whose direct lighting feature report is shorter    |
+| than APEX_PACKET_LENGTH.  Sending the wrong report size   |
+| makes the keyboard stall the control transfer, so any     |
+| model listed here would silently ignore lighting updates  |
+| if the default length were used.                          |
+\*---------------------------------------------------------*/
+inline static const std::map<unsigned short, unsigned int> direct_packet_length_map =
+{
+    {STEELSERIES_APEX_9_TKL_PID,             APEX_9_PACKET_LENGTH},
+    {STEELSERIES_APEX_9_MINI_PID,            APEX_9_PACKET_LENGTH},
+};
+
 inline static const std::map<unsigned short, protocol_quirk> protocol_map =
 {
     {STEELSERIES_APEX_9_TKL_PID,             APEX_GEN2},
@@ -53,11 +66,25 @@ SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, ste
     proto_type = type;
     kbd_quirk = APEX_GEN1;
     device_pid = pid;
+    direct_packet_length = APEX_PACKET_LENGTH;
     if(protocol_map.count(device_pid) > 0)
     {
         kbd_quirk = protocol_map.at(device_pid);
     }
+    if(direct_packet_length_map.count(device_pid) > 0)
+    {
+        direct_packet_length = direct_packet_length_map.at(device_pid);
+    }
     SendInitialization();
+
+    /*-----------------------------------------------------*\
+    | Illumination brightness is offered only when the      |
+    | keyboard answers the read back request, so models     |
+    | that do not implement it are left alone.  Asked after |
+    | initialization, so the keyboard is in a known state   |
+    \*-----------------------------------------------------*/
+    current_brightness   = APEX_BRIGHTNESS_MAX;
+    brightness_supported = ReadBrightness(current_brightness);
 }
 
 SteelSeriesApexController::~SteelSeriesApexController()
@@ -104,6 +131,20 @@ void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
     int num_keys = sizeof(keys) / sizeof(*keys);
     unsigned char packet_id = APEX_GEN1_PACKET_ID_DIRECT;
 
+    /*-----------------------------------------------------*\
+    | Never write past the end of the report or past        |
+    | the end of the color vector                           |
+    \*-----------------------------------------------------*/
+    if((unsigned int)num_keys > colors.size())
+    {
+        num_keys = (int)colors.size();
+    }
+
+    if((unsigned int)((num_keys * 4) + 3) > direct_packet_length)
+    {
+        num_keys = (int)((direct_packet_length - 3) / 4);
+    }
+
     if(kbd_quirk >= APEX_GEN2)
     {
         /*-------------------------------------------------*\
@@ -134,7 +175,7 @@ void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
     \*-----------------------------------------------------*/
     buf[0x00]   = 0;
     buf[0x01]   = packet_id;
-    buf[0x02]   = kbd_quirk ? (unsigned char)colors.size() : num_keys;
+    buf[0x02]   = (unsigned char)num_keys;
 
     /*-----------------------------------------------------*\
     | Fill in color data                                    |
@@ -150,7 +191,12 @@ void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_send_feature_report(dev, buf, APEX_PACKET_LENGTH);
+    int result = hid_send_feature_report(dev, buf, direct_packet_length);
+
+    if(result < 0)
+    {
+        LOG_DEBUG("[%s] Direct lighting update failed, %u byte report", name.c_str(), direct_packet_length);
+    }
 }
 
 /*---------------------------------------------------------*\
@@ -226,6 +272,80 @@ void SteelSeriesApexController::SendInitialization()
         reset_cmd = APEX_GEN1_PACKET_ID_ONBOARD;
         LOG_DEBUG("[%s] Using Apex Legacy protocol.", name.c_str());
     }
+}
+
+/*---------------------------------------------------------*\
+| Illumination brightness, the same setting the brightness  |
+| keys on the keyboard step through.  It applies to the     |
+| on-board lighting; direct mode carries absolute colors    |
+| and is not affected.                                      |
+\*---------------------------------------------------------*/
+bool SteelSeriesApexController::ReadBrightness(unsigned char& brightness)
+{
+    unsigned char obuf[STEELSERIES_PACKET_OUT_SIZE];
+    unsigned char ibuf[STEELSERIES_PACKET_IN_SIZE];
+
+    memset(obuf, 0x00, sizeof(obuf));
+    memset(ibuf, 0x00, sizeof(ibuf));
+
+    obuf[0x00] = 0x00;
+    obuf[0x01] = APEX_PACKET_ID_GET_BRIGHTNESS;
+
+    hid_write(dev, obuf, STEELSERIES_PACKET_OUT_SIZE);
+
+    int result = hid_read_timeout(dev, ibuf, STEELSERIES_PACKET_IN_SIZE, STEELSERIES_APEX_HID_TIMEOUT);
+
+    /*-----------------------------------------------------*\
+    | An unsupported request is answered with 0xFF in the   |
+    | status byte                                           |
+    \*-----------------------------------------------------*/
+    if(result < 3 || ibuf[0x00] != APEX_PACKET_ID_GET_BRIGHTNESS || ibuf[0x01] != 0x00)
+    {
+        return false;
+    }
+
+    if(ibuf[0x02] > APEX_BRIGHTNESS_MAX)
+    {
+        return false;
+    }
+
+    brightness = ibuf[0x02];
+    return true;
+}
+
+bool SteelSeriesApexController::SupportsBrightness()
+{
+    return brightness_supported;
+}
+
+unsigned char SteelSeriesApexController::GetBrightness()
+{
+    return current_brightness;
+}
+
+void SteelSeriesApexController::SetBrightness(unsigned char brightness)
+{
+    if(!brightness_supported)
+    {
+        return;
+    }
+
+    if(brightness > APEX_BRIGHTNESS_MAX)
+    {
+        brightness = APEX_BRIGHTNESS_MAX;
+    }
+
+    unsigned char obuf[STEELSERIES_PACKET_OUT_SIZE];
+
+    memset(obuf, 0x00, sizeof(obuf));
+
+    obuf[0x00] = 0x00;
+    obuf[0x01] = APEX_PACKET_ID_SET_BRIGHTNESS;
+    obuf[0x02] = brightness;
+
+    hid_write(dev, obuf, STEELSERIES_PACKET_OUT_SIZE);
+
+    current_brightness = brightness;
 }
 
 std::string SteelSeriesApexController::GetSerial()
