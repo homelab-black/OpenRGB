@@ -117,6 +117,44 @@ namespace
         KEY_EN_DOWN_ARROW,
         KEY_EN_RIGHT_ARROW
     };
+
+    /* The captured B8 baseline starts every fixed-color palette with red. */
+    static constexpr RGBColor CAPTURED_DEFAULT_MODE_COLOR = ToRGBColor(0xFF, 0x00, 0x00);
+
+    void AddOnboardMode(std::vector<mode>& modes, const redragon_k652::OnboardModeDescription& description)
+    {
+        mode new_mode;
+        new_mode.name       = description.name;
+        new_mode.value      = description.value;
+        new_mode.color_mode = MODE_COLORS_NONE;
+
+        if(redragon_k652::OnboardModeHasCapability(description.value, redragon_k652::ONBOARD_MODE_CAPABILITY_SPEED))
+        {
+            new_mode.flags    |= MODE_FLAG_HAS_SPEED;
+            new_mode.speed_min = 0;
+            new_mode.speed_max = redragon_k652::MODE_CONTROL_MAX;
+            new_mode.speed     = redragon_k652::MODE_CONTROL_MAX;
+        }
+
+        if(redragon_k652::OnboardModeHasCapability(description.value, redragon_k652::ONBOARD_MODE_CAPABILITY_BRIGHTNESS))
+        {
+            new_mode.flags         |= MODE_FLAG_HAS_BRIGHTNESS;
+            new_mode.brightness_min = 0;
+            new_mode.brightness_max = redragon_k652::MODE_CONTROL_MAX;
+            new_mode.brightness     = redragon_k652::MODE_CONTROL_MAX;
+        }
+
+        if(redragon_k652::OnboardModeHasCapability(description.value, redragon_k652::ONBOARD_MODE_CAPABILITY_COLOR_SELECTOR))
+        {
+            new_mode.flags      |= MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
+            new_mode.color_mode  = MODE_COLORS_MODE_SPECIFIC;
+            new_mode.colors_min  = 1;
+            new_mode.colors_max  = 1;
+            new_mode.colors.resize(1, CAPTURED_DEFAULT_MODE_COLOR);
+        }
+
+        modes.push_back(new_mode);
+    }
 }
 
 /**------------------------------------------------------------------*\
@@ -125,9 +163,9 @@ namespace
     @type USB
     @save :x:
     @direct :white_check_mark:
-    @effects :x:
+    @effects :white_check_mark:
     @detectors DetectRedragonK652
-    @comment Experimental wired support; Static and Direct only
+    @comment Experimental wired support with capture-confirmed onboard effects
 \*-------------------------------------------------------------------*/
 
 RGBController_RedragonK652::RGBController_RedragonK652(RedragonK652Controller* controller_ptr)
@@ -146,15 +184,19 @@ RGBController_RedragonK652::RGBController_RedragonK652(RedragonK652Controller* c
     \*-----------------------------------------------------*/
     flags      |= CONTROLLER_FLAG_NO_PROFILE_APPLY;
 
-    mode Static;
-    Static.name         = "Static";
-    Static.value        = redragon_k652::MODE_STATIC;
-    Static.flags        = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR;
-    Static.color_mode   = MODE_COLORS_MODE_SPECIFIC;
-    Static.colors_min   = 1;
-    Static.colors_max   = 1;
-    Static.colors.resize(1);
-    modes.push_back(Static);
+    /* Keep the capture-confirmed onboard modes in their OpenRGB display order. */
+    std::size_t static_mode_index = 0;
+    for(std::size_t mode_index = 0; mode_index < redragon_k652::ONBOARD_MODE_DESCRIPTIONS.size(); mode_index++)
+    {
+        const redragon_k652::OnboardModeDescription& description =
+            redragon_k652::ONBOARD_MODE_DESCRIPTIONS[mode_index];
+        AddOnboardMode(modes, description);
+
+        if(description.value == redragon_k652::MODE_STATIC)
+        {
+            static_mode_index = modes.size() - 1;
+        }
+    }
 
     mode Direct;
     Direct.name         = "Direct";
@@ -163,7 +205,8 @@ RGBController_RedragonK652::RGBController_RedragonK652(RedragonK652Controller* c
     Direct.color_mode   = MODE_COLORS_PER_LED;
     modes.push_back(Direct);
 
-    active_mode = 0;
+    /* Keep Static as the default-active mode independently of its UI position. */
+    active_mode = static_cast<int>(static_mode_index);
 
     SetupZones();
 }
@@ -217,13 +260,20 @@ void RGBController_RedragonK652::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_RedragonK652::DeviceUpdateMode()
 {
-    if(modes[active_mode].value == redragon_k652::MODE_STATIC)
-    {
-        controller->ApplyStatic(modes[active_mode].colors[0]);
-    }
-    else if(modes[active_mode].value == redragon_k652::MODE_DIRECT)
+    const mode& active_mode_description = modes[active_mode];
+
+    if(active_mode_description.value == redragon_k652::MODE_DIRECT)
     {
         controller->ApplyDirect(colors);
+    }
+    else if(redragon_k652::IsOnboardMode(active_mode_description.value))
+    {
+        const bool has_color_selector = (active_mode_description.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR) != 0;
+        const RGBColor color = has_color_selector ? active_mode_description.colors[0] : 0;
+        const bool rgb_mode = active_mode_description.color_mode == MODE_COLORS_RANDOM;
+
+        controller->ApplyOnboardMode(active_mode_description.value, color, active_mode_description.speed,
+                                     active_mode_description.brightness, rgb_mode);
     }
 }
 

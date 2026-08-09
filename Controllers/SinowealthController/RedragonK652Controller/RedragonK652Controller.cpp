@@ -23,11 +23,37 @@ namespace
     static constexpr std::size_t STATIC_RED_OFFSET        = 0x1D;
     static constexpr std::size_t STATIC_GREEN_OFFSET      = 0x1E;
     static constexpr std::size_t STATIC_BLUE_OFFSET       = 0x1F;
+    static constexpr RGBColor CAPTURED_DEFAULT_PALETTE_COLOR = ToRGBColor(0xFF, 0x00, 0x00);
 
     using RedragonK652Report = std::array<unsigned char, redragon_k652::REPORT_SIZE>;
+    using OnboardPaletteColors = std::array<RGBColor, redragon_k652::MODE_COLLISION + 1>;
+    using OnboardModeConfigurations = std::array<std::array<unsigned char, 2>, redragon_k652::MODE_COLLISION + 1>;
 
-    static_assert(STATIC_BLUE_OFFSET < redragon_k652::REPORT_SIZE, "K652 static RGB fields must fit in the report");
+    static_assert(STATIC_RED_OFFSET + 1 == STATIC_GREEN_OFFSET
+               && STATIC_GREEN_OFFSET + 1 == STATIC_BLUE_OFFSET
+               && STATIC_BLUE_OFFSET < redragon_k652::REPORT_SIZE,
+                  "K652 static RGB fields must fit in the report");
     static_assert(0x7F + BLUE_PLANE_OFFSET < redragon_k652::REPORT_SIZE, "K652 RGB planes must fit in the report");
+    static_assert(redragon_k652::ConfigurationOffset(redragon_k652::MODE_STATIC) == 0x26,
+                  "K652 Fixed_on configuration pair must begin at 0x26");
+    static_assert(redragon_k652::ConfigurationOffset(redragon_k652::MODE_RESPIRE) == 0x28,
+                  "K652 Respire configuration pair must begin at 0x28");
+    static_assert(redragon_k652::ConfigurationOffset(redragon_k652::MODE_RAINBOW) == 0x2A,
+                  "K652 Rainbow configuration pair must begin at 0x2A");
+    static_assert(redragon_k652::ConfigurationOffset(redragon_k652::MODE_COLLISION) == 0x4A,
+                  "K652 Collision configuration pair must begin at 0x4A");
+    static_assert(redragon_k652::PaletteOffset(redragon_k652::MODE_STATIC) == 0x01D,
+                  "K652 Fixed_on palette must begin at 0x01D");
+    static_assert(redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE) == 0x032,
+                  "K652 Respire palette must begin at 0x032");
+    static_assert(redragon_k652::PaletteOffset(redragon_k652::MODE_FLASH_AWAY) == 0x05C,
+                  "K652 Flash Away palette must begin at 0x05C");
+    static_assert(redragon_k652::PaletteOffset(redragon_k652::MODE_COLLISION) == 0x197,
+                  "K652 Collision palette must begin at 0x197");
+    static_assert(redragon_k652::ConfigurationOffset(redragon_k652::MODE_COLLISION) + 1 < redragon_k652::REPORT_SIZE,
+                  "K652 onboard configuration pairs must fit in the report");
+    static_assert(redragon_k652::PaletteOffset(redragon_k652::MODE_COLLISION) + redragon_k652::MODE_PALETTE_SIZE <= redragon_k652::REPORT_SIZE,
+                  "K652 onboard palette blocks must fit in the report");
 
     int SendFeatureReport(hid_device* device, const unsigned char* data, std::size_t size)
     {
@@ -227,7 +253,7 @@ namespace
 
     static_assert(CAPTURED_DIRECT_B6_PREFIX.size() <= redragon_k652::REPORT_SIZE, "K652 B6 prefix must fit in the report");
 
-    RedragonK652Report MakeStaticReport(RGBColor color)
+    RedragonK652Report MakeOnboardPaletteReport(const OnboardPaletteColors& palette_colors)
     {
         RedragonK652Report report{};
 
@@ -236,13 +262,24 @@ namespace
         report[0x02] = 0xB8;
         report[0x04] = 0x40;
 
-        report[STATIC_RED_OFFSET]   = RGBGetRValue(color);
-        report[STATIC_GREEN_OFFSET] = RGBGetGValue(color);
-        report[STATIC_BLUE_OFFSET]  = RGBGetBValue(color);
-
         for(unsigned short offset : CAPTURED_STATIC_FF_OFFSETS)
         {
             report[offset] = 0xFF;
+        }
+
+        /*
+         * The captured B8 template contains all mode palettes, not only
+         * Fixed_on.  Preserve every previously selected first triplet when
+         * updating a single onboard effect.
+         */
+        for(unsigned char mode = redragon_k652::MODE_STATIC; mode <= redragon_k652::MODE_COLLISION; mode++)
+        {
+            const std::size_t palette_offset = redragon_k652::PaletteOffset(mode);
+            const RGBColor color = palette_colors[mode];
+
+            report[palette_offset]     = RGBGetRValue(color);
+            report[palette_offset + 1] = RGBGetGValue(color);
+            report[palette_offset + 2] = RGBGetBValue(color);
         }
 
         return(report);
@@ -312,6 +349,23 @@ namespace
 
         return(report);
     }
+
+    RedragonK652Report MakeOnboardModeReport(unsigned char mode, const OnboardModeConfigurations& mode_configurations)
+    {
+        /* Fixed_on is the captured baseline for all ordinary onboard B6 writes. */
+        RedragonK652Report report = MakeModeReport(redragon_k652::MODE_STATIC);
+        report[0x15] = mode;
+
+        for(unsigned char configuration_mode = redragon_k652::MODE_STATIC;
+            configuration_mode <= redragon_k652::MODE_COLLISION; configuration_mode++)
+        {
+            const std::size_t config_offset = redragon_k652::ConfigurationOffset(configuration_mode);
+            report[config_offset]     = mode_configurations[configuration_mode][0];
+            report[config_offset + 1] = mode_configurations[configuration_mode][1];
+        }
+
+        return(report);
+    }
 }
 
 const std::array<unsigned char, redragon_k652::LED_COUNT> redragon_k652::KEY_INDICES =
@@ -322,6 +376,14 @@ RedragonK652Controller::RedragonK652Controller(hid_device* dev_cmd_handle, hid_d
     : dev_cmd(dev_cmd_handle), dev_data(dev_data_handle), device_claim(std::move(claim)),
       operations(operations_ptr ? *operations_ptr : DEFAULT_HID_OPERATIONS), user_lighting_control_enabled(false), location(path), name(dev_name)
 {
+    onboard_palette_colors.fill(CAPTURED_DEFAULT_PALETTE_COLOR);
+
+    const RedragonK652Report captured_onboard_mode_report = MakeModeReport(redragon_k652::MODE_STATIC);
+    for(unsigned char mode = redragon_k652::MODE_STATIC; mode <= redragon_k652::MODE_COLLISION; mode++)
+    {
+        const std::size_t config_offset = redragon_k652::ConfigurationOffset(mode);
+        onboard_mode_configurations[mode] = {{ captured_onboard_mode_report[config_offset], captured_onboard_mode_report[config_offset + 1] }};
+    }
 }
 
 RedragonK652Controller::~RedragonK652Controller()
@@ -415,6 +477,21 @@ void RedragonK652Controller::EnableUserLightingControl()
 
 bool RedragonK652Controller::ApplyStatic(RGBColor color)
 {
+    return(ApplyOnboardMode(redragon_k652::MODE_STATIC, color, 0, redragon_k652::MODE_CONTROL_MAX, false));
+}
+
+bool RedragonK652Controller::ApplyOnboardMode(unsigned char mode, RGBColor color, unsigned int speed, unsigned int brightness, bool rgb_mode)
+{
+    if(!redragon_k652::IsOnboardMode(mode)
+    || brightness > redragon_k652::MODE_CONTROL_MAX
+    || (redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_SPEED) && speed > redragon_k652::MODE_CONTROL_MAX)
+    || (!redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_SPEED) && speed != 0)
+    || (!redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_BRIGHTNESS) && brightness != 0)
+    || (!redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_COLOR_SELECTOR) && rgb_mode))
+    {
+        return(false);
+    }
+
     if(!user_lighting_control_enabled.load())
     {
         return(false);
@@ -427,11 +504,43 @@ bool RedragonK652Controller::ApplyStatic(RGBColor color)
         return(false);
     }
 
-    if(!SendReport(MakeStaticReport(color))
-    || !SendReport(MakeModeReport(redragon_k652::MODE_STATIC)))
+    OnboardPaletteColors updated_palette_colors = onboard_palette_colors;
+    OnboardModeConfigurations updated_mode_configurations = onboard_mode_configurations;
+
+    if(redragon_k652::IsConfigurableOnboardMode(mode))
+    {
+        if(redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_COLOR_SELECTOR))
+        {
+            updated_palette_colors[mode] = color;
+            updated_mode_configurations[mode][0] = rgb_mode ? 0x07 : 0x00;
+        }
+
+        if(redragon_k652::OnboardModeHasCapability(mode, redragon_k652::ONBOARD_MODE_CAPABILITY_SPEED))
+        {
+            updated_mode_configurations[mode][1] = static_cast<unsigned char>((speed << 4) | brightness);
+        }
+        else
+        {
+            /* Fixed_on has no speed UI; keep its captured baseline high nibble. */
+            updated_mode_configurations[mode][1] =
+                static_cast<unsigned char>((updated_mode_configurations[mode][1] & 0xF0) | brightness);
+        }
+    }
+
+    if(!SendReport(MakeOnboardPaletteReport(updated_palette_colors)))
     {
         return(false);
     }
+
+    /* The B8 report has already updated the device's retained palette state. */
+    onboard_palette_colors = updated_palette_colors;
+
+    if(!SendReport(MakeOnboardModeReport(mode, updated_mode_configurations)))
+    {
+        return(false);
+    }
+
+    onboard_mode_configurations = updated_mode_configurations;
 
     /* Captured minimum from final B6 completion to the next query is 70 ms. */
     operations.sleep_ms(20);
