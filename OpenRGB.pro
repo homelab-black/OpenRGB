@@ -326,6 +326,7 @@ TRANSLATIONS +=                                                                 
 # Windows-specific Configuration                                                                #
 #-----------------------------------------------------------------------------------------------#
 win32:QMAKE_CXXFLAGS += /utf-8
+win32:LIBS += -lhid
 win32:INCLUDEPATH +=                                                                            \
     dependencies/display-library/include                                                        \
     dependencies/hidapi-hotplug-win/include                                                     \
