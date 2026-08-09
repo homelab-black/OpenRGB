@@ -321,6 +321,50 @@ before_script:
     - !reference [.upstream_rules, rules]
 
 #-----------------------------------------------------------#
+# Linux Flatpak x86_64 Build Target                         #
+#-----------------------------------------------------------#
+"Linux amd64 Flatpak":
+  image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
+  stage: build
+  tags:
+  - linux
+  - amd64
+  script:
+  - flatpak-builder --user --repo=build/repo build/flatpak-build flatpak/org.openrgb.OpenRGB.yaml
+  - flatpak build-bundle build/repo org.openrgb.OpenRGB.flatpak org.openrgb.OpenRGB
+
+  artifacts:
+    name: "${CI_PROJECT_NAME}_Linux_amd64_Flatpak_${CI_COMMIT_SHORT_SHA}"
+    paths:
+    - org.openrgb.OpenRGB.flatpak
+    expire_in: 30 days
+
+  rules:
+    - !reference [.upstream_rules, rules]
+
+#-----------------------------------------------------------#
+# Linux Flatpak arm64 Build Target                          #
+#-----------------------------------------------------------#
+"Linux arm64 Flatpak":
+  image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
+  stage: build
+  tags:
+  - linux
+  - arm64
+  script:
+  - flatpak-builder --user --repo=build/repo build/flatpak-build flatpak/org.openrgb.OpenRGB.yaml
+  - flatpak build-bundle build/repo org.openrgb.OpenRGB.flatpak org.openrgb.OpenRGB
+
+  artifacts:
+    name: "${CI_PROJECT_NAME}_Linux_arm64_Flatpak_${CI_COMMIT_SHORT_SHA}"
+    paths:
+    - org.openrgb.OpenRGB.flatpak
+    expire_in: 30 days
+
+  rules:
+    - !reference [.upstream_rules, rules]
+
+#-----------------------------------------------------------#
 # Debian i386 Bookworm test                                 #
 #-----------------------------------------------------------#
 "Debian i386 Bookworm":
