@@ -46,6 +46,47 @@ namespace
         unsigned char firmware_index;
     };
 
+    struct ExpectedMode
+    {
+        const char*   name;
+        unsigned char firmware_mode;
+        unsigned int  flags;
+        unsigned int  color_mode;
+        unsigned int  speed;
+        unsigned int  brightness;
+        unsigned int  colors_count;
+    };
+
+    static constexpr unsigned int COLOR_MODE_FLAGS =
+        MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR;
+    static constexpr unsigned int SPEED_BRIGHTNESS_FLAGS =
+        MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+
+    const std::array<ExpectedMode, 21> EXPECTED_MODES =
+    {{
+        { "Off",                0x00, 0,                                                MODE_COLORS_NONE,          0, 0, 0 },
+        { "Static",             0x01, MODE_FLAG_HAS_BRIGHTNESS | COLOR_MODE_FLAGS,     MODE_COLORS_MODE_SPECIFIC, 0, 4, 1 },
+        { "Respire",            0x02, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Rainbow",            0x03, SPEED_BRIGHTNESS_FLAGS,                          MODE_COLORS_NONE,          4, 4, 0 },
+        { "Flash Away",         0x04, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Raindrops",          0x05, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Rainbow Wheel",      0x06, SPEED_BRIGHTNESS_FLAGS,                          MODE_COLORS_NONE,          4, 4, 0 },
+        { "Ripples Shining",    0x07, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Stars Twinkle",      0x08, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Shadow Disappear",   0x09, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Retro Snake",        0x0A, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Neon Stream",        0x0B, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Reaction",           0x0C, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Sine Wave",          0x0D, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Retinue Scanning",   0x0E, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Rotating Windmill",  0x0F, SPEED_BRIGHTNESS_FLAGS,                          MODE_COLORS_NONE,          4, 4, 0 },
+        { "Colorful Waterfall", 0x10, SPEED_BRIGHTNESS_FLAGS,                          MODE_COLORS_NONE,          4, 4, 0 },
+        { "Blossoming",         0x11, SPEED_BRIGHTNESS_FLAGS,                          MODE_COLORS_NONE,          4, 4, 0 },
+        { "Rotating Storm",     0x12, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Collision",          0x13, SPEED_BRIGHTNESS_FLAGS | COLOR_MODE_FLAGS,       MODE_COLORS_MODE_SPECIFIC, 4, 4, 1 },
+        { "Direct",             0x15, MODE_FLAG_HAS_PER_LED_COLOR,                    MODE_COLORS_PER_LED,       0, 0, 0 }
+    }};
+
     const std::array<ExpectedLED, redragon_k652::LED_COUNT> EXPECTED_LEDS =
     {{
         { KEY_EN_ESCAPE,          0x08 }, { KEY_EN_F1,              0x09 },
@@ -452,6 +493,59 @@ namespace
         return(bc.report);
     }
 
+    void RequireNoForbiddenEffectReports(std::size_t start, const std::string& context)
+    {
+        for(std::size_t operation_index = start; operation_index < operations.size(); operation_index++)
+        {
+            const Operation& operation = operations[operation_index];
+
+            if(operation.type != OperationType::SetFeature)
+            {
+                continue;
+            }
+
+            Require(!operation.report.empty() && operation.report[0] != 0x08,
+                    context + " must never send the Music-mode report ID 0x08");
+
+            if(operation.report.size() >= 3)
+            {
+                Require(operation.report[2] != 0xD4,
+                        context + " must never send an unvalidated D4 report");
+                Require(!(operation.report[0] == 0x06
+                       && operation.report[1] == 0x09
+                       && (operation.report[2] == 0xBC || operation.report[2] == 0xC0)),
+                        context + " must not enter the Direct BC/C0 path or touch Direct Fn slots");
+            }
+        }
+    }
+
+    const Operation& RequireEffectTransaction(std::size_t start, hid_device* command_handle, hid_device* data_handle,
+                                               unsigned char firmware_mode, const std::string& context)
+    {
+        Require(operations.size() == start + 4, context + " must add exactly query/read/B8/B6");
+        RequireQueryRead(start, command_handle, data_handle, context);
+        const Operation& b8 = RequireDataReport(start + 2, data_handle, 0x08, 0xB8, context + " B8");
+        const Operation& b6 = RequireDataReport(start + 3, data_handle, 0x03, 0xB6, context + " B6");
+        Require(b6.report[0x15] == firmware_mode,
+                context + " B6 must select the expected capture-confirmed firmware mode");
+        RequireNoForbiddenEffectReports(start, context);
+        RequireSleeps({ 20, 20, 50, 50, 20 }, context);
+        return(b8);
+    }
+
+    unsigned int FindMode(const RGBController_RedragonK652& controller, unsigned char firmware_mode)
+    {
+        for(std::size_t mode_index = 0; mode_index < controller.modes.size(); mode_index++)
+        {
+            if(controller.modes[mode_index].value == firmware_mode)
+            {
+                return(static_cast<unsigned int>(mode_index));
+            }
+        }
+
+        Fail("firmware mode is not exposed by the RGB controller");
+    }
+
     std::size_t FindLED(const RGBController_RedragonK652& controller, unsigned int firmware_index)
     {
         for(std::size_t led_index = 0; led_index < controller.leds.size(); led_index++)
@@ -463,6 +557,109 @@ namespace
         }
 
         Fail("firmware index is not exposed by the RGB controller");
+    }
+
+    void RequireModeTable(const RGBController_RedragonK652& controller)
+    {
+        Require(controller.modes.size() == EXPECTED_MODES.size(),
+                "K652 must expose exactly modes 0x00 through 0x13 plus separate Direct 0x15");
+        Require(FindMode(controller, redragon_k652::MODE_STATIC) == 1 && controller.active_mode == 1,
+                "K652 Static must remain the default-active mode after Off in the UI list");
+        Require(FindMode(controller, redragon_k652::MODE_DIRECT) == EXPECTED_MODES.size() - 1,
+                "K652 Direct must remain separate from onboard effects at the end of the UI list");
+
+        std::array<bool, 0x16> seen_modes{};
+        for(const mode& actual_mode : controller.modes)
+        {
+            Require(actual_mode.value >= 0 && static_cast<std::size_t>(actual_mode.value) < seen_modes.size(),
+                    "K652 mode value must remain in the capture-confirmed range");
+            Require(!seen_modes[actual_mode.value], "K652 must not expose duplicate firmware mode IDs");
+            seen_modes[actual_mode.value] = true;
+            Require(actual_mode.value != 0x14, "K652 unknown firmware mode 0x14 must remain absent");
+        }
+
+        for(std::size_t mode_index = 0; mode_index < EXPECTED_MODES.size(); mode_index++)
+        {
+            const ExpectedMode& expected_mode = EXPECTED_MODES[mode_index];
+            const mode& actual_mode = controller.modes[mode_index];
+            Require(actual_mode.name == expected_mode.name
+                 && actual_mode.value == expected_mode.firmware_mode
+                 && actual_mode.flags == expected_mode.flags
+                 && actual_mode.color_mode == expected_mode.color_mode
+                 && actual_mode.speed == expected_mode.speed
+                 && actual_mode.brightness == expected_mode.brightness
+                 && actual_mode.colors.size() == expected_mode.colors_count,
+                    "K652 mode name, capability flags, and defaults must match the capture-confirmed table");
+
+            if(expected_mode.colors_count == 1)
+            {
+                Require(actual_mode.colors_min == 1 && actual_mode.colors_max == 1,
+                        "K652 fixed/RGB-selector effects must expose exactly one mode-specific color");
+                Require(RGBGetRValue(actual_mode.colors[0]) == 0xFF
+                     && RGBGetGValue(actual_mode.colors[0]) == 0x00
+                     && RGBGetBValue(actual_mode.colors[0]) == 0x00,
+                        "K652 fixed/RGB-selector effects must initialize their mode-specific color to captured red");
+            }
+            else
+            {
+                Require(actual_mode.colors_min == 0 && actual_mode.colors_max == 0,
+                        "K652 built-in multicolor and Off modes must not expose a color picker");
+                Require(actual_mode.colors.empty(),
+                        "K652 colorless effects and Direct must not have a mode-specific color entry");
+            }
+
+            if(expected_mode.firmware_mode == redragon_k652::MODE_DIRECT)
+            {
+                Require(actual_mode.flags == MODE_FLAG_HAS_PER_LED_COLOR
+                     && actual_mode.color_mode == MODE_COLORS_PER_LED,
+                        "K652 Direct must retain its separate per-LED mode behavior");
+            }
+
+            if(expected_mode.flags & MODE_FLAG_HAS_SPEED)
+            {
+                Require(actual_mode.speed_min == 0 && actual_mode.speed_max == redragon_k652::MODE_CONTROL_MAX,
+                        "K652 speed-capable effects must expose the capture-confirmed 0 through 4 UI range");
+            }
+            else
+            {
+                Require(actual_mode.speed_min == 0 && actual_mode.speed_max == 0,
+                        "K652 modes without a speed control must not expose a speed range");
+            }
+
+            if(expected_mode.flags & MODE_FLAG_HAS_BRIGHTNESS)
+            {
+                Require(actual_mode.brightness_min == 0 && actual_mode.brightness_max == redragon_k652::MODE_CONTROL_MAX,
+                        "K652 brightness-capable effects must expose the capture-confirmed 0 through 4 UI range");
+            }
+            else
+            {
+                Require(actual_mode.brightness_min == 0 && actual_mode.brightness_max == 0,
+                        "K652 modes without a brightness control must not expose a brightness range");
+            }
+        }
+
+        Require(std::none_of(controller.modes.begin(), controller.modes.end(), [](const mode& current_mode)
+        {
+            return(current_mode.name == "Music");
+        }), "K652 Music mode must remain absent");
+
+        Require(redragon_k652::ConfigurationOffset(redragon_k652::MODE_STATIC) == 0x26
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_STATIC) + 1 == 0x27
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_RESPIRE) == 0x28
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_RESPIRE) + 1 == 0x29
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_RAINBOW) == 0x2A
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_RAINBOW) + 1 == 0x2B
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_COLLISION) == 0x4A
+             && redragon_k652::ConfigurationOffset(redragon_k652::MODE_COLLISION) + 1 == 0x4B,
+                "K652 mode-specific configuration offsets must remain capture-confirmed");
+        Require(redragon_k652::PaletteOffset(redragon_k652::MODE_STATIC) == 0x01D
+             && redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE) == 0x032
+             && redragon_k652::PaletteOffset(redragon_k652::MODE_FLASH_AWAY) == 0x05C
+             && redragon_k652::PaletteOffset(redragon_k652::MODE_COLLISION) == 0x197,
+                "K652 mode-specific palette offsets must remain capture-confirmed");
+        Require(!redragon_k652::IsOnboardMode(0x14)
+             && !redragon_k652::IsOnboardMode(redragon_k652::MODE_DIRECT),
+                "K652 unknown 0x14 and Direct 0x15 must stay outside ordinary onboard effects");
     }
 
     void RequireLEDMap(const RGBController_RedragonK652& controller)
@@ -648,11 +845,20 @@ int main()
         first_claim.reset();
 
         RequireLEDMap(controller);
+        RequireModeTable(controller);
+
+        const unsigned int static_mode     = FindMode(controller, redragon_k652::MODE_STATIC);
+        const unsigned int respire_mode    = FindMode(controller, redragon_k652::MODE_RESPIRE);
+        const unsigned int rainbow_mode    = FindMode(controller, redragon_k652::MODE_RAINBOW);
+        const unsigned int flash_away_mode = FindMode(controller, redragon_k652::MODE_FLASH_AWAY);
+        const unsigned int off_mode        = FindMode(controller, redragon_k652::MODE_OFF);
 
         /* Simulate controller-facing registration and widget-sync calls while the device-local lock is held. */
         const std::size_t startup_io_count = operations.size();
         Require(!low_level_controller->ApplyStatic(ToRGBColor(1, 2, 3)),
                 "low-level static apply must remain locked before explicit user authorization");
+        Require(!low_level_controller->ApplyOnboardMode(redragon_k652::MODE_RESPIRE, ToRGBColor(1, 2, 3), 2, 4, false),
+                "low-level onboard effects must remain locked before explicit user authorization");
         Require(!low_level_controller->ApplyDirect(std::vector<RGBColor>(redragon_k652::LED_COUNT, ToRGBColor(1, 2, 3))),
                 "low-level direct apply must remain locked before explicit user authorization");
         controller.UpdateMode();
@@ -662,8 +868,12 @@ int main()
         controller.SetCustomMode();
         controller.UpdateMode();
         controller.UpdateLEDs();
-        controller.SetModeColor(0, 0, ToRGBColor(7, 8, 9));
-        controller.SetActiveMode(0);
+        controller.SetModeColor(static_mode, 0, ToRGBColor(7, 8, 9));
+        controller.SetModeColor(respire_mode, 0, ToRGBColor(17, 34, 51));
+        controller.SetModeSpeed(respire_mode, 2);
+        controller.SetModeBrightness(respire_mode, 4);
+        controller.SetActiveMode(static_cast<int>(respire_mode));
+        controller.SetActiveMode(static_cast<int>(static_mode));
 
         Require(operations.size() == startup_io_count,
                 "construction and controller-facing startup calls must not query or write lighting reports");
@@ -677,9 +887,9 @@ int main()
                 "explicit authorization itself must not send a HID report");
 
         /* Static red: complete captured B8 and B6 goldens. */
-        controller.SetModeColor(0, 0, ToRGBColor(255, 0, 0));
+        controller.SetModeColor(static_mode, 0, ToRGBColor(255, 0, 0));
         std::size_t transaction_start = operations.size();
-        controller.SetActiveMode(0);
+        controller.SetActiveMode(static_cast<int>(static_mode));
         RequireStaticTransaction(transaction_start, command_handle, data_handle, ToRGBColor(255, 0, 0), nullptr,
                                  "Static red");
         const std::vector<unsigned char> static_red_b8 = operations[transaction_start + 2].report;
@@ -708,12 +918,179 @@ int main()
             expected_b8[0x1E] = RGBGetGValue(color);
             expected_b8[0x1F] = RGBGetBValue(color);
 
-            controller.SetModeColor(0, 0, color);
+            controller.SetModeColor(static_mode, 0, color);
             transaction_start = operations.size();
-            controller.SetActiveMode(0);
+            controller.SetActiveMode(static_cast<int>(static_mode));
             RequireStaticTransaction(transaction_start, command_handle, data_handle, color, &expected_b8,
                                      additional_static_names[color_index]);
         }
+
+        controller.SetModeColorMode(static_mode, MODE_COLORS_RANDOM);
+        controller.SetModeBrightness(static_mode, 0);
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(static_mode));
+        RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_STATIC,
+                                 "Static RGB with minimum brightness");
+        const std::vector<unsigned char>& static_rgb_b6 = operations[transaction_start + 3].report;
+        Require(static_rgb_b6[0x026] == 0x07 && static_rgb_b6[0x027] == 0x40,
+                "Static must preserve its captured no-speed high nibble while changing brightness and RGB selector");
+        controller.SetModeColorMode(static_mode, MODE_COLORS_MODE_SPECIFIC);
+        controller.SetModeBrightness(static_mode, redragon_k652::MODE_CONTROL_MAX);
+
+        /* Respire fixed color: B8 palette and its own 0x28/0x29 configuration pair. */
+        controller.SetModeColor(respire_mode, 0, ToRGBColor(17, 34, 51));
+        controller.SetModeColorMode(respire_mode, MODE_COLORS_MODE_SPECIFIC);
+        controller.SetModeSpeed(respire_mode, 2);
+        controller.SetModeBrightness(respire_mode, 4);
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(respire_mode));
+        const Operation& respire_fixed_b8 =
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RESPIRE,
+                                     "Respire fixed 17/34/51");
+        const std::vector<unsigned char>& respire_fixed_b6 = operations[transaction_start + 3].report;
+        Require(respire_fixed_b8.report[0x032] == 0x11
+             && respire_fixed_b8.report[0x033] == 0x22
+             && respire_fixed_b8.report[0x034] == 0x33,
+                "Respire fixed color must occupy only its first B8 palette triplet");
+        Require(respire_fixed_b6[0x028] == 0x00 && respire_fixed_b6[0x029] == 0x24,
+                "Respire fixed color and speed/brightness must use B6[0x28]/B6[0x29]");
+        const std::vector<unsigned char> respire_palette(
+            respire_fixed_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE),
+            respire_fixed_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE)
+            + redragon_k652::MODE_PALETTE_SIZE);
+
+        for(unsigned int brightness = 0; brightness <= redragon_k652::MODE_CONTROL_MAX; brightness++)
+        {
+            controller.SetModeSpeed(respire_mode, 2);
+            controller.SetModeBrightness(respire_mode, brightness);
+            transaction_start = operations.size();
+            controller.SetActiveMode(static_cast<int>(respire_mode));
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RESPIRE,
+                                     "Respire brightness packing");
+            const std::vector<unsigned char>& respire_b6 = operations[transaction_start + 3].report;
+            Require(respire_b6[0x028] == 0x00 && respire_b6[0x029] == static_cast<unsigned char>(0x20 | brightness),
+                    "Respire brightness 0 through 4 at speed 2 must pack into B6[0x29]");
+        }
+
+        for(unsigned int speed = 0; speed <= redragon_k652::MODE_CONTROL_MAX; speed++)
+        {
+            controller.SetModeSpeed(respire_mode, speed);
+            controller.SetModeBrightness(respire_mode, 2);
+            transaction_start = operations.size();
+            controller.SetActiveMode(static_cast<int>(respire_mode));
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RESPIRE,
+                                     "Respire speed packing");
+            const std::vector<unsigned char>& respire_b6 = operations[transaction_start + 3].report;
+            Require(respire_b6[0x028] == 0x00 && respire_b6[0x029] == static_cast<unsigned char>((speed << 4) | 0x02),
+                    "Respire speed 0 through 4 at brightness 2 must pack into B6[0x29]");
+        }
+
+        controller.SetModeSpeed(respire_mode, 2);
+        controller.SetModeBrightness(respire_mode, 4);
+
+        controller.SetModeColorMode(respire_mode, MODE_COLORS_RANDOM);
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(respire_mode));
+        RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RESPIRE,
+                                 "Respire RGB");
+        const std::vector<unsigned char>& respire_rgb_b6 = operations[transaction_start + 3].report;
+        Require(respire_rgb_b6[0x028] == 0x07 && respire_rgb_b6[0x029] == 0x24,
+                "Respire RGB checkbox must change only its captured B6 selector byte to 0x07");
+
+        struct PackedSetting
+        {
+            unsigned int speed;
+            unsigned int brightness;
+            unsigned char packed;
+        };
+        const std::array<PackedSetting, 4> rainbow_settings =
+        {{
+            { 2, 0, 0x20 }, { 2, 4, 0x24 }, { 0, 4, 0x04 }, { 4, 4, 0x44 }
+        }};
+
+        for(const PackedSetting& setting : rainbow_settings)
+        {
+            controller.SetModeSpeed(rainbow_mode, setting.speed);
+            controller.SetModeBrightness(rainbow_mode, setting.brightness);
+            transaction_start = operations.size();
+            controller.SetActiveMode(static_cast<int>(rainbow_mode));
+            const Operation& rainbow_b8 =
+                RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RAINBOW,
+                                         "Rainbow speed/brightness");
+            const std::vector<unsigned char>& rainbow_b6 = operations[transaction_start + 3].report;
+            Require(rainbow_b6[0x02B] == setting.packed,
+                    "Rainbow speed/brightness must use its own B6[0x2B] configuration byte");
+            Require(rainbow_b6[0x029] == 0x24,
+                    "Rainbow updates must preserve Respire B6[0x29] rather than writing the wrong mode pair");
+            Require(std::equal(respire_palette.begin(), respire_palette.end(),
+                               rainbow_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE)),
+                    "Rainbow B8 update must preserve the previously selected Respire palette block");
+        }
+
+        controller.SetModeColor(flash_away_mode, 0, ToRGBColor(68, 85, 102));
+        controller.SetModeColorMode(flash_away_mode, MODE_COLORS_MODE_SPECIFIC);
+        controller.SetModeSpeed(flash_away_mode, 1);
+        controller.SetModeBrightness(flash_away_mode, 3);
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(flash_away_mode));
+        const Operation& flash_away_b8 =
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_FLASH_AWAY,
+                                     "Flash Away fixed 68/85/102");
+        const std::vector<unsigned char>& flash_away_b6 = operations[transaction_start + 3].report;
+        Require(flash_away_b8.report[0x05C] == 0x44
+             && flash_away_b8.report[0x05D] == 0x55
+             && flash_away_b8.report[0x05E] == 0x66,
+                "Flash Away fixed color must use its own B8[0x5C..0x5E] palette triplet");
+        Require(flash_away_b6[0x02C] == 0x00 && flash_away_b6[0x02D] == 0x13,
+                "Flash Away selector and speed/brightness must use its mode-specific B6 pair");
+        Require(std::equal(respire_palette.begin(), respire_palette.end(),
+                           flash_away_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_RESPIRE)),
+                "changing Flash Away must not modify the Respire palette block");
+        const std::vector<unsigned char> flash_away_palette(
+            flash_away_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_FLASH_AWAY),
+            flash_away_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_FLASH_AWAY)
+            + redragon_k652::MODE_PALETTE_SIZE);
+
+        controller.SetModeColor(respire_mode, 0, ToRGBColor(170, 187, 204));
+        controller.SetModeColorMode(respire_mode, MODE_COLORS_MODE_SPECIFIC);
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(respire_mode));
+        const Operation& respire_changed_b8 =
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_RESPIRE,
+                                     "Respire fixed palette isolation");
+        Require(respire_changed_b8.report[0x032] == 0xAA
+             && respire_changed_b8.report[0x033] == 0xBB
+             && respire_changed_b8.report[0x034] == 0xCC,
+                "Respire later fixed color must update its own first palette triplet");
+        Require(std::equal(flash_away_palette.begin(), flash_away_palette.end(),
+                           respire_changed_b8.report.begin() + redragon_k652::PaletteOffset(redragon_k652::MODE_FLASH_AWAY)),
+                "changing Respire must not modify the Flash Away palette block");
+
+        for(const ExpectedMode& expected_mode : EXPECTED_MODES)
+        {
+            if(expected_mode.firmware_mode < redragon_k652::MODE_RAINDROPS
+            || expected_mode.firmware_mode > redragon_k652::MODE_COLLISION)
+            {
+                continue;
+            }
+
+            transaction_start = operations.size();
+            controller.SetActiveMode(static_cast<int>(FindMode(controller, expected_mode.firmware_mode)));
+            RequireEffectTransaction(transaction_start, command_handle, data_handle, expected_mode.firmware_mode,
+                                     std::string(expected_mode.name) + " mode selection");
+        }
+
+        transaction_start = operations.size();
+        controller.SetActiveMode(static_cast<int>(off_mode));
+        RequireEffectTransaction(transaction_start, command_handle, data_handle, redragon_k652::MODE_OFF, "Off");
+
+        const std::size_t invalid_effect_io = operations.size();
+        Require(!low_level_controller->ApplyOnboardMode(0x14, ToRGBColor(1, 2, 3), 0, 0, false)
+             && !low_level_controller->ApplyOnboardMode(redragon_k652::MODE_DIRECT, ToRGBColor(1, 2, 3), 0, 0, false),
+                "unknown 0x14 and Direct 0x15 must be rejected by the onboard-effects path");
+        Require(operations.size() == invalid_effect_io,
+                "invalid onboard-effect firmware IDs must not query or write HID reports");
+        Require(sleep_durations.empty(), "invalid onboard-effect firmware IDs must not perform protocol pacing");
 
         const std::size_t esc_led         = FindLED(controller, 0x08);
         const std::size_t space_led       = FindLED(controller, 0x76);
@@ -806,6 +1183,6 @@ int main()
     Require(link_stub_hid_calls.load() == 0,
             "offline safety test must never reach a real/default hidapi call path");
 
-    std::cout << "PASS: offline K652 startup, packet goldens, RGB planes, registry, and lifetime safety" << std::endl;
+    std::cout << "PASS: offline K652 startup, onboard effects, packet goldens, RGB planes, registry, and lifetime safety" << std::endl;
     return(0);
 }

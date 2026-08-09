@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -16,10 +17,15 @@ enum
 {
     DEVICE_TYPE_KEYBOARD = 6,
     CONTROLLER_FLAG_NO_PROFILE_APPLY = (1 << 9),
-    MODE_FLAG_HAS_MODE_SPECIFIC_COLOR = (1 << 10),
-    MODE_FLAG_HAS_PER_LED_COLOR = (1 << 11),
-    MODE_COLORS_MODE_SPECIFIC = 1,
-    MODE_COLORS_PER_LED = 2,
+    MODE_FLAG_HAS_SPEED = (1 << 0),
+    MODE_FLAG_HAS_BRIGHTNESS = (1 << 4),
+    MODE_FLAG_HAS_PER_LED_COLOR = (1 << 5),
+    MODE_FLAG_HAS_MODE_SPECIFIC_COLOR = (1 << 6),
+    MODE_FLAG_HAS_RANDOM_COLOR = (1 << 7),
+    MODE_COLORS_NONE = 0,
+    MODE_COLORS_PER_LED = 1,
+    MODE_COLORS_MODE_SPECIFIC = 2,
+    MODE_COLORS_RANDOM = 3,
     ZONE_TYPE_MATRIX = 2
 };
 
@@ -28,6 +34,12 @@ struct mode
     std::string name;
     int value = 0;
     unsigned int flags = 0;
+    unsigned int speed_min = 0;
+    unsigned int speed_max = 0;
+    unsigned int brightness_min = 0;
+    unsigned int brightness_max = 0;
+    unsigned int speed = 0;
+    unsigned int brightness = 0;
     unsigned int color_mode = 0;
     unsigned int colors_min = 0;
     unsigned int colors_max = 0;
@@ -107,12 +119,43 @@ public:
 
     void SetCustomMode()
     {
-        active_mode = 1;
+        for(std::size_t mode_index = 0; mode_index < modes.size(); mode_index++)
+        {
+            if(modes[mode_index].value == 0x15)
+            {
+                active_mode = static_cast<int>(mode_index);
+                return;
+            }
+        }
     }
 
     void SetModeColor(unsigned int mode_idx, unsigned int color_idx, RGBColor color)
     {
         modes[mode_idx].colors[color_idx] = color;
+    }
+
+    void SetModeSpeed(unsigned int mode_idx, unsigned int speed)
+    {
+        if(mode_idx < modes.size())
+        {
+            modes[mode_idx].speed = speed;
+        }
+    }
+
+    void SetModeBrightness(unsigned int mode_idx, unsigned int brightness)
+    {
+        if(mode_idx < modes.size())
+        {
+            modes[mode_idx].brightness = brightness;
+        }
+    }
+
+    void SetModeColorMode(unsigned int mode_idx, unsigned int color_mode)
+    {
+        if(mode_idx < modes.size())
+        {
+            modes[mode_idx].color_mode = color_mode;
+        }
     }
 
     virtual void DeviceUpdateLEDs() {}
