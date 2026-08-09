@@ -3151,6 +3151,7 @@ NetPacketStatus NetworkServer::ProcessRequest_RGBController_UpdateLEDs(NetworkCl
     /*-----------------------------------------------------*\
     | Call UpdateLEDs on the given controller               |
     \*-----------------------------------------------------*/
+    controllers[controller_idx]->EnableUserLightingControl();
     controllers[controller_idx]->UpdateLEDs();
 
     return(NET_PACKET_STATUS_OK);
@@ -3257,6 +3258,7 @@ NetPacketStatus NetworkServer::ProcessRequest_RGBController_UpdateSaveMode(Netwo
     }
     else
     {
+        controllers[controller_idx]->EnableUserLightingControl();
         controllers[controller_idx]->UpdateMode();
     }
 
@@ -3338,6 +3340,7 @@ NetPacketStatus NetworkServer::ProcessRequest_RGBController_UpdateSingleLED(Netw
     /*-----------------------------------------------------*\
     | Call UpdateSingleLED                                  |
     \*-----------------------------------------------------*/
+    controllers[controller_idx]->EnableUserLightingControl();
     controllers[controller_idx]->UpdateSingleLED(led_idx);
 
     return(NET_PACKET_STATUS_OK);
@@ -3438,6 +3441,7 @@ NetPacketStatus NetworkServer::ProcessRequest_RGBController_UpdateZoneLEDs(Netwo
     /*-----------------------------------------------------*\
     | Call UpdateZoneLEDs                                   |
     \*-----------------------------------------------------*/
+    controllers[controller_idx]->EnableUserLightingControl();
     controllers[controller_idx]->UpdateZoneLEDs(zone_idx);
 
     return(NET_PACKET_STATUS_OK);

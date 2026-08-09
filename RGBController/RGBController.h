@@ -186,6 +186,12 @@ public:
     void                    UpdateZoneMode(int zone);
     void                    SaveMode();
 
+    /*-----------------------------------------------------*\
+    | Permanently opt this controller instance into explicit|
+    | user/API lighting control.                            |
+    \*-----------------------------------------------------*/
+    void                    EnableUserLightingControl();
+
     void                    DeviceCallThreadFunction();
 
     void                    ClearSegments(int zone);
@@ -209,6 +215,7 @@ public:
     virtual void            DeviceUpdateMode();
     virtual void            DeviceUpdateZoneMode(int zone);
     virtual void            DeviceSaveMode();
+    virtual void            DeviceEnableUserLightingControl();
 
     virtual void            DeviceUpdateDeviceSpecificConfiguration();
     virtual void            DeviceUpdateDeviceSpecificZoneConfiguration(int zone);

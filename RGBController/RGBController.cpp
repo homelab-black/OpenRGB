@@ -2041,6 +2041,13 @@ void RGBController::SaveMode()
     SignalUpdate(RGBCONTROLLER_UPDATE_REASON_SAVEMODE);
 }
 
+void RGBController::EnableUserLightingControl()
+{
+    AccessMutex.lock_shared();
+    DeviceEnableUserLightingControl();
+    AccessMutex.unlock_shared();
+}
+
 void RGBController::DeviceCallThreadFunction()
 {
     CallFlag_UpdateLEDs = false;
@@ -2371,6 +2378,11 @@ void RGBController::DeviceSaveMode()
     /*-----------------------------------------------------*\
     | If not implemented by controller, does nothing        |
     \*-----------------------------------------------------*/
+}
+
+void RGBController::DeviceEnableUserLightingControl()
+{
+    /* Default implementation does nothing. */
 }
 
 void RGBController::DeviceUpdateDeviceSpecificConfiguration()

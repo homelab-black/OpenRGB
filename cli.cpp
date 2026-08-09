@@ -1347,6 +1347,7 @@ void ApplyOptions(DeviceOptions& options, std::vector<RGBController *>& rgb_cont
     /*-----------------------------------------------------*\
     | Set device mode                                       |
     \*-----------------------------------------------------*/
+    device->EnableUserLightingControl();
     device->SetActiveMode(mode);
 
     /*-----------------------------------------------------*\
