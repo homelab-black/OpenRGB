@@ -106,7 +106,7 @@ unsigned int AsusAuraCoreLaptopController::GetKeyboardLayout()
                                                                 0x20,
                                                                 0x31,
                                                                 0x00,
-                                                                0x10  };
+                                                                0x1a  };
 
     /*---------------------------------------------------------*\
     | Clear the read buffer to ensure we read the right packet  |
@@ -199,6 +199,17 @@ void AsusAuraCoreLaptopController::SendInitDirectMode()
     hid_send_feature_report(dev, buffer, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE);
 }
 
+void AsusAuraCoreLaptopController::SendRearBarNeeded()
+{
+    uint8_t buffer[ASUSAURACORELAPTOP_WRITE_PACKET_SIZE]    = { ASUSAURACORELAPTOP_REPORT_ID, ASUSAURACORELAPTOP_CMD_POWER, 0x01, 0xff, 0x1f, 0xff, 0xff, 0xff };
+
+    memset(&buffer[8], 0, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE - 8);
+    
+    LOG_DEBUG("[%s] Resetting device for direct control", aura_core_laptop_device_list[device_index]->dmi_name.c_str());
+    hid_send_feature_report(dev, buffer, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE);
+
+}
+
 void AsusAuraCoreLaptopController::SetLedsDirect(std::vector<RGBColor *> colors)
 {
     /*---------------------------------------------------------*\
@@ -207,6 +218,7 @@ void AsusAuraCoreLaptopController::SetLedsDirect(std::vector<RGBColor *> colors)
     |   zones are sent in one final packet afterwards.          |
     \*---------------------------------------------------------*/
     const uint8_t   key_set                                 = 167;
+    const uint8_t   led_rear_start                          = 177;
     const uint8_t   led_count                               = (uint8_t)colors.size();
     const uint16_t  map_size                                = 3 * led_count;
     const uint8_t   leds_per_packet                         = 16;
@@ -223,6 +235,11 @@ void AsusAuraCoreLaptopController::SetLedsDirect(std::vector<RGBColor *> colors)
         key_buf[buf_idx]        = RGBGetRValue(*colors[led_index]);
         key_buf[buf_idx + 1]    = RGBGetGValue(*colors[led_index]);
         key_buf[buf_idx + 2]    = RGBGetBValue(*colors[led_index]);
+    }
+
+    if(led_count > led_rear_start)
+    {
+        SendRearBarNeeded();
     }
 
     for(uint8_t i = 0; i < key_set; i += leds_per_packet)
@@ -260,17 +277,55 @@ void AsusAuraCoreLaptopController::SetLedsDirect(std::vector<RGBColor *> colors)
 
     if(led_count > key_set)
     {
+        uint8_t leds_remaining  = key_set - led_count;
+        
+        if(leds_remaining > (led_rear_start - key_set))
+        {
+            leds_remaining = led_rear_start - key_set;
+        }
+
         memcpy(&buffer[ASUSAURACORELAPTOP_DATA_BYTE],
-               &key_buf[3 * key_set],
-               (3 * (led_count - key_set)));
+            &key_buf[3 * key_set],
+            (3 * (leds_remaining)));
+    
+        LOG_DEBUG("[%s] Sending buffer @ index %d thru index %d",
+                aura_core_laptop_device_list[device_index]->dmi_name.c_str(),
+                key_set,
+                led_count);
+
+        hid_send_feature_report(dev, buffer, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE);
+
+        if(led_count > led_rear_start)
+        {
+            buffer[4] = 0x05;
+            buffer[5] = 0x00;
+            buffer[7] = 0x10;
+
+            for(uint8_t i = led_rear_start ; i < led_count; i += leds_per_packet)
+            {
+                uint8_t leds_remaining  = led_count - i - 1;
+                if(leds_remaining < leds_per_packet)
+                {
+                    buffer[07]          = leds_remaining;
+
+                    memset(&buffer[ASUSAURACORELAPTOP_DATA_BYTE],
+                        0,
+                        ASUSAURACORELAPTOP_WRITE_PACKET_SIZE - ASUSAURACORELAPTOP_DATA_BYTE);
+                }
+
+                buffer[06]              = i-led_rear_start+1;
+                memcpy(&buffer[ASUSAURACORELAPTOP_DATA_BYTE], &key_buf[3 * i], (3 * buffer[07]));
+
+                LOG_DEBUG("[%s] Sending buffer @ index %d thru index %d",
+                        aura_core_laptop_device_list[device_index]->dmi_name.c_str(),
+                        i,
+                        i + buffer[07]);
+
+                hid_send_feature_report(dev, buffer, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE);
+            }
+        }
     }
 
-    LOG_DEBUG("[%s] Sending buffer @ index %d thru index %d",
-              aura_core_laptop_device_list[device_index]->dmi_name.c_str(),
-              key_set,
-              led_count);
-
-    hid_send_feature_report(dev, buffer, ASUSAURACORELAPTOP_WRITE_PACKET_SIZE);
     delete[] key_buf;
 }
 
