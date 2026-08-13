@@ -53,6 +53,16 @@ unsigned int SinowealthController::GetLEDCount()
     return(led_count);
 }
 
+/*---------------------------------------------------------*\
+| The packet carries colors as red, blue, green             |
+\*---------------------------------------------------------*/
+void SinowealthController::SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color)
+{
+    usb_buf[offset]     = RGBGetRValue(color);
+    usb_buf[offset + 1] = RGBGetBValue(color);
+    usb_buf[offset + 2] = RGBGetGValue(color);
+}
+
 std::string SinowealthController::GetSerialString()
 {
     wchar_t serial_string[128];
@@ -111,36 +121,16 @@ void SinowealthController::SetMode
         break;
     case GLORIOUS_MODE_STATIC:
         usb_buf[0x38] = ((brightness & 0xF) << 4);
-        usb_buf[0x39] = RGBGetRValue(color_buf[0]);
-        usb_buf[0x3A] = RGBGetBValue(color_buf[0]);
-        usb_buf[0x3B] = RGBGetGValue(color_buf[0]);
+        SetPacketColor(usb_buf, 0x39, color_buf[0]);
         break;
     case GLORIOUS_MODE_SPECTRUM_BREATING:
-        //colours not yet researched
         usb_buf[0x3C] = ((brightness & 0xF) << 4) | (speed & 0xF);
         usb_buf[0x3D] = 0x07;  //maybe some kind of bank change?+
         //usb_buf[0x3D] = 0x06;
-        usb_buf[0x3E] = RGBGetRValue(color_buf[0]);  //mode 3 red 1
-        usb_buf[0x3F] = RGBGetBValue(color_buf[0]);  //mode 3 blue 1
-        usb_buf[0x40] = RGBGetGValue(color_buf[0]);  //mode 3 green 1
-        usb_buf[0x41] = RGBGetRValue(color_buf[1]);  //mode 3 red 2
-        usb_buf[0x42] = RGBGetBValue(color_buf[1]);  //mode 3 blue 2
-        usb_buf[0x43] = RGBGetGValue(color_buf[1]);  //mode 3 green 2
-        usb_buf[0x44] = RGBGetRValue(color_buf[2]);  //mode 3 red 3
-        usb_buf[0x45] = RGBGetBValue(color_buf[2]);  //mode 3 blue 3
-        usb_buf[0x46] = RGBGetGValue(color_buf[2]);  //mode 3 green 3
-        usb_buf[0x47] = RGBGetRValue(color_buf[3]);  //mode 3 red 4
-        usb_buf[0x48] = RGBGetBValue(color_buf[3]);  //mode 3 blue 4
-        usb_buf[0x49] = RGBGetGValue(color_buf[3]);  //mode 3 green 4
-        usb_buf[0x4A] = RGBGetRValue(color_buf[4]);  //mode 3 red 5
-        usb_buf[0x4B] = RGBGetBValue(color_buf[4]);  //mode 3 blue 5
-        usb_buf[0x4C] = RGBGetGValue(color_buf[4]);  //mode 3 green 5
-        usb_buf[0x4D] = RGBGetRValue(color_buf[5]);  //mode 3 red 6
-        usb_buf[0x4E] = RGBGetBValue(color_buf[5]);  //mode 3 blue 6
-        usb_buf[0x4F] = RGBGetGValue(color_buf[5]);  //mode 3 green 6
-        usb_buf[0x50] = RGBGetRValue(color_buf[6]);  //mode 3 red 7
-        usb_buf[0x51] = RGBGetBValue(color_buf[6]);  //mode 3 blue 7
-        usb_buf[0x52] = RGBGetGValue(color_buf[6]);  //mode 3 green 7
+        for(unsigned int color_idx = 0; color_idx < 7; color_idx++)
+        {
+            SetPacketColor(usb_buf, 0x3E + (color_idx * 3), color_buf[color_idx]);
+        }
         break;
     case GLORIOUS_MODE_TAIL:
         usb_buf[0x53] = ((brightness & 0xF) << 4) | (speed & 0xF);
@@ -150,21 +140,15 @@ void SinowealthController::SetMode
         break;
     case GLORIOUS_MODE_RAVE:
         usb_buf[0x74] = ((brightness & 0xF) << 4) | (speed & 0xF);
-        usb_buf[0x75] = RGBGetRValue(color_buf[0]); //mode 7 red 1
-        usb_buf[0x76] = RGBGetBValue(color_buf[0]); //mode 7 blue 1
-        usb_buf[0x77] = RGBGetGValue(color_buf[0]); //mode 7 green 1
-        usb_buf[0x78] = RGBGetRValue(color_buf[1]); //mode 7 red 2
-        usb_buf[0x79] = RGBGetBValue(color_buf[1]); //mode 7 blue 2
-        usb_buf[0x7A] = RGBGetGValue(color_buf[1]); //mode 7 green 2
+        SetPacketColor(usb_buf, 0x75, color_buf[0]);
+        SetPacketColor(usb_buf, 0x78, color_buf[1]);
         break;
     case GLORIOUS_MODE_WAVE:
         usb_buf[0x7C] = ((brightness & 0xF) << 4) | (speed & 0xF);
         break;
     case GLORIOUS_MODE_BREATHING:
         usb_buf[0x7D] = ((brightness & 0xF) << 4) | (speed & 0xF);
-        usb_buf[0x7E] = RGBGetRValue(color_buf[0]); //mode 0a red
-        usb_buf[0x7F] = RGBGetBValue(color_buf[0]); //mode 0a blue
-        usb_buf[0x80] = RGBGetGValue(color_buf[0]); //mode 0a green
+        SetPacketColor(usb_buf, 0x7E, color_buf[0]);
     case GLORIOUS_MODE_OFF:
         usb_buf[0x81] = 0x00; //mode 0 either 0x00 or 0x03
         break;

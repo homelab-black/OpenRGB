@@ -70,6 +70,8 @@ public:
     int             GetProfile();
 
 private:
+    void            SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color);
+
     hid_device*     dev_cmd;
     hid_device*     dev_data;
     unsigned int    led_count;
