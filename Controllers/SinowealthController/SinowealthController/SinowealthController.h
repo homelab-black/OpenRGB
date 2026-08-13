@@ -20,6 +20,51 @@
 #define SINOWEALTH_CONFIG_REPORT_SIZE  520
 #define SINOWEALTH_COMMAND_REPORT_SIZE   6
 
+/*---------------------------------------------------------*\
+| Colors of the DPI stages.                                  |
+|                                                            |
+| On the GXT 970 the logo and the DPI indicator both show    |
+| the color of the currently selected stage, so the firmware |
+| ties them together and they cannot be driven apart. Every  |
+| stage is given the same color, which also keeps them from  |
+| changing shade as the user cycles DPI.                     |
+|                                                            |
+| The block appears to run on to 0x34, but only the six      |
+| stages the Trust firmware uses have ever been written, so  |
+| the remaining triples are left untouched.                  |
+\*---------------------------------------------------------*/
+#define SINOWEALTH_DPI_COLOR_OFFSET   0x1D
+#define SINOWEALTH_DPI_STAGES            6
+
+/*---------------------------------------------------------*\
+| Rebranded variants wire the same controller differently    |
+\*---------------------------------------------------------*/
+enum sinowealth_variant
+{
+    /*-----------------------------------------------------*\
+    | Glorious, Everest: one LED, packet order is R, B, G    |
+    \*-----------------------------------------------------*/
+    SINOWEALTH_VARIANT_DEFAULT      = 0,
+
+    /*-----------------------------------------------------*\
+    | Trust GXT 970: packet order is R, G, B, and the DPI    |
+    | indicator LEDs are separate from the effect LED        |
+    \*-----------------------------------------------------*/
+    SINOWEALTH_VARIANT_TRUST_GXT970 = 1
+};
+
+/*---------------------------------------------------------*\
+| LED indices. The effect LED is first so that it keeps the  |
+| meaning it has on single LED variants. On the GXT 970 it   |
+| is the bottom strip, and the DPI stage colors light the    |
+| logo and the DPI indicator together.                       |
+\*---------------------------------------------------------*/
+enum
+{
+    SINOWEALTH_LED_EFFECT           = 0,
+    SINOWEALTH_LED_DPI              = 1
+};
+
 enum
 {
     GLORIOUS_MODE_OFF               = 0x00, //does nothing
@@ -57,10 +102,11 @@ enum
 class SinowealthController
 {
 public:
-    SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name); //RGB, Command, path
+    SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name, sinowealth_variant dev_variant = SINOWEALTH_VARIANT_DEFAULT); //RGB, Command, path
     ~SinowealthController();
 
     unsigned int    GetLEDCount();
+    std::string     GetLEDName(unsigned int led_idx);
     std::string     GetLocation();
     std::string     GetName();
     std::string     GetSerialString();
@@ -83,6 +129,7 @@ private:
     hid_device*     dev_cmd;
     hid_device*     dev_data;
     unsigned int    led_count;
+    sinowealth_variant variant;
     unsigned char   device_configuration[SINOWEALTH_CONFIG_REPORT_SIZE];
     std::string     location;
     std::string     name;

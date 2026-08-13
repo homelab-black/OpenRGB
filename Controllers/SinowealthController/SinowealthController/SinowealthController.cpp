@@ -14,14 +14,19 @@
 #include "SinowealthController.h"
 #include "StringUtils.h"
 
-SinowealthController::SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name)
+SinowealthController::SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name, sinowealth_variant dev_variant)
 {
     dev_data            = dev_data_handle;
     dev_cmd             = dev_cmd_handle;
     location            = _path;
     name                = dev_name;
+    variant             = dev_variant;
 
-    led_count           = 1;
+    /*---------------------------------------------------------*\
+    | The GXT 970 drives its logo and DPI indicator from the DPI  |
+    | stage colors, independently of the bottom strip             |
+    \*---------------------------------------------------------*/
+    led_count           = (variant == SINOWEALTH_VARIANT_TRUST_GXT970) ? 2 : 1;
 }
 
 SinowealthController::~SinowealthController()
@@ -53,14 +58,27 @@ unsigned int SinowealthController::GetLEDCount()
     return(led_count);
 }
 
+std::string SinowealthController::GetLEDName(unsigned int led_idx)
+{
+    if(variant != SINOWEALTH_VARIANT_TRUST_GXT970)
+    {
+        return("Mouse LED");
+    }
+
+    return(led_idx == SINOWEALTH_LED_DPI ? "Logo / DPI Indicator" : "Bottom");
+}
+
 /*---------------------------------------------------------*\
-| The packet carries colors as red, blue, green             |
+| Most variants expect red, blue, green in the packet, the   |
+| GXT 970 expects plain red, green, blue                     |
 \*---------------------------------------------------------*/
 void SinowealthController::SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color)
 {
+    bool swapped        = (variant != SINOWEALTH_VARIANT_TRUST_GXT970);
+
     usb_buf[offset]     = RGBGetRValue(color);
-    usb_buf[offset + 1] = RGBGetBValue(color);
-    usb_buf[offset + 2] = RGBGetGValue(color);
+    usb_buf[offset + 1] = swapped ? RGBGetBValue(color) : RGBGetGValue(color);
+    usb_buf[offset + 2] = swapped ? RGBGetGValue(color) : RGBGetBValue(color);
 }
 
 unsigned char SinowealthController::GetConfigByte(unsigned int offset)
@@ -84,9 +102,10 @@ RGBColor SinowealthController::GetConfigColor(unsigned int offset)
     | ToRGBColor() does not parenthesize its arguments, so   |
     | they have to be plain values rather than expressions   |
     \*-----------------------------------------------------*/
-    unsigned char red   = device_configuration[offset];
-    unsigned char green = device_configuration[offset + 2];
-    unsigned char blue  = device_configuration[offset + 1];
+    bool          swapped = (variant != SINOWEALTH_VARIANT_TRUST_GXT970);
+    unsigned char red     = device_configuration[offset];
+    unsigned char green   = swapped ? device_configuration[offset + 2] : device_configuration[offset + 1];
+    unsigned char blue    = swapped ? device_configuration[offset + 1] : device_configuration[offset + 2];
 
     return(ToRGBColor(red, green, blue));
 }
@@ -149,7 +168,19 @@ void SinowealthController::SetMode
         break;
     case GLORIOUS_MODE_STATIC:
         usb_buf[0x38] = ((brightness & 0xF) << 4);
-        SetPacketColor(usb_buf, 0x39, color_buf[0]);
+        SetPacketColor(usb_buf, 0x39, color_buf[SINOWEALTH_LED_EFFECT]);
+
+        /*-------------------------------------------------------*\
+        | Static is the only per LED mode, so it is the only one   |
+        | where color_buf holds an entry for the logo.             |
+        \*-------------------------------------------------------*/
+        if(led_count > SINOWEALTH_LED_DPI)
+        {
+            for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
+            {
+                SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), color_buf[SINOWEALTH_LED_DPI]);
+            }
+        }
         break;
     case GLORIOUS_MODE_SPECTRUM_BREATING:
         usb_buf[0x3C] = ((brightness & 0xF) << 4) | (speed & 0xF);

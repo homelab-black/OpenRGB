@@ -37,8 +37,7 @@ static const sinowealth_mode_layout sinowealth_mode_layouts[] =
     { GLORIOUS_MODE_BREATHING,          0x7D, 0x7E, 1 }
 };
 
-#define SINOWEALTH_MODE_OFFSET      0x35
-#define SINOWEALTH_STATIC_COLOR     0x39
+#define SINOWEALTH_MODE_OFFSET  0x35
 
 /**------------------------------------------------------------------*\
     @name Sinowealth Mice
@@ -47,7 +46,7 @@ static const sinowealth_mode_layout sinowealth_mode_layouts[] =
     @save :robot:
     @direct :x:
     @effects :white_check_mark:
-    @detectors DetectSinowealthMouse
+    @detectors DetectSinowealthMouse,DetectTrustGXT970
     @comment
 \*-------------------------------------------------------------------*/
 
@@ -180,8 +179,8 @@ RGBController_Sinowealth::RGBController_Sinowealth(SinowealthController* control
     /*-----------------------------------------------------*\
     | Start out matching the device. Without this the        |
     | controller reports mode 0 with black colors, and the   |
-    | configuration reload done at detection turns the       |
-    | device off.                                            |
+    | first thing that applies a profile turns the device    |
+    | off.                                                   |
     \*-----------------------------------------------------*/
     ReadDeviceState();
 }
@@ -252,11 +251,17 @@ void RGBController_Sinowealth::ReadDeviceState()
     }
 
     /*-----------------------------------------------------*\
-    | The per LED colors live in the static mode registers   |
+    | The per LED colors live in the static mode registers,  |
+    | plus the DPI stage block on variants that have one     |
     \*-----------------------------------------------------*/
-    for(std::size_t led_idx = 0; led_idx < colors.size(); led_idx++)
+    if(colors.size() > SINOWEALTH_LED_EFFECT)
     {
-        colors[led_idx] = controller->GetConfigColor(SINOWEALTH_STATIC_COLOR);
+        colors[SINOWEALTH_LED_EFFECT] = controller->GetConfigColor(0x39);
+    }
+
+    if(colors.size() > SINOWEALTH_LED_DPI)
+    {
+        colors[SINOWEALTH_LED_DPI] = controller->GetConfigColor(SINOWEALTH_DPI_COLOR_OFFSET);
     }
 }
 
@@ -274,7 +279,7 @@ void RGBController_Sinowealth::SetupZones()
     \*---------------------------------------------------------*/
     zone new_zone;
     new_zone.name       = "Mouse";
-    new_zone.type       = ZONE_TYPE_SINGLE;
+    new_zone.type       = controller->GetLEDCount() > 1 ? ZONE_TYPE_LINEAR : ZONE_TYPE_SINGLE;
     new_zone.leds_min   = controller->GetLEDCount();
     new_zone.leds_max   = controller->GetLEDCount();
     new_zone.leds_count = controller->GetLEDCount();
@@ -286,7 +291,7 @@ void RGBController_Sinowealth::SetupZones()
     for(std::size_t led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
     {
         led* new_led = new led();
-        new_led->name = "Mouse LED";
+        new_led->name = controller->GetLEDName((unsigned int)led_idx);
         leds.push_back(*new_led);
     }
 
