@@ -160,8 +160,8 @@ void SinowealthController::SetMode
 {
     if (GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN) return;
 
-    unsigned char usb_buf[SINOWEALTH_CONFIG_REPORT_SIZE];
-    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE); // Yes, we only copy 167 bytes back, for now - if anything weird starts happening use SINOWEALTH_CONFIG_REPORT_SIZE
+    unsigned char usb_buf[SINOWEALTH_CONFIG_SIZE];
+    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE);
 
     usb_buf[0x03] = 0x7B;   //write to device
     usb_buf[0x06] = 0x00;
@@ -224,7 +224,7 @@ void SinowealthController::SetMode
         }
     }
 
-    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_REPORT_SIZE);
+    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_SIZE);
 }
 
 void SinowealthController::StageDPIColor(RGBColor color)
@@ -243,11 +243,11 @@ void SinowealthController::SetDPIColor(RGBColor color)
     }
 
     /*-----------------------------------------------------*\
-    | Keep the whole configuration, not just the first 167   |
-    | bytes, so the effect the device is running survives    |
+    | Everything the device was already doing is carried     |
+    | over, so the effect it is running survives             |
     \*-----------------------------------------------------*/
-    unsigned char usb_buf[SINOWEALTH_CONFIG_REPORT_SIZE];
-    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_REPORT_SIZE);
+    unsigned char usb_buf[SINOWEALTH_CONFIG_SIZE];
+    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE);
 
     usb_buf[0x03] = 0x7B;   //write to device
     usb_buf[0x06] = 0x00;
@@ -257,7 +257,7 @@ void SinowealthController::SetDPIColor(RGBColor color)
         SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), color);
     }
 
-    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_REPORT_SIZE);
+    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_SIZE);
 }
 
 int SinowealthController::GetProfile()
