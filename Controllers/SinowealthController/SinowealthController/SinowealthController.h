@@ -47,8 +47,9 @@ enum sinowealth_variant
     SINOWEALTH_VARIANT_DEFAULT      = 0,
 
     /*-----------------------------------------------------*\
-    | Trust GXT 970: packet order is R, G, B, and the DPI    |
-    | indicator LEDs are separate from the effect LED        |
+    | Trust GXT 970: packet order is R, G, B, the DPI stage  |
+    | colors light their own LED, and reading the config     |
+    | leaves the lighting off until it is written back.      |
     \*-----------------------------------------------------*/
     SINOWEALTH_VARIANT_TRUST_GXT970 = 1
 };
@@ -122,6 +123,12 @@ public:
     \*-----------------------------------------------------*/
     unsigned char   GetConfigByte(unsigned int offset);
     RGBColor        GetConfigColor(unsigned int offset);
+
+    /*-----------------------------------------------------*\
+    | True when the device needs its configuration written   |
+    | back after it has been read, to light up again         |
+    \*-----------------------------------------------------*/
+    bool            RequiresStartupRefresh();
 
 private:
     void            SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color);

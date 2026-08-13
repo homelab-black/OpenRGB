@@ -81,6 +81,11 @@ void SinowealthController::SetPacketColor(unsigned char* usb_buf, unsigned int o
     usb_buf[offset + 2] = swapped ? RGBGetGValue(color) : RGBGetBValue(color);
 }
 
+bool SinowealthController::RequiresStartupRefresh()
+{
+    return(variant == SINOWEALTH_VARIANT_TRUST_GXT970);
+}
+
 unsigned char SinowealthController::GetConfigByte(unsigned int offset)
 {
     if(offset >= SINOWEALTH_CONFIG_REPORT_SIZE)

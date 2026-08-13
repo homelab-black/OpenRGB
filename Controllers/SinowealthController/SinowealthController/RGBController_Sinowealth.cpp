@@ -182,14 +182,25 @@ RGBController_Sinowealth::RGBController_Sinowealth(SinowealthController* control
     | first thing that applies a profile turns the device    |
     | off.                                                   |
     \*-----------------------------------------------------*/
-    ReadDeviceState();
+    bool state_known = ReadDeviceState();
+
+    /*-----------------------------------------------------*\
+    | Some variants stop lighting up once their config has   |
+    | been read and need it written back. Only do that when  |
+    | the read worked, writing a state we never read would   |
+    | put the device out rather than bring it back.          |
+    \*-----------------------------------------------------*/
+    if(state_known && controller->RequiresStartupRefresh())
+    {
+        DeviceUpdateMode();
+    }
 }
 
-void RGBController_Sinowealth::ReadDeviceState()
+bool RGBController_Sinowealth::ReadDeviceState()
 {
     if(controller->GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN)
     {
-        return;
+        return(false);
     }
 
     /*-----------------------------------------------------*\
@@ -263,6 +274,8 @@ void RGBController_Sinowealth::ReadDeviceState()
     {
         colors[SINOWEALTH_LED_DPI] = controller->GetConfigColor(SINOWEALTH_DPI_COLOR_OFFSET);
     }
+
+    return(true);
 }
 
 RGBController_Sinowealth::~RGBController_Sinowealth()
