@@ -27,6 +27,9 @@ SinowealthController::SinowealthController(hid_device* dev_data_handle, hid_devi
     | stage colors, independently of the bottom strip             |
     \*---------------------------------------------------------*/
     led_count           = (variant == SINOWEALTH_VARIANT_TRUST_GXT970) ? 2 : 1;
+
+    dpi_color           = 0;
+    dpi_color_staged    = false;
 }
 
 SinowealthController::~SinowealthController()
@@ -174,18 +177,6 @@ void SinowealthController::SetMode
     case GLORIOUS_MODE_STATIC:
         usb_buf[0x38] = ((brightness & 0xF) << 4);
         SetPacketColor(usb_buf, 0x39, color_buf[SINOWEALTH_LED_EFFECT]);
-
-        /*-------------------------------------------------------*\
-        | Static is the only per LED mode, so it is the only one   |
-        | where color_buf holds an entry for the logo.             |
-        \*-------------------------------------------------------*/
-        if(led_count > SINOWEALTH_LED_DPI)
-        {
-            for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
-            {
-                SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), color_buf[SINOWEALTH_LED_DPI]);
-            }
-        }
         break;
     case GLORIOUS_MODE_SPECTRUM_BREATING:
         usb_buf[0x3C] = ((brightness & 0xF) << 4) | (speed & 0xF);
@@ -218,6 +209,52 @@ void SinowealthController::SetMode
         break;
     default:
         break;
+    }
+
+    /*-----------------------------------------------------*\
+    | Carry the DPI stage colors in the same packet. Writing  |
+    | them separately means a second flash commit right       |
+    | behind this one, and the device does not take it.       |
+    \*-----------------------------------------------------*/
+    if((led_count > SINOWEALTH_LED_DPI) && dpi_color_staged)
+    {
+        for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
+        {
+            SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), dpi_color);
+        }
+    }
+
+    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_REPORT_SIZE);
+}
+
+void SinowealthController::StageDPIColor(RGBColor color)
+{
+    dpi_color        = color;
+    dpi_color_staged = true;
+}
+
+void SinowealthController::SetDPIColor(RGBColor color)
+{
+    StageDPIColor(color);
+
+    if(GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Keep the whole configuration, not just the first 167   |
+    | bytes, so the effect the device is running survives    |
+    \*-----------------------------------------------------*/
+    unsigned char usb_buf[SINOWEALTH_CONFIG_REPORT_SIZE];
+    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_REPORT_SIZE);
+
+    usb_buf[0x03] = 0x7B;   //write to device
+    usb_buf[0x06] = 0x00;
+
+    for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
+    {
+        SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), color);
     }
 
     hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_REPORT_SIZE);

@@ -288,27 +288,74 @@ RGBController_Sinowealth::~RGBController_Sinowealth()
 void RGBController_Sinowealth::SetupZones()
 {
     /*---------------------------------------------------------*\
-    | Create a single zone                                      |
+    | One zone per LED. The effect the device runs only lights   |
+    | the first one, so anything past that gets a zone of its    |
+    | own with a mode list to match.                             |
     \*---------------------------------------------------------*/
-    zone new_zone;
-    new_zone.name       = "Mouse";
-    new_zone.type       = controller->GetLEDCount() > 1 ? ZONE_TYPE_LINEAR : ZONE_TYPE_SINGLE;
-    new_zone.leds_min   = controller->GetLEDCount();
-    new_zone.leds_max   = controller->GetLEDCount();
-    new_zone.leds_count = controller->GetLEDCount();
-    zones.push_back(new_zone);
-
-    /*---------------------------------------------------------*\
-    | Set up LEDs                                               |
-    \*---------------------------------------------------------*/
-    for(std::size_t led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
+    for(unsigned int led_idx = 0; led_idx < controller->GetLEDCount(); led_idx++)
     {
+        /*-----------------------------------------------------*\
+        | Single LED devices keep the zone name they have had     |
+        | all along, saved profiles are matched on it             |
+        \*-----------------------------------------------------*/
+        zone new_zone;
+        new_zone.name       = (controller->GetLEDCount() > 1) ? controller->GetLEDName(led_idx) : "Mouse";
+        new_zone.type       = ZONE_TYPE_SINGLE;
+        new_zone.leds_min   = 1;
+        new_zone.leds_max   = 1;
+        new_zone.leds_count = 1;
+
+        /*-----------------------------------------------------*\
+        | The DPI stage colors are untouched by every effect, so |
+        | this zone can hold a color while the device runs one.  |
+        |                                                        |
+        | It selects its own mode rather than following the      |
+        | device. A zone left following contributes no color     |
+        | mode of its own, so while the device runs an effect    |
+        | the color picker has nothing to apply and silently     |
+        | drops what the user chose.                             |
+        \*-----------------------------------------------------*/
+        if(led_idx == SINOWEALTH_LED_DPI)
+        {
+            mode Static;
+            Static.name         = "Static";
+            Static.flags        = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_AUTOMATIC_SAVE;
+            Static.color_mode   = MODE_COLORS_PER_LED;
+            Static.value        = GLORIOUS_MODE_STATIC;
+            new_zone.modes.push_back(Static);
+
+            new_zone.active_mode = 0;
+        }
+
+        /*-----------------------------------------------------*\
+        | The effects only ever light this zone, so offer them   |
+        | here as well as on the device. Picking one on the zone |
+        | is the same as picking it on the device, there is only |
+        | one effect engine, but this is where it is visible.    |
+        \*-----------------------------------------------------*/
+        if((led_idx == SINOWEALTH_LED_EFFECT) && (controller->GetLEDCount() > 1))
+        {
+            new_zone.modes       = modes;
+            new_zone.active_mode = -1;
+        }
+
+        zones.push_back(new_zone);
+
         led* new_led = new led();
-        new_led->name = controller->GetLEDName((unsigned int)led_idx);
+        new_led->name = controller->GetLEDName(led_idx);
         leds.push_back(*new_led);
     }
 
     SetupColors();
+}
+
+/*---------------------------------------------------------*\
+| True for the zone whose color comes from the DPI stage     |
+| block rather than from the effect                          |
+\*---------------------------------------------------------*/
+bool RGBController_Sinowealth::IsDPIZone(int zone)
+{
+    return((zone >= 0) && ((unsigned int)zone == SINOWEALTH_LED_DPI) && (zones.size() > SINOWEALTH_LED_DPI));
 }
 
 void RGBController_Sinowealth::DeviceUpdateLEDs()
@@ -316,37 +363,89 @@ void RGBController_Sinowealth::DeviceUpdateLEDs()
     DeviceUpdateMode();
 }
 
-void RGBController_Sinowealth::DeviceUpdateZoneLEDs(int /*zone*/)
+void RGBController_Sinowealth::DeviceUpdateZoneLEDs(int zone)
 {
-    DeviceUpdateLEDs();
+    if(IsDPIZone(zone))
+    {
+        controller->SetDPIColor(colors[SINOWEALTH_LED_DPI]);
+        return;
+    }
+
+    DeviceUpdateMode();
 }
 
-void RGBController_Sinowealth::DeviceUpdateSingleLED(int /*led*/)
+void RGBController_Sinowealth::DeviceUpdateSingleLED(int led)
 {
-    DeviceUpdateLEDs();
+    DeviceUpdateZoneLEDs(led);
+}
+
+void RGBController_Sinowealth::DeviceUpdateZoneMode(int zone)
+{
+    if(IsDPIZone(zone))
+    {
+        controller->SetDPIColor(colors[SINOWEALTH_LED_DPI]);
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | The effect zone drives the one effect engine the       |
+    | device has, so applying its mode is applying the       |
+    | device's. A zone set to follow just uses the device's.  |
+    |                                                        |
+    | Mirror the selection onto the device mode rather than   |
+    | only applying it. The two would otherwise disagree, and |
+    | the next device level update, setting a color among     |
+    | them, would quietly revert the effect.                  |
+    \*-----------------------------------------------------*/
+    if((zone >= 0) && (zone < (int)zones.size()) && (zones[zone].active_mode >= 0)
+    && (zones[zone].active_mode < (int)zones[zone].modes.size())
+    && (zones[zone].active_mode < (int)modes.size()))
+    {
+        active_mode        = zones[zone].active_mode;
+        modes[active_mode] = zones[zone].modes[zones[zone].active_mode];
+
+        ApplyMode(modes[active_mode]);
+        return;
+    }
+
+    DeviceUpdateMode();
 }
 
 void RGBController_Sinowealth::DeviceUpdateMode()
 {
+    ApplyMode(modes[active_mode]);
+}
+
+void RGBController_Sinowealth::ApplyMode(mode& current)
+{
+    /*-----------------------------------------------------*\
+    | Hand the logo color over before the write so it rides   |
+    | along in the same packet as the effect                  |
+    \*-----------------------------------------------------*/
+    if(colors.size() > SINOWEALTH_LED_DPI)
+    {
+        controller->StageDPIColor(colors[SINOWEALTH_LED_DPI]);
+    }
+
     unsigned int direction = 0;
     unsigned int speed = GLORIOUS_SPEED_FAST;
     unsigned int brightness = GLORIOUS_BRIGHTNESS_HIGH;
 
-    if (modes[active_mode].flags & MODE_FLAG_HAS_SPEED)
+    if (current.flags & MODE_FLAG_HAS_SPEED)
     {
-        speed = modes[active_mode].speed;
+        speed = current.speed;
     }
 
-    if (modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+    if (current.flags & MODE_FLAG_HAS_BRIGHTNESS)
     {
-        brightness = modes[active_mode].brightness;
+        brightness = current.brightness;
     }
 
-    if ((modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR)  ||
-        (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_UD)  ||
-        (modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_HV))
+    if ((current.flags & MODE_FLAG_HAS_DIRECTION_LR)  ||
+        (current.flags & MODE_FLAG_HAS_DIRECTION_UD)  ||
+        (current.flags & MODE_FLAG_HAS_DIRECTION_HV))
     {
-        if (modes[active_mode].direction == MODE_DIRECTION_UP)
+        if (current.direction == MODE_DIRECTION_UP)
         {
             direction = GLORIOUS_DIRECTION_UP;
         }
@@ -356,17 +455,17 @@ void RGBController_Sinowealth::DeviceUpdateMode()
         }
     }
 
-    if (modes[active_mode].color_mode == MODE_COLORS_NONE)
+    if (current.color_mode == MODE_COLORS_NONE)
     {
-        controller->SetMode(modes[active_mode].value, speed, brightness, direction, 0);
+        controller->SetMode(current.value, speed, brightness, direction, 0);
     }
-    else if (modes[active_mode].color_mode == MODE_COLORS_PER_LED)
+    else if (current.color_mode == MODE_COLORS_PER_LED)
     {
-        controller->SetMode(modes[active_mode].value, speed, brightness, direction, &colors[0]);
+        controller->SetMode(current.value, speed, brightness, direction, &colors[0]);
     }
     else
     {
-        controller->SetMode(modes[active_mode].value, speed, brightness, direction, &modes[active_mode].colors[0]);
+        controller->SetMode(current.value, speed, brightness, direction, &current.colors[0]);
     }
 }
 

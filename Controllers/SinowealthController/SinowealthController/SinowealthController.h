@@ -114,6 +114,17 @@ public:
     std::string     GetFirmwareVersion();
 
     void            SetMode(unsigned char mode, unsigned char speed, unsigned char brightness, unsigned char direction, RGBColor* color_buf);
+
+    /*-----------------------------------------------------*\
+    | The DPI stage colors light their own LED on some       |
+    | variants. Stage one to have the next mode write carry  |
+    | it, so a color and an effect reach the device in a     |
+    | single packet, or set it on its own when only that      |
+    | LED is changing.                                        |
+    \*-----------------------------------------------------*/
+    void            StageDPIColor(RGBColor color);
+    void            SetDPIColor(RGBColor color);
+
     int             GetProfile();
 
     /*-----------------------------------------------------*\
@@ -137,6 +148,8 @@ private:
     hid_device*     dev_data;
     unsigned int    led_count;
     sinowealth_variant variant;
+    RGBColor        dpi_color;
+    bool            dpi_color_staged;
     unsigned char   device_configuration[SINOWEALTH_CONFIG_REPORT_SIZE];
     std::string     location;
     std::string     name;
