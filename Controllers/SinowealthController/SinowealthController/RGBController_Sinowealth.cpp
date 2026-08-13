@@ -11,6 +11,35 @@
 
 #include "RGBController_Sinowealth.h"
 
+/*---------------------------------------------------------*\
+| Where each mode keeps its brightness/speed byte and its    |
+| colors in the configuration packet. Static packs only      |
+| brightness, the rest pack brightness in the high nibble    |
+| and speed in the low one.                                  |
+\*---------------------------------------------------------*/
+struct sinowealth_mode_layout
+{
+    unsigned char   mode_value;
+    unsigned int    param_offset;
+    unsigned int    color_offset;
+    unsigned int    color_count;
+};
+
+static const sinowealth_mode_layout sinowealth_mode_layouts[] =
+{
+    { GLORIOUS_MODE_RAINBOW,            0x36, 0x00, 0 },
+    { GLORIOUS_MODE_STATIC,             0x38, 0x39, 1 },
+    { GLORIOUS_MODE_SPECTRUM_BREATING,  0x3C, 0x3E, 7 },
+    { GLORIOUS_MODE_TAIL,               0x53, 0x00, 0 },
+    { GLORIOUS_MODE_SPECTRUM_CYCLE,     0x54, 0x00, 0 },
+    { GLORIOUS_MODE_RAVE,               0x74, 0x75, 2 },
+    { GLORIOUS_MODE_WAVE,               0x7C, 0x00, 0 },
+    { GLORIOUS_MODE_BREATHING,          0x7D, 0x7E, 1 }
+};
+
+#define SINOWEALTH_MODE_OFFSET      0x35
+#define SINOWEALTH_STATIC_COLOR     0x39
+
 /**------------------------------------------------------------------*\
     @name Sinowealth Mice
     @category Mouse
@@ -147,6 +176,88 @@ RGBController_Sinowealth::RGBController_Sinowealth(SinowealthController* control
     modes.push_back(Breathing);
 
     SetupZones();
+
+    /*-----------------------------------------------------*\
+    | Start out matching the device. Without this the        |
+    | controller reports mode 0 with black colors, and the   |
+    | configuration reload done at detection turns the       |
+    | device off.                                            |
+    \*-----------------------------------------------------*/
+    ReadDeviceState();
+}
+
+void RGBController_Sinowealth::ReadDeviceState()
+{
+    if(controller->GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Select the mode the device is currently in. A mode we  |
+    | do not implement leaves the default selection alone.   |
+    \*-----------------------------------------------------*/
+    unsigned char mode_value = controller->GetConfigByte(SINOWEALTH_MODE_OFFSET);
+
+    for(std::size_t mode_idx = 0; mode_idx < modes.size(); mode_idx++)
+    {
+        if(modes[mode_idx].value == mode_value)
+        {
+            active_mode = (int)mode_idx;
+            break;
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Restore each mode's stored parameters and colors       |
+    \*-----------------------------------------------------*/
+    for(const sinowealth_mode_layout& layout : sinowealth_mode_layouts)
+    {
+        for(mode& current : modes)
+        {
+            if(current.value != layout.mode_value)
+            {
+                continue;
+            }
+
+            unsigned char param = controller->GetConfigByte(layout.param_offset);
+
+            if(current.flags & MODE_FLAG_HAS_BRIGHTNESS)
+            {
+                unsigned int brightness = (param >> 4) & 0xF;
+
+                if(brightness >= current.brightness_min && brightness <= current.brightness_max)
+                {
+                    current.brightness = brightness;
+                }
+            }
+
+            if(current.flags & MODE_FLAG_HAS_SPEED)
+            {
+                unsigned int speed = param & 0xF;
+
+                if(speed >= current.speed_min && speed <= current.speed_max)
+                {
+                    current.speed = speed;
+                }
+            }
+
+            for(unsigned int color_idx = 0; color_idx < layout.color_count && color_idx < current.colors.size(); color_idx++)
+            {
+                current.colors[color_idx] = controller->GetConfigColor(layout.color_offset + (color_idx * 3));
+            }
+
+            break;
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | The per LED colors live in the static mode registers   |
+    \*-----------------------------------------------------*/
+    for(std::size_t led_idx = 0; led_idx < colors.size(); led_idx++)
+    {
+        colors[led_idx] = controller->GetConfigColor(SINOWEALTH_STATIC_COLOR);
+    }
 }
 
 RGBController_Sinowealth::~RGBController_Sinowealth()

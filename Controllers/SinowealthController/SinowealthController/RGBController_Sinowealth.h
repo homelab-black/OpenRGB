@@ -29,5 +29,7 @@ public:
     void        DeviceUpdateMode();
 
 private:
+    void        ReadDeviceState();
+
     SinowealthController* controller;
 };

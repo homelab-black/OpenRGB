@@ -63,6 +63,34 @@ void SinowealthController::SetPacketColor(unsigned char* usb_buf, unsigned int o
     usb_buf[offset + 2] = RGBGetGValue(color);
 }
 
+unsigned char SinowealthController::GetConfigByte(unsigned int offset)
+{
+    if(offset >= SINOWEALTH_CONFIG_REPORT_SIZE)
+    {
+        return(0x00);
+    }
+
+    return(device_configuration[offset]);
+}
+
+RGBColor SinowealthController::GetConfigColor(unsigned int offset)
+{
+    if(offset + 2 >= SINOWEALTH_CONFIG_REPORT_SIZE)
+    {
+        return(0);
+    }
+
+    /*-----------------------------------------------------*\
+    | ToRGBColor() does not parenthesize its arguments, so   |
+    | they have to be plain values rather than expressions   |
+    \*-----------------------------------------------------*/
+    unsigned char red   = device_configuration[offset];
+    unsigned char green = device_configuration[offset + 2];
+    unsigned char blue  = device_configuration[offset + 1];
+
+    return(ToRGBColor(red, green, blue));
+}
+
 std::string SinowealthController::GetSerialString()
 {
     wchar_t serial_string[128];

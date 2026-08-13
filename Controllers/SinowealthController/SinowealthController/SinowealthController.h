@@ -69,6 +69,14 @@ public:
     void            SetMode(unsigned char mode, unsigned char speed, unsigned char brightness, unsigned char direction, RGBColor* color_buf);
     int             GetProfile();
 
+    /*-----------------------------------------------------*\
+    | Read back from the configuration last fetched by       |
+    | GetProfile(), so the controller can start out showing  |
+    | what the device is already doing                       |
+    \*-----------------------------------------------------*/
+    unsigned char   GetConfigByte(unsigned int offset);
+    RGBColor        GetConfigColor(unsigned int offset);
+
 private:
     void            SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color);
 
