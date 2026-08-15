@@ -98,16 +98,7 @@ DetectedControllers DetectDasKeyboardX50()
             continue;
         }
 
-        libusb_set_auto_detach_kernel_driver(handle, 1);
-        result = libusb_claim_interface(handle, 2);
-        if(result != LIBUSB_SUCCESS)
-        {
-            LOG_ERROR("[DasKeyboardX50] Claiming interface 2 failed: %s", libusb_error_name(result));
-            libusb_close(handle);
-            continue;
-        }
-
-        LOG_INFO("[DasKeyboardX50] Interface 2 claimed; EP03 OUT and EP82 IN ready");
+        LOG_INFO("[DasKeyboardX50] Device opened; interface 2 claim deferred until the first color update");
 
         std::string path = std::to_string(libusb_get_bus_number(devices[device_idx])) + "-" +
                            std::to_string(libusb_get_device_address(devices[device_idx]));

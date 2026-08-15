@@ -11,6 +11,9 @@ static const unsigned int X50_REPORT_SIZE = 64;
 static const unsigned int X50_PAYLOAD_SIZE = 60;
 static const unsigned int X50_CHANNEL_STRIDE = 144;
 static const unsigned int X50_TRANSFER_TIMEOUT_MS = 1000;
+static const unsigned int X50_INITIAL_UPDATE_GUARD_MS = 100;
+static const unsigned int X50_LAYER_COOLDOWN_MS = 25;
+static const unsigned int X50_TRANSFER_RETRIES = 2;
 /* Python test was validated at 5 FPS.  A complete frame has
    sixteen reports (0x0A + 0x09), so keep enough quiet time between frames
    to stay close to that proven update rate and avoid wedging the firmware. */
@@ -42,8 +45,9 @@ static const DasKeyboardX50Led x50_leds[] =
 
 DasKeyboardX50Controller::DasKeyboardX50Controller(libusb_context* usb_context, libusb_device_handle* device_handle, const std::string& path)
     : context(usb_context), device(device_handle), location(path), update_pending(false), update_thread_running(true),
-      device_healthy(true), failure_warning_logged(false)
+      interface_claimed(false), device_healthy(true), failure_warning_logged(false)
 {
+    preserve_lighting_until = std::chrono::steady_clock::now() + std::chrono::milliseconds(X50_INITIAL_UPDATE_GUARD_MS);
     device_healthy = Initialize();
     update_thread = std::thread(&DasKeyboardX50Controller::UpdateThreadFunction, this);
 }
@@ -59,7 +63,10 @@ DasKeyboardX50Controller::~DasKeyboardX50Controller()
 
     if(device != nullptr)
     {
-        libusb_release_interface(device, 2);
+        if(interface_claimed)
+        {
+            libusb_release_interface(device, 2);
+        }
         libusb_close(device);
         device = nullptr;
     }
@@ -87,16 +94,24 @@ unsigned int DasKeyboardX50Controller::LedCount() { return(sizeof(x50_leds) / si
 
 bool DasKeyboardX50Controller::SendReport(unsigned char command, unsigned char page, const unsigned char* payload)
 {
+    if(!EnsureInterfaceClaimed())
+    {
+        return(false);
+    }
+
     unsigned char report[X50_REPORT_SIZE] = {0};
     report[0] = 0x07; report[1] = command; report[2] = 0x06; report[3] = page;
     if(payload != nullptr) memcpy(&report[4], payload, X50_PAYLOAD_SIZE);
-    int transferred = 0;
-    int result = libusb_bulk_transfer(device, X50_OUT_ENDPOINT, report, static_cast<int>(sizeof(report)), &transferred, X50_TRANSFER_TIMEOUT_MS);
-
-    if(result != LIBUSB_SUCCESS || transferred != static_cast<int>(sizeof(report)))
+    for(unsigned int attempt = 0; attempt <= X50_TRANSFER_RETRIES; attempt++)
     {
-        LOG_ERROR("[DasKeyboardX50] USB write failed for command 0x%02X page %u: %s (%d/%u bytes)",
-                  command, page, libusb_error_name(result), transferred, X50_REPORT_SIZE);
+        int transferred = 0;
+        int result = libusb_bulk_transfer(device, X50_OUT_ENDPOINT, report, static_cast<int>(sizeof(report)), &transferred, X50_TRANSFER_TIMEOUT_MS);
+
+        if(result == LIBUSB_SUCCESS && transferred == static_cast<int>(sizeof(report)))
+        {
+            std::this_thread::sleep_for(2ms);
+            return(true);
+        }
 
         if(result == LIBUSB_ERROR_PIPE)
         {
@@ -104,10 +119,46 @@ bool DasKeyboardX50Controller::SendReport(unsigned char command, unsigned char p
             LOG_WARNING("[DasKeyboardX50] Endpoint 0x%02X halt recovery: %s", X50_OUT_ENDPOINT, libusb_error_name(clear_result));
         }
 
+        bool retryable = (transferred == 0) && (result == LIBUSB_ERROR_TIMEOUT || result == LIBUSB_ERROR_PIPE);
+        if(retryable && attempt < X50_TRANSFER_RETRIES)
+        {
+            LOG_WARNING("[DasKeyboardX50] USB write retry %u/%u for command 0x%02X page %u after %s",
+                        attempt + 1, X50_TRANSFER_RETRIES, command, page, libusb_error_name(result));
+            std::this_thread::sleep_for(std::chrono::milliseconds(X50_LAYER_COOLDOWN_MS));
+            continue;
+        }
+
+        LOG_ERROR("[DasKeyboardX50] USB write failed for command 0x%02X page %u: %s (%d/%u bytes)",
+                  command, page, libusb_error_name(result), transferred, X50_REPORT_SIZE);
         return(false);
     }
 
-    std::this_thread::sleep_for(2ms);
+    return(false);
+}
+
+bool DasKeyboardX50Controller::EnsureInterfaceClaimed()
+{
+    if(interface_claimed)
+    {
+        return(true);
+    }
+
+    int result = libusb_set_auto_detach_kernel_driver(device, 1);
+    if(result != LIBUSB_SUCCESS)
+    {
+        LOG_ERROR("[DasKeyboardX50] Enabling automatic kernel driver detach failed: %s", libusb_error_name(result));
+        return(false);
+    }
+
+    result = libusb_claim_interface(device, 2);
+    if(result != LIBUSB_SUCCESS)
+    {
+        LOG_ERROR("[DasKeyboardX50] Claiming interface 2 failed: %s", libusb_error_name(result));
+        return(false);
+    }
+
+    interface_claimed = true;
+    LOG_INFO("[DasKeyboardX50] Interface 2 claimed; EP03 OUT and EP82 IN ready");
     return(true);
 }
 
@@ -163,6 +214,22 @@ bool DasKeyboardX50Controller::Initialize()
 
 void DasKeyboardX50Controller::SendColors(const std::vector<RGBColor>& colors)
 {
+    bool all_black = true;
+    for(const RGBColor color : colors)
+    {
+        if(RGBGetRValue(color) != 0 || RGBGetGValue(color) != 0 || RGBGetBValue(color) != 0)
+        {
+            all_black = false;
+            break;
+        }
+    }
+
+    if(all_black && std::chrono::steady_clock::now() < preserve_lighting_until)
+    {
+        LOG_INFO("[DasKeyboardX50] Ignoring initial black update to preserve the keyboard's current lighting");
+        return;
+    }
+
     {
         std::lock_guard<std::mutex> lock(update_mutex);
         pending_colors = colors;
@@ -204,6 +271,9 @@ void DasKeyboardX50Controller::UpdateThreadFunction()
 
             if(device_healthy)
             {
+                /* The keyboard needs a short quiet period when switching
+                   from the key-press layer to the normal visible layer. */
+                std::this_thread::sleep_for(std::chrono::milliseconds(X50_LAYER_COOLDOWN_MS));
                 device_healthy = SendColorPages(0x09, colors);
             }
 

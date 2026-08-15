@@ -2,6 +2,7 @@
 #pragma once
 
 #include <libusb.h>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -37,12 +38,15 @@ private:
     std::condition_variable update_condition;
     std::thread update_thread;
     std::vector<RGBColor> pending_colors;
+    std::chrono::steady_clock::time_point preserve_lighting_until;
     bool update_pending;
     bool update_thread_running;
+    bool interface_claimed;
     bool device_healthy;
     bool failure_warning_logged;
 
     bool Initialize();
+    bool EnsureInterfaceClaimed();
     bool SendReport(unsigned char command, unsigned char page, const unsigned char* payload);
     bool SendZeroPages(unsigned char command, unsigned int pages);
     bool SendColorPages(unsigned char command, const std::vector<RGBColor>& colors);
