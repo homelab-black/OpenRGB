@@ -134,3 +134,8 @@ REGISTER_HID_DETECTOR_IPU("Das Keyboard Q4 RGB",  DetectDasKeyboardControllers, 
 REGISTER_HID_DETECTOR_I  ("Das Keyboard Q5 RGB",  DetectDasKeyboardControllers, DAS_KEYBOARD_VID, DAS_KEYBOARD_Q5_PID,  1);
 REGISTER_HID_DETECTOR_I  ("Das Keyboard Q5S RGB", DetectDasKeyboardControllers, DAS_KEYBOARD_VID, DAS_KEYBOARD_Q5S_PID, 1);
 REGISTER_DETECTOR        ("Das Keyboard X50 RGB", DetectDasKeyboardX50);
+
+/*---------------------------------------------------------*\
+| Udev rule metadata for the libusb-based X50 detector      |
+| DUMMY_DEVICE_DETECTOR("Das Keyboard X50 RGB", DetectDasKeyboardX50, 0x24F0, 0x202B )                    |
+\*---------------------------------------------------------*/

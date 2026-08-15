@@ -2,8 +2,10 @@
 #pragma once
 
 #include <libusb.h>
+#include <condition_variable>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 #include "RGBController.h"
 
@@ -32,6 +34,11 @@ private:
     libusb_device_handle* device;
     std::string location;
     std::mutex update_mutex;
+    std::condition_variable update_condition;
+    std::thread update_thread;
+    std::vector<RGBColor> pending_colors;
+    bool update_pending;
+    bool update_thread_running;
     bool device_healthy;
     bool failure_warning_logged;
 
@@ -39,4 +46,5 @@ private:
     bool SendReport(unsigned char command, unsigned char page, const unsigned char* payload);
     bool SendZeroPages(unsigned char command, unsigned int pages);
     bool SendColorPages(unsigned char command, const std::vector<RGBColor>& colors);
+    void UpdateThreadFunction();
 };

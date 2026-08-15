@@ -13,6 +13,17 @@ static unsigned int x50_matrix[6][23] =
     {39,33,28,NA,NA,20,NA,NA,68,60,59,50,NA,NA,NA,104,101,102,105,NA,97,91,NA}
 };
 
+/**------------------------------------------------------------------*\
+    @name Das Keyboard X50 RGB
+    @category Keyboard
+    @type USB
+    @save :x:
+    @direct :white_check_mark:
+    @effects :x:
+    @detectors DetectDasKeyboardX50
+    @comment
+\*-------------------------------------------------------------------*/
+
 RGBController_DasKeyboardX50::RGBController_DasKeyboardX50(DasKeyboardX50Controller* controller_ptr)
     : controller(controller_ptr)
 {

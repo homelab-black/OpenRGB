@@ -41,13 +41,22 @@ static const DasKeyboardX50Led x50_leds[] =
 };
 
 DasKeyboardX50Controller::DasKeyboardX50Controller(libusb_context* usb_context, libusb_device_handle* device_handle, const std::string& path)
-    : context(usb_context), device(device_handle), location(path), device_healthy(true), failure_warning_logged(false)
+    : context(usb_context), device(device_handle), location(path), update_pending(false), update_thread_running(true),
+      device_healthy(true), failure_warning_logged(false)
 {
     device_healthy = Initialize();
+    update_thread = std::thread(&DasKeyboardX50Controller::UpdateThreadFunction, this);
 }
 
 DasKeyboardX50Controller::~DasKeyboardX50Controller()
 {
+    {
+        std::lock_guard<std::mutex> lock(update_mutex);
+        update_thread_running = false;
+    }
+    update_condition.notify_one();
+    update_thread.join();
+
     if(device != nullptr)
     {
         libusb_release_interface(device, 2);
@@ -154,31 +163,59 @@ bool DasKeyboardX50Controller::Initialize()
 
 void DasKeyboardX50Controller::SendColors(const std::vector<RGBColor>& colors)
 {
-    std::lock_guard<std::mutex> lock(update_mutex);
-
-    if(!device_healthy)
     {
-        if(!failure_warning_logged)
+        std::lock_guard<std::mutex> lock(update_mutex);
+        pending_colors = colors;
+        update_pending = true;
+    }
+    update_condition.notify_one();
+}
+
+void DasKeyboardX50Controller::UpdateThreadFunction()
+{
+    std::unique_lock<std::mutex> lock(update_mutex);
+
+    while(update_thread_running)
+    {
+        update_condition.wait(lock, [this]{ return(update_pending || !update_thread_running); });
+
+        if(!update_thread_running)
         {
-            LOG_WARNING("[DasKeyboardX50] Further color updates are disabled because a USB transfer failed; reconnect or rescan the device to recover");
-            failure_warning_logged = true;
+            break;
         }
-        return;
-    }
 
-    /* The protocol validated by x50_rgb_cli.py uses 0x0A for the
-       key-press layer and 0x09 for the normal visible layer. */
-    device_healthy = SendColorPages(0x0A, colors);
+        std::vector<RGBColor> colors = pending_colors;
+        update_pending = false;
+        lock.unlock();
 
-    if(device_healthy)
-    {
-        device_healthy = SendColorPages(0x09, colors);
-    }
+        if(!device_healthy)
+        {
+            if(!failure_warning_logged)
+            {
+                LOG_WARNING("[DasKeyboardX50] Further color updates are disabled because a USB transfer failed; reconnect or rescan the device to recover");
+                failure_warning_logged = true;
+            }
+        }
+        else
+        {
+            /* The protocol validated by x50_rgb_cli.py uses 0x0A for the
+               key-press layer and 0x09 for the normal visible layer. */
+            device_healthy = SendColorPages(0x0A, colors);
 
-    if(device_healthy)
-    {
-        /* The GUI can request another complete frame immediately.  The
-           keyboard needs a short quiet period after its eight pages. */
-        std::this_thread::sleep_for(std::chrono::milliseconds(X50_FRAME_COOLDOWN_MS));
+            if(device_healthy)
+            {
+                device_healthy = SendColorPages(0x09, colors);
+            }
+
+            if(device_healthy)
+            {
+                /* Keep the firmware-safe update rate off OpenRGB's device
+                   lock.  Updates arriving here are coalesced to the newest
+                   complete frame. */
+                std::this_thread::sleep_for(std::chrono::milliseconds(X50_FRAME_COOLDOWN_MS));
+            }
+        }
+
+        lock.lock();
     }
 }
