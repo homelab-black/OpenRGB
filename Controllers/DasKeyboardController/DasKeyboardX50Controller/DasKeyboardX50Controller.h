@@ -1,7 +1,16 @@
-/* Das Keyboard X50 RGB controller - SPDX-License-Identifier: GPL-2.0-or-later */
+/*---------------------------------------------------------*\
+| DasKeyboardX50Controller.h                                |
+|                                                           |
+|   Driver for the Das Keyboard X50 RGB                    |
+|                                                           |
+|   Sergio Presa                                15 Aug 2026 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
+
 #pragma once
 
-#include <libusb.h>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -9,10 +18,10 @@
 #include <thread>
 #include <vector>
 #include "RGBController.h"
+#include "hidapi_wrapper.h"
 
 struct DasKeyboardX50Led
 {
-    const char*     name;
     unsigned short  position;
     unsigned short  extra_position;
 };
@@ -20,20 +29,20 @@ struct DasKeyboardX50Led
 class DasKeyboardX50Controller
 {
 public:
-    DasKeyboardX50Controller(libusb_context* usb_context, libusb_device_handle* device_handle, const std::string& path);
+    DasKeyboardX50Controller(hidapi_wrapper hid_wrapper, hid_device* device_handle, const std::string& path, const std::string& serial_number);
     ~DasKeyboardX50Controller();
 
     std::string GetLocationString() const;
     std::string GetSerialString() const;
     void SendColors(const std::vector<RGBColor>& colors);
 
-    static const DasKeyboardX50Led* LedTable();
     static unsigned int LedCount();
 
 private:
-    libusb_context* context;
-    libusb_device_handle* device;
+    hidapi_wrapper wrapper;
+    hid_device* device;
     std::string location;
+    std::string serial;
     std::mutex update_mutex;
     std::condition_variable update_condition;
     std::thread update_thread;
@@ -41,14 +50,10 @@ private:
     std::chrono::steady_clock::time_point preserve_lighting_until;
     bool update_pending;
     bool update_thread_running;
-    bool interface_claimed;
-    bool device_healthy;
-    bool failure_warning_logged;
 
-    bool Initialize();
-    bool EnsureInterfaceClaimed();
+    void RecoverDevice();
+    bool TransferReport(const unsigned char* report, unsigned char command, unsigned char page);
     bool SendReport(unsigned char command, unsigned char page, const unsigned char* payload);
-    bool SendZeroPages(unsigned char command, unsigned int pages);
     bool SendColorPages(unsigned char command, const std::vector<RGBColor>& colors);
     void UpdateThreadFunction();
 };
