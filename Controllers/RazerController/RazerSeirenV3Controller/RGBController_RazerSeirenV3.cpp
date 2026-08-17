@@ -162,6 +162,16 @@ void RGBController_RazerSeirenV3::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_RazerSeirenV3::DeviceUpdateMode()
 {
+    /*-----------------------------------------------------*\
+    | Keepalive only applies to Direct mode. Any other      |
+    | mode switch must stop the frame pusher or it will     |
+    | fight the new effect.                                 |
+    \*-----------------------------------------------------*/
+    if(modes[active_mode].value != RAZER_SEIREN_V3_MODE_DIRECT)
+    {
+        controller->StopKeepalive();
+    }
+
     switch(modes[active_mode].value)
     {
         case RAZER_SEIREN_V3_MODE_DIRECT:
@@ -170,7 +180,6 @@ void RGBController_RazerSeirenV3::DeviceUpdateMode()
 
         case RAZER_SEIREN_V3_MODE_OFF:
             controller->SetModeOff();
-            controller->StopKeepalive();
             break;
 
         case RAZER_SEIREN_V3_MODE_STATIC:
