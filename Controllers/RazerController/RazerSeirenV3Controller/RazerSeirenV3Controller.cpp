@@ -394,7 +394,5 @@ int RazerSeirenV3Controller::razer_usb_send(razer_seiren_v3_report* report)
 {
     report->crc = razer_seiren_v3_calculate_crc(report);
 
-    std::lock_guard<std::mutex> lock(hid_write_mutex);
-
-    return hid_send_feature_report(dev, (unsigned char*)report, sizeof(razer_seiren_v3_report));
+    return hid_send_feature_report(dev, (unsigned char*)report, sizeof(*report));
 }

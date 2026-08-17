@@ -145,8 +145,29 @@ void RGBController_RazerSeirenV3::DeviceUpdateLEDs()
 {
     if(modes[active_mode].value == RAZER_SEIREN_V3_MODE_DIRECT)
     {
-        controller->SetDirect(&colors[0]);
-        controller->UpdateKeepaliveColors(&colors[0]);
+        /*-----------------------------------------------------*\
+        | The Seiren has no usable hardware brightness command. |
+        | Implement brightness in software by scaling RGB values |
+        | before pushing frames.                                |
+        \*-----------------------------------------------------*/
+        unsigned char brightness = modes[active_mode].brightness;
+        if(modes[active_mode].brightness_max == 0)
+        {
+            brightness = 100;
+        }
+
+        std::vector<RGBColor> scaled_colors;
+        for(unsigned int led_idx = 0; led_idx < colors.size(); led_idx++)
+        {
+            unsigned char r = (RGBGetRValue(colors[led_idx]) * brightness) / modes[active_mode].brightness_max;
+            unsigned char g = (RGBGetGValue(colors[led_idx]) * brightness) / modes[active_mode].brightness_max;
+            unsigned char b = (RGBGetBValue(colors[led_idx]) * brightness) / modes[active_mode].brightness_max;
+
+            scaled_colors.push_back(ToRGBColor(r, g, b));
+        }
+
+        controller->SetDirect(scaled_colors.data());
+        controller->UpdateKeepaliveColors(scaled_colors.data());
     }
 }
 
