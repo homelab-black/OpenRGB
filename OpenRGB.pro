@@ -326,6 +326,13 @@ TRANSLATIONS +=                                                                 
 # Windows-specific Configuration                                                                #
 #-----------------------------------------------------------------------------------------------#
 win32:QMAKE_CXXFLAGS += /utf-8
+win32-clang-g++:QMAKE_CXXFLAGS -= /utf-8
+
+# clang-g++ (MSYS2) build support: QMAKE_TARGET.arch is not set for this
+# spec, so the x86_64/x86 blocks above do not fire. Provide the portable
+# super_io implementation and the system libraries explicitly.
+win32-clang-g++:SOURCES += super_io/super_io.cpp
+win32-clang-g++:LIBS += -lws2_32 -liphlpapi -lhidapi -lusb-1.0 -lmbedcrypto -lmbedtls -lmbedx509 -lole32 -loleaut32 -lsetupapi -luuid -lwbemuuid -L"$$PWD/dependencies/hidapi-hotplug-win/x64/" -lhidapi-hotplug
 win32:INCLUDEPATH +=                                                                            \
     dependencies/display-library/include                                                        \
     dependencies/hidapi-hotplug-win/include                                                     \

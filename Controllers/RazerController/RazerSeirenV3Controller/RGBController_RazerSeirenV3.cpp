@@ -146,6 +146,7 @@ void RGBController_RazerSeirenV3::DeviceUpdateLEDs()
     if(modes[active_mode].value == RAZER_SEIREN_V3_MODE_DIRECT)
     {
         controller->SetDirect(&colors[0]);
+        controller->UpdateKeepaliveColors(&colors[0]);
     }
 }
 
@@ -163,8 +164,13 @@ void RGBController_RazerSeirenV3::DeviceUpdateMode()
 {
     switch(modes[active_mode].value)
     {
+        case RAZER_SEIREN_V3_MODE_DIRECT:
+            controller->SetModeCustom();
+            break;
+
         case RAZER_SEIREN_V3_MODE_OFF:
             controller->SetModeOff();
+            controller->StopKeepalive();
             break;
 
         case RAZER_SEIREN_V3_MODE_STATIC:

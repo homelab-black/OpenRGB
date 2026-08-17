@@ -44,10 +44,32 @@ RazerSeirenV3Controller::RazerSeirenV3Controller(hid_device* dev_handle, const c
     response_index      = 0x07;
     dev_transaction_id  = 0x0A;
     dev_led_id          = RAZER_LED_ID_BACKLIGHT;
+
+    /*-----------------------------------------------------*\
+    | The Seiren V3 Chroma requires driver (software) mode  |
+    | before it accepts effect writes. Verified on hardware:|
+    | without this, all 0x0F writes are ACKed but ignored.  |
+    \*-----------------------------------------------------*/
+    razer_set_device_mode(RAZER_DEVICE_MODE_SOFTWARE);
+
+    /*-----------------------------------------------------*\
+    | Start keepalive thread — the Seiren does not latch    |
+    | frames, so Direct mode needs continuous pushing.      |
+    \*-----------------------------------------------------*/
+    keepalive_thread_run    = 1;
+    keepalive_active        = 0;
+    keepalive_thread        = new std::thread(&RazerSeirenV3Controller::KeepaliveThread, this);
 }
 
 RazerSeirenV3Controller::~RazerSeirenV3Controller()
 {
+    /*-----------------------------------------------------*\
+    | Stop keepalive thread                                 |
+    \*-----------------------------------------------------*/
+    keepalive_thread_run    = 0;
+    keepalive_thread->join();
+    delete keepalive_thread;
+
     hid_close(dev);
 }
 
@@ -109,6 +131,56 @@ void RazerSeirenV3Controller::SetDirect(RGBColor* colors)
         report.arguments[6 + (led_idx * 3)] = RGBGetGValue(colors[led_idx]);
         report.arguments[7 + (led_idx * 3)] = RGBGetBValue(colors[led_idx]);
     }
+
+    razer_usb_send(&report);
+}
+
+void RazerSeirenV3Controller::UpdateKeepaliveColors(RGBColor* colors)
+{
+    std::lock_guard<std::mutex> lock(keepalive_mutex);
+
+    keepalive_colors.clear();
+    for(unsigned int led_idx = 0; led_idx < device_list[device_index]->cols; led_idx++)
+    {
+        keepalive_colors.push_back(colors[led_idx]);
+    }
+    keepalive_active = 1;
+}
+
+void RazerSeirenV3Controller::StopKeepalive()
+{
+    std::lock_guard<std::mutex> lock(keepalive_mutex);
+    keepalive_active = 0;
+    keepalive_colors.clear();
+}
+
+void RazerSeirenV3Controller::KeepaliveThread()
+{
+    while(keepalive_thread_run.load())
+    {
+        if(keepalive_active)
+        {
+            std::vector<RGBColor> colors;
+            {
+                std::lock_guard<std::mutex> lock(keepalive_mutex);
+                colors = keepalive_colors;
+            }
+            if(!colors.empty())
+            {
+                SetDirect(colors.data());
+            }
+        }
+        std::this_thread::sleep_for(50ms);
+    }
+}
+
+void RazerSeirenV3Controller::SetModeCustom()
+{
+    struct razer_seiren_v3_report   report          = razer_seiren_v3_create_report(0x0F, 0x02, 0x06);
+
+    report.arguments[0]             = RAZER_STORAGE_NO_SAVE;
+    report.arguments[1]             = dev_led_id;
+    report.arguments[2]             = 0x08;
 
     razer_usb_send(&report);
 }

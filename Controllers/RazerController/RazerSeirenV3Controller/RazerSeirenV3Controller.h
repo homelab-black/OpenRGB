@@ -15,6 +15,11 @@
 #include <hidapi.h>
 #include "RGBController.h"
 
+#include <atomic>
+#include <mutex>
+#include <thread>
+#include <vector>
+
 /*---------------------------------------------------------*\
 | Struct packing macro for GCC and MSVC                     |
 \*---------------------------------------------------------*/
@@ -70,12 +75,17 @@ public:
     unsigned char           GetMaxBrightness();
 
     void                    SetDirect(RGBColor* colors);
+    void                    SetModeCustom();
     void                    SetModeOff();
     void                    SetModeStatic(unsigned char red, unsigned char grn, unsigned char blu);
     void                    SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu);
     void                    SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2);
     void                    SetModeSpectrumCycle();
     void                    SetModeAudioReactive();
+
+    void                    KeepaliveThread();
+    void                    UpdateKeepaliveColors(RGBColor* colors);
+    void                    StopKeepalive();
 
 private:
     hid_device*             dev;
@@ -104,6 +114,16 @@ private:
     \*---------------------------------------------------------*/
     unsigned char           report_index;
     unsigned char           response_index;
+
+    /*---------------------------------------------------------*\
+    | Keepalive thread state (Direct mode needs continuous      |
+    | frame pushing — the Seiren does not latch frames)         |
+    \*---------------------------------------------------------*/
+    std::atomic<bool>       keepalive_thread_run;
+    std::thread*            keepalive_thread;
+    std::mutex              keepalive_mutex;
+    std::vector<RGBColor>   keepalive_colors;
+    bool                    keepalive_active;
 
     /*---------------------------------------------------------*\
     | Private functions                                         |
