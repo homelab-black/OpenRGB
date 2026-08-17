@@ -126,6 +126,14 @@ private:
     bool                    keepalive_active;
 
     /*---------------------------------------------------------*\
+    | Serializes ALL HID writes. The keepalive thread and the   |
+    | main thread can push frames concurrently; concurrent      |
+    | WriteFile on the same handle from two threads has caused  |
+    | ucrtbase access violations on this device.                |
+    \*---------------------------------------------------------*/
+    std::mutex              hid_write_mutex;
+
+    /*---------------------------------------------------------*\
     | Private functions                                         |
     \*---------------------------------------------------------*/
     unsigned char           razer_seiren_v3_calculate_crc(razer_seiren_v3_report* report);
