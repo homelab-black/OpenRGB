@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include "RazerSeirenV3Controller.h"
+#include "RazerController.h"
 #include "RazerDevices.h"
 
 using namespace std::chrono_literals;
@@ -321,6 +322,5 @@ int RazerSeirenV3Controller::razer_usb_send(razer_seiren_v3_report* report)
 {
     report->crc = razer_seiren_v3_calculate_crc(report);
 
-    DeviceGuardLock _ = guard_manager_ptr->AwaitExclusiveAccess();
     return hid_send_feature_report(dev, (unsigned char*)report, sizeof(*report));
 }

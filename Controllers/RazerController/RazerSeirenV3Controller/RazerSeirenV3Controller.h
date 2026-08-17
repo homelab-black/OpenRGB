@@ -14,7 +14,6 @@
 
 #include <hidapi.h>
 #include "RGBController.h"
-#include "DeviceGuardManager.h"
 
 /*---------------------------------------------------------*\
 | Struct packing macro for GCC and MSVC                     |
