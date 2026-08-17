@@ -1,0 +1,211 @@
+/*---------------------------------------------------------*\
+| RGBController_RazerSeirenV3.cpp                           |
+|                                                           |
+|   RGBController for Razer Seiren V3 Chroma                |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
+
+#include "RGBController_RazerSeirenV3.h"
+#include "RazerDevices.h"
+
+RGBController_RazerSeirenV3::RGBController_RazerSeirenV3(RazerSeirenV3Controller* controller_ptr)
+{
+    controller              = controller_ptr;
+
+    name                    = controller->GetName();
+    vendor                  = "Razer";
+    type                    = controller->GetDeviceType();
+    description             = "Razer Device";
+    location                = controller->GetDeviceLocation();
+    version                 = controller->GetFirmwareString();
+    serial                  = controller->GetSerialString();
+    uint8_t max_brightness  = controller->GetMaxBrightness();
+
+    mode Direct;
+    Direct.name             = "Direct";
+    Direct.value            = RAZER_SEIREN_V3_MODE_DIRECT;
+    Direct.flags            = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Direct.color_mode       = MODE_COLORS_PER_LED;
+    Direct.brightness_min   = 0;
+    Direct.brightness_max   = max_brightness;
+    Direct.brightness       = max_brightness;
+    modes.push_back(Direct);
+
+    mode Off;
+    Off.name                = "Off";
+    Off.value               = RAZER_SEIREN_V3_MODE_OFF;
+    Off.flags               = 0;
+    Off.color_mode          = MODE_COLORS_NONE;
+    modes.push_back(Off);
+
+    mode Static;
+    Static.name             = "Static";
+    Static.value            = RAZER_SEIREN_V3_MODE_STATIC;
+    Static.flags            = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Static.color_mode       = MODE_COLORS_MODE_SPECIFIC;
+    Static.colors_min       = 1;
+    Static.colors_max       = 1;
+    Static.colors.resize(1);
+    Static.brightness_min   = 0;
+    Static.brightness_max   = max_brightness;
+    Static.brightness       = max_brightness;
+    modes.push_back(Static);
+
+    mode Breathing;
+    Breathing.name           = "Breathing";
+    Breathing.value          = RAZER_SEIREN_V3_MODE_BREATHING;
+    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Breathing.color_mode     = MODE_COLORS_MODE_SPECIFIC;
+    Breathing.colors_min     = 1;
+    Breathing.colors_max     = 2;
+    Breathing.colors.resize(1);
+    Breathing.brightness_min = 0;
+    Breathing.brightness_max = max_brightness;
+    Breathing.brightness     = max_brightness;
+    modes.push_back(Breathing);
+
+    mode SpectrumCycle;
+    SpectrumCycle.name           = "Spectrum Cycle";
+    SpectrumCycle.value          = RAZER_SEIREN_V3_MODE_SPECTRUM_CYCLE;
+    SpectrumCycle.flags          = MODE_FLAG_HAS_BRIGHTNESS;
+    SpectrumCycle.color_mode     = MODE_COLORS_NONE;
+    SpectrumCycle.brightness_min = 0;
+    SpectrumCycle.brightness_max = max_brightness;
+    SpectrumCycle.brightness     = max_brightness;
+    modes.push_back(SpectrumCycle);
+
+    mode AudioReactive;
+    AudioReactive.name           = "Audio Reactive";
+    AudioReactive.value          = RAZER_SEIREN_V3_MODE_AUDIO_REACTIVE;
+    AudioReactive.flags          = MODE_FLAG_HAS_BRIGHTNESS;
+    AudioReactive.color_mode     = MODE_COLORS_NONE;
+    AudioReactive.brightness_min = 0;
+    AudioReactive.brightness_max = max_brightness;
+    AudioReactive.brightness     = max_brightness;
+    modes.push_back(AudioReactive);
+
+    SetupZones();
+}
+
+RGBController_RazerSeirenV3::~RGBController_RazerSeirenV3()
+{
+    Shutdown();
+
+    delete controller;
+}
+
+void RGBController_RazerSeirenV3::SetupZones()
+{
+    unsigned int device_index = controller->GetDeviceIndex();
+
+    /*-----------------------------------------------------*\
+    | The Seiren V3 Chroma has TWO rings:                   |
+    |   zone 0: bottom ring (LEDs 0-7)                      |
+    |   zone 1: top ring (LEDs 8-15)                        |
+    | Both are linear zones of 8 LEDs.                      |
+    \*-----------------------------------------------------*/
+    for(unsigned int zone_id = 0; zone_id < RAZER_MAX_ZONES; zone_id++)
+    {
+        if(device_list[device_index]->zones[zone_id] != NULL)
+        {
+            zone new_zone;
+
+            new_zone.name       = device_list[device_index]->zones[zone_id]->name;
+            new_zone.type       = device_list[device_index]->zones[zone_id]->type;
+
+            new_zone.leds_count = device_list[device_index]->zones[zone_id]->cols;
+            new_zone.leds_min   = new_zone.leds_count;
+            new_zone.leds_max   = new_zone.leds_count;
+
+            zones.push_back(new_zone);
+
+            for(unsigned int col_id = 0; col_id < device_list[device_index]->zones[zone_id]->cols; col_id++)
+            {
+                led* new_led = new led();
+
+                new_led->name = device_list[device_index]->zones[zone_id]->name;
+
+                if(zones[zone_id].leds_count > 1)
+                {
+                    new_led->name.append(" LED ");
+                    new_led->name.append(std::to_string(col_id + 1));
+                }
+
+                leds.push_back(*new_led);
+            }
+        }
+    }
+
+    SetupColors();
+}
+
+void RGBController_RazerSeirenV3::DeviceUpdateLEDs()
+{
+    if(modes[active_mode].value == RAZER_SEIREN_V3_MODE_DIRECT)
+    {
+        controller->SetDirect(&colors[0]);
+    }
+}
+
+void RGBController_RazerSeirenV3::DeviceUpdateZoneLEDs(int /*zone*/)
+{
+    DeviceUpdateLEDs();
+}
+
+void RGBController_RazerSeirenV3::DeviceUpdateSingleLED(int /*led*/)
+{
+    DeviceUpdateLEDs();
+}
+
+void RGBController_RazerSeirenV3::DeviceUpdateMode()
+{
+    switch(modes[active_mode].value)
+    {
+        case RAZER_SEIREN_V3_MODE_OFF:
+            controller->SetModeOff();
+            break;
+
+        case RAZER_SEIREN_V3_MODE_STATIC:
+            if(modes[active_mode].colors.size() == 1)
+            {
+                unsigned char red = RGBGetRValue(modes[active_mode].colors[0]);
+                unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
+                unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
+
+                controller->SetModeStatic(red, grn, blu);
+            }
+            break;
+
+        case RAZER_SEIREN_V3_MODE_BREATHING:
+            if(modes[active_mode].colors.size() == 2)
+            {
+                unsigned char r1 = RGBGetRValue(modes[active_mode].colors[0]);
+                unsigned char g1 = RGBGetGValue(modes[active_mode].colors[0]);
+                unsigned char b1 = RGBGetBValue(modes[active_mode].colors[0]);
+                unsigned char r2 = RGBGetRValue(modes[active_mode].colors[1]);
+                unsigned char g2 = RGBGetGValue(modes[active_mode].colors[1]);
+                unsigned char b2 = RGBGetBValue(modes[active_mode].colors[1]);
+
+                controller->SetModeBreathingTwoColors(r1, g1, b1, r2, g2, b2);
+            }
+            else if(modes[active_mode].colors.size() == 1)
+            {
+                unsigned char red = RGBGetRValue(modes[active_mode].colors[0]);
+                unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
+                unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
+
+                controller->SetModeBreathingOneColor(red, grn, blu);
+            }
+            break;
+
+        case RAZER_SEIREN_V3_MODE_SPECTRUM_CYCLE:
+            controller->SetModeSpectrumCycle();
+            break;
+
+        case RAZER_SEIREN_V3_MODE_AUDIO_REACTIVE:
+            controller->SetModeAudioReactive();
+            break;
+    }
+}

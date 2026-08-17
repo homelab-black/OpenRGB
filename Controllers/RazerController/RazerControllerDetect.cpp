@@ -18,6 +18,7 @@
 #include "RazerKrakenV3Controller.h"
 #include "RazerKrakenV4Controller.h"
 #include "RazerHanboController.h"
+#include "RazerSeirenV3Controller.h"
 #include "ResourceManager.h"
 #include "RGBController_Razer.h"
 #include "RGBController_RazerAddressable.h"
@@ -25,6 +26,7 @@
 #include "RGBController_RazerKrakenV3.h"
 #include "RGBController_RazerKrakenV4.h"
 #include "RGBController_RazerHanbo.h"
+#include "RGBController_RazerSeirenV3.h"
 
 DetectedControllers DetectRazerControllers(hid_device_info* info, const std::string& name)
 {
@@ -204,6 +206,24 @@ DetectedControllers DetectRazerHanboControllers(hid_device_info* info, const std
     {
         RazerHanboController*     controller     = new RazerHanboController(dev, info->path, info->product_id, name);
         RGBController_RazerHanbo* rgb_controller = new RGBController_RazerHanbo(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return(detected_controllers);
+}
+
+DetectedControllers DetectRazerSeirenV3Controllers(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
+
+    dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        RazerSeirenV3Controller*     controller     = new RazerSeirenV3Controller(dev, info->path, info->product_id, name);
+        RGBController_RazerSeirenV3* rgb_controller = new RGBController_RazerSeirenV3(controller);
 
         detected_controllers.push_back(rgb_controller);
     }
@@ -433,6 +453,7 @@ REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Chroma",                         Det
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Pro",                            DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_DOCK_PRO_PID,                       0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_PU("Razer Seiren Emote",                               DetectRazerControllers,        RAZER_VID,  RAZER_SEIREN_EMOTE_PID,                         0x0C,   0x01        );
+REGISTER_HID_DETECTOR_IPU("Razer Seiren V3 Chroma",                          DetectRazerSeirenV3Controllers,RAZER_VID,  RAZER_SEIREN_V3_CHROMA_PID,                     0x03,   0xFF53, 0x0004);
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 4 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID,            0x0C,   0x01        );
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 5 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID,            0x0C,   0x01        );
 REGISTER_HID_DETECTOR_IPU("Razer Hanbo Chroma",                              DetectRazerHanboControllers,   RAZER_VID,  RAZER_HANBO_CHROMA_PID,                         0x00,   0xFF00, 0x01);

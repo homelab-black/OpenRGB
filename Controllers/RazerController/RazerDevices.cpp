@@ -9251,6 +9251,57 @@ static const razer_device seiren_emote_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Seiren V3 Chroma 1532:056F                             |
+|                                                               |
+|  Zone "Bottom Ring"                                           |
+|       Linear                                                  |
+|       8 LEDs                                                  |
+|                                                               |
+|  Zone "Top Ring"                                              |
+|       Linear                                                  |
+|       8 LEDs                                                  |
+|                                                               |
+|  Frame layout (verified on hardware):                         |
+|    LEDs 0-7  -> bottom ring (starts at middle, goes around)   |
+|    LEDs 8-15 -> top ring (starts at middle, goes around)      |
+\*-------------------------------------------------------------*/
+static const razer_zone seiren_v3_chroma_bottom_ring_zone =
+{
+    "Bottom Ring",
+    ZONE_TYPE_LINEAR,
+    1,
+    8
+};
+
+static const razer_zone seiren_v3_chroma_top_ring_zone =
+{
+    "Top Ring",
+    ZONE_TYPE_LINEAR,
+    1,
+    8
+};
+
+static const razer_device seiren_v3_chroma_device =
+{
+    "Razer Seiren V3 Chroma",
+    RAZER_SEIREN_V3_CHROMA_PID,
+    DEVICE_TYPE_MICROPHONE,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x0A,
+    1,
+    16,
+    {
+        &seiren_v3_chroma_bottom_ring_zone,
+        &seiren_v3_chroma_top_ring_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Thunderbolt 4 Dock Chroma                              |
 |                                                               |
 |  Zone "LED Strip"                                             |
@@ -9613,6 +9664,7 @@ const razer_device* razer_device_list[] =
     &nommo_pro_device,
     &o11_dynamic_device,
     &seiren_emote_device,
+    &seiren_v3_chroma_device,
     &thunderbolt_4_dock_chroma_device,
     &thunderbolt_5_dock_chroma_device,
     &hanbo_chroma_device
