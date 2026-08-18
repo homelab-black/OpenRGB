@@ -56,11 +56,14 @@ RGBController_RazerSeirenV3::RGBController_RazerSeirenV3(RazerSeirenV3Controller
     mode Breathing;
     Breathing.name           = "Breathing";
     Breathing.value          = RAZER_SEIREN_V3_MODE_BREATHING;
-    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
     Breathing.color_mode     = MODE_COLORS_MODE_SPECIFIC;
     Breathing.colors_min     = 1;
     Breathing.colors_max     = 2;
-    Breathing.colors.resize(1);
+    Breathing.colors.resize(2);
+    Breathing.speed_min      = 0;
+    Breathing.speed_max      = 0;
+    Breathing.speed           = 0;
     Breathing.brightness_min = 0;
     Breathing.brightness_max = max_brightness;
     Breathing.brightness     = max_brightness;
@@ -224,7 +227,7 @@ void RGBController_RazerSeirenV3::DeviceUpdateMode()
                 unsigned char g2 = RGBGetGValue(modes[active_mode].colors[1]);
                 unsigned char b2 = RGBGetBValue(modes[active_mode].colors[1]);
 
-                controller->SetModeBreathingTwoColors(r1, g1, b1, r2, g2, b2);
+                controller->SetModeBreathingTwoColors(r1, g1, b1, r2, g2, b2, modes[active_mode].speed);
             }
             else if(modes[active_mode].colors.size() == 1)
             {
@@ -232,7 +235,20 @@ void RGBController_RazerSeirenV3::DeviceUpdateMode()
                 unsigned char grn = RGBGetGValue(modes[active_mode].colors[0]);
                 unsigned char blu = RGBGetBValue(modes[active_mode].colors[0]);
 
-                controller->SetModeBreathingOneColor(red, grn, blu);
+                controller->SetModeBreathingOneColor(red, grn, blu, modes[active_mode].speed);
+            }
+            else if(colors.size() > 0)
+            {
+                /*-----------------------------------------------------*\
+                | No mode-specific colors set (user only changed the    |
+                | mode, not the swatch) — fall back to the first LED    |
+                | color so breathing actually does something.           |
+                \*-----------------------------------------------------*/
+                unsigned char red = RGBGetRValue(colors[0]);
+                unsigned char grn = RGBGetGValue(colors[0]);
+                unsigned char blu = RGBGetBValue(colors[0]);
+
+                controller->SetModeBreathingOneColor(red, grn, blu, modes[active_mode].speed);
             }
             break;
 
@@ -243,5 +259,14 @@ void RGBController_RazerSeirenV3::DeviceUpdateMode()
         case RAZER_SEIREN_V3_MODE_AUDIO_REACTIVE:
             controller->SetModeAudioReactive();
             break;
+    }
+
+    /*-----------------------------------------------------*\
+    | Apply brightness after every mode change (hardware    |
+    | brightness command, class 0x0F id 0x04)               |
+    \*-----------------------------------------------------*/
+    if(modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS)
+    {
+        controller->SetBrightness(modes[active_mode].brightness);
     }
 }

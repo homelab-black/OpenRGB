@@ -9255,22 +9255,23 @@ static const razer_device seiren_emote_device =
 |                                                               |
 |  Zone "Bottom Ring"                                           |
 |       Linear                                                  |
-|       8 LEDs                                                  |
+|       6 LEDs (frame 0-5)                                      |
 |                                                               |
 |  Zone "Top Ring"                                              |
 |       Linear                                                  |
-|       8 LEDs                                                  |
+|       6 LEDs (frame 6-11)                                     |
 |                                                               |
-|  Frame layout (verified on hardware):                         |
-|    LEDs 0-7  -> bottom ring (starts at middle, goes around)   |
-|    LEDs 8-15 -> top ring (starts at middle, goes around)      |
+|  Frame layout (verified on hardware 2026-08-17):              |
+|    LEDs 0-5  -> bottom ring (middle outwards)                 |
+|    LEDs 6-11 -> top ring (back, then around)                  |
+|    LEDs 12-15 -> DEAD (firmware ignores)                      |
 \*-------------------------------------------------------------*/
 static const razer_zone seiren_v3_chroma_bottom_ring_zone =
 {
     "Bottom Ring",
     ZONE_TYPE_LINEAR,
     1,
-    8
+    6
 };
 
 static const razer_zone seiren_v3_chroma_top_ring_zone =
@@ -9278,7 +9279,7 @@ static const razer_zone seiren_v3_chroma_top_ring_zone =
     "Top Ring",
     ZONE_TYPE_LINEAR,
     1,
-    8
+    6
 };
 
 static const razer_device seiren_v3_chroma_device =
@@ -9289,7 +9290,7 @@ static const razer_device seiren_v3_chroma_device =
     RAZER_MATRIX_TYPE_EXTENDED,
     0x0A,
     1,
-    16,
+    12,
     {
         &seiren_v3_chroma_bottom_ring_zone,
         &seiren_v3_chroma_top_ring_zone,

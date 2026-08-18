@@ -108,6 +108,17 @@ unsigned char RazerSeirenV3Controller::GetMaxBrightness()
     return(255);
 }
 
+void RazerSeirenV3Controller::SetBrightness(unsigned char brightness)
+{
+    struct razer_seiren_v3_report   report          = razer_seiren_v3_create_report(0x0F, 0x04, 0x03);
+
+    report.arguments[0]             = RAZER_STORAGE_NO_SAVE;
+    report.arguments[1]             = dev_led_id;
+    report.arguments[2]             = brightness;
+
+    razer_usb_send(&report);
+}
+
 /*---------------------------------------------------------*\
 | Direct mode: push a 16-LED custom frame continuously.     |
 | The device reverts to dark unless frame data is          |
@@ -213,7 +224,7 @@ void RazerSeirenV3Controller::SetModeStatic(unsigned char red, unsigned char grn
     razer_usb_send(&report);
 }
 
-void RazerSeirenV3Controller::SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu)
+void RazerSeirenV3Controller::SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu, unsigned char speed)
 {
     struct razer_seiren_v3_report   report          = razer_seiren_v3_create_report(0x0F, 0x02, 0x09);
 
@@ -221,7 +232,7 @@ void RazerSeirenV3Controller::SetModeBreathingOneColor(unsigned char red, unsign
     report.arguments[1]             = dev_led_id;
     report.arguments[2]             = 0x02;
     report.arguments[3]             = 0x01;
-    report.arguments[4]             = 0x00;
+    report.arguments[4]             = speed;
     report.arguments[5]             = 0x01;
     report.arguments[6]             = red;
     report.arguments[7]             = grn;
@@ -230,7 +241,7 @@ void RazerSeirenV3Controller::SetModeBreathingOneColor(unsigned char red, unsign
     razer_usb_send(&report);
 }
 
-void RazerSeirenV3Controller::SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2)
+void RazerSeirenV3Controller::SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2, unsigned char speed)
 {
     struct razer_seiren_v3_report   report          = razer_seiren_v3_create_report(0x0F, 0x02, 0x0C);
 
@@ -238,7 +249,7 @@ void RazerSeirenV3Controller::SetModeBreathingTwoColors(unsigned char r1, unsign
     report.arguments[1]             = dev_led_id;
     report.arguments[2]             = 0x02;
     report.arguments[3]             = 0x02;
-    report.arguments[4]             = 0x00;
+    report.arguments[4]             = speed;
     report.arguments[5]             = 0x02;
     report.arguments[6]             = r1;
     report.arguments[7]             = g1;

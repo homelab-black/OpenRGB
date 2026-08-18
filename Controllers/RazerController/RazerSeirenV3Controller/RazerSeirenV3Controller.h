@@ -73,13 +73,14 @@ public:
     std::string             GetName();
     std::string             GetSerialString();
     unsigned char           GetMaxBrightness();
+    void                    SetBrightness(unsigned char brightness);
 
     void                    SetDirect(RGBColor* colors);
     void                    SetModeCustom();
     void                    SetModeOff();
     void                    SetModeStatic(unsigned char red, unsigned char grn, unsigned char blu);
-    void                    SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu);
-    void                    SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2);
+    void                    SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu, unsigned char speed);
+    void                    SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2, unsigned char speed);
     void                    SetModeSpectrumCycle();
     void                    SetModeAudioReactive();
 
