@@ -56,13 +56,13 @@ RGBController_RazerSeirenV3::RGBController_RazerSeirenV3(RazerSeirenV3Controller
     mode Breathing;
     Breathing.name           = "Breathing";
     Breathing.value          = RAZER_SEIREN_V3_MODE_BREATHING;
-    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Breathing.flags          = MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
     Breathing.color_mode     = MODE_COLORS_MODE_SPECIFIC;
     Breathing.colors_min     = 1;
     Breathing.colors_max     = 2;
     Breathing.colors.resize(2);
     Breathing.speed_min      = 0;
-    Breathing.speed_max      = 0;
+    Breathing.speed_max      = 3;
     Breathing.speed           = 0;
     Breathing.brightness_min = 0;
     Breathing.brightness_max = max_brightness;
