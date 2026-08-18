@@ -396,10 +396,21 @@ DetectedControllers DetectSinowealthGenesisKeyboard(hid_device_info* info, const
 DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
-    unsigned char       command[7] = {0x06, 0x82, 0x01, 0x00, 0x01, 0x00, 0x06};
+    unsigned char       command[520] = {0x06, 0x82, 0x01, 0x00, 0x01, 0x00, 0x06};
     expected_reports    reports{expected_report(0x06, 520, command, 520)};
 
-    if(DetectUsages(info, name, 3, reports))
+    /*-------------------------------------------------------------------------------------*\
+    | macOS's IOHIDManager only enumerates one HID path per usage_page=0xFF00 collection for |
+    | this device, unlike Windows/Linux which expose 3.  Adjust the expected collection      |
+    | count accordingly so DetectUsages' plausibility check doesn't skip detection.          |
+    \*-------------------------------------------------------------------------------------*/
+#ifdef __APPLE__
+    unsigned int expected_collections = 1;
+#else
+    unsigned int expected_collections = 3;
+#endif
+
+    if(DetectUsages(info, name, expected_collections, reports))
     {
         hid_device *dev        = reports.at(0).device;
         unsigned char model_id = reports.at(0).response[13];
