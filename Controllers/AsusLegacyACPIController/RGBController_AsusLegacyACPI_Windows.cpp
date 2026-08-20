@@ -21,15 +21,15 @@ RGBController_AsusLegacyACPI_Windows::RGBController_AsusLegacyACPI_Windows(AsusL
     location    = "\\\\.\\ATKACPI";
     type        = DEVICE_TYPE_MOTHERBOARD;
 
-    mode Static;
-    Static.name           = "Static";
-    Static.value          = ASUS_LEGACY_ACPI_MODE_DIRECT;
-    Static.flags          = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
-    Static.color_mode     = MODE_COLORS_PER_LED;
-    Static.brightness_min = ASUS_LEGACY_ACPI_BRIGHTNESS_MIN;
-    Static.brightness_max = ASUS_LEGACY_ACPI_BRIGHTNESS_MAX;
-    Static.brightness     = ASUS_LEGACY_ACPI_BRIGHTNESS_MAX;
-    modes.push_back(Static);
+    mode Direct;
+    Direct.name           = "Direct";
+    Direct.value          = ASUS_LEGACY_ACPI_MODE_DIRECT;
+    Direct.flags          = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Direct.color_mode     = MODE_COLORS_PER_LED;
+    Direct.brightness_min = ASUS_LEGACY_ACPI_BRIGHTNESS_MIN;
+    Direct.brightness_max = ASUS_LEGACY_ACPI_BRIGHTNESS_MAX;
+    Direct.brightness     = ASUS_LEGACY_ACPI_BRIGHTNESS_MAX;
+    modes.push_back(Direct);
 
     mode Breathing;
     Breathing.name           = "Breathing";
