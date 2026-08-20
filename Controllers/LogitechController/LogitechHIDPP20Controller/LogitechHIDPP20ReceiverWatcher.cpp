@@ -370,14 +370,22 @@ void LogitechHIDPP20ReceiverWatcher::ReaderThreadFunc()
             LOG_DEBUG("%s index=0x%02X connection notification flags=0x%02X link=%d",
                       LOG_TAG, index, flags, link_established);
 
-            if(link_established)
-            {
-                OnConnection(index, 1);
-            }
+            /*---------------------------------------------*\
+            | The receiver knows its own radio and nothing  |
+            | else, so a link that dropped says the device  |
+            | is unreachable here, not where it went. Pass  |
+            | both directions on: a controller still        |
+            | holding this slot stops writing to a link the |
+            | device has left instead of failing a frame at |
+            | a time until a read error says so.            |
+            \*---------------------------------------------*/
+            OnConnection(index, link_established ? 1 : -1);
         }
         else if(sub_id == 0x40)
         {
             LOG_DEBUG("%s index=0x%02X disconnection notification", LOG_TAG, index);
+
+            OnConnection(index, -1);
         }
         else
         {

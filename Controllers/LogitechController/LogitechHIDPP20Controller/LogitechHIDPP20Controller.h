@@ -835,9 +835,24 @@ public:
     /*-----------------------------------------------------*\
     | The receiver watcher's connection nudge, the same     |
     | flag the reader raises, so the power thread's         |
-    | handling and guards apply. Safe from any thread.      |
+    | handling and guards apply. Safe from any thread. A    |
+    | link that dropped takes effect here rather than on    |
+    | the power thread: it needs no wire and no ordering,   |
+    | and while a paint is running the thread does not      |
+    | reach the flag for as long as the writes keep         |
+    | failing. Coming back stays deferred, since that talks |
+    | to the device.                                        |
     \*-----------------------------------------------------*/
-    void            NudgeConnection(int direction)      { pending_connection.store(direction); }
+    void            NudgeConnection(int direction)
+    {
+        if(direction < 0)
+        {
+            device_online.store(false);
+        }
+
+        pending_connection.store(direction);
+    }
+
     void            SetRepaintCallback(std::function<void()> repaint);
     void            SetReapplyActiveModeCallback(std::function<bool()> cb);
     void            SetPairingName(const std::string& name);   /* receiver-stored codename; watcher label + name-read fallback */
@@ -924,6 +939,13 @@ private:
     std::atomic<bool>                                   wake_full_repaint_pending_;
     uint32_t                    init_generation;
     std::string                 log_tag;
+
+    /*-----------------------------------------------------*\
+    | Record what a write returned. A handle that refuses   |
+    | one is a node that has gone, which nothing else       |
+    | reports for a link with no receiver behind it.        |
+    \*-----------------------------------------------------*/
+    void            NoteWireResult(int result);
 
     /*-----------------------------------------------------*\
     | Transport-layer I/O                                   |
@@ -1131,6 +1153,7 @@ private:
     std::atomic<bool>       pending_power_check;    // device broadcast 0x1004, re-read its status
     std::atomic<bool>       device_online;          // false when device is unreachable
     std::atomic<int>        consecutive_timeouts;   // reset on successful response
+    std::atomic<int>        consecutive_wire_errors;// writes the handle itself refused, reset on any that lands
 
     /*-----------------------------------------------------*\
     | Power management state                                |
