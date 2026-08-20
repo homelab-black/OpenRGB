@@ -6298,7 +6298,20 @@ void LogitechHIDPP20Controller::ReconnectDevice()
     }
 
     last_fap_error_ = 0;
-    ReclaimSWControl("reconnect", true);
+
+    /*-----------------------------------------------------*\
+    | Force the whole claim only for a link that actually   |
+    | went away. A receiver sends its connection            |
+    | notification more than once for one wake, and the     |
+    | device's own WirelessStatus arrives beside it: the    |
+    | first claim is verified before it reports success, so |
+    | tearing it down for the duplicates walks the board    |
+    | through the firmware's effect card and an unpainted   |
+    | buffer again, once per notification. Without the      |
+    | force the reapply below still runs and the claim      |
+    | inside it no-ops while held.                          |
+    \*-----------------------------------------------------*/
+    ReclaimSWControl("reconnect", first_event);
     /*-----------------------------------------------------*\
     | Catch a stale restored map whose reclaim raced the    |
     | radio and didn't surface the mismatch.                |
