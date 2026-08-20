@@ -333,7 +333,8 @@ HRESULT i2c_smbus_pawnio::start_pawnio(std::string filename, PHANDLE phandle)
     {
         pawnio_close(handle);
 
-        if (status == HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED))
+        if(status == HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED)
+        || status == HRESULT_FROM_WIN32(ERROR_NOT_FOUND))
         {
             LOG_INFO("PawnIO module initialization aborted (unsupported)");
         }
