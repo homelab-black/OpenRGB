@@ -438,7 +438,9 @@ void OptionHelp()
     help_text += "--autostart-check                        Check if OpenRGB starting at login is enabled.\n";
     help_text += "--autostart-disable                      Disable OpenRGB starting at login.\n";
     help_text += "--autostart-enable arguments             Enable OpenRGB to start at login. Requires arguments to give to OpenRGB at login.\n";
+#ifdef __linux__
     help_text += "--generate-udev-rules [filename]         Generate the OpenRGB udev rules file and save it to the given filename.\n";
+#endif
 
     std::cout << help_text << std::endl;
 }
@@ -1122,12 +1124,17 @@ int ProcessOptions(Options* options, std::vector<RGBController *>& rgb_controlle
             arg_index++;
         }
 
+#ifdef __linux__
+        /*---------------------------------------------------------*\
+        | --generate-udev-rules                                     |
+        \*---------------------------------------------------------*/
         else if(option == "--generate-udev-rules")
         {
             OptionGenerateUdevRules(arg_path.generic_u8string());
 
             arg_index++;
         }
+#endif
 
         /*---------------------------------------------------------*\
         | Invalid option                                            |
