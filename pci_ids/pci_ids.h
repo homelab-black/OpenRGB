@@ -1023,6 +1023,12 @@
 #define ZOTAC_RTX4090_AMP_SUB_DEV                               0x4675
 #define ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV                       0x1762
 #define ZOTAC_RTX5090_SOLID_OC_SUB_DEV                          0x1761
+#define ZOTAC_RTX4060TI_8G_TWIN_EDGE_SUB_DEV                   0x2717
+#define ZOTAC_RTX4070_TWIN_EDGE_SUB_DEV                         0x2714
+#define ZOTAC_RTX4070S_TRINITY_SUB_DEV                          0x5710 // Twin Edge might have the same ID
+#define ZOTAC_RTX4070TIS_TRINITY_SUB_DEV                        0x4710 // OC White has the same ID
+#define ZOTAC_RTX4080S_TRINITY_SUB_DEV                          0x4702
+#define ZOTAC_RTX5070_SOLID_SUB_DEV                             0x1764
 
 /*-----------------------------------------------------*\
 | Manli Sub-Device IDs                                  |
