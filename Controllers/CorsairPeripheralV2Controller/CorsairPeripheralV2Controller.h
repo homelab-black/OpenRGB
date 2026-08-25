@@ -32,7 +32,7 @@
 #define CORSAIR_V2_LIGHT_CTRL1          1
 #define CORSAIR_V2_LIGHT_CTRL2          34          /* 0x22                             */
 #define CORSAIR_V2_UPDATE_PERIOD        30000
-#define CORSAIR_V2_SLEEP_PERIOD         12500ms
+#define CORSAIR_V2_SLEEP_PERIOD         1000ms
 
 #define CORSAIR_V2_BRIGHTNESS_MIN       0
 #define CORSAIR_V2_BRIGHTNESS_MAX       0xFF
@@ -88,6 +88,10 @@ public:
 
     void                            SetRenderMode(corsair_v2_device_mode mode);
     void                            LightingControl(uint8_t opt1);
+    bool                            IsWireless();
+    void                            EnsureSoftwareMode(bool force = false);
+    void                            OpenNotificationChannel();
+    int                             ReadNotification(uint8_t* data, size_t length);
     void                            SetLEDs(uint8_t *data, uint16_t data_size);
     void                            UpdateHWMode(uint16_t mode, corsair_v2_color color_mode, uint8_t speed,
                                                  uint8_t direction, uint8_t brightness, std::vector<RGBColor> colors);
@@ -106,6 +110,7 @@ private:
     void                            StopTransaction(uint8_t opt1);
 
     hid_device*                     dev;
+    hid_device*                     notif_dev           = nullptr;
 
     uint8_t                         write_cmd           = CORSAIR_V2_WRITE_WIRED_ID;
     uint16_t                        pkt_sze             = CORSAIR_V2_WRITE_SIZE;

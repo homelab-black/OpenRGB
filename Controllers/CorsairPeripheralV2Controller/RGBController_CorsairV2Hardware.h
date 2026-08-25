@@ -41,5 +41,6 @@ private:
     std::atomic<bool>                       keepalive_thread_run;
     std::chrono::time_point
         <std::chrono::steady_clock>         last_update_time;
+    bool                                    device_was_asleep       = false;
 
 };

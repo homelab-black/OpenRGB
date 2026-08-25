@@ -201,6 +201,28 @@ keyboard_keymap_overlay_values corsair_K70_CORE_TKL_layout
     }
 };
 
+keyboard_keymap_overlay_values corsair_K70_CORE_TKL_WL_layout
+{
+    KEYBOARD_SIZE::KEYBOARD_SIZE_TKL,
+    {
+        corsair_tkl_values,
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                                             |
+        |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode,                             |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,      14,         70,         KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,         },  // Remove PRSC (not present on wireless model)
+        {   0,      0,      15,         71,         KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,         },  // Remove SCLK
+        {   0,      0,      16,         72,         KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,         },  // Remove PSBK
+        {   0,      0,      14,         1,          "Button: Game Mode",        KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Game Mode Button
+        {   0,      0,      15,         2,          "Button: Media",            KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Media Button
+    }
+};
+
 keyboard_keymap_overlay_values corsair_k95_layout
 {
     KEYBOARD_SIZE::KEYBOARD_SIZE_FULL,
@@ -1042,6 +1064,49 @@ static const corsair_v2_device k70_core_rgb_tkl_device =
     &corsair_K70_CORE_TKL_layout
 };
 
+/*-------------------------------------------------------------*\
+|  Corsair K70 Core RGB TKL Wireless 1B1C:2B00 (receiver)       |
+|                                 and 1B1C:2B02 (keyboard)      |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       6 Rows, 17 Columns                                      |
+|       Adds Game Mode (LED 1) and Media (LED 2) buttons        |
+\*-------------------------------------------------------------*/
+static const corsair_v2_device k70_core_rgb_tkl_wl_device =
+{
+    CORSAIR_K70_CORE_RGB_TKL_WL_PID,
+    DEVICE_TYPE_KEYBOARD,
+    6,
+    17,
+    {
+        &k70_core_rgb_tkl_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_K70_CORE_TKL_WL_layout
+};
+
+static const corsair_v2_device k70_core_rgb_tkl_wl2_device =
+{
+    CORSAIR_K70_CORE_RGB_TKL_WL2_PID,
+    DEVICE_TYPE_KEYBOARD,
+    6,
+    17,
+    {
+        &k70_core_rgb_tkl_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_K70_CORE_TKL_WL_layout
+};
+
 
 /*-------------------------------------------------------------*\
 |  Corsair K70 RGB TKL Champion Series 1B1C:1BB9                |
@@ -1527,6 +1592,8 @@ const corsair_v2_device* corsair_v2_device_list_data[] =
     &k60_rgb_pro_tkl_device_w,
     &k70_core_rgb_device,
     &k70_core_rgb_tkl_device,
+    &k70_core_rgb_tkl_wl_device,
+    &k70_core_rgb_tkl_wl2_device,
     &k70_rgb_pro_device,
     &k70_rgb_pro_v2_device,
     &k70_rgb_tkl_device,

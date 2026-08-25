@@ -232,8 +232,19 @@ void RGBController_CorsairV2HW::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_CorsairV2HW::DeviceUpdateMode()
 {
+    const mode& active = modes[active_mode];
 
+    corsair_v2_color color_mode = (active.color_mode == MODE_COLORS_MODE_SPECIFIC) ?
+                                   CORSAIR_V2_COLOR_SPECIFIC : CORSAIR_V2_COLOR_NONE;
+
+    controller->UpdateHWMode((uint16_t)active.value, color_mode, (uint8_t)active.speed,
+                             (uint8_t)active.direction, (uint8_t)active.brightness, active.colors);
 }
+
+/*-------------------------------------------------------------*\
+| NB: UpdateHWMode is currently a no-op for non-Direct modes -  |
+|   see the notes in CorsairPeripheralV2Controller.cpp          |
+\*-------------------------------------------------------------*/
 
 void RGBController_CorsairV2HW::KeepaliveThread()
 {
@@ -241,6 +252,52 @@ void RGBController_CorsairV2HW::KeepaliveThread()
     {
         if(active_mode == 0)
         {
+            /*-----------------------------------------------------*\
+            | Passively drain receiver notifications (no packets    |
+            |   are transmitted, so this cannot keep a wireless     |
+            |   device awake).  The receiver pushes a subdevice-    |
+            |   bitmask event when a device links or unlinks: a     |
+            |   link event after an unlink is the wake moment -     |
+            |   re-assert software mode and repaint immediately.    |
+            \*-----------------------------------------------------*/
+            uint8_t notif[CORSAIR_V2_WRITE_SIZE];
+
+            while(controller->ReadNotification(notif, CORSAIR_V2_WRITE_SIZE) > 0)
+            {
+                if(notif[1] != 0x01)
+                {
+                    continue;
+                }
+
+                uint16_t type   = (uint16_t)(notif[2] | (notif[3] << 8));
+                uint32_t value  = (uint32_t)(notif[4] | (notif[5] << 8) |
+                                            (notif[6] << 16) | ((uint32_t)notif[7] << 24));
+
+                LOG_DEBUG("[%s] Receiver notification: subdev %02X type %04X value %08X",
+                          name.c_str(), notif[0], type, value);
+
+                if(type == 0x0036)
+                {
+                    if(value == 0)
+                    {
+                        device_was_asleep = true;
+                    }
+                    else if(device_was_asleep)
+                    {
+                        controller->EnsureSoftwareMode(true);
+                        DeviceUpdateLEDs();
+                        device_was_asleep = false;
+                    }
+                }
+            }
+
+            /*-----------------------------------------------------*\
+            | Periodic refresh - the device reverts to hardware    |
+            |   lighting if no packet arrives within ~1 minute of  |
+            |   the last software frame.  Note this keeps wireless |
+            |   devices awake; their idle sleep timer only engages |
+            |   when no software session is active.                |
+            \*-----------------------------------------------------*/
             if((std::chrono::steady_clock::now() - last_update_time) >
                 std::chrono::milliseconds(CORSAIR_V2_UPDATE_PERIOD))
             {
