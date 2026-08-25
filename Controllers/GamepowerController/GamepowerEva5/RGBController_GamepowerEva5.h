@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-|   GamepowerEva5Controller.h                               |
+|   RGBController_GamepowerEva5.h                           |
 |                                                           |
 |   Driver for Gamepower Eva 5 keyboard                     |
 |                                                           |
