@@ -36,7 +36,7 @@ RGBController_HoltekF503::RGBController_HoltekF503(HoltekF503Controller* control
     mode Static;
     Static.name                         = "Static";
     Static.value                        = HOLTEK_F503_MODE_STATIC;
-    Static.flags                        = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS;
+    Static.flags                        = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Static.color_mode                   = MODE_COLORS_PER_LED;
     Static.brightness_min               = 0;
     Static.brightness                   = 3;
@@ -46,7 +46,7 @@ RGBController_HoltekF503::RGBController_HoltekF503(HoltekF503Controller* control
     mode Breathing;
     Breathing.name                      = "Breathing";
     Breathing.value                     = HOLTEK_F503_MODE_BREATHING;
-    Breathing.flags                     = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Breathing.flags                     = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Breathing.color_mode                = MODE_COLORS_PER_LED;
     Breathing.speed_min                 = HOLTEK_F503_SPEED_SLOW;
     Breathing.speed_max                 = HOLTEK_F503_SPEED_FAST;
@@ -59,7 +59,7 @@ RGBController_HoltekF503::RGBController_HoltekF503(HoltekF503Controller* control
     mode Breathing7Colors;
     Breathing7Colors.name               = "Breathing 7 Colors";
     Breathing7Colors.value              = HOLTEK_F503_MODE_BREATHING;
-    Breathing7Colors.flags              = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
+    Breathing7Colors.flags              = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
     Breathing7Colors.color_mode         = MODE_COLORS_NONE;
     Breathing7Colors.speed_min          = HOLTEK_F503_SPEED_SLOW;
     Breathing7Colors.speed_max          = HOLTEK_F503_SPEED_FAST;
@@ -75,7 +75,7 @@ RGBController_HoltekF503::RGBController_HoltekF503(HoltekF503Controller* control
     mode Wave;
     Wave.name                           = "Wave";
     Wave.value                          = HOLTEK_F503_MODE_WAVE;
-    Wave.flags                          = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR;
+    Wave.flags                          = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_AUTOMATIC_SAVE;
     Wave.color_mode                     = MODE_COLORS_NONE;
     Wave.speed_min                      = HOLTEK_F503_SPEED_SLOW;
     Wave.speed_max                      = HOLTEK_F503_SPEED_FAST;
