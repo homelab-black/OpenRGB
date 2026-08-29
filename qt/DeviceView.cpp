@@ -1301,6 +1301,21 @@ void DeviceView::InitDeviceView()
                                     led_pos[color_idx].matrix_w += 1.0f;
                                 }
                             }
+                            else if(controller->GetLEDDisplayName(color_idx) == "Media group")
+                            {
+                                /*
+                                 * Media groups may represent several adjacent
+                                 * physical buttons controlled by one LED index.
+                                 * Expand across all empty cells to the right.
+                                 */
+                                for(unsigned int map_idx2 = map_idx + 1;
+                                    map_idx2 < (led_y + 1) * controller->GetZoneMatrixMapWidth(zone_idx)
+                                    && controller->GetZoneMatrixMapData(zone_idx)[map_idx2] == 0xFFFFFFFF;
+                                map_idx2++)
+                                    {
+                                        led_pos[color_idx].matrix_w += 1.0f;
+                                    }
+                            }
                         }
                     }
                 }
@@ -1415,9 +1430,27 @@ void DeviceView::InitDeviceView()
     \*-----------------------------------------------------*/
     for(unsigned int led_idx = 0; led_idx < controller->GetLEDCount(); led_idx++)
     {
-        std::map<std::string, led_label>::const_iterator it = led_label_lookup.find(controller->GetLEDDisplayName((unsigned int)led_idx));
+        const std::string display_name =
+        controller->GetLEDDisplayName((unsigned int)led_idx);
 
-        if(it != led_label_lookup.end())
+        std::map<std::string, led_label>::const_iterator it =
+        led_label_lookup.find(display_name);
+
+        /*
+         * Custom labels for the Huntsman V3 Pro media controls.
+         *
+         * "Media group" is displayed across three matrix cells.
+         * "Key: Media Control" is the separate volume-control LED.
+         */
+        if(display_name == "Media group")
+        {
+            led_labels[led_idx] = "Media Control";
+        }
+        else if(display_name == "Key: Media Control")
+        {
+            led_labels[led_idx] = "VolC";
+        }
+        else if(it != led_label_lookup.end())
         {
             led_labels[led_idx] = it->second.label_utf8;
         }

@@ -42,7 +42,7 @@ AuraMainboardController::AuraMainboardController(hid_device* dev_handle, const c
         effect_channel++;
     }
 
-    SetGen1();
+     SetGen1();
 }
 
 AuraMainboardController::~AuraMainboardController()

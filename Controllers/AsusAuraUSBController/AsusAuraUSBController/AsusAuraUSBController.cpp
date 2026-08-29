@@ -13,6 +13,7 @@
 #include "AsusAuraUSBController.h"
 #include "LogManager.h"
 #include "StringUtils.h"
+#include <stdexcept>
 
 AuraUSBController::AuraUSBController(hid_device* dev_handle, const char* path, std::string dev_name)
 {
@@ -85,8 +86,96 @@ void AuraUSBController::GetConfigTable()
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-    hid_read(dev, usb_buf, 65);
+    const int write_result = hid_write(dev, usb_buf, sizeof(usb_buf));
+
+    if(write_result < 0)
+    {
+        throw std::runtime_error(
+            "Failed to send ASUS Aura config-table request"
+        );
+    }
+
+    int  read_result       = -1;
+    bool response_received = false;
+
+    /*
+     * HIDAPI-libusb may return empty 32-byte status reports
+     * before the actual ASUS Aura response. Skip empty reports
+     * and wait up to approximately two seconds in total.
+     */
+    for(unsigned int attempt = 0; attempt < 10; attempt++)
+    {
+        memset(usb_buf, 0x00, sizeof(usb_buf));
+
+        read_result = hid_read_timeout(
+            dev,
+            usb_buf,
+            sizeof(usb_buf),
+                                       200
+        );
+
+        if(read_result < 0)
+        {
+            throw std::runtime_error(
+                "Failed to read ASUS Aura config-table response"
+            );
+        }
+
+        if(read_result == 0)
+        {
+            continue;
+        }
+
+        for(int byte_idx = 0; byte_idx < read_result; byte_idx++)
+        {
+            if(usb_buf[byte_idx] != 0)
+            {
+                response_received = true;
+                break;
+            }
+        }
+
+        if(response_received)
+        {
+            break;
+        }
+    }
+
+    if(!response_received)
+    {
+        throw std::runtime_error(
+            "ASUS Aura returned only empty HID reports"
+        );
+    }
+
+    if(read_result < 32)
+    {
+        throw std::runtime_error(
+            "ASUS Aura config-table response was too short: "
+            + std::to_string(read_result) + " bytes"
+        );
+    }
+
+    LOG_INFO(
+        "[AsusAuraUSB] Config response (%d bytes): "
+        "%02X %02X %02X %02X %02X %02X %02X %02X "
+        "%02X %02X %02X %02X %02X %02X %02X %02X",
+        read_result,
+        usb_buf[0],  usb_buf[1],  usb_buf[2],  usb_buf[3],
+        usb_buf[4],  usb_buf[5],  usb_buf[6],  usb_buf[7],
+        usb_buf[8],  usb_buf[9],  usb_buf[10], usb_buf[11],
+        usb_buf[12], usb_buf[13], usb_buf[14], usb_buf[15]
+    );
+
+    LOG_INFO(
+        "[AsusAuraUSB] Config response continued: "
+        "%02X %02X %02X %02X %02X %02X %02X %02X "
+        "%02X %02X %02X %02X %02X %02X %02X %02X",
+        usb_buf[16], usb_buf[17], usb_buf[18], usb_buf[19],
+        usb_buf[20], usb_buf[21], usb_buf[22], usb_buf[23],
+        usb_buf[24], usb_buf[25], usb_buf[26], usb_buf[27],
+        usb_buf[28], usb_buf[29], usb_buf[30], usb_buf[31]
+    );
 
     /*-----------------------------------------------------*\
     | Copy the firmware string if the reply ID is correct   |
@@ -110,8 +199,28 @@ void AuraUSBController::GetConfigTable()
     }
     else
     {
-        LOG_INFO("[%s] Could not read config table, can not add device", version);
-        delete this;
+        throw std::runtime_error(
+            "Unexpected ASUS Aura config response; "
+            "read=" + std::to_string(read_result)
+            + ", bytes[0..7]="
+            + std::to_string(usb_buf[0]) + " "
+            + std::to_string(usb_buf[1]) + " "
+            + std::to_string(usb_buf[2]) + " "
+            + std::to_string(usb_buf[3]) + " "
+            + std::to_string(usb_buf[4]) + " "
+            + std::to_string(usb_buf[5]) + " "
+            + std::to_string(usb_buf[6]) + " "
+            + std::to_string(usb_buf[7])
+            + ", bytes[24..31]="
+            + std::to_string(usb_buf[24]) + " "
+            + std::to_string(usb_buf[25]) + " "
+            + std::to_string(usb_buf[26]) + " "
+            + std::to_string(usb_buf[27]) + " "
+            + std::to_string(usb_buf[28]) + " "
+            + std::to_string(usb_buf[29]) + " "
+            + std::to_string(usb_buf[30]) + " "
+            + std::to_string(usb_buf[31])
+        );
     }
 }
 
