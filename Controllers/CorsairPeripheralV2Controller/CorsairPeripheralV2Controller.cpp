@@ -36,7 +36,7 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
         case CORSAIR_SLIPSTREAM_WIRELESS_PID1:
         case CORSAIR_SLIPSTREAM_WIRELESS_V2_PID1:
         case CORSAIR_SLIPSTREAM_WIRELESS_PID2:
-        case CORSAIR_SLIPSTREAM_M75_PID:
+        case CORSAIR_SLIPSTREAM_WIRELESS_PID3:
         case CORSAIR_SLIPSTREAM_IRONCLAW_SE_PID:
             write_cmd   = CORSAIR_V2_WRITE_WIRELESS_ID;
             pid         = GetAddressRetry(0x12);
@@ -90,6 +90,12 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
             \*---------------------------------------------------------*/
             not_found       = false;
             device_index    = i;
+
+            if(pid == CORSAIR_K100_AIR_PID)
+            {
+                device_name         = "Corsair K100 AIR";
+                k100_air_wireless   = (write_cmd == CORSAIR_V2_WRITE_WIRELESS_ID);
+            }
             break;
         }
     }
@@ -108,12 +114,21 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
         return;
     }
 
+    if(k100_air_wireless)
+    {
+        /*-----------------------------------------------------*\
+        | Slipstream receivers must remain in software mode     |
+        | while their paired device is controlled.              |
+        \*-----------------------------------------------------*/
+        SetReceiverRenderMode(CORSAIR_V2_MODE_SW);
+    }
+
     /*---------------------------------------------------------*\
     | Check lighting control endpoints                          |
     |   If lighting control endpoint 2 is unavailable           |
     |   then use endpoint 1.                                    |
     \*---------------------------------------------------------*/
-    if(light_ctrl == CORSAIR_V2_LIGHT_CTRL2)
+    if((light_ctrl == CORSAIR_V2_LIGHT_CTRL2) && (pid != CORSAIR_K100_AIR_PID))
     {
         result = StartTransaction(0);
         if(result > 0)
@@ -128,6 +143,13 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
 
 CorsairPeripheralV2Controller::~CorsairPeripheralV2Controller()
 {
+    if(k100_air_wireless)
+    {
+        StopTransaction(0);
+        SetRenderMode(CORSAIR_V2_MODE_HW);
+        SetReceiverRenderMode(CORSAIR_V2_MODE_HW);
+    }
+
     hid_close(dev);
 }
 
@@ -209,6 +231,51 @@ void CorsairPeripheralV2Controller::SetRenderMode(corsair_v2_device_mode mode)
     {
         hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
     }
+
+    /*---------------------------------------------------------*\
+    | Some K100 AIR firmware reports 100% brightness even when  |
+    | its effective Direct-mode brightness is lower.  Writing   |
+    | 999 forces the effective level to full output.             |
+    \*---------------------------------------------------------*/
+    if(k100_air_wireless && mode == CORSAIR_V2_MODE_SW)
+    {
+        SetBrightness(999);
+    }
+}
+
+void CorsairPeripheralV2Controller::SetBrightness(uint16_t brightness)
+{
+    uint8_t buffer[CORSAIR_V2_WRITE_SIZE];
+
+    memset(buffer, 0, CORSAIR_V2_WRITE_SIZE);
+
+    buffer[1]   = write_cmd;
+    buffer[2]   = CORSAIR_V2_CMD_SET;
+    buffer[3]   = 0x02;
+    buffer[5]   = brightness & 0xFF;
+    buffer[6]   = brightness >> 8;
+
+    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+
+    if(!skip_reads)
+    {
+        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+    }
+}
+
+void CorsairPeripheralV2Controller::SetReceiverRenderMode(corsair_v2_device_mode mode)
+{
+    uint8_t buffer[CORSAIR_V2_WRITE_SIZE];
+
+    memset(buffer, 0, CORSAIR_V2_WRITE_SIZE);
+
+    buffer[1]   = CORSAIR_V2_WRITE_WIRED_ID;
+    buffer[2]   = CORSAIR_V2_CMD_SET;
+    buffer[3]   = CORSAIR_V2_VALUE_MODE;
+    buffer[5]   = mode;
+
+    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
 }
 
 void CorsairPeripheralV2Controller::LightingControl(uint8_t opt1)
@@ -361,10 +428,26 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
     uint16_t remaining      = data_size;
 
     uint8_t buffer[CORSAIR_V2_PACKET_SIZE];
+    uint8_t read_buffer[CORSAIR_V2_PACKET_SIZE];
     memset(buffer, 0, CORSAIR_V2_PACKET_SIZE);
+    memset(read_buffer, 0, CORSAIR_V2_PACKET_SIZE);
 
     ClearPacketBuffer();
-    StartTransaction(0);
+    unsigned char result    = StartTransaction(0);
+
+    if(k100_air_wireless && result != 0 && result != 3)
+    {
+        StopTransaction(0);
+        SetRenderMode(CORSAIR_V2_MODE_SW);
+        ClearPacketBuffer();
+        result              = StartTransaction(0);
+    }
+
+    if(k100_air_wireless && result != 0 && result != 3)
+    {
+        LOG_DEBUG("[%s] Unable to open lighting endpoint %02X: %02X", device_name.c_str(), light_ctrl, result);
+        return;
+    }
     /*---------------------------------------------------------*\
     | Set the data header in packet 1 with the data length      |
     |   signaling how many packets to expect to the device      |
@@ -389,10 +472,14 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+        hid_read_timeout(dev, k100_air_wireless ? read_buffer : buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
     }
 
     remaining              -= copy_bytes;
+    if(k100_air_wireless)
+    {
+        buffer[1]           = write_cmd & 0x07;
+    }
     buffer[2]               = CORSAIR_V2_CMD_BLK_WN;
     copy_bytes              = pkt_sze - offset2;
 
@@ -414,13 +501,21 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
         if(!skip_reads)
         {
-            hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+            hid_read_timeout(dev, k100_air_wireless ? read_buffer : buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
         }
 
         remaining          -= copy_bytes;
     }
 
-    StopTransaction(0);
+    /*---------------------------------------------------------*\
+    | K100 AIR Wireless only displays streamed RGB while its   |
+    | lighting handle remains open.  Reuse it across frames and |
+    | close it in the controller destructor.                    |
+    \*---------------------------------------------------------*/
+    if(!k100_air_wireless)
+    {
+        StopTransaction(0);
+    }
 }
 
 void CorsairPeripheralV2Controller::UpdateHWMode(uint16_t mode, corsair_v2_color /*color_mode*/, uint8_t /*speed*/,

@@ -117,6 +117,8 @@ private:
     void                            ClearPacketBuffer();
     unsigned int                    GetAddress(uint8_t address);
     unsigned int                    GetAddressRetry(uint8_t address);
+    void                            SetBrightness(uint16_t brightness);
+    void                            SetReceiverRenderMode(corsair_v2_device_mode mode);
     unsigned char                   StartTransaction(uint8_t opt1);
     void                            StopTransaction(uint8_t opt1);
 
@@ -125,6 +127,7 @@ private:
     uint8_t                         write_cmd           = CORSAIR_V2_WRITE_WIRED_ID;
     uint16_t                        pkt_sze             = CORSAIR_V2_WRITE_SIZE;
     bool                            skip_reads          = false;
+    bool                            k100_air_wireless    = false;
     std::string                     firmware_version;
     std::string                     location;
 };

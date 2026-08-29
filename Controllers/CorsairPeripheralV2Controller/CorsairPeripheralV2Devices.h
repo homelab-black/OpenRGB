@@ -82,6 +82,7 @@ typedef struct
 #define CORSAIR_K70_RGB_TKL_PID                     0x1B73
 #define CORSAIR_K70_RGB_TKL_CS_PID                  0x1BB9
 #define CORSAIR_K95_PLATINUM_XT_PID                 0x1B89
+#define CORSAIR_K100_AIR_PID                        0x1BAB
 #define CORSAIR_K100_OPTICAL_V1_PID                 0x1B7C
 #define CORSAIR_K100_OPTICAL_V2_PID                 0x1BC5
 #define CORSAIR_K100_MXRED_PID                      0x1B7D
@@ -103,10 +104,10 @@ typedef struct
 #define CORSAIR_M65_RGB_ULTRA_WIRELESS_PID          0x1BB5
 #define CORSAIR_M75_GAMING_MOUSE_PID                0x1BF0
 #define CORSAIR_M75_WIRELESS_PID                    0x1BF1
-#define CORSAIR_SLIPSTREAM_M75_PID                  0x1BDC
 #define CORSAIR_SLIPSTREAM_WIRELESS_PID1            0x1BA6
 #define CORSAIR_SLIPSTREAM_WIRELESS_V2_PID1         0x1B66
 #define CORSAIR_SLIPSTREAM_WIRELESS_PID2            0x1B65
+#define CORSAIR_SLIPSTREAM_WIRELESS_PID3            0x1BDC
 
 /*-----------------------------------------------------*\
 | Corsair V2 Protocol Mousemats                         |
