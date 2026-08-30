@@ -14,6 +14,7 @@
 \*---------------------------------------------------------*/
 #define KEYCHRON_C1_PRO_8K_PID                      0x0521
 #define KEYCHRON_C2_PRO_8K_PID                      0x0522
+#define KEYCHRON_C2_PRO_1K_PID                      0x0526
 #define KEYCHRON_C3_PRO_8K_JIS_PID                  0x0532
 #define KEYCHRON_K1_MAX_PID                         0x0A10
 #define KEYCHRON_K1_MAX_ISO_PID                     0x0A11
