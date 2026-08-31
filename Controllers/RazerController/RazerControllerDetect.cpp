@@ -431,11 +431,21 @@ REGISTER_HID_DETECTOR_IPU("Razer Leviathan V2 X",                            Det
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Bungee V3 Chroma",                    DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_BUNGEE_V3_CHROMA_PID,               0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Chroma",                         DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_DOCK_CHROMA_PID,                    0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Pro",                            DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_DOCK_PRO_PID,                       0x00,   0x01,   0x02);
-REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_PU("Razer Seiren Emote",                               DetectRazerControllers,        RAZER_VID,  RAZER_SEIREN_EMOTE_PID,                         0x0C,   0x01        );
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 4 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID,            0x0C,   0x01        );
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 5 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_5_DOCK_CHROMA_PID,            0x0C,   0x01        );
 REGISTER_HID_DETECTOR_IPU("Razer Hanbo Chroma",                              DetectRazerHanboControllers,   RAZER_VID,  RAZER_HANBO_CHROMA_PID,                         0x00,   0xFF00, 0x01);
+
+/*-----------------------------------------------------------------------------------------------------*\
+| The OpenRazer kernel driver claims interface 0 of the Lian Li O11 Dynamic - Razer Edition and leaves  |
+| interfaces 1 and 2 without a driver, so no hidraw node is created for them on Linux.  Interface 0     |
+| accepts the same lighting reports, so use it on Linux.  Interface 2 must be used on other systems.    |
+\*-----------------------------------------------------------------------------------------------------*/
+#ifdef __linux__
+REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x00,   0x01,   0x06);
+#else
+REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x02,   0x01,   0x02);
+#endif
 
 /*-----------------------------------------------------------------------------------------------------*\
 | Nommo devices seem to have an issue where interface 1 doesn't show on Linux or MacOS.  Due to the way |
