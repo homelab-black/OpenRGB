@@ -75,6 +75,11 @@ RGBController_QMKKeychron::RGBController_QMKKeychron(QMKKeychronController* cont
 
     for(const kc_effect& effect : kc_effects)
     {
+        if(controller->IsViaRGBMatrixOnly() && effect.value == 0xFFFF)
+        {
+            continue;
+        }
+
         mode m;
         m.name   = effect.name;
         m.value  = effect.value;
@@ -129,6 +134,25 @@ RGBController_QMKKeychron::~RGBController_QMKKeychron()
 
 void RGBController_QMKKeychron::SetupZones()
 {
+    if(controller->IsViaRGBMatrixOnly())
+    {
+        zone keyboard;
+        keyboard.name       = "Keyboard";
+        keyboard.type       = ZONE_TYPE_SINGLE;
+        keyboard.leds_min   = 1;
+        keyboard.leds_max   = 1;
+        keyboard.leds_count = 1;
+
+        zones.push_back(keyboard);
+
+        led keyboard_led;
+        keyboard_led.name = "Keyboard";
+
+        leds.push_back(keyboard_led);
+
+        SetupColors();
+        return;
+    }
     /*-----------------------------------------------------*\
     | Build matrix map                                      |
     \*-----------------------------------------------------*/

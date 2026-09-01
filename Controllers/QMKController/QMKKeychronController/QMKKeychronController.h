@@ -139,6 +139,7 @@ public:
     std::string                             GetVersion();
 
     bool                                    GetSupported();
+    bool                                    IsViaRGBMatrixOnly();
 
     unsigned short                          GetKeycode(unsigned short led_index);
     unsigned short                          GetLEDCount();
@@ -163,6 +164,7 @@ private:
     unsigned short                          supported_features;
     std::string                             vendor;
     unsigned short                          via_protocol_version;
+    bool                                    via_rgb_matrix_only;
 
     unsigned short                          CmdGetKeycode(unsigned char layer, unsigned char row, unsigned char col);
     std::string                             CmdGetKeychronFirmwareVersion();

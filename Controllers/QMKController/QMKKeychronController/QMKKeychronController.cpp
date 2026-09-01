@@ -33,6 +33,7 @@ QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char 
     number_leds             = 0;
     supported_features      = 0;
     via_protocol_version    = 0;
+    via_rgb_matrix_only     = false;
 
     /*-----------------------------------------------------*\
     | Read product string                                   |
@@ -108,8 +109,30 @@ QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char 
     \*-----------------------------------------------------*/
     CmdGetKeychronRGBProtocolVersion(&kc_rgb_protocol_version);
 
+    /*-----------------------------------------------------*\
+    | C2 Pro 1K exposes standard VIA RGB Matrix control     |
+    | without the newer Keychron RGB extension.             |
+    \*-----------------------------------------------------*/
+    if(dev_pid == KEYCHRON_C2_PRO_1K_PID
+       && via_protocol_version != 0
+       && !(supported_features & KC_FEATURE_KEYCHRON_RGB)
+       && kc_rgb_protocol_version == 0)
+    {
+        via_rgb_matrix_only = true;
+    }
+
     if(!GetSupported())
     {
+        return;
+    }
+
+    if(via_rgb_matrix_only)
+    {
+        /*-------------------------------------------------*\
+        | VIA RGB Matrix controls the keyboard as one zone. |
+        | Per-key host control is not exposed here.         |
+        \*-------------------------------------------------*/
+        number_leds = 1;
         return;
     }
 
@@ -219,9 +242,17 @@ bool QMKKeychronController::GetSupported()
 {
     /*-----------------------------------------------------*\
     | Some boards don't set the feature bit even though the |
-    | RGB sub-protocol responds, so fall back to that       |
+    | RGB sub-protocol responds. VIA-only devices use the   |
+    | standard VIA RGB Matrix protocol instead.             |
     \*-----------------------------------------------------*/
-    return((supported_features & KC_FEATURE_KEYCHRON_RGB) || (kc_rgb_protocol_version != 0));
+    return((supported_features & KC_FEATURE_KEYCHRON_RGB)
+           || (kc_rgb_protocol_version != 0)
+           || via_rgb_matrix_only);
+}
+
+bool QMKKeychronController::IsViaRGBMatrixOnly()
+{
+    return(via_rgb_matrix_only);
 }
 
 unsigned short QMKKeychronController::GetKeycode(unsigned short led_index)
@@ -241,11 +272,25 @@ qmk_rgb_matrix_led_info QMKKeychronController::GetLEDInfo(unsigned short led_ind
 
 void QMKKeychronController::SaveMode()
 {
+    if(via_rgb_matrix_only)
+    {
+        unsigned char args[1];
+        args[0] = QMK_VIA_RGB_MATRIX_CHANNEL;
+
+        ViaSendCommand(QMK_VIA_CMD_CUSTOM_SAVE, args, sizeof(args), NULL, 0);
+        return;
+    }
+
     CmdSaveMode();
 }
 
 void QMKKeychronController::SendLEDs(unsigned short number_leds, RGBColor* color_data)
 {
+    if(via_rgb_matrix_only)
+    {
+        return;
+    }
+
     unsigned short      led_start_index     = 0;
     unsigned short      number_packet_leds  = 9;
 
@@ -264,6 +309,11 @@ void QMKKeychronController::SendLEDs(unsigned short number_leds, RGBColor* color
 
 void QMKKeychronController::SetMode(unsigned short mode, unsigned char speed, unsigned char hue, unsigned char sat, unsigned char val)
 {
+    if(via_rgb_matrix_only && mode == 0xFFFF)
+    {
+        return;
+    }
+
     if(mode == 0xFFFF)
     {
         CmdSetRGBMatrixMode(KEYCHRON_QHE_PER_KEY_RGB_EFFECT);
