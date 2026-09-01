@@ -13,11 +13,6 @@
 #include "CMSmallARGBController.h"
 #include "StringUtils.h"
 
-cm_small_argb_headers cm_small_argb_header_data[1] =
-{
-    { "CM Small ARGB",  0x01, true,  12 }
-};
-
 CMSmallARGBController::CMSmallARGBController(hid_device* dev_handle, char *_path)
 {
     dev                     = dev_handle;
