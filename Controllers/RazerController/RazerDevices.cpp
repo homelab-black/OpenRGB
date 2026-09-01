@@ -97,7 +97,6 @@ keyboard_keymap_overlay_values razer_blackwidow_x_chroma_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Caps 1 right (Shifts row)
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_SHFT 1 right (Shifts row)
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_CTRL 1 right (Shifts row)
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -121,7 +120,6 @@ keyboard_keymap_overlay_values razer_blackwidow_chroma_layout
         {   0,      3,      0,          0,          "Key: M3",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 3 (Shifts row)
         {   0,      4,      0,          0,          "Key: M4",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 4 (Shifts row)
         {   0,      5,      0,          0,          "Key: M5",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 5 (Shifts row)
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -145,7 +143,6 @@ keyboard_keymap_overlay_values razer_blackwidow_chroma_v2_layout
         {   0,      3,      0,          0,          "Key: M3",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 3 (Shifts row)
         {   0,      4,      0,          0,          "Key: M4",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 4 (Shifts row)
         {   0,      5,      0,          0,          "Key: M5",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Inset Macro key 5 (Shifts row)
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -169,7 +166,6 @@ keyboard_keymap_overlay_values razer_blackwidow_chroma_te_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Caps 1 right (Shifts row)
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_SHFT 1 right (Shifts row)
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_CTRL 1 right (Shifts row)
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -482,7 +478,6 @@ keyboard_keymap_overlay_values razer_blackwidow_x_chroma_te_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move Caps 1 right (Shifts row)
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_SHFT 1 right (Shifts row)
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Move LFT_CTRL 1 right (Shifts row)
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -506,7 +501,6 @@ keyboard_keymap_overlay_values razer_blade_pro_2017_layout
         {   0,      0,      15,         0,          KEY_EN_INSERT,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Insert' key
         {   0,      0,      17,         0,          KEY_EN_DELETE,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Delete key
         {   0,      0,      19,         0,          KEY_EN_MEDIA_PREVIOUS,      KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Previous track key
-        {   0,      0,      20,         0,          KEY_EN_MEDIA_NEXT,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Next track key
         {   0,      0,      21,         0,          "Key: Media Volume",        KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Volume key
         {   0,      0,      23,         0,          KEY_EN_MEDIA_PLAY_PAUSE,    KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Play / Pause key
         {   0,      0,      24,         0,          KEY_EN_MEDIA_MUTE,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Volume Mute key
@@ -790,7 +784,6 @@ keyboard_keymap_overlay_values razer_cynosa_chroma_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 3
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 4
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 5
-        {   0,      0,      20,         0,          "Logo",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert 'Logo' key
     }
 };
 
@@ -814,9 +807,7 @@ keyboard_keymap_overlay_values razer_cynosa_chroma_v2_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 3
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 4
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Shifts row 5
-        {   0,      0,      18,         0,          KEY_EN_MEDIA_PREVIOUS,      KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Previous track key
         {   0,      0,      19,         0,          KEY_EN_MEDIA_PLAY_PAUSE,    KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Play / Pause key
-        {   0,      0,      20,         0,          KEY_EN_MEDIA_NEXT,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Next track key
         {   0,      0,      21,         0,          KEY_EN_MEDIA_MUTE,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Volume Mute key
         {   0,      4,      15,         0,          KEY_EN_MEDIA_VOLUME_UP,     KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Volume Up
         {   0,      4,      17,         0,          KEY_EN_MEDIA_VOLUME_DOWN,   KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Insert Volume Down
@@ -1096,7 +1087,11 @@ keyboard_keymap_overlay_values razer_huntsman_v3_pro_layout
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
         {   0,      4,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
         {   0,      5,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
-        {   0,      5,      17,         0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },
+        {   0,      2,      14,         0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
+        {   0,      5,      18,         0,          KEY_EN_NUMPAD_0,            KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
+        {   0,      5,      19,         0,          KEY_EN_NUMPAD_PERIOD,       KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
+        {   0,      5,      20,         0,          "Key: Media Control",       KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
+//        {   0,      5,      17,         0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_REMOVE_SHIFT_LEFT,  },
     }
 };
 
@@ -1118,7 +1113,6 @@ keyboard_keymap_overlay_values razer_huntsman_v3_pro_tkl_layout
         {   0,      0,      15,         0,          "Xbox Game Bar",            KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
         {   0,      0,      16,         0,          KEY_EN_MEDIA_PLAY_PAUSE,    KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
         {   0,      0,      17,         0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
-        {   0,      0,      18,         0,          "Media: Volume Dial",       KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
         {   0,      1,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
         {   0,      2,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
         {   0,      3,      0,          0,          KEY_EN_UNUSED,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },

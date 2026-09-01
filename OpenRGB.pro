@@ -540,7 +540,7 @@ contains(QMAKE_PLATFORM, linux) {
         HID_HOTPLUG_ENABLED = "true"
     } else {
         packagesExist(hidapi-hidraw) {
-            PKGCONFIG += hidapi-hidraw
+            PKGCONFIG += hidapi-libusb
         } else {
             packagesExist(hidapi-libusb) {
                 PKGCONFIG += hidapi-libusb
@@ -637,7 +637,7 @@ contains(QMAKE_PLATFORM, freebsd) {
     #   Prefer hidraw backend, then libusb                                                      #
     #-------------------------------------------------------------------------------------------#
     packagesExist(hidapi-hidraw) {
-        PKGCONFIG += hidapi-hidraw
+        PKGCONFIG += hidapi-libusb
     } else {
         packagesExist(hidapi-libusb) {
             PKGCONFIG += hidapi-libusb

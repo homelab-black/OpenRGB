@@ -219,8 +219,36 @@ void RGBController_Razer::SetupZones()
                         new_kb.ChangeKeys(*temp);
 
                         new_zone.matrix_map = new_kb.GetKeyMap(KEYBOARD_MAP_FILL_TYPE_INDEX, device_list[device_index]->zones[zone_id]->rows, device_list[device_index]->zones[zone_id]->cols);
-                    }
 
+                        /*
+                         * Huntsman V3 Pro:
+                         * - Media Group spans columns 18 through 20
+                         * - Media Control is displayed above NumPad Minus
+                         * - NumPad 0 spans columns 18 and 19
+                         * - NumPad decimal is displayed in column 20
+                         */
+                        if(device_list[device_index]->pid == RAZER_HUNTSMAN_V3_PRO_PID)
+                        {
+                            const unsigned int huntsman_width = 22;
+                            const unsigned int empty          = 0xFFFFFFFF;
+
+                            /* Media Group at 0,18; empty cells allow horizontal expansion. */
+                            new_zone.matrix_map.map[(0 * huntsman_width) + 19] = empty;
+                            new_zone.matrix_map.map[(0 * huntsman_width) + 20] = empty;
+
+                            /* Physical Media Control LED 5,20 displayed at 0,21. */
+                            new_zone.matrix_map.map[(0 * huntsman_width) + 21] =
+                            (5 * huntsman_width) + 20;
+
+                            /* NumPad 0 at 5,18; empty right cell makes it double width. */
+                            new_zone.matrix_map.map[(5 * huntsman_width) + 19] = empty;
+
+                            /* Physical NumPad decimal 5,19 displayed at 5,20. */
+                            new_zone.matrix_map.map[(5 * huntsman_width) + 20] =
+                            (5 * huntsman_width) + 19;
+                        }
+
+                    }
                     zones.push_back(new_zone);
 
                     /*---------------------------------------------------------*\
