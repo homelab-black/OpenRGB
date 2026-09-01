@@ -28,10 +28,10 @@ RGBController_CMSmallARGBController::RGBController_CMSmallARGBController(CMSmall
 {
     controller                  = controller_ptr;
 
-    name                        = cm_small_argb_header_data[0].name;
+    name                        = controller->GetDeviceName();
     vendor                      = "Cooler Master";
     type                        = DEVICE_TYPE_LEDSTRIP;
-    description                 = controller->GetDeviceName();
+    description                 = "Cooler Master Small ARGB Controller Device";
     version                     = controller->GetVersion();
     serial                      = controller->GetSerial();
     location                    = controller->GetLocation();
