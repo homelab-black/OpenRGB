@@ -44,6 +44,13 @@ using json = nlohmann::json;
 #define HID_USAGE_PAGE_ANY              -1
 
 /*---------------------------------------------------------*\
+| HID usage page 0x59 is the standardised Lighting And      |
+| Illumination page.  An interface on this page speaks the  |
+| LampArray protocol, not any vendor protocol.              |
+\*---------------------------------------------------------*/
+#define HID_USAGE_PAGE_LAMPARRAY        0x59
+
+/*---------------------------------------------------------*\
 | Detector Function Types                                   |
 \*---------------------------------------------------------*/
 typedef std::vector<RGBController*> DetectedControllers;
