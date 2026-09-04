@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MSIMysticLight1603Controller.cpp                          |
+| MSIKeyboard1603Controller.cpp                             |
 |                                                           |
 |   Driver for MSI Mystic Light MS-1603 keyboards           |
 |                                                           |
@@ -9,7 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include "MSIMysticLight1603Controller.h"
+#include "MSIKeyboard1603Controller.h"
 
 #include <algorithm>
 #include <chrono>
@@ -21,7 +21,7 @@
 
 namespace
 {
-const std::array<MSIMysticLight1603Controller::ZoneMask, MSIMysticLight1603Controller::ZoneCount> zone_masks =
+const std::array<MSIKeyboard1603Controller::ZoneMask, MSIKeyboard1603Controller::ZoneCount> zone_masks =
 {{
     {{0x01, 0x00, 0x00}},
     {{0x02, 0x00, 0x00}},
@@ -111,7 +111,7 @@ const std::array<MSI1603Color, 7> rainbow_wheel_colors =
     {0xFF, 0x00, 0x00},
 }};
 
-const std::array<std::pair<MSIMysticLight1603Controller::ZoneMask, MSI1603Color>, MSIMysticLight1603Controller::ZoneCount> rainbow_breathing_sequence =
+const std::array<std::pair<MSIKeyboard1603Controller::ZoneMask, MSI1603Color>, MSIKeyboard1603Controller::ZoneCount> rainbow_breathing_sequence =
 {{
     {{{0x01, 0x00, 0x00}}, {0xFF, 0x00, 0x00}},
     {{{0x00, 0x08, 0x00}}, {0xFF, 0x00, 0x00}},
@@ -140,7 +140,7 @@ const std::array<std::pair<MSIMysticLight1603Controller::ZoneMask, MSI1603Color>
 }};
 }
 
-MSIMysticLight1603Controller::MSIMysticLight1603Controller
+MSIKeyboard1603Controller::MSIKeyboard1603Controller
 (
     hid_device* handle,
     const char* path
@@ -154,7 +154,7 @@ MSIMysticLight1603Controller::MSIMysticLight1603Controller
     }
 }
 
-MSIMysticLight1603Controller::~MSIMysticLight1603Controller()
+MSIKeyboard1603Controller::~MSIKeyboard1603Controller()
 {
     if(dev)
     {
@@ -162,12 +162,12 @@ MSIMysticLight1603Controller::~MSIMysticLight1603Controller()
     }
 }
 
-void MSIMysticLight1603Controller::SetStatic(MSI1603Color color, std::size_t zone)
+void MSIKeyboard1603Controller::SetStatic(MSI1603Color color, std::size_t zone)
 {
     ApplyStaticColor(zone, color);
 }
 
-void MSIMysticLight1603Controller::SetStatic(const std::vector<MSI1603Color>& colors)
+void MSIKeyboard1603Controller::SetStatic(const std::vector<MSI1603Color>& colors)
 {
     const std::size_t count = std::min(colors.size(), ZoneCount);
 
@@ -177,7 +177,7 @@ void MSIMysticLight1603Controller::SetStatic(const std::vector<MSI1603Color>& co
     }
 }
 
-void MSIMysticLight1603Controller::SetBreathing(MSI1603Color color, unsigned int speed)
+void MSIKeyboard1603Controller::SetBreathing(MSI1603Color color, unsigned int speed)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -185,7 +185,7 @@ void MSIMysticLight1603Controller::SetBreathing(MSI1603Color color, unsigned int
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetBreathing(MSI1603Color primary, MSI1603Color secondary, unsigned int speed)
+void MSIKeyboard1603Controller::SetBreathing(MSI1603Color primary, MSI1603Color secondary, unsigned int speed)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -193,7 +193,7 @@ void MSIMysticLight1603Controller::SetBreathing(MSI1603Color primary, MSI1603Col
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetRainbowBreathing(unsigned int speed)
+void MSIKeyboard1603Controller::SetRainbowBreathing(unsigned int speed)
 {
     for(const auto& step : rainbow_breathing_sequence)
     {
@@ -211,7 +211,7 @@ void MSIMysticLight1603Controller::SetRainbowBreathing(unsigned int speed)
     }
 }
 
-void MSIMysticLight1603Controller::SetBouncyWall(MSI1603Color color)
+void MSIKeyboard1603Controller::SetBouncyWall(MSI1603Color color)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -219,7 +219,7 @@ void MSIMysticLight1603Controller::SetBouncyWall(MSI1603Color color)
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetRainbowBouncyWall()
+void MSIKeyboard1603Controller::SetRainbowBouncyWall()
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -227,7 +227,7 @@ void MSIMysticLight1603Controller::SetRainbowBouncyWall()
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetColorCycle(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed)
+void MSIKeyboard1603Controller::SetColorCycle(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -235,7 +235,7 @@ void MSIMysticLight1603Controller::SetColorCycle(MSI1603Color primary, MSI1603Co
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetRainbowColorCycle(unsigned int speed)
+void MSIKeyboard1603Controller::SetRainbowColorCycle(unsigned int speed)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -243,7 +243,7 @@ void MSIMysticLight1603Controller::SetRainbowColorCycle(unsigned int speed)
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetWave(const std::array<MSI1603Color, 5>& colors, unsigned int speed, unsigned int direction)
+void MSIKeyboard1603Controller::SetWave(const std::array<MSI1603Color, 5>& colors, unsigned int speed, unsigned int direction)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -251,7 +251,7 @@ void MSIMysticLight1603Controller::SetWave(const std::array<MSI1603Color, 5>& co
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetRainbowWave(unsigned int speed, unsigned int direction)
+void MSIKeyboard1603Controller::SetRainbowWave(unsigned int speed, unsigned int direction)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -259,7 +259,7 @@ void MSIMysticLight1603Controller::SetRainbowWave(unsigned int speed, unsigned i
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetDance(unsigned int speed)
+void MSIKeyboard1603Controller::SetDance(unsigned int speed)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -271,7 +271,7 @@ void MSIMysticLight1603Controller::SetDance(unsigned int speed)
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetWheel(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed, unsigned int direction)
+void MSIKeyboard1603Controller::SetWheel(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed, unsigned int direction)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -279,7 +279,7 @@ void MSIMysticLight1603Controller::SetWheel(MSI1603Color primary, MSI1603Color s
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetRainbowWheel(unsigned int speed, unsigned int direction)
+void MSIKeyboard1603Controller::SetRainbowWheel(unsigned int speed, unsigned int direction)
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -287,7 +287,7 @@ void MSIMysticLight1603Controller::SetRainbowWheel(unsigned int speed, unsigned 
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::SetOff()
+void MSIKeyboard1603Controller::SetOff()
 {
     SendPacket(BuildAllSelectorPacket());
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
@@ -295,12 +295,12 @@ void MSIMysticLight1603Controller::SetOff()
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-void MSIMysticLight1603Controller::Save()
+void MSIKeyboard1603Controller::Save()
 {
     SendPacket(BuildSavePacket());
 }
 
-std::string MSIMysticLight1603Controller::GetDeviceName()
+std::string MSIKeyboard1603Controller::GetDeviceName()
 {
     std::string manufacturer = "MSI";
     std::string product      = "Mystic Light MS-1603";
@@ -312,7 +312,7 @@ std::string MSIMysticLight1603Controller::GetDeviceName()
     }
     else
     {
-        LOG_WARNING("[MSIMysticLight1603Controller] Failed to read the HID manufacturer string");
+        LOG_WARNING("[MSIKeyboard1603Controller] Failed to read the HID manufacturer string");
     }
 
     tname[0] = L'\0';
@@ -323,23 +323,23 @@ std::string MSIMysticLight1603Controller::GetDeviceName()
     }
     else
     {
-        LOG_WARNING("[MSIMysticLight1603Controller] Failed to read the HID product string");
+        LOG_WARNING("[MSIKeyboard1603Controller] Failed to read the HID product string");
     }
 
     return(manufacturer + " " + product);
 }
 
-std::string MSIMysticLight1603Controller::GetDeviceLocation()
+std::string MSIKeyboard1603Controller::GetDeviceLocation()
 {
     return("HID: " + location);
 }
 
-std::string MSIMysticLight1603Controller::GetFWVersion()
+std::string MSIKeyboard1603Controller::GetFWVersion()
 {
     return("");
 }
 
-std::string MSIMysticLight1603Controller::GetSerial()
+std::string MSIKeyboard1603Controller::GetSerial()
 {
     wchar_t serial_string[128] = {};
 
@@ -351,11 +351,11 @@ std::string MSIMysticLight1603Controller::GetSerial()
     return(StringUtils::wstring_to_string(serial_string));
 }
 
-bool MSIMysticLight1603Controller::SendPacket(const Packet& packet)
+bool MSIKeyboard1603Controller::SendPacket(const Packet& packet)
 {
     if(!dev)
     {
-        LOG_ERROR("[MSIMysticLight1603Controller] Cannot send a HID feature report without an open device");
+        LOG_ERROR("[MSIKeyboard1603Controller] Cannot send a HID feature report without an open device");
         return(false);
     }
 
@@ -365,7 +365,7 @@ bool MSIMysticLight1603Controller::SendPacket(const Packet& packet)
     {
         const wchar_t* error = hid_error(dev);
 
-        LOG_ERROR("[MSIMysticLight1603Controller] Failed to send HID feature report (%d/%u bytes): %ls",
+        LOG_ERROR("[MSIKeyboard1603Controller] Failed to send HID feature report (%d/%u bytes): %ls",
                   bytes_written,
                   static_cast<unsigned int>(packet.size()),
                   error ? error : L"unknown HID error");
@@ -375,7 +375,7 @@ bool MSIMysticLight1603Controller::SendPacket(const Packet& packet)
     return(true);
 }
 
-void MSIMysticLight1603Controller::ApplyStaticColor(std::size_t zone, MSI1603Color color)
+void MSIKeyboard1603Controller::ApplyStaticColor(std::size_t zone, MSI1603Color color)
 {
     if(zone >= ZoneCount)
     {
@@ -389,12 +389,12 @@ void MSIMysticLight1603Controller::ApplyStaticColor(std::size_t zone, MSI1603Col
     std::this_thread::sleep_for(std::chrono::milliseconds(PacketDelayMs));
 }
 
-std::size_t MSIMysticLight1603Controller::NormalizeSpeed(unsigned int speed)
+std::size_t MSIKeyboard1603Controller::NormalizeSpeed(unsigned int speed)
 {
     return(std::min<std::size_t>(speed, 2));
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildSavePacket() const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildSavePacket() const
 {
     Packet packet = {};
 
@@ -404,7 +404,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildSavePack
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildOffPacket() const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildOffPacket() const
 {
     Packet packet = {};
 
@@ -415,7 +415,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildOffPacke
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildSelectorPacket(std::size_t zone) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildSelectorPacket(std::size_t zone) const
 {
     Packet packet = {};
     const ZoneMask& mask = GetZoneMasks()[zone];
@@ -429,7 +429,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildSelector
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildAllSelectorPacket() const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildAllSelectorPacket() const
 {
     Packet packet = {};
 
@@ -444,7 +444,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildAllSelec
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildStaticPacket(MSI1603Color color) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildStaticPacket(MSI1603Color color) const
 {
     Packet packet = {};
 
@@ -470,7 +470,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildStaticPa
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBreathingPacket(MSI1603Color color, unsigned int speed) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildBreathingPacket(MSI1603Color color, unsigned int speed) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = breathing_speeds[NormalizeSpeed(speed)];
@@ -497,7 +497,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBreathin
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBreathingPacket(MSI1603Color primary, MSI1603Color secondary, unsigned int speed) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildBreathingPacket(MSI1603Color primary, MSI1603Color secondary, unsigned int speed) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = breathing_speeds[NormalizeSpeed(speed)];
@@ -529,7 +529,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBreathin
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBouncyWallPacket(MSI1603Color color) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildBouncyWallPacket(MSI1603Color color) const
 {
     Packet packet = {};
 
@@ -556,7 +556,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildBouncyWa
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowBouncyWallPacket() const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildRainbowBouncyWallPacket() const
 {
     Packet packet = {};
 
@@ -579,7 +579,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowB
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildColorCyclePacket(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildColorCyclePacket(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = breathing_speeds[NormalizeSpeed(speed)];
@@ -614,7 +614,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildColorCyc
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowColorCyclePacket(unsigned int speed) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildRainbowColorCyclePacket(unsigned int speed) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = breathing_speeds[NormalizeSpeed(speed)];
@@ -648,7 +648,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowC
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildWavePacket(const std::array<MSI1603Color, 5>& colors, unsigned int speed, unsigned int direction) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildWavePacket(const std::array<MSI1603Color, 5>& colors, unsigned int speed, unsigned int direction) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = wave_speeds[NormalizeSpeed(speed)];
@@ -682,7 +682,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildWavePack
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowWavePacket(unsigned int speed, unsigned int direction) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildRainbowWavePacket(unsigned int speed, unsigned int direction) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = wave_speeds[NormalizeSpeed(speed)];
@@ -716,7 +716,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowW
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildDancePacket(unsigned int speed) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildDancePacket(unsigned int speed) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = dance_speeds[NormalizeSpeed(speed)];
@@ -750,7 +750,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildDancePac
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildWheelPacket(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed, unsigned int direction) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildWheelPacket(MSI1603Color primary, MSI1603Color secondary, MSI1603Color tertiary, unsigned int speed, unsigned int direction) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = wheel_speeds[NormalizeSpeed(speed)];
@@ -786,7 +786,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildWheelPac
     return(packet);
 }
 
-MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowWheelPacket(unsigned int speed, unsigned int direction) const
+MSIKeyboard1603Controller::Packet MSIKeyboard1603Controller::BuildRainbowWheelPacket(unsigned int speed, unsigned int direction) const
 {
     Packet packet = {};
     const std::array<unsigned char, 2>& selected_speed = wheel_speeds[NormalizeSpeed(speed)];
@@ -820,7 +820,7 @@ MSIMysticLight1603Controller::Packet MSIMysticLight1603Controller::BuildRainbowW
     return(packet);
 }
 
-const std::array<MSIMysticLight1603Controller::ZoneMask, MSIMysticLight1603Controller::ZoneCount>& MSIMysticLight1603Controller::GetZoneMasks()
+const std::array<MSIKeyboard1603Controller::ZoneMask, MSIKeyboard1603Controller::ZoneCount>& MSIKeyboard1603Controller::GetZoneMasks()
 {
     return(zone_masks);
 }

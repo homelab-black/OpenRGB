@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_MSIMysticLight1603.h                        |
+| RGBController_MSIKeyboard1603.h                           |
 |                                                           |
 |   RGBController for MSI Mystic Light MS-1603 keyboards    |
 |                                                           |
@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "MSIMysticLight1603Controller.h"
+#include "MSIKeyboard1603Controller.h"
 #include "RGBController.h"
 
 enum MSI_1603_MODE
@@ -26,14 +26,14 @@ enum MSI_1603_MODE
     MSI_1603_MODE_BOUNCY_WALL= 7,
 };
 
-class RGBController_MSIMysticLight1603 : public RGBController
+class RGBController_MSIKeyboard1603 : public RGBController
 {
 public:
     static constexpr unsigned int MatrixWidth  = 13;
     static constexpr unsigned int MatrixHeight = 2;
 
-    RGBController_MSIMysticLight1603(MSIMysticLight1603Controller* controller_ptr);
-    ~RGBController_MSIMysticLight1603();
+    RGBController_MSIKeyboard1603(MSIKeyboard1603Controller* controller_ptr);
+    ~RGBController_MSIKeyboard1603();
 
     void        SetupZones();
 
@@ -47,6 +47,6 @@ private:
     void        SetupModes();
     MSI1603Color ColorFromRGB(RGBColor color) const;
 
-    MSIMysticLight1603Controller* controller;
+    MSIKeyboard1603Controller* controller;
     std::array<unsigned int, MatrixWidth * MatrixHeight> zone_matrix_map_data;
 };

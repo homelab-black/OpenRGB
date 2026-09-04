@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| RGBController_MSIMysticLight1603.cpp                      |
+| RGBController_MSIKeyboard1603.cpp                         |
 |                                                           |
 |   RGBController for MSI Mystic Light MS-1603 keyboards    |
 |                                                           |
@@ -9,7 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
-#include "RGBController_MSIMysticLight1603.h"
+#include "RGBController_MSIKeyboard1603.h"
 
 /**------------------------------------------------------------------*\
     @name MSI MS-1603 Mystic Light Keyboard
@@ -18,13 +18,13 @@
     @save :white_check_mark:
     @direct :rotating_light:
     @effects :white_check_mark:
-    @detectors DetectMSIMysticLight1603Controllers
+    @detectors DetectMSIKeyboard1603Controllers
     @comment Direct mode writes each of the 24 firmware regions separately and is limited to approximately 2 FPS.
 \*-------------------------------------------------------------------*/
 
-RGBController_MSIMysticLight1603::RGBController_MSIMysticLight1603
+RGBController_MSIKeyboard1603::RGBController_MSIKeyboard1603
 (
-    MSIMysticLight1603Controller* controller_ptr
+    MSIKeyboard1603Controller* controller_ptr
 )
 {
     controller  = controller_ptr;
@@ -41,17 +41,17 @@ RGBController_MSIMysticLight1603::RGBController_MSIMysticLight1603
     SetupColors();
 }
 
-RGBController_MSIMysticLight1603::~RGBController_MSIMysticLight1603()
+RGBController_MSIKeyboard1603::~RGBController_MSIKeyboard1603()
 {
     Shutdown();
     delete controller;
 }
 
-void RGBController_MSIMysticLight1603::SetupZones()
+void RGBController_MSIKeyboard1603::SetupZones()
 {
     zone_matrix_map_data.fill(0xFFFFFFFFu);
 
-    for(std::size_t zone_idx = 0; zone_idx < MSIMysticLight1603Controller::ZoneCount; zone_idx++)
+    for(std::size_t zone_idx = 0; zone_idx < MSIKeyboard1603Controller::ZoneCount; zone_idx++)
     {
         led mystic_led;
         mystic_led.name  = "Zone " + std::to_string(zone_idx + 1);
@@ -73,14 +73,14 @@ void RGBController_MSIMysticLight1603::SetupZones()
     mystic_zone.name       = "Keyboard";
     mystic_zone.type       = ZONE_TYPE_MATRIX;
     mystic_zone.start_idx  = 0;
-    mystic_zone.leds_min   = MSIMysticLight1603Controller::ZoneCount;
-    mystic_zone.leds_max   = MSIMysticLight1603Controller::ZoneCount;
-    mystic_zone.leds_count = MSIMysticLight1603Controller::ZoneCount;
+    mystic_zone.leds_min   = MSIKeyboard1603Controller::ZoneCount;
+    mystic_zone.leds_max   = MSIKeyboard1603Controller::ZoneCount;
+    mystic_zone.leds_count = MSIKeyboard1603Controller::ZoneCount;
     mystic_zone.matrix_map.Set(MatrixHeight, MatrixWidth, zone_matrix_map_data.data());
     zones.push_back(mystic_zone);
 }
 
-void RGBController_MSIMysticLight1603::DeviceUpdateLEDs()
+void RGBController_MSIKeyboard1603::DeviceUpdateLEDs()
 {
     mode& active = modes[active_mode];
 
@@ -226,7 +226,7 @@ void RGBController_MSIMysticLight1603::DeviceUpdateLEDs()
     controller->SetStatic(zone_colors);
 }
 
-void RGBController_MSIMysticLight1603::DeviceUpdateZoneLEDs(int zone)
+void RGBController_MSIKeyboard1603::DeviceUpdateZoneLEDs(int zone)
 {
     if((zone < 0) || ((std::size_t)zone >= zones.size()))
     {
@@ -254,7 +254,7 @@ void RGBController_MSIMysticLight1603::DeviceUpdateZoneLEDs(int zone)
     controller->SetStatic(ColorFromRGB(zones[zone].colors[0]), (std::size_t)zone);
 }
 
-void RGBController_MSIMysticLight1603::DeviceUpdateSingleLED(int led)
+void RGBController_MSIKeyboard1603::DeviceUpdateSingleLED(int led)
 {
     if((led < 0) || ((std::size_t)led >= colors.size()))
     {
@@ -276,17 +276,17 @@ void RGBController_MSIMysticLight1603::DeviceUpdateSingleLED(int led)
     controller->SetStatic(ColorFromRGB(colors[led]), (std::size_t)led);
 }
 
-void RGBController_MSIMysticLight1603::DeviceUpdateMode()
+void RGBController_MSIKeyboard1603::DeviceUpdateMode()
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_MSIMysticLight1603::DeviceSaveMode()
+void RGBController_MSIKeyboard1603::DeviceSaveMode()
 {
     controller->Save();
 }
 
-void RGBController_MSIMysticLight1603::SetupModes()
+void RGBController_MSIKeyboard1603::SetupModes()
 {
     mode off_mode;
     off_mode.name       = "Off";
@@ -392,7 +392,7 @@ void RGBController_MSIMysticLight1603::SetupModes()
     modes.push_back(wheel_mode);
 }
 
-MSI1603Color RGBController_MSIMysticLight1603::ColorFromRGB(RGBColor color) const
+MSI1603Color RGBController_MSIKeyboard1603::ColorFromRGB(RGBColor color) const
 {
     MSI1603Color device_color;
 

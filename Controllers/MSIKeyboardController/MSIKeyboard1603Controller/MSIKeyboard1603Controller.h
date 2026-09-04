@@ -1,5 +1,5 @@
 /*---------------------------------------------------------*\
-| MSIMysticLight1603Controller.h                            |
+| MSIKeyboard1603Controller.h                               |
 |                                                           |
 |   Driver for MSI Mystic Light MS-1603 keyboards           |
 |                                                           |
@@ -25,7 +25,7 @@ struct MSI1603Color
     unsigned char B;
 };
 
-class MSIMysticLight1603Controller
+class MSIKeyboard1603Controller
 {
 public:
     using ZoneMask = std::array<unsigned char, 3>;
@@ -33,12 +33,12 @@ public:
 
     static constexpr std::size_t ZoneCount = 24;
 
-    MSIMysticLight1603Controller
+    MSIKeyboard1603Controller
         (
         hid_device* handle,
         const char* path
         );
-    ~MSIMysticLight1603Controller();
+    ~MSIKeyboard1603Controller();
 
     void            SetStatic(MSI1603Color color, std::size_t zone);
     void            SetStatic(const std::vector<MSI1603Color>& colors);
