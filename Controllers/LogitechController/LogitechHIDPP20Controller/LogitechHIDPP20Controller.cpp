@@ -4640,8 +4640,6 @@ void LogitechHIDPP20Controller::FlushThreadFunc()
         \*-------------------------------------------------*/
         lock.unlock();
 
-        LOG_DEBUG("%s paint flush firing", LOG_TAG);
-
         if(request_repaint_fn)
         {
             request_repaint_fn();

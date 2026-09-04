@@ -3795,8 +3795,6 @@ bool RGBController_LogitechHIDPP20::ApplyZoneState(size_t cluster_pos, const HID
 
     if(fx == nullptr)
     {
-        LOG_TRACE("[LogitechHID++2.0] cluster %u lacks effect 0x%04X, skipped",
-                  cluster.index, target);
         return false;
     }
 
@@ -3934,20 +3932,8 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             {
                 if(controller->SchedulePaintFlush((uint32_t)(period_ms - in_phase)))
                 {
-                    LOG_DEBUG("[LogitechHID++2.0] zone %u color deferred %ums to phase boundary (period %ums)",
-                              caps.zone_clusters[i].index,
-                              (unsigned int)(period_ms - in_phase),
-                              (unsigned int)period_ms);
                     continue;
                 }
-
-                LOG_DEBUG("[LogitechHID++2.0] zone %u no flush timer, sending mid-phase",
-                          caps.zone_clusters[i].index);
-            }
-            else
-            {
-                LOG_DEBUG("[LogitechHID++2.0] zone %u at phase boundary (in_phase %ums), sending",
-                          caps.zone_clusters[i].index, (unsigned int)in_phase);
             }
         }
 
@@ -3998,9 +3984,6 @@ void RGBController_LogitechHIDPP20::ReconcileZones()
             {
                 continue;
             }
-
-            LOG_DEBUG("[LogitechHID++2.0] zone %u restarted for group sync",
-                      caps.zone_clusters[j].index);
 
             ApplyZoneState(j, want);
 
