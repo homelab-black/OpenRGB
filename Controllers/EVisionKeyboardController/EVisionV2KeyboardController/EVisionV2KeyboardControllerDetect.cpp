@@ -30,6 +30,7 @@
 \*---------------------------------------------------------*/
 #define ENDORFY_OMNIS_PID                           0x0012
 #define BYGG_CSB_ICL01_PID                          0x5041
+#define RONIN_HIVE_RAINY_PID                        0x5055
 
 DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::string& name)
 {
@@ -43,6 +44,14 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
         RGBController_EVisionV2Keyboard* rgb_controller = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_KEYBOARD);
 
         detected_controllers.push_back(rgb_controller);
+
+        if(info->product_id == RONIN_HIVE_RAINY_PID && !settings.contains("AdditionalZones"))
+        {
+            /*----------------------------------------------------------------------------*\
+            | These are mostly 75% keyboards, by default AdditionalZones can be kept false |
+            \*----------------------------------------------------------------------------*/
+            settings["AdditionalZones"] == false;
+        }
 
         if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
         {
@@ -86,5 +95,6 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 /*---------------------------------------------------------*\
 | Keyboards                                                 |
 \*---------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5041",  DetectEVisionV2Keyboards,   EVISION_VID,    BYGG_CSB_ICL01_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
-REGISTER_HID_DETECTOR_IP("Endorfy Omnis",               DetectEndorfyKeyboards,     SPCGEAR_VID,    ENDORFY_OMNIS_PID,  1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5041",  DetectEVisionV2Keyboards,   EVISION_VID,    BYGG_CSB_ICL01_PID,   1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("Endorfy Omnis",               DetectEndorfyKeyboards,     SPCGEAR_VID,    ENDORFY_OMNIS_PID,    1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5055",  DetectEVisionV2Keyboards,   EVISION_VID,    RONIN_HIVE_RAINY_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
