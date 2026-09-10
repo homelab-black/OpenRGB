@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <hidapi.h>
@@ -57,6 +58,7 @@ enum corsair_v2_cmd
     CORSAIR_V2_CMD_STOP_TX              = 0x05,     /* Finish Transaction               */
     CORSAIR_V2_CMD_BLK_W1               = 0x06,     /* Block write packet 1             */
     CORSAIR_V2_CMD_BLK_WN               = 0x07,     /* Block write remaining packets    */
+    CORSAIR_V2_CMD_COMMIT               = 0x09,     /* Commit/render pending LED buffer */
     CORSAIR_V2_CMD_START_TX             = 0x0D,     /* Start Transaction                */
 };
 
@@ -127,4 +129,10 @@ private:
     bool                            skip_reads          = false;
     std::string                     firmware_version;
     std::string                     location;
+
+    bool                            transaction_open    = false;
+    std::chrono::steady_clock::time_point transaction_opened_at;
+
+    bool                            have_sent_leds      = false;
+    std::chrono::steady_clock::time_point last_led_write;
 };
