@@ -48,6 +48,17 @@ static uint8_t endorfy_map[EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT] =
     105, 106, 107,                111,                115, 116, 117, 118, 119, 120, 121, 123,      124,
 };
 
+static uint8_t evisionv2_75_map[EVISION_V2_75_MATRIX_WIDTH * EVISION_V2_75_MATRIX_HEIGHT] =
+{
+ /*   0    1    2    3    4    5    6    7    8    9   10   11    12    13   */
+      0,   8,  16,  24,  32,  40,  48,  56,  64,  72,  80,  88,   96,  104,
+      1,   9,  17,  25,  33,  41,  49,  57,  65,  73,  81,  89,   97,  105,
+      2,  10,  18,  26,  34,  42,  50,  58,  66,  74,  82,  90,   98,  106,
+      3,  11,  19,  27,  35,  43,  51,  59,  67,  75,  83,  91,  107,  114,
+      4,  20,  28,  36,  44,  52,  60,  68,  76,  84,  92, 108,  116,  115,
+      5,  13,  21,            45,            77, 101,      109,  117,  125
+};
+
 EVisionV2KeyboardController::EVisionV2KeyboardController(hid_device* dev_handle, const char* path, EVisionV2KeyboardLayout dev_layout, std::string dev_name)
 {
     dev                 = dev_handle;
@@ -81,6 +92,11 @@ EVisionV2KeyboardController::EVisionV2KeyboardController(hid_device* dev_handle,
         case ENDORFY_KEYBOARD_LAYOUT:
             keyvalue_map = endorfy_map;
             led_count = 104;
+            break;
+
+        case EVISION_V2_75_KEYBOARD_LAYOUT:
+            keyvalue_map = evisionv2_75_map;
+            led_count = 79;
             break;
     }
 }

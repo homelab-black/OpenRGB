@@ -40,12 +40,15 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
 
     if(dev)
     {
-        EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, EVISION_V2_KEYBOARD_LAYOUT, name);
+        bool is_75_layout = info->product_id == RONIN_HIVE_RAINY_PID;
+        EVisionV2KeyboardLayout key_layout = is_75_layout ? EVISION_V2_75_KEYBOARD_LAYOUT : EVISION_V2_KEYBOARD_LAYOUT;
+
+        EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, key_layout, name);
         RGBController_EVisionV2Keyboard* rgb_controller = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_KEYBOARD);
 
         detected_controllers.push_back(rgb_controller);
 
-        if(info->product_id == RONIN_HIVE_RAINY_PID && !settings.contains("AdditionalZones"))
+        if(is_75_layout && !settings.contains("AdditionalZones"))
         {
             /*----------------------------------------------------------------------------*\
             | These are mostly 75% keyboards, by default AdditionalZones can be kept false |

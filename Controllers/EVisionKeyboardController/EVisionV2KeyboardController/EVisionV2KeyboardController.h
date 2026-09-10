@@ -23,6 +23,9 @@
 #define EVISION_V2_MATRIX_HEIGHT                      6
 #define EVISION_V2_MATRIX_WIDTH                      21
 
+#define EVISION_V2_75_MATRIX_HEIGHT                    6
+#define EVISION_V2_75_MATRIX_WIDTH                    14
+
 enum
 {
     EVISION_V2_MODE_COLOR_WAVE_SHORT                = 0x01, /* "Go with the stream"     */
@@ -133,6 +136,7 @@ enum EVisionV2KeyboardLayout
 {
     EVISION_V2_KEYBOARD_LAYOUT,
     ENDORFY_KEYBOARD_LAYOUT,
+    EVISION_V2_75_KEYBOARD_LAYOUT,
 };
 
 enum EVisionV2KeyboardPart
