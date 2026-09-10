@@ -169,6 +169,7 @@ void OpenRGBDevicePage::SetCustomMode(unsigned char red, unsigned char green, un
     /*-----------------------------------------------------*\
     | Apply mode and colors                                 |
     \*-----------------------------------------------------*/
+    device->EnableUserLightingControl();
     UpdateMode();
 }
 
@@ -1804,6 +1805,7 @@ void OpenRGBDevicePage::ColorChanged()
 
     if(AutoUpdateEnabled())
     {
+        device->EnableUserLightingControl();
         UpdateColor();
     }
 }
@@ -2048,6 +2050,7 @@ void OpenRGBDevicePage::on_ApplyColorsButton_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
+    device->EnableUserLightingControl();
     UpdateColor();
 }
 
@@ -2069,6 +2072,8 @@ void OpenRGBDevicePage::on_BlueSpinBox_valueChanged(int blue)
 void OpenRGBDevicePage::on_BrightnessSlider_valueChanged(int /*value*/)
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    device->EnableUserLightingControl();
 
     /*-----------------------------------------------------*\
     | Change device mode                                    |
@@ -2170,7 +2175,14 @@ void OpenRGBDevicePage::on_DeviceViewBox_selectionChanged(int selected_zone, int
 
 void OpenRGBDevicePage::on_DirectionBox_currentIndexChanged(int /*index*/)
 {
+    /* Programmatic list synchronization must never authorize hardware writes. */
+}
+
+void OpenRGBDevicePage::on_DirectionBox_activated(int /*index*/)
+{
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    device->EnableUserLightingControl();
 
     /*-----------------------------------------------------*\
     | Change device mode                                    |
@@ -2314,6 +2326,11 @@ void OpenRGBDevicePage::on_LEDBox_currentIndexChanged(int /*index*/)
 
 void OpenRGBDevicePage::on_ModeBox_currentIndexChanged(int /*index*/)
 {
+    /* Programmatic list synchronization must never authorize hardware writes. */
+}
+
+void OpenRGBDevicePage::on_ModeBox_activated(int /*index*/)
+{
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
     /*-----------------------------------------------------*\
@@ -2339,12 +2356,15 @@ void OpenRGBDevicePage::on_ModeBox_currentIndexChanged(int /*index*/)
     /*-----------------------------------------------------*\
     | Change device mode                                    |
     \*-----------------------------------------------------*/
+    device->EnableUserLightingControl();
     UpdateMode();
 }
 
 void OpenRGBDevicePage::on_ModeSpecificCheck_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    device->EnableUserLightingControl();
 
     /*-----------------------------------------------------*\
     | Mark the pending mode update                          |
@@ -2376,6 +2396,8 @@ void OpenRGBDevicePage::on_PerLEDCheck_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
+    device->EnableUserLightingControl();
+
     /*-----------------------------------------------------*\
     | Mark the pending mode update                          |
     \*-----------------------------------------------------*/
@@ -2405,6 +2427,8 @@ void OpenRGBDevicePage::on_PerLEDCheck_clicked()
 void OpenRGBDevicePage::on_RandomCheck_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    device->EnableUserLightingControl();
 
     /*-----------------------------------------------------*\
     | Mark the pending mode update                          |
@@ -2561,6 +2585,8 @@ void OpenRGBDevicePage::on_SpeedSlider_valueChanged(int /*value*/)
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
+    device->EnableUserLightingControl();
+
     /*-----------------------------------------------------*\
     | Change device mode                                    |
     \*-----------------------------------------------------*/
@@ -2643,6 +2669,7 @@ void OpenRGBDevicePage::on_SpinBoxModeColors_valueChanged(int count)
                 UpdateModeUi();
                 UpdateLEDList();
                 UpdateLEDUi();
+                device->EnableUserLightingControl();
                 UpdateMode();
             }
             break;

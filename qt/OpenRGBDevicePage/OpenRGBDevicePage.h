@@ -107,12 +107,14 @@ private slots:
     void on_ColorWheelBox_colorChanged(const QColor color);
     void on_DeviceSaveButton_clicked();
     void on_DeviceViewBox_selectionChanged(int selected_zone, int selected_segment, std::vector<unsigned int>);
+    void on_DirectionBox_activated(int index);
     void on_DirectionBox_currentIndexChanged(int index);
     void on_EditButton_clicked();
     void on_GreenSpinBox_valueChanged(int green);
     void on_HexLineEdit_textChanged(const QString &arg1);
     void on_HueSpinBox_valueChanged(int hue);
     void on_LEDBox_currentIndexChanged(int index);
+    void on_ModeBox_activated(int index);
     void on_ModeBox_currentIndexChanged(int index);
     void on_ModeSpecificCheck_clicked();
     void on_PerLEDCheck_clicked();

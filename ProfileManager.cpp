@@ -1290,6 +1290,13 @@ bool ProfileManager::LoadControllerFromListWithOptions
     bool                            load_state
     )
 {
+    /*-----------------------------------------------------*\
+    | Experimental devices may explicitly reject all saved  |
+    | profile application so detection cannot trigger an     |
+    | automatic hardware update.                             |
+    \*-----------------------------------------------------*/
+    const bool apply_profile = !(load_controller->GetFlags() & CONTROLLER_FLAG_NO_PROFILE_APPLY);
+
     for(std::size_t temp_index = 0; temp_index < profile_controllers.size(); temp_index++)
     {
         RGBController *profile_controller = profile_controllers[temp_index];
@@ -1351,7 +1358,7 @@ bool ProfileManager::LoadControllerFromListWithOptions
             /*---------------------------------------------*\
             | Update device configuration if requested      |
             \*---------------------------------------------*/
-            if(load_configuration)
+            if(load_configuration && apply_profile)
             {
                 /*-----------------------------------------*\
                 | Load device-specific configuration        |
@@ -1418,7 +1425,7 @@ bool ProfileManager::LoadControllerFromListWithOptions
             /*---------------------------------------------*\
             | Update settings if requested                  |
             \*---------------------------------------------*/
-            if(load_state)
+            if(load_state && apply_profile)
             {
                 /*-----------------------------------------*\
                 | If mode list matches, load all modes      |
@@ -1522,7 +1529,7 @@ bool ProfileManager::LoadControllerFromListWithOptions
     | this controller, apply the base color if it is        |
     | enabled                                               |
     \*-----------------------------------------------------*/
-    if(load_state && active_base_color_enabled)
+    if(load_state && apply_profile && active_base_color_enabled)
     {
         load_controller->SetCustomMode();
 
