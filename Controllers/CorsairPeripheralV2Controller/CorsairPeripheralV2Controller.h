@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 #include <hidapi.h>
 #include "LogManager.h"
@@ -44,6 +45,14 @@
 \*---------------------------------------------------------*/
 #define CORSAIR_V2_PID_RETRIES          8
 #define CORSAIR_V2_PID_RETRY_DELAY      120
+
+/*---------------------------------------------------------*\
+| Same idea for the lighting endpoint probe - a device just  |
+|   replugged can genuinely reject (not just time out on) a  |
+|   StartTransaction for a little while.                     |
+\*---------------------------------------------------------*/
+#define CORSAIR_V2_ENDPOINT_RETRIES     6
+#define CORSAIR_V2_ENDPOINT_RETRY_DELAY 200
 
 /*---------------------------------------------------------*\
 | device_index when the PID is not in the device list.      |
@@ -121,6 +130,7 @@ private:
     unsigned int                    GetAddressRetry(uint8_t address);
     unsigned char                   StartTransaction(uint8_t opt1);
     void                            StopTransaction(uint8_t opt1);
+    unsigned char                   StartTransactionRetry(uint8_t opt1);
 
     hid_device*                     dev;
 
