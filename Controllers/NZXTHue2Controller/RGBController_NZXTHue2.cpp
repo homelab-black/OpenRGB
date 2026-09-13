@@ -273,46 +273,49 @@ void RGBController_NZXTHue2::SetupZones()
     unsigned short pid = controller->GetPID();
 
     /*-------------------------------------------------*\
+    | Clear any existing color/LED configuration        |
+    \*-------------------------------------------------*/
+    leds.clear();
+    colors.clear();
+    zones.resize(controller->GetNumRGBChannels());
+
+    /*-------------------------------------------------*\
     | Set up zones                                      |
     \*-------------------------------------------------*/
-    for(unsigned int zone_idx = 0; zone_idx < controller->GetNumRGBChannels(); zone_idx++)
+    for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
-        zone* new_zone = new zone;
-
         switch(pid)
         {
         case NZXT_KRAKEN_X3_SERIES_PID:
         case NZXT_KRAKEN_X3_SERIES_RGB_PID:
             if(zone_idx == 0)
             {
-                new_zone->name = "RGB Header";
+                zones[zone_idx].name        = "RGB Header";
             }
             else if(zone_idx == 1)
             {
-                new_zone->name = "Ring";
+                zones[zone_idx].name        = "Ring";
             }
             else if(zone_idx == 2)
             {
-                new_zone->name = "Logo";
+                zones[zone_idx].name        = "Logo";
             }
             else
             {
-                new_zone->name = "Channel " + std::to_string(zone_idx + 1);
+                zones[zone_idx].name        = "Channel " + std::to_string(zone_idx + 1);
             }
             break;
 
         default:
-            new_zone->name          = "Hue 2 Channel ";
-            new_zone->name.append(std::to_string(zone_idx + 1));
+            zones[zone_idx].name        = "Hue 2 Channel ";
+            zones[zone_idx].name.append(std::to_string(zone_idx + 1));
             break;
         }
 
-        new_zone->type          = ZONE_TYPE_LINEAR;
-        new_zone->leds_min      = 0;
-        new_zone->leds_max      = 40;
-        new_zone->leds_count    = controller->channel_leds[zone_idx];
-
-        zones.push_back(*new_zone);
+        zones[zone_idx].type        = ZONE_TYPE_LINEAR;
+        zones[zone_idx].leds_min    = 0;
+        zones[zone_idx].leds_max    = 40;
+        zones[zone_idx].leds_count  = controller->channel_leds[zone_idx];
     }
 
     /*-------------------------------------------------*\
@@ -364,6 +367,8 @@ void RGBController_NZXTHue2::SetupZones()
     for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
         unsigned int start_idx = 0;
+
+        zones[zone_idx].segments.clear();
 
         for(unsigned int dev_idx = 0; dev_idx < 6; dev_idx++)
         {
