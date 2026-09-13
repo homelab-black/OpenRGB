@@ -251,6 +251,64 @@ const keyboard_keymap_overlay_values redragon_k686_eisa_pro
 
 
 /*-------------------------------------------------------------------------*\
+|  LEOBOG K21 / SOLAKAKA K21 21-key numpad                                  |
+|                                                                           |
+|  LED indexes match SignalRGB's Sinowealth Numpad layout (model ID 0x4E).  |
+|                                                                           |
+|    Esc   Tab   Bksp  Fn                                                   |
+|    NL    /     *     -                                                    |
+|    7     8     9     +                                                    |
+|    4     5     6                                                          |
+|    1     2     3     Enter                                                |
+|    0           .                                                          |
+\*-------------------------------------------------------------------------*/
+const keyboard_keymap_overlay_values leobog_k21_layout
+{
+    KEYBOARD_SIZE_EMPTY,
+    {
+        {
+            /* Built from edit_keys */
+        },
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*--------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                            |
+        |   Zone,   Row,    Column,    Value,    Key,                      Alternate Name,      OpCode,                        |
+        \*--------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,      0,        102,       KEY_EN_ESCAPE,            KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      1,        108,       KEY_EN_TAB,               KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      2,        114,       KEY_EN_BACKSPACE,         KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      3,        120,       KEY_EN_RIGHT_FUNCTION,    KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+
+        {   0,      1,      0,        103,       KEY_EN_NUMPAD_LOCK,       KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      1,        109,       KEY_EN_NUMPAD_DIVIDE,     KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      2,        115,       KEY_EN_NUMPAD_TIMES,      KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      3,        121,       KEY_EN_NUMPAD_MINUS,      KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+
+        {   0,      2,      0,        104,       KEY_EN_NUMPAD_7,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      2,      1,        110,       KEY_EN_NUMPAD_8,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      2,      2,        116,       KEY_EN_NUMPAD_9,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      2,      3,        122,       KEY_EN_NUMPAD_PLUS,       KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+
+        {   0,      3,      0,        105,       KEY_EN_NUMPAD_4,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      3,      1,        111,       KEY_EN_NUMPAD_5,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      3,      2,        117,       KEY_EN_NUMPAD_6,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+
+        {   0,      4,      0,        106,       KEY_EN_NUMPAD_1,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      4,      1,        112,       KEY_EN_NUMPAD_2,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      4,      2,        118,       KEY_EN_NUMPAD_3,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      4,      3,        124,       KEY_EN_NUMPAD_ENTER,      KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+
+        {   0,      5,      0,        107,       KEY_EN_NUMPAD_0,          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      5,      2,        119,       KEY_EN_NUMPAD_PERIOD,     KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    }
+};
+
+
+/*-------------------------------------------------------------------------*\
 |  DEVICE MODEL MAPPING                                                     |
 \*-------------------------------------------------------------------------*/
 const sinowealth_device_map sinowealth_10c_keyboards{
@@ -267,9 +325,12 @@ const sinowealth_device_map sinowealth_10c_keyboards{
         0xA3, { "LEOBOG Hi75C Pro", leobog_hi75c_pro_layout },
     },
     {
+        0x4E, { "LEOBOG K21", leobog_k21_layout },
+    },
+    {
         0x20, { "Redragon K686 Eisa Pro", redragon_k686_eisa_pro },
     },
     {
         0x05, { "Redragon K686 Eisa Pro", redragon_k686_eisa_pro },
-    }, 
+    },
 };
