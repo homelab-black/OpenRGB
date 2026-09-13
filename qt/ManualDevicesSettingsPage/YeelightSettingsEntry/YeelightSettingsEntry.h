@@ -31,6 +31,7 @@ private:
     Ui::YeelightSettingsEntry *ui;
 
 private slots:
+    void on_ProtocolComboBox_currentIndexChanged(int index);
     void changeEvent(QEvent *event) override;
     void on_HostIPChooserButton_clicked();
 };

@@ -42,14 +42,9 @@ DetectedControllers DetectYeelightControllers()
             if(yeelight_settings["devices"][device_idx].contains("ip"))
             {
                 std::string yeelight_ip = yeelight_settings["devices"][device_idx]["ip"];
-                bool        music_mode  = false;
+                yeelight_protocol protocol = YeelightController::GetProtocolFromSettings(yeelight_settings["devices"][device_idx]);
 
-                if(yeelight_settings["devices"][device_idx].contains("music_mode"))
-                {
-                    music_mode = yeelight_settings["devices"][device_idx]["music_mode"];
-                }
-
-                YeelightController*     controller     = new YeelightController(yeelight_ip, yeelight_host_ip, music_mode);
+                YeelightController*     controller     = new YeelightController(yeelight_ip, yeelight_host_ip, protocol);
                 RGBController_Yeelight* rgb_controller = new RGBController_Yeelight(controller);
 
                 detected_controllers.push_back(rgb_controller);

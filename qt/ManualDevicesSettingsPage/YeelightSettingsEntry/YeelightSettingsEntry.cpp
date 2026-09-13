@@ -11,12 +11,14 @@
 #include "YeelightSettingsEntry.h"
 #include "ui_YeelightSettingsEntry.h"
 #include "net_port.h"
+#include "YeelightController.h"
 
 YeelightSettingsEntry::YeelightSettingsEntry(QWidget *parent) :
     BaseManualDeviceEntry(parent),
     ui(new Ui::YeelightSettingsEntry)
 {
     ui->setupUi(this);
+    on_ProtocolComboBox_currentIndexChanged(ui->ProtocolComboBox->currentIndex());
 }
 
 YeelightSettingsEntry::~YeelightSettingsEntry()
@@ -35,9 +37,18 @@ void YeelightSettingsEntry::changeEvent(QEvent *event)
 void YeelightSettingsEntry::on_HostIPChooserButton_clicked()
 {
     char hostname[256];
-    gethostname(hostname, 256);
+    if(gethostname(hostname, sizeof(hostname)) != 0)
+    {
+        return;
+    }
 
-    char **in_addrs = gethostbyname(hostname)->h_addr_list;
+    struct hostent* host_entry = gethostbyname(hostname);
+    if(host_entry == nullptr)
+    {
+        return;
+    }
+
+    char **in_addrs = host_entry->h_addr_list;
 
     QStringList in_addr_list;
 
@@ -74,10 +85,16 @@ void YeelightSettingsEntry::loadFromSettings(const json& data)
         ui->HostIPEdit->setText(QString::fromStdString(data["host_ip"]));
     }
 
-    if(data.contains("music_mode"))
-    {
-        ui->MusicModeCheckBox->setChecked(data["music_mode"]);
-    }
+    ui->ProtocolComboBox->setCurrentIndex(YeelightController::GetProtocolFromSettings(data));
+}
+
+void YeelightSettingsEntry::on_ProtocolComboBox_currentIndexChanged(int index)
+{
+    bool music_mode = (index == YEELIGHT_PROTOCOL_MUSIC);
+    ui->HostIPEdit->setEnabled(music_mode);
+    ui->HostIPChooserButton->setEnabled(music_mode);
+    ui->label->setEnabled(music_mode);
+    ui->label_2->setEnabled(music_mode);
 }
 
 json YeelightSettingsEntry::saveSettings()
@@ -88,7 +105,7 @@ json YeelightSettingsEntry::saveSettings()
     \*-------------------------------------------------*/
     result["ip"]          = ui->IPEdit->text().toStdString();
     result["host_ip"]     = ui->HostIPEdit->text().toStdString();
-    result["music_mode"]  = ui->MusicModeCheckBox->isChecked();
+    result["protocol"]    = ui->ProtocolComboBox->currentText().toStdString();
 
     return result;
 }

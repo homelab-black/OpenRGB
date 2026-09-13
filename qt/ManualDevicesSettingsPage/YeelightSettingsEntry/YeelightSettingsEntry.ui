@@ -27,10 +27,22 @@
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="2" column="1">
-       <widget class="QCheckBox" name="MusicModeCheckBox">
-        <property name="text">
-         <string/>
-        </property>
+       <widget class="QComboBox" name="ProtocolComboBox">
+        <item>
+         <property name="text">
+          <string notr="true">TCP</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string notr="true">Music</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string notr="true">UDP</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item row="1" column="0">
@@ -51,9 +63,9 @@
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="MusicModeLabel">
+       <widget class="QLabel" name="ProtocolLabel">
         <property name="text">
-         <string>Music Mode:</string>
+         <string>Protocol:</string>
         </property>
        </widget>
       </item>
