@@ -22,8 +22,7 @@
     @comment
 \*-------------------------------------------------------------------*/
 
-RGBController_OnixLumiGPU::RGBController_OnixLumiGPU(
-    OnixLumiGPUController* controller_ptr)
+RGBController_OnixLumiGPU::RGBController_OnixLumiGPU(OnixLumiGPUController* controller_ptr)
 {
     controller  = controller_ptr;
 
@@ -157,10 +156,11 @@ RGBController_OnixLumiGPU::RGBController_OnixLumiGPU(
 
     SetupZones();
 
-    /*
-     * ONIX cards boot in Rainbow mode by default.
-     * Reflect that state without writing to the device during detection.
-     */
+    /*-----------------------------------------------------*\
+    | Controller state is not queried during detection.      |
+    | Use Rainbow as the initial OpenRGB fallback mode        |
+    | without writing to the device.                          |
+    \*-----------------------------------------------------*/
     for(unsigned int mode_idx = 0; mode_idx < modes.size(); mode_idx++)
     {
         if(modes[mode_idx].value == ONIX_LUMI_MODE_RAINBOW)

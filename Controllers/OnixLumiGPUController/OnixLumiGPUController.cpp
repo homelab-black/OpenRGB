@@ -13,10 +13,7 @@
 
 #include "OnixLumiGPUController.h"
 
-OnixLumiGPUController::OnixLumiGPUController(
-    i2c_smbus_interface* bus,
-    onix_lumi_dev_id dev,
-    std::string name)
+OnixLumiGPUController::OnixLumiGPUController(i2c_smbus_interface* bus, onix_lumi_dev_id dev, std::string name)
 {
     this->bus  = bus;
     this->dev  = dev;
@@ -47,15 +44,14 @@ std::string OnixLumiGPUController::GetDeviceLocation()
 
 void OnixLumiGPUController::WriteRegister(u8 reg, u8 value)
 {
-    /*
-     * ONIX LUMI uses raw two-byte I2C writes:
-     *
-     *   [ register, value ]
-     *
-     * This intentionally uses i2c_write_block(), not SMBus
-     * byte-data transactions, to match the verified Linux
-     * i2ctransfer behaviour.
-     */
+    /*-----------------------------------------------------*\
+    | ONIX LUMI uses raw two-byte I2C writes:               |
+    |                                                       |
+    |   [ register, value ]                                 |
+    |                                                       |
+    | Use i2c_write_block() to match verified i2ctransfer   |
+    | behaviour rather than SMBus byte-data transactions.   |
+    \*-----------------------------------------------------*/
     u8 data[2] = { reg, value };
 
     bus->i2c_write_block(dev, sizeof(data), data);
@@ -66,11 +62,7 @@ void OnixLumiGPUController::SetOff()
     WriteRegister(ONIX_LUMI_REG_BRIGHTNESS, 0x00);
 }
 
-void OnixLumiGPUController::SetStatic(
-    unsigned char red,
-    unsigned char green,
-    unsigned char blue,
-    unsigned char brightness)
+void OnixLumiGPUController::SetStatic(unsigned char red, unsigned char green, unsigned char blue, unsigned char brightness)
 {
     WriteRegister(ONIX_LUMI_REG_MODE,       ONIX_LUMI_HW_MODE_STATIC);
     WriteRegister(ONIX_LUMI_REG_RED,        red);
@@ -79,10 +71,7 @@ void OnixLumiGPUController::SetStatic(
     WriteRegister(ONIX_LUMI_REG_BRIGHTNESS, brightness);
 }
 
-void OnixLumiGPUController::SetRainbow(
-    unsigned char brightness,
-    unsigned char speed,
-    unsigned char direction)
+void OnixLumiGPUController::SetRainbow(unsigned char brightness, unsigned char speed, unsigned char direction)
 {
     if(speed < 2)
     {
@@ -107,12 +96,7 @@ void OnixLumiGPUController::SetRainbow(
     WriteRegister(ONIX_LUMI_REG_BRIGHTNESS, brightness);
 }
 
-void OnixLumiGPUController::SetBreathing(
-    unsigned char red,
-    unsigned char green,
-    unsigned char blue,
-    unsigned char brightness,
-    unsigned char speed)
+void OnixLumiGPUController::SetBreathing(unsigned char red, unsigned char green, unsigned char blue, unsigned char brightness, unsigned char speed)
 {
     if(speed > ONIX_LUMI_BREATHING_SPEED_MAX)
     {
@@ -131,11 +115,7 @@ void OnixLumiGPUController::SetBreathing(
 }
 
 
-void OnixLumiGPUController::SetRunway(
-    unsigned char brightness,
-    unsigned char speed,
-    unsigned char direction,
-    bool bounce)
+void OnixLumiGPUController::SetRunway(unsigned char brightness, unsigned char speed, unsigned char direction, bool bounce)
 {
     if(speed < 2)
     {
@@ -163,9 +143,7 @@ void OnixLumiGPUController::SetRunway(
 }
 
 
-void OnixLumiGPUController::SetColorCycle(
-    unsigned char brightness,
-    unsigned char speed)
+void OnixLumiGPUController::SetColorCycle(unsigned char brightness, unsigned char speed)
 {
     if(speed < 2)
     {
@@ -185,10 +163,7 @@ void OnixLumiGPUController::SetColorCycle(
 }
 
 
-void OnixLumiGPUController::SetSerial(
-    unsigned char brightness,
-    unsigned char speed,
-    unsigned char direction)
+void OnixLumiGPUController::SetSerial(unsigned char brightness, unsigned char speed, unsigned char direction)
 {
     if(speed > 5)
     {
@@ -204,7 +179,9 @@ void OnixLumiGPUController::SetSerial(
 
     WriteRegister(ONIX_LUMI_REG_SERIAL_RESPONSE, response);
 
-    /* One complete colour sweep before starting the next */
+    /*-----------------------------------------------------*\
+    | One complete colour sweep before starting the next     |
+    \*-----------------------------------------------------*/
     WriteRegister(ONIX_LUMI_REG_SERIAL_INTERVAL, 0x10);
 
     WriteRegister(ONIX_LUMI_REG_DIRECTION, direction);
@@ -213,10 +190,7 @@ void OnixLumiGPUController::SetSerial(
 }
 
 
-void OnixLumiGPUController::SetBlockStacking(
-    unsigned char brightness,
-    unsigned char speed,
-    unsigned char direction)
+void OnixLumiGPUController::SetBlockStacking(unsigned char brightness, unsigned char speed, unsigned char direction)
 {
     if(speed < 2)
     {
@@ -230,11 +204,11 @@ void OnixLumiGPUController::SetBlockStacking(
 
     unsigned char hardware_speed = 15 - speed;
 
-    /*
-     * Raw hardware direction:
-     * 0 = left-to-right
-     * 1 = right-to-left
-     */
+    /*-----------------------------------------------------*\
+    | Raw hardware direction:                                |
+    | 0 = left-to-right                                      |
+    | 1 = right-to-left                                      |
+    \*-----------------------------------------------------*/
     if(direction != 1)
     {
         direction = 0;
