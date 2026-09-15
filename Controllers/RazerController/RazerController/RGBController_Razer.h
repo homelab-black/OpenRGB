@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "RGBController.h"
 #include "RazerController.h"
 
@@ -25,6 +26,7 @@ enum
     RAZER_MODE_SPECTRUM_CYCLE,
     RAZER_MODE_WAVE,
     RAZER_MODE_REACTIVE,
+    RAZER_MODE_STARLIGHT,
 };
 
 class RGBController_Razer : public RGBController
@@ -43,4 +45,5 @@ public:
 
 private:
     RazerController*    controller;
+    std::mutex         update_mutex;
 };
