@@ -10,6 +10,9 @@
 \*---------------------------------------------------------*/
 
 #include <hidapi.h>
+#ifdef __APPLE__
+#include <hidapi_darwin.h>
+#endif
 #include "DetectionManager.h"
 #include "LogManager.h"
 #include "DrevoKeyboardController.h"
@@ -40,7 +43,20 @@ DetectedControllers DetectDrevoKeyboard(hid_device_info* info, const std::string
     DetectedControllers detected_controllers;
     hid_device*         dev;
 
+#ifdef __APPLE__
+    /*---------------------------------------------------------*\
+    | macOS requires shared access to the keyboard interface.   |
+    | Restore the previous policy for other device detectors.  |
+    \*---------------------------------------------------------*/
+    int open_exclusive = hid_darwin_get_open_exclusive();
+    hid_darwin_set_open_exclusive(0);
+#endif
+
     dev = hid_open_path(info->path);
+
+#ifdef __APPLE__
+    hid_darwin_set_open_exclusive(open_exclusive);
+#endif
 
     if(dev)
     {
