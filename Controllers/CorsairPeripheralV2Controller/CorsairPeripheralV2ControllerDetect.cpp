@@ -10,6 +10,9 @@
 /*---------------------------------------------------------*\
 | OpenRGB includes                                          |
 \*---------------------------------------------------------*/
+#include <chrono>
+#include <string>
+#include <thread>
 #include <hidapi.h>
 #include "DetectionManager.h"
 #include "LogManager.h"
@@ -28,23 +31,76 @@
 \*---------------------------------------------------------*/
 #define CORSAIR_VID                                 0x1B1C
 
+/*---------------------------------------------------------*\
+| Bound how long to wait for the device to re-enumerate on a |
+|   new hidraw node after an unclean exit (crash, kill -9)   |
+\*---------------------------------------------------------*/
+#define CORSAIR_V2_REOPEN_DELAY_MS                  1500
+#define CORSAIR_V2_REOPEN_TOTAL_BUDGET_MS           20000
+
+static CorsairPeripheralV2HWController* OpenAndBuildCorsairV2HWController(std::string& path, unsigned short vendor_id, unsigned short product_id, int interface_number, unsigned short usage_page, const std::string& name)
+{
+    hid_device* dev = hid_open_path(path.c_str());
+
+    CorsairPeripheralV2HWController* controller = dev ? new CorsairPeripheralV2HWController(dev, path.c_str(), name) : nullptr;
+
+    /*---------------------------------------------------------*\
+    | Bound by wall-clock time, not retry count - a single        |
+    |   reopen cycle can itself take several seconds              |
+    \*---------------------------------------------------------*/
+    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(CORSAIR_V2_REOPEN_TOTAL_BUDGET_MS);
+
+    while((!controller || !controller->IsDeviceSupported()) && std::chrono::steady_clock::now() < deadline)
+    {
+        delete controller;
+        controller = nullptr;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(CORSAIR_V2_REOPEN_DELAY_MS));
+
+        hid_device_info* enumerated = hid_enumerate(vendor_id, product_id);
+        bool             found      = false;
+
+        for(hid_device_info* current = enumerated; current != nullptr; current = current->next)
+        {
+            if((current->interface_number == interface_number) && (current->usage_page == usage_page))
+            {
+                path  = current->path;
+                found = true;
+                break;
+            }
+        }
+
+        hid_free_enumeration(enumerated);
+
+        if(!found)
+        {
+            continue;
+        }
+
+        dev = hid_open_path(path.c_str());
+
+        if(dev)
+        {
+            controller = new CorsairPeripheralV2HWController(dev, path.c_str(), name);
+        }
+    }
+
+    return controller;
+}
+
 DetectedControllers DetectCorsairV2HardwareControllers(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
-    hid_device*         dev;
+    std::string         path                = info->path;
+    unsigned short      vendor_id           = info->vendor_id;
+    unsigned short      product_id          = info->product_id;
+    int                 interface_number    = info->interface_number;
+    unsigned short      usage_page          = info->usage_page;
 
-    dev = hid_open_path(info->path);
+    CorsairPeripheralV2HWController* controller = OpenAndBuildCorsairV2HWController(path, vendor_id, product_id, interface_number, usage_page, name);
 
-    if(dev)
+    if(controller)
     {
-        CorsairPeripheralV2HWController*    controller      = new CorsairPeripheralV2HWController(dev, info->path, name);
-
-        /*---------------------------------------------------------*\
-        | A device whose PID is not in the device list has no       |
-        |   zone or LED data to build an RGBController from.        |
-        |   Drop it here: building one anyway indexes the device    |
-        |   list with an index that was never set.                  |
-        \*---------------------------------------------------------*/
         if(!controller->IsDeviceSupported())
         {
             LOG_WARNING("[%s] not registering device, capabilities unknown.", name.c_str());

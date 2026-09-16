@@ -11,7 +11,9 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 #include <hidapi.h>
 #include "LogManager.h"
@@ -45,6 +47,14 @@
 #define CORSAIR_V2_PID_RETRY_DELAY      120
 
 /*---------------------------------------------------------*\
+| Same idea for the lighting endpoint probe - a device just  |
+|   replugged can genuinely reject (not just time out on) a  |
+|   StartTransaction for a little while.                     |
+\*---------------------------------------------------------*/
+#define CORSAIR_V2_ENDPOINT_RETRIES     6
+#define CORSAIR_V2_ENDPOINT_RETRY_DELAY 200
+
+/*---------------------------------------------------------*\
 | device_index when the PID is not in the device list.      |
 |   Never index the device list with it.                    |
 \*---------------------------------------------------------*/
@@ -57,6 +67,7 @@ enum corsair_v2_cmd
     CORSAIR_V2_CMD_STOP_TX              = 0x05,     /* Finish Transaction               */
     CORSAIR_V2_CMD_BLK_W1               = 0x06,     /* Block write packet 1             */
     CORSAIR_V2_CMD_BLK_WN               = 0x07,     /* Block write remaining packets    */
+    CORSAIR_V2_CMD_COMMIT               = 0x09,     /* Commit/render pending LED buffer */
     CORSAIR_V2_CMD_START_TX             = 0x0D,     /* Start Transaction                */
 };
 
@@ -119,6 +130,7 @@ private:
     unsigned int                    GetAddressRetry(uint8_t address);
     unsigned char                   StartTransaction(uint8_t opt1);
     void                            StopTransaction(uint8_t opt1);
+    unsigned char                   StartTransactionRetry(uint8_t opt1);
 
     hid_device*                     dev;
 
@@ -127,4 +139,10 @@ private:
     bool                            skip_reads          = false;
     std::string                     firmware_version;
     std::string                     location;
+
+    bool                            transaction_open    = false;
+    std::chrono::steady_clock::time_point transaction_opened_at;
+
+    bool                            have_sent_leds      = false;
+    std::chrono::steady_clock::time_point last_led_write;
 };

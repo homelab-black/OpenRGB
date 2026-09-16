@@ -74,6 +74,35 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     LOG_DEBUG("[%s] Packet length set to %d", device_name.c_str(), pkt_sze);
 
     /*---------------------------------------------------------*\
+    | The negotiation above can under-report the real max report |
+    |   size on some devices - probe a full-size write directly   |
+    |   and use it if it succeeds                                 |
+    \*---------------------------------------------------------*/
+    if(pkt_sze < CORSAIR_V2_PACKET_SIZE)
+    {
+        memset(buffer, 0, CORSAIR_V2_PACKET_SIZE);
+        buffer[1]           = write_cmd;
+        buffer[2]           = CORSAIR_V2_CMD_GET;
+        buffer[3]           = 0x11;
+
+        int probe_write = hid_write(dev, buffer, CORSAIR_V2_PACKET_SIZE);
+        int probe_read  = 0;
+
+        if(probe_write == CORSAIR_V2_PACKET_SIZE)
+        {
+            probe_read = hid_read_timeout(dev, buffer, CORSAIR_V2_PACKET_SIZE, CORSAIR_V2_TIMEOUT);
+
+            if(probe_read > 0)
+            {
+                pkt_sze = CORSAIR_V2_PACKET_SIZE;
+            }
+        }
+
+        LOG_DEBUG("[%s] Full-size packet probe: write=%d read=%d, resulting pkt_sze=%d",
+                  device_name.c_str(), probe_write, probe_read, pkt_sze);
+    }
+
+    /*---------------------------------------------------------*\
     | NB: If the device is not found in the device list         |
     |   then wireless mode may not work reliably                |
     \*---------------------------------------------------------*/
@@ -115,20 +144,57 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     \*---------------------------------------------------------*/
     if(light_ctrl == CORSAIR_V2_LIGHT_CTRL2)
     {
-        result = StartTransaction(0);
+        /*---------------------------------------------------------*\
+        | The device can genuinely reject a fresh StartTransaction   |
+        |   for a bit after a USB reconnect - retry before falling   |
+        |   back to the wrong colour format                          |
+        \*---------------------------------------------------------*/
+        result = StartTransactionRetry(0);
+
         if(result > 0)
         {
             light_ctrl = CORSAIR_V2_LIGHT_CTRL1;
-            StartTransaction(0);
+            result = StartTransactionRetry(0);
         }
-        StopTransaction(0);
-        LOG_DEBUG("[%s] Lighting Endpoint set to %02X", device_name.c_str(), light_ctrl);
+        LOG_DEBUG("[%s] Lighting Endpoint set to %02X (fallback result=%02X)", device_name.c_str(), light_ctrl, result);
     }
 }
 
 CorsairPeripheralV2Controller::~CorsairPeripheralV2Controller()
 {
+    if(transaction_open)
+    {
+        StopTransaction(0);
+    }
     hid_close(dev);
+}
+
+/*---------------------------------------------------------*\
+| Retry StartTransaction with backoff before giving up      |
+\*---------------------------------------------------------*/
+unsigned char CorsairPeripheralV2Controller::StartTransactionRetry(uint8_t opt1)
+{
+    unsigned char result = 0;
+
+    for(unsigned int attempt = 0; attempt < CORSAIR_V2_ENDPOINT_RETRIES; attempt++)
+    {
+        if(attempt > 0)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(CORSAIR_V2_ENDPOINT_RETRY_DELAY));
+        }
+
+        StopTransaction(0);
+        ClearPacketBuffer();
+        result = StartTransaction(opt1);
+
+        if(result == 0)
+        {
+            break;
+        }
+    }
+
+    StopTransaction(0);
+    return result;
 }
 
 const corsair_v2_device* CorsairPeripheralV2Controller::GetDeviceData()
@@ -310,9 +376,17 @@ unsigned char CorsairPeripheralV2Controller::StartTransaction(uint8_t opt1)
 
     hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
 
+    /*---------------------------------------------------------*\
+    | A read timeout leaves buffer[2] holding the outgoing       |
+    |   command byte, which must not be misread as an error      |
+    \*---------------------------------------------------------*/
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        int bytes_read = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        if(bytes_read <= 0)
+        {
+            return 0;
+        }
     }
 
     return buffer[2];
@@ -344,18 +418,35 @@ void CorsairPeripheralV2Controller::ClearPacketBuffer()
         return;
     }
 
-    uint8_t result          = 0;
     uint8_t buffer[CORSAIR_V2_PACKET_SIZE];
+
+    /*---------------------------------------------------------*\
+    | int, not uint8_t - a -1 error must not wrap to 255 and     |
+    |   loop forever. Cap iterations too as a backstop.           |
+    \*---------------------------------------------------------*/
+    int raw_result;
+    int iterations = 0;
 
     do
     {
-        result = hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+        raw_result = hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+        iterations++;
     }
-    while(result > 0);
+    while(raw_result > 0 && iterations < 1000);
 }
 
 void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 {
+    /*---------------------------------------------------------*\
+    | Drop (never block) calls arriving too soon after the last  |
+    \*---------------------------------------------------------*/
+    constexpr std::chrono::milliseconds min_write_interval(12);
+
+    if(have_sent_leds && (std::chrono::steady_clock::now() - last_led_write) < min_write_interval)
+    {
+        return;
+    }
+
     const uint8_t offset1   = 8;
     const uint8_t offset2   = 4;
     uint16_t remaining      = data_size;
@@ -363,8 +454,23 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
     uint8_t buffer[CORSAIR_V2_PACKET_SIZE];
     memset(buffer, 0, CORSAIR_V2_PACKET_SIZE);
 
-    ClearPacketBuffer();
-    StartTransaction(0);
+    constexpr std::chrono::milliseconds transaction_refresh_interval(4500);
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+    if(!transaction_open)
+    {
+        ClearPacketBuffer();
+        StartTransaction(0);
+        transaction_open        = true;
+        transaction_opened_at   = now;
+    }
+    else if(now - transaction_opened_at >= transaction_refresh_interval)
+    {
+        StopTransaction(0);
+        ClearPacketBuffer();
+        StartTransaction(0);
+        transaction_opened_at   = now;
+    }
     /*---------------------------------------------------------*\
     | Set the data header in packet 1 with the data length      |
     |   signaling how many packets to expect to the device      |
@@ -420,7 +526,28 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
         remaining          -= copy_bytes;
     }
 
-    StopTransaction(0);
+    /*---------------------------------------------------------*\
+    | Let the device finish rendering before committing - real   |
+    |   vendor traffic pauses ~48ms here every time              |
+    \*---------------------------------------------------------*/
+    std::this_thread::sleep_for(std::chrono::milliseconds(48));
+
+    /*---------------------------------------------------------*\
+    | Undocumented commit packet, seen on real vendor traffic    |
+    \*---------------------------------------------------------*/
+    memset(buffer, 0, CORSAIR_V2_PACKET_SIZE);
+    buffer[1]               = write_cmd;
+    buffer[2]               = CORSAIR_V2_CMD_COMMIT;
+
+    hid_write(dev, buffer, pkt_sze);
+
+    if(!skip_reads)
+    {
+        hid_read_timeout(dev, buffer, pkt_sze, CORSAIR_V2_TIMEOUT_SHORT);
+    }
+
+    have_sent_leds  = true;
+    last_led_write  = std::chrono::steady_clock::now();
 }
 
 void CorsairPeripheralV2Controller::UpdateHWMode(uint16_t mode, corsair_v2_color /*color_mode*/, uint8_t /*speed*/,
