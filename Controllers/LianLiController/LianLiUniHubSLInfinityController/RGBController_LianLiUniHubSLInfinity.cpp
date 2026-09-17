@@ -447,7 +447,7 @@ void RGBController_LianLiUniHubSLInfinity::DeviceUpdateMode()
     {
         if(zones[zone_idx].leds_count == 0)
         {
-            return;     // Do nothing, channel isn't in use
+            continue;   // Do nothing, channel isn't in use
         }
         fan_idx = ((zones[zone_idx].leds_count / 16) - 1);        // Indexes start at 0
 
