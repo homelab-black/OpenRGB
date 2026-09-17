@@ -86,5 +86,31 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 /*---------------------------------------------------------*\
 | Keyboards                                                 |
 \*---------------------------------------------------------*/
+DetectedControllers DetectHuskyKeyboards(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+
+    if(info->usage_page != 0xFF1C)
+    {
+        return(detected_controllers);
+    }
+
+    hid_device* dev = hid_open_path(info->path);
+
+    if(!dev)
+    {
+        return(detected_controllers);
+    }
+
+    EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, EVISION_V2_KEYBOARD_LAYOUT, name);
+    controller->mode_offset = -1;
+    RGBController_EVisionV2Keyboard* rgb_controller = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_KEYBOARD);
+
+    detected_controllers.push_back(rgb_controller);
+
+    return(detected_controllers);
+}
+
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5041",  DetectEVisionV2Keyboards,   EVISION_VID,    BYGG_CSB_ICL01_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("Endorfy Omnis",               DetectEndorfyKeyboards,     SPCGEAR_VID,    ENDORFY_OMNIS_PID,  1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR("Husky Anchorage 320F:5016", DetectHuskyKeyboards, EVISION_VID, 0x5016);
