@@ -250,6 +250,47 @@ const keyboard_keymap_overlay_values redragon_k686_eisa_pro
 };
 
 
+const keyboard_keymap_overlay_values redragon_k689_wyvern
+{
+    KEYBOARD_SIZE_FULL,
+    {
+        {
+         /* ESC          F1    F2    F3    F4    F5    F6    F7    F8    F9   F10   F11   F12  PRTSC  SCRCK  PAUSE */
+            0,           12,   18,   24,   30,   36,   42,   48,   54,   60,   66,   72,   78,    84,    90,    96,
+         /* BKTK          1     2     3     4     5     6     7     8     9     0     -     =   BSPC   INS   HOME  PGUP  NMLK  NMDV  NMTM  NMMI */
+            1,            7,   13,   19,   25,   31,   37,   43,   49,   55,   61,   67,   73,   79,    85,    91,   97,  103,  109,  115,  121,
+         /* TAB           Q     W     E     R     T     Y     U     I     O     P     [     ]     \    DEL   END  PGDN   NM7   NM8   NM9  NMPL */
+            2,            8,   14,   20,   26,   32,   38,   44,   50,   56,   62,   68,   74,   80,    86,    92,   98,  104,  110,  116,  122,
+         /* CPLK          A     S     D     F     G     H     J     K     L     ;     '     #   ENTR              NM4   NM5   NM6 */
+            3,            9,   15,   21,   27,   33,   39,   45,   51,   57,   63,   69,    0,   81,              105,  111,  117,
+         /* LSFT  ISO\    Z     X     C     V     B     N     M     ,     .     /   RSFT         ARWU            NM1   NM2   NM3   NMER */
+            4,      0,   10,   16,   22,   28,   34,   40,   46,   52,   58,   64,   82,        94,          106,  112,  118,  123,
+         /* LCTL       LWIN   LALT              SPC               RALT  RFNC  RMNU  RCTL         ARWL  ARWD  ARWR          NM0         NMPD */
+            5,           11,   17,               35,               53,   65,   0,    83,         89,   95,  101,          107,         119,
+        },
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*--------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                            |
+        |   Zone,   Row,    Column,    Value,    Key,                 Alternate Name,      OpCode,                             |
+        \*--------------------------------------------------------------------------------------------------------------------*/
+        {   0,      5,      12,         0,      KEY_EN_UNUSED,       KEY_EN_UNUSED,       KEYBOARD_OPCODE_SWAP_ONLY,          },  // Remove Menu
+
+        /*-------------------------------------------------*\
+        | Four shortcut keys sit above the numeric          |
+        | keypad at columns 17-20 of row 0                  |
+        \*-------------------------------------------------*/
+        {   0,      0,      17,        102,     "Mute",              KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Mute
+        {   0,      0,      18,        108,     "Calculator",        KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Calculator
+        {   0,      0,      19,        114,     "Hotkey 1",          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Hotkey 1
+        {   0,      0,      20,        120,     "Hotkey 2",          KEY_EN_UNUSED,       KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },  // Insert Hotkey 2
+    }
+};
+
+
 /*-------------------------------------------------------------------------*\
 |  DEVICE MODEL MAPPING                                                     |
 \*-------------------------------------------------------------------------*/
@@ -272,4 +313,7 @@ const sinowealth_device_map sinowealth_10c_keyboards{
     {
         0x05, { "Redragon K686 Eisa Pro", redragon_k686_eisa_pro },
     }, 
+    {
+        0x67, { "Redragon K689 Wyvern", redragon_k689_wyvern },
+    },
 };
