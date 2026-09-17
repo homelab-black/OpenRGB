@@ -14,13 +14,21 @@
 #include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
+#include <stdexcept>
+#include <vector>
 #include <windows.h>
+#include <tlhelp32.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <thread>
 
 #include <QApplication>
 
 #include "cli.h"
 #include "startup.h"
+#include "WindowsLaunchPolicy.h"
+#include "WindowsLaunchLock.h"
 #include "LogManager.h"
 #include "NetworkServer.h"
 #include "DetectionManager.h"
@@ -30,6 +38,8 @@
 using namespace std::chrono_literals;
 
 static int common_main(int argc, char* argv[]);
+static bool FindOtherOpenRGBInstances(std::vector<DWORD>& pids);
+static bool IsSDKServerRunning();
 
 static void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv);
 static void ReportServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint);
@@ -45,6 +55,12 @@ static volatile bool         service_stop_requested;
 static std::mutex            service_stop_mutex;
 static std::condition_variable service_stop_cv;
 static bool                  have_console;
+static WindowsLaunchLock     launch_lock;
+
+void ReleaseWindowsLaunchLock()
+{
+    launch_lock.Release();
+}
 
 static std::mutex            service_status_mutex;
 
@@ -357,6 +373,35 @@ static void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
     \*-----------------------------------------------------*/
     ReportServiceStatus(SERVICE_START_PENDING, NO_ERROR, 30000);
 
+    DWORD lock_result = launch_lock.Acquire();
+    if(lock_result != WAIT_OBJECT_0 && lock_result != WAIT_ABANDONED)
+    {
+        LogEvent("Another OpenRGB startup is already in progress.");
+        ReportServiceStatus(SERVICE_STOPPED, ERROR_SERVICE_ALREADY_RUNNING, 0);
+        return;
+    }
+
+    std::vector<DWORD> other_pids;
+    try
+    {
+        FindOtherOpenRGBInstances(other_pids);
+    }
+    catch(const std::exception& error)
+    {
+        LogEvent("Cannot inspect running OpenRGB processes: %s", error.what());
+        ReleaseWindowsLaunchLock();
+        ReportServiceStatus(SERVICE_STOPPED, ERROR_SERVICE_NOT_ACTIVE, 0);
+        return;
+    }
+
+    if(!CanStartWindowsService(!other_pids.empty(), IsSDKServerRunning()))
+    {
+        LogEvent("OpenRGB service refused to start because another instance or SDK server is active.");
+        ReleaseWindowsLaunchLock();
+        ReportServiceStatus(SERVICE_STOPPED, ERROR_SERVICE_ALREADY_RUNNING, 0);
+        return;
+    }
+
     /*-----------------------------------------------------*\
     | Perform common main processing                        |
     \*-----------------------------------------------------*/
@@ -382,6 +427,145 @@ static void WINAPI ServiceMain(DWORD dwArgc, LPTSTR *lpszArgv)
 |   Entry point, checks if started as a service and then    |
 |   calls the common main processing                        |
 \*---------------------------------------------------------*/
+/*---------------------------------------------------------*\
+| Single-instance guard helpers                             |
+|                                                           |
+| FindOtherOpenRGBInstances enumerates processes named      |
+| OpenRGB.exe other than this one.                          |
+| TerminateOtherInstances closes them, waiting up to 10s    |
+| per process. Fails when an instance is elevated and this  |
+| one is not.                                               |
+\*---------------------------------------------------------*/
+static bool FindOtherOpenRGBInstances(std::vector<DWORD>& pids)
+{
+    DWORD  current_pid = GetCurrentProcessId();
+    HANDLE snapshot    = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+    if(snapshot == INVALID_HANDLE_VALUE)
+    {
+        throw std::runtime_error("Cannot inspect running OpenRGB processes.");
+    }
+
+    PROCESSENTRY32 entry;
+    entry.dwSize = sizeof(entry);
+
+    if(Process32First(snapshot, &entry))
+    {
+        do
+        {
+            if(_stricmp(entry.szExeFile, "OpenRGB.exe") == 0
+            && entry.th32ProcessID != current_pid)
+            {
+                pids.push_back(entry.th32ProcessID);
+            }
+        }
+        while(Process32Next(snapshot, &entry));
+    }
+
+    CloseHandle(snapshot);
+
+    return (pids.size() > 0);
+}
+
+static bool TerminateOtherInstances(const std::vector<DWORD>& pids)
+{
+    bool all_terminated = true;
+
+    for(DWORD pid: pids)
+    {
+        HANDLE process = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, pid);
+
+        if(process == NULL)
+        {
+            all_terminated = false;
+            continue;
+        }
+
+        if(!TerminateProcess(process, 0))
+        {
+            all_terminated = false;
+        }
+        else
+        {
+            if(WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
+            {
+                all_terminated = false;
+            }
+        }
+
+        CloseHandle(process);
+    }
+
+    return all_terminated;
+}
+
+/*---------------------------------------------------------*\
+|| IsSDKServerRunning                                        |
+||                                                           |
+||   Try to connect to 127.0.0.1:6742 to check whether the   |
+||   running instance is already acting as an SDK server.    |
+||   Used by the single-instance guard to decide whether a   |
+||   second launch should become a GUI client instead of     |
+||   prompting to kill the existing instance.                |
+\*---------------------------------------------------------*/
+static bool IsSDKServerRunning()
+{
+    WSADATA wsa;
+    if(WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    {
+        return false;
+    }
+
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if(s == INVALID_SOCKET)
+    {
+        WSACleanup();
+        return false;
+    }
+
+    DWORD timeout = 500;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(6742);
+    InetPtonA(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+    bool running = (connect(s, (sockaddr*)&addr, sizeof(addr)) == 0);
+
+    closesocket(s);
+    WSACleanup();
+
+    return running;
+}
+
+// Include hidden Qt windows: a GUI minimized to the tray still counts.
+struct OpenRGBWindowSearch
+{
+    const std::vector<DWORD>& pids;
+    bool found = false;
+};
+
+static BOOL CALLBACK FindOpenRGBWindow(HWND window, LPARAM param)
+{
+    auto& search = *reinterpret_cast<OpenRGBWindowSearch*>(param);
+    DWORD pid = 0;
+    GetWindowThreadProcessId(window, &pid);
+    if(std::find(search.pids.begin(), search.pids.end(), pid) != search.pids.end())
+    {
+        char class_name[256] = {};
+        GetClassNameA(window, class_name, sizeof(class_name));
+        if(strncmp(class_name, "Qt", 2) == 0 && GetWindowTextLengthA(window) > 0)
+        {
+            search.found = true;
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 int main(int argc, char* argv[])
 {
     started_as_service = false;
@@ -462,7 +646,99 @@ int main(int argc, char* argv[])
         have_console = true;
     }
 
-    return common_main(argc, argv);
+    std::vector<std::string> original_args;
+    for(int arg_index = 0; arg_index < argc; arg_index++)
+    {
+        original_args.push_back(argv[arg_index]);
+    }
+    WindowsLaunchIntent intent = AnalyzeWindowsLaunchArguments(original_args);
+
+    /*-----------------------------------------------------*\
+    | Single-instance guard: if another OpenRGB.exe is     |
+    | running, offer to close it or exit this copy. This    |
+    | prevents two instances fighting over the same        |
+    | devices and SDK port.                                 |
+    \*-----------------------------------------------------*/
+    // Hold through initialization and window creation, then release in startup().
+    if(!intent.guard_required)
+    {
+        return common_main(argc, argv);
+    }
+
+    DWORD lock_result = launch_lock.Acquire();
+    if(lock_result == WAIT_FAILED)
+    {
+        MessageBoxA(NULL, "Cannot acquire the OpenRGB startup lock. Try running as administrator.",
+                    "OpenRGB", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+        return EXIT_FAILURE;
+    }
+    if(lock_result != WAIT_OBJECT_0 && lock_result != WAIT_ABANDONED)
+    {
+        return lock_result == WAIT_TIMEOUT ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+    struct LaunchLockCleanup
+    {
+        ~LaunchLockCleanup() { ReleaseWindowsLaunchLock(); }
+    } cleanup;
+
+    std::vector<DWORD> other_pids;
+    try
+    {
+        FindOtherOpenRGBInstances(other_pids);
+    }
+    catch(const std::exception& error)
+    {
+        MessageBoxA(NULL, error.what(), "OpenRGB", MB_OK | MB_ICONWARNING);
+        return EXIT_FAILURE;
+    }
+    const bool server_running = IsSDKServerRunning();
+    OpenRGBWindowSearch window_search{other_pids};
+    EnumWindows(FindOpenRGBWindow, reinterpret_cast<LPARAM>(&window_search));
+    // Treat multiple older processes as a pair, even across desktop sessions.
+    const bool gui_running = window_search.found || other_pids.size() > 1;
+    const auto action = GetWindowsLaunchAction(!other_pids.empty(), server_running,
+                                               gui_running, intent.gui_requested,
+                                               intent.server_requested);
+    if(action == WindowsLaunchAction::Restart)
+    {
+        if(other_pids.empty())
+        {
+            MessageBoxA(NULL, "The SDK port is occupied by an unidentified process.\n"
+                             "Close it before starting OpenRGB.",
+                        "OpenRGB", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+            return EXIT_FAILURE;
+        }
+        const char* prompt = intent.gui_requested
+            ? "OpenRGB is already running. Start a fresh server and GUI?\n\n"
+              "Yes - close the existing OpenRGB processes and start fresh\n"
+              "No - keep the existing session"
+            : "OpenRGB is already running. Restart it?\n\n"
+              "Yes - close the existing OpenRGB processes and start fresh\n"
+              "No - keep the existing session";
+        if(MessageBoxA(NULL, prompt, "OpenRGB",
+                       MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION | MB_SETFOREGROUND | MB_TOPMOST) != IDYES)
+            return EXIT_SUCCESS;
+        if(!TerminateOtherInstances(other_pids))
+        {
+            MessageBoxA(NULL, "The existing OpenRGB processes could not be closed.\n"
+                             "Close them manually or run this copy as administrator.",
+                        "OpenRGB", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+            return EXIT_FAILURE;
+        }
+        if(IsSDKServerRunning())
+        {
+            MessageBoxA(NULL, "The SDK port is still in use. OpenRGB will not start another server.",
+                        "OpenRGB", MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+            return EXIT_FAILURE;
+        }
+    }
+
+    std::vector<std::string> args = BuildWindowsLaunchArguments(original_args, action);
+    std::vector<char*> launch_argv;
+    for(auto& arg : args)
+        launch_argv.push_back(&arg[0]);
+    launch_argv.push_back(nullptr);
+    return common_main(static_cast<int>(args.size()), launch_argv.data());
 }
 
 /*---------------------------------------------------------*\
