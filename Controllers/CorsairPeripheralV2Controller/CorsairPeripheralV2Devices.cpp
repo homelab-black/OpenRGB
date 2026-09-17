@@ -257,6 +257,38 @@ keyboard_keymap_overlay_values corsair_k95_layout
     }
 };
 
+keyboard_keymap_overlay_values corsair_k100_air_layout
+{
+    KEYBOARD_SIZE::KEYBOARD_SIZE_FULL,
+    {
+        corsair_full_size_values,
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                                             |
+        |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode,                             |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        //upper row
+        {   0,      0,       0,         128,        "Profile",                  KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_ROW,         },
+        {   0,      0,       1,         113,        "Brightness",               KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       2,         114,        "Lock",                     KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       8,         135,        "Logo L",                   KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,       9,         136,        "Logo R",                   KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      15,         126,        KEY_EN_MEDIA_PREVIOUS,      KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      16,         124,        KEY_EN_MEDIA_PLAY_PAUSE,    KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      17,         125,        KEY_EN_MEDIA_NEXT,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      0,      18,         102,        KEY_EN_MEDIA_MUTE,          KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        //macro keys
+        {   0,      1,      18,         131,        "G1",                       KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      19,         132,        "G2",                       KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      20,         133,        "G3",                       KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+        {   0,      1,      21,         134,        "G4",                       KEY_EN_UNUSED,              KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT, },
+    }
+};
+
 keyboard_keymap_overlay_values corsair_k100_layout
 {
     KEYBOARD_SIZE::KEYBOARD_SIZE_FULL,
@@ -1237,6 +1269,39 @@ static const corsair_v2_device k95_platinum_xt_device =
 };
 
 /*-------------------------------------------------------------*\
+|   Corsair K100 AIR 1B1C:1BAB                                  |
+|                                                               |
+|   Zone "Keyboard"                                             |
+|       Matrix                                                  |
+|       7 Rows, 22 Columns                                      |
+\*-------------------------------------------------------------*/
+
+static const corsair_v2_zone k100_air_zone =
+{
+    ZONE_EN_KEYBOARD,
+    ZONE_TYPE_MATRIX,
+    7,
+    22
+};
+
+static const corsair_v2_device k100_air_device =
+{
+    CORSAIR_K100_AIR_PID,
+    DEVICE_TYPE_KEYBOARD,
+    7,
+    22,
+    {
+        &k100_air_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_k100_air_layout
+};
+
+/*-------------------------------------------------------------*\
 |   Corsair K100 MX Red 1B1C:1B7D                               |
 |                                                               |
 |   Zone "Keyboard"                                             |
@@ -1635,6 +1700,7 @@ const corsair_v2_device* corsair_v2_device_list_data[] =
     &k70_rgb_tkl_device,
     &k70_rgb_tkl_cs_device,
     &k95_platinum_xt_device,
+    &k100_air_device,
     &k100_mx_red_device,
     &k100_rgb_opt_v1_device,
     &k100_rgb_opt_v2_device,
