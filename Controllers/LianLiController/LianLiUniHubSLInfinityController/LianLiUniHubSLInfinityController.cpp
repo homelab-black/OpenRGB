@@ -174,17 +174,25 @@ void LianLiUniHubSLInfinityController::SetChannelMode(unsigned char channel, con
     if(!colors.empty())                                          // Update led_data if there's colors
     {
         brightness = static_cast<float>(active_mode.brightness)/4;
-        if(num_colors == 6)
+        /*-------------------------------------------------*\
+        | Static and breathing take per-LED data, one color |
+        | per fan slot, and are the only modes offering six |
+        | colors.  The animated effects take the four color |
+        | palette below instead.                            |
+        \*-------------------------------------------------*/
+        if((active_mode.value == UNIHUB_SLINF_LED_MODE_STATIC_COLOR)
+         ||(active_mode.value == UNIHUB_SLINF_LED_MODE_BREATHING))
         {
             for(unsigned int i = 0; i < 6; i++)
             {
-                float brightness_scale = brightness * infinityBrightnessLimit(colors[i]);
+                RGBColor fan_color = colors[i % num_colors];
+                float brightness_scale = brightness * infinityBrightnessLimit(fan_color);
                 for(unsigned int led_idx = 0; led_idx < 16 * 3; led_idx += 3)
                 {
                     cur_led_idx = (i * 16 * 3) + led_idx;
-                    fan_led_data[cur_led_idx + 0] = (unsigned char)(RGBGetRValue(colors[i]) * brightness_scale);
-                    fan_led_data[cur_led_idx + 1] = (unsigned char)(RGBGetBValue(colors[i]) * brightness_scale);
-                    fan_led_data[cur_led_idx + 2] = (unsigned char)(RGBGetGValue(colors[i]) * brightness_scale);
+                    fan_led_data[cur_led_idx + 0] = (unsigned char)(RGBGetRValue(fan_color) * brightness_scale);
+                    fan_led_data[cur_led_idx + 1] = (unsigned char)(RGBGetBValue(fan_color) * brightness_scale);
+                    fan_led_data[cur_led_idx + 2] = (unsigned char)(RGBGetGValue(fan_color) * brightness_scale);
                 }
             }
         }
