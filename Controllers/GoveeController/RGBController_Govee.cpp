@@ -51,7 +51,9 @@ static std::map<std::string, GoveeDeviceInfo> govee_device_info
 {
     { "H6022",   { 132, GOVEE_ZONE_SERPENTINE, 12, 0,  true } },    // Govee Smart Table Lamp 2
     { "H6046",   { 20,  GOVEE_ZONE_SPLIT_BARS, 0,  10, true } },    // Govee RGBIC Gaming Light Bars - two 10-LED bars, right then left
+    { "H6056",   { 6,   GOVEE_ZONE_SPLIT_BARS, 0,  10, true } },    // Govee RGBIC Gaming Light Bars - two 3-zone bars, right then left
     { "H612F",   { 12,  GOVEE_ZONE_LINEAR,     0,  0,  true } },    // Govee Strip Light S (3m)
+    { "H61D5",   { 28,  GOVEE_ZONE_LINEAR,     0,  0,  true } },    // Govee Neon Rope Light 2 (5m) - 28 Chroma-addressable segments
     { "H619A",   { 20,  GOVEE_ZONE_LINEAR,     0,  0,  true } },    // Govee RGBIC Led Strip Lights
     { "H70B1",   { 20,  GOVEE_ZONE_LINEAR,     0,  0,  true } },    // Govee LED Curtain Lights
     { "H607C",   { 174, GOVEE_ZONE_LINEAR,     0,  0,  true } },    // Govee Floor Lamp 2
@@ -110,12 +112,11 @@ RGBController_Govee::RGBController_Govee(GoveeController* controller_ptr)
 
 RGBController_Govee::~RGBController_Govee()
 {
-    Shutdown();
-
     keepalive_thread_run = 0;
     keepalive_thread->join();
     delete keepalive_thread;
 
+    Shutdown();
     delete controller;
 }
 
@@ -274,6 +275,7 @@ void RGBController_Govee::DeviceConfigureZone(int zone_idx)
 
 void RGBController_Govee::DeviceUpdateLEDs()
 {
+    std::lock_guard<std::recursive_mutex> lock(state_mutex);
     if(colors.empty())
     {
         return;
@@ -286,8 +288,10 @@ void RGBController_Govee::DeviceUpdateLEDs()
 
     if(razer_supported)
     {
-        controller->SendRazerData(&colors[0], (unsigned int)colors.size());
-        controller->SetBrightness(brightness);
+        if(controller->SendRazerData(&colors[0], (unsigned int)colors.size()))
+        {
+            controller->SetBrightness(brightness);
+        }
     }
     else
     {
@@ -323,6 +327,7 @@ void RGBController_Govee::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_Govee::DeviceUpdateMode()
 {
+    std::lock_guard<std::recursive_mutex> lock(state_mutex);
     if(modes[active_mode].value == GOVEE_MODE_STATIC)
     {
         UpdateStatic(false);
@@ -331,7 +336,7 @@ void RGBController_Govee::DeviceUpdateMode()
     {
         if(razer_supported)
         {
-            controller->SendRazerEnable();
+            controller->SendRazerEnable(true);
         }
 
         last_update_time = std::chrono::steady_clock::now();
@@ -341,6 +346,7 @@ void RGBController_Govee::DeviceUpdateMode()
 
 void RGBController_Govee::UpdateStatic(bool force)
 {
+    std::lock_guard<std::recursive_mutex> lock(state_mutex);
     last_update_time = std::chrono::steady_clock::now();
 
     const RGBColor color          = modes[active_mode].colors[0];
@@ -364,11 +370,22 @@ void RGBController_Govee::UpdateStatic(bool force)
 
 void RGBController_Govee::KeepaliveThread()
 {
+    std::chrono::steady_clock::time_point last_status_request;
     while(keepalive_thread_run.load())
     {
+        std::unique_lock<std::shared_mutex> access_lock(AccessMutex);
+        std::unique_lock<std::recursive_mutex> state_lock(state_mutex);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-        if((now - last_update_time) > std::chrono::seconds(30))
+        if(razer_supported && modes[active_mode].value == GOVEE_MODE_DIRECT
+           && now - last_status_request >= std::chrono::seconds(10))
+        {
+            controller->RequestStatus();
+            last_status_request = now;
+        }
+
+        if((now - last_update_time) > std::chrono::seconds(30)
+           || (modes[active_mode].value == GOVEE_MODE_DIRECT && razer_supported && controller->NeedsRazerRecovery()))
         {
             if(modes[active_mode].value == GOVEE_MODE_STATIC)
             {
@@ -376,23 +393,16 @@ void RGBController_Govee::KeepaliveThread()
             }
             else if(modes[active_mode].value == GOVEE_MODE_DIRECT)
             {
-                /*-----------------------------------------------------*\
-                | Direct/per-LED mode has no other periodic refresh -   |
-                | SendRazerEnable() only fires once, at mode entry.     |
-                | Re-assert it here so a long gap between real updates  |
-                | (e.g. idle time between plugin-driven alerts) can't   |
-                | let the device's external-control session time out    |
-                | and fall back to its own firmware default.            |
-                \*-----------------------------------------------------*/
-                if(razer_supported)
-                {
-                    controller->SendRazerEnable();
-                }
-
+                /*-----------------------------------------*\
+                | LED data keeps Direct mode active. Sending |
+                | another enable command causes flicker.     |
+                \*-----------------------------------------*/
                 DeviceUpdateLEDs();
             }
         }
 
-        std::this_thread::sleep_for(10s);
+        state_lock.unlock();
+        access_lock.unlock();
+        std::this_thread::sleep_for(1s);
     }
 }

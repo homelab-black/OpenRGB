@@ -42,4 +42,5 @@ private:
     unsigned int                                        last_static_brightness;
     bool                                                razer_supported;
     bool                                                static_initialized;
+    std::recursive_mutex                                state_mutex;
 };
