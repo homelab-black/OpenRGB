@@ -312,8 +312,6 @@ void RGBController_Razer::SetupZones()
 
 void RGBController_Razer::DeviceUpdateLEDs()
 {
-    std::lock_guard<std::mutex> lock(update_mutex);
-
     /*---------------------------------------------------------*\
     | A queued color update must not replace a hardware effect. |
     \*---------------------------------------------------------*/
@@ -335,12 +333,6 @@ void RGBController_Razer::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_Razer::DeviceUpdateMode()
 {
-    /*---------------------------------------------------------*\
-    | Zone/single updates can run beside the device call thread.|
-    | Keep the frame and its apply command together.            |
-    \*---------------------------------------------------------*/
-    std::lock_guard<std::mutex> lock(update_mutex);
-
     switch(modes[active_mode].value)
     {
         case RAZER_MODE_DIRECT:

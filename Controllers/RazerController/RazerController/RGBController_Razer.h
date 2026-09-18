@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include <mutex>
 #include "RGBController.h"
 #include "RazerController.h"
 
@@ -45,5 +44,4 @@ public:
 
 private:
     RazerController*    controller;
-    std::mutex         update_mutex;
 };
