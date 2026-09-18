@@ -401,10 +401,15 @@ void RGBController_LianLiUniHubSLInfinity::DeviceConfigureZone(int zone_idx)
 
 void RGBController_LianLiUniHubSLInfinity::DeviceUpdateLEDs()
 {
-
-    if(!initializedMode)
+    /*-------------------------------------------------*\
+    | Only custom mode sends per-LED data.  The other   |
+    | modes run on the controller itself, so leave them |
+    | alone instead of overwriting the channel with a   |
+    | static color commit.                              |
+    \*-------------------------------------------------*/
+    if(active_mode)
     {
-        DeviceUpdateMode();
+        return;
     }
 
     float brightness_scale = static_cast<float>(modes[active_mode].brightness)/modes[active_mode].brightness_max;
@@ -417,9 +422,15 @@ void RGBController_LianLiUniHubSLInfinity::DeviceUpdateLEDs()
 
 void RGBController_LianLiUniHubSLInfinity::DeviceUpdateZoneLEDs(int zone)
 {
-    if(!initializedMode)
+    /*-------------------------------------------------*\
+    | Only custom mode sends per-LED data.  The other   |
+    | modes run on the controller itself, so leave them |
+    | alone instead of overwriting the channel with a   |
+    | static color commit.                              |
+    \*-------------------------------------------------*/
+    if(active_mode)
     {
-        DeviceUpdateMode();
+        return;
     }
 
     float brightness_scale = static_cast<float>(modes[active_mode].brightness)/modes[active_mode].brightness_max;
