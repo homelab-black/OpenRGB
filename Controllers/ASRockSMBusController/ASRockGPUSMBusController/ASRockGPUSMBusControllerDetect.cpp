@@ -12,6 +12,7 @@
 #include "LogManager.h"
 #include "RGBController_ASRockGPUSMBus.h"
 #include "i2c_amd_gpu.h"
+#include "i2c_intel_gpu.h"
 #include "i2c_smbus.h"
 #include "pci_ids.h"
 
@@ -20,6 +21,19 @@ DetectedControllers DetectASRockGPUSMBusControllers(i2c_smbus_interface* bus, ui
     DetectedControllers detected_controllers;
 
     if(bus->info.pci_vendor == AMD_GPU_VEN && !is_amd_gpu_i2c_bus(bus))
+    {
+        return(detected_controllers);
+    }
+
+    /*-----------------------------------------------------*\
+    | Intel discrete GPUs register several i2c adapters     |
+    | under the same PCI device: gmbus and DisplayPort AUX  |
+    | for the outputs, plus the internal DesignWare bus the |
+    | RGB controller lives on.  All of them carry the       |
+    | card's PCI IDs, so without this the probe packet      |
+    | would also be written to the monitors' DDC buses.     |
+    \*-----------------------------------------------------*/
+    if(bus->info.pci_vendor == INTEL_VEN && !is_intel_gpu_i2c_bus(bus))
     {
         return(detected_controllers);
     }
@@ -45,3 +59,4 @@ REGISTER_I2C_PCI_DETECTOR("ASRock Radeon RX 9070 XT Steel Legend",   DetectASRoc
 REGISTER_I2C_PCI_DETECTOR("ASRock Radeon RX 9070 XT Steel Legend Dark", DetectASRockGPUSMBusControllers, AMD_GPU_VEN, AMD_NAVI48_DEV, ASROCK_SUB_VEN, 0x5414, ASROCK_GPU_SMBUS_ADDRESS);
 REGISTER_I2C_PCI_DETECTOR("ASRock Radeon RX 9070 XT Taichi 16GB OC", DetectASRockGPUSMBusControllers, AMD_GPU_VEN, AMD_NAVI48_DEV, ASROCK_SUB_VEN, 0x5401, ASROCK_GPU_SMBUS_ADDRESS);
 REGISTER_I2C_PCI_DETECTOR("ASRock Radeon RX 9060 XT Steel Legend",   DetectASRockGPUSMBusControllers, AMD_GPU_VEN, AMD_NAVI44_DEV, ASROCK_SUB_VEN, 0x5407, ASROCK_GPU_SMBUS_ADDRESS);
+REGISTER_I2C_PCI_DETECTOR("ASRock Intel Arc B580 Steel Legend 12GB OC", DetectASRockGPUSMBusControllers, INTEL_VEN, INTEL_ARC_B580_DEV, ASROCK_SUB_VEN, 0x6020, ASROCK_GPU_SMBUS_ADDRESS);
