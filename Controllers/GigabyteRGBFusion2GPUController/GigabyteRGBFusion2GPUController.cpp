@@ -57,6 +57,19 @@ void RGBFusion2GPUController::SetMode(uint8_t zone, uint8_t mode, fusion2_config
     uint8_t zone_pkt[8] = { RGB_FUSION2_GPU_REG_MODE, mode, zone_config.speed, zone_config.brightness, mystery_flag, (uint8_t)(zone + 1), 0x00, 0x00 };
     bus->i2c_write_block(dev, sizeof(zone_pkt), zone_pkt);
 
+    /*---------------------------------------------------------*\
+    | The RX 7600 family at 0x55 uses the original per-zone     |
+    | color packet. The newer 0xB0/0xB1 packets used by some    |
+    | Gigabyte GPUs reset its RGB controller to its default     |
+    | effect instead of applying the requested color.           |
+    \*---------------------------------------------------------*/
+    if(dev == 0x55)
+    {
+        uint8_t zone_pkt2[8] = { RGB_FUSION2_GPU_REG_COLOR, (uint8_t)RGBGetRValue(zone_config.colors[0]), (uint8_t)RGBGetGValue(zone_config.colors[0]), (uint8_t)RGBGetBValue(zone_config.colors[0]), (uint8_t)(zone + 1), 0x00, 0x00, 0x00 };
+        bus->i2c_write_block(dev, sizeof(zone_pkt2), zone_pkt2);
+        return;
+    }
+
     uint8_t zone_pkt2[8] = { 0 };
     switch(zone)
     {
