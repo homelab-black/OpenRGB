@@ -31,7 +31,7 @@ HIDLampArrayController::HIDLampArrayController(hid_device *dev_handle, const cha
     unsigned int  pos                   = 0;
     unsigned char report_descriptor[HID_API_MAX_REPORT_DESCRIPTOR_SIZE];
     unsigned char report_id             = 0;
-    unsigned int  size                  = hid_get_report_descriptor(dev, report_descriptor, sizeof(report_descriptor));
+    int           size                  = hid_get_report_descriptor(dev, report_descriptor, sizeof(report_descriptor));
     unsigned int  usage                 = 0;
     unsigned char usage_page            = 0;
 
@@ -40,7 +40,18 @@ HIDLampArrayController::HIDLampArrayController(hid_device *dev_handle, const cha
     \*-----------------------------------------------------*/
     std::unordered_map<unsigned int, unsigned int> usage_to_report_id;
 
-    while(pos < size)
+    /*-----------------------------------------------------*\
+    | A failed descriptor read returns -1; treated as a     |
+    | length it walks off the end of the buffer.            |
+    \*-----------------------------------------------------*/
+    if(size < 0)
+    {
+        LampArray.LampCount     = 0;
+        LampArray.LampArrayKind = HID_LAMPARRAY_KIND_UNDEFINED;
+        return;
+    }
+
+    while(pos < (unsigned int)size)
     {
         get_hid_item_size(report_descriptor, size, pos, &data_len, &key_size);
 
@@ -96,7 +107,7 @@ HIDLampArrayController::HIDLampArrayController(hid_device *dev_handle, const cha
     /*-----------------------------------------------------*\
     | Get the report IDs for each report                    |
     \*-----------------------------------------------------*/
-    for(const std::pair<unsigned int, unsigned int>& pair : usage_to_report_id)
+    for(const std::pair<const unsigned int, unsigned int>& pair : usage_to_report_id)
     {
         switch(pair.first)
         {
@@ -229,7 +240,6 @@ std::vector<LampAttributes> HIDLampArrayController::GetLamps()
 void HIDLampArrayController::GetLampArrayAttributesReport()
 {
     unsigned char   usb_buf[sizeof(LampArrayAttributes) + 1];
-    int             report_size;
 
     memset(usb_buf, 0, sizeof(usb_buf));
 
@@ -241,7 +251,7 @@ void HIDLampArrayController::GetLampArrayAttributesReport()
     /*-----------------------------------------------------*\
     | Get the report                                        |
     \*-----------------------------------------------------*/
-    report_size         = hid_get_feature_report(dev, usb_buf, sizeof(usb_buf));
+    hid_get_feature_report(dev, usb_buf, sizeof(usb_buf));
 
     memcpy(&LampArray, &usb_buf[1], sizeof(LampArray));
 }
@@ -249,7 +259,6 @@ void HIDLampArrayController::GetLampArrayAttributesReport()
 void HIDLampArrayController::GetLampAttributesResponseReport()
 {
     unsigned char   usb_buf[65];
-    int             report_size;
     LampAttributes  attributes;
 
     memset(usb_buf, 0, sizeof(usb_buf));
@@ -262,7 +271,7 @@ void HIDLampArrayController::GetLampAttributesResponseReport()
     /*-----------------------------------------------------*\
     | Get the report                                        |
     \*-----------------------------------------------------*/
-    report_size = hid_get_feature_report(dev, usb_buf, sizeof(usb_buf));
+    hid_get_feature_report(dev, usb_buf, sizeof(usb_buf));
 
     memcpy(&attributes, &usb_buf[1], sizeof(attributes));
 

@@ -60,8 +60,14 @@ private:
     bool HexFormatRGB       = true;
     bool InvertedBrightness = false;
     bool InvertedSpeed      = false;
+    bool ModeUpdatePending  = false;
     bool MultipleSelected   = false;
     bool UpdateHex          = true;
+
+    /*-----------------------------------------------------*\
+    | Coalesces rapid ColorChanged() calls into one update   |
+    \*-----------------------------------------------------*/
+    bool color_update_pending = false;
 
     /*-----------------------------------------------------*\
     | UI Update Functions                                   |

@@ -113,13 +113,9 @@ DetectedControllers DetectThrustmasterSolControllers()
 }
 
 REGISTER_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers);
-/*---------------------------------------------------------------------------------------------------------*\
-| Entries for dynamic UDEV rules                                                                            |
-|                                                                                                           |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x0420 )              |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x0421 )              |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x0422 )              |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x0428 )              |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x0429 )              |
-| DUMMY_DEVICE_DETECTOR("Thrustmaster Sol", DetectThrustmasterSolControllers, 0x044F, 0x042A )              |
-\*---------------------------------------------------------------------------------------------------------*/
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_1, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"0420\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_2, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"0421\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_3, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"0422\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_4, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"0428\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_5, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"0429\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");
+REGISTER_CUSTOM_UDEV_RULE(thrustmaster_sol_6, "Thrustmaster Sol", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"044f\", ATTRS{idProduct}==\"042a\", TAG+=\"uaccess\", TAG+=\"Thrustmaster_Sol\"");

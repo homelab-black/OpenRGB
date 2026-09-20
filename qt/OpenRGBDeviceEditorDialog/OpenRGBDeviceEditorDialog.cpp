@@ -9,6 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include "JsonUtils.h"
 #include "OpenRGBDynamicSettingsWidget.h"
 #include "OpenRGBDeviceEditorDialog.h"
 #include "ProfileManager.h"
@@ -24,6 +25,16 @@ OpenRGBDeviceEditorDialog::OpenRGBDeviceEditorDialog(RGBController *dev, QWidget
     QDialog(parent),
     ui(new Ui::OpenRGBDeviceEditorDialog)
 {
+    /*-----------------------------------------------------*\
+    | Type to track ordering                                |
+    \*-----------------------------------------------------*/
+    typedef struct
+    {
+        int                                     order;
+        std::string                             key;
+        std::reference_wrapper<nlohmann::json>  value;
+    } ordered_configurations_t;
+
     ui->setupUi(this);
 
     /*-----------------------------------------------------*\
@@ -73,10 +84,54 @@ OpenRGBDeviceEditorDialog::OpenRGBDeviceEditorDialog(RGBController *dev, QWidget
         | Loop through the schema and create an entry for   |
         | each setting                                      |
         \*-------------------------------------------------*/
+        std::vector<ordered_configurations_t> configuration_entries;
+
         for(nlohmann::json::iterator json_iterator = configuration_schema.begin(); json_iterator != configuration_schema.end(); json_iterator++)
         {
-            nlohmann::json                  schema_entry    = json_iterator.value();
-            OpenRGBDynamicSettingsWidget*   item_widget     = new OpenRGBDynamicSettingsWidget(json_iterator.key(), schema_entry, configuration_value);
+            int                         order               = -1;
+
+            if(json_iterator.value().contains("order"))
+            {
+                order                                       = json_iterator.value()["order"];
+            }
+
+            ordered_configurations_t    configuration_entry = {order, json_iterator.key(), json_iterator.value()};
+
+            if((order < 0) || (configuration_entries.size() == 0))
+            {
+                configuration_entries.push_back(configuration_entry);
+            }
+            else
+            {
+                bool                    added               = false;
+
+                for(std::size_t configuration_idx = 0; configuration_idx < configuration_entries.size(); configuration_idx++)
+                {
+                    if((configuration_entries[configuration_idx].order > order) || (configuration_entries[configuration_idx].order < 0))
+                    {
+                        configuration_entries.insert(configuration_entries.begin() + configuration_idx, configuration_entry);
+                        added = true;
+                        break;
+                    }
+                }
+
+                if(!added)
+                {
+                    configuration_entries.push_back(configuration_entry);
+                }
+            }
+        }
+        /*-----------------------------------------------------*\
+        | Create UI elements for each configuration entry       |
+        \*-----------------------------------------------------*/
+        for(std::size_t configuration_idx = 0; configuration_idx < configuration_entries.size(); configuration_idx++)
+        {
+            if(JsonUtils::JsonGetBool(configuration_entries[configuration_idx].value, "visible", true) == false)
+            {
+                continue;
+            }
+
+            OpenRGBDynamicSettingsWidget*   item_widget     = new OpenRGBDynamicSettingsWidget(configuration_entries[configuration_idx].key, configuration_entries[configuration_idx].value, configuration_value);
 
             item_widget->SetCallback(Callback, this);
             ui->ScrollAreaDeviceConfigurationLayout->addWidget(item_widget);

@@ -7,6 +7,8 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <QTimer>
+
 #include "OpenRGBDevicePage.h"
 #include "OpenRGBDeviceEditorDialog.h"
 #include "OpenRGBZoneEditorDialog.h"
@@ -160,7 +162,7 @@ void OpenRGBDevicePage::SetCustomMode(unsigned char red, unsigned char green, un
         {
             for(std::size_t i = 0; i < device->GetModeColorsCount(device->GetActiveMode()); i++)
             {
-                device->SetModeColor(device->GetActiveMode(), i, color);
+                device->SetModeColor(device->GetActiveMode(), (unsigned int)i, color);
             }
             break;
         }
@@ -573,7 +575,7 @@ void OpenRGBDevicePage::UpdateLEDList()
                 \*-----------------------------------------*/
                 for(std::size_t led_idx = 0; led_idx < leds_in_zone; led_idx++)
                 {
-                    ui->LEDBox->addItem(device->GetLEDName(device->GetZoneStartIndex(selected_zone) + led_idx).c_str());
+                    ui->LEDBox->addItem(device->GetLEDName(device->GetZoneStartIndex(selected_zone) + (unsigned int)led_idx).c_str());
                 }
 
                 /*-----------------------------------------*\
@@ -627,7 +629,7 @@ void OpenRGBDevicePage::UpdateLEDList()
                 \*-----------------------------------------*/
                 for(std::size_t led_idx = 0; led_idx < device->GetZoneSegmentLEDsCount(selected_zone, selected_segment); led_idx++)
                 {
-                    ui->LEDBox->addItem(device->GetLEDName(device->GetZoneStartIndex(selected_zone) + device->GetZoneSegmentStartIndex(selected_zone, selected_segment) + led_idx).c_str());
+                    ui->LEDBox->addItem(device->GetLEDName(device->GetZoneStartIndex(selected_zone) + device->GetZoneSegmentStartIndex(selected_zone, selected_segment) + (unsigned int)led_idx).c_str());
                 }
 
                 /*-----------------------------------------*\
@@ -684,9 +686,11 @@ void OpenRGBDevicePage::UpdateLEDList()
                     mode_colors     = device->GetModeColorsCount(selected_mode);
                 }
 
+                ui->SpinBoxModeColors->blockSignals(true);
                 ui->SpinBoxModeColors->setMinimum(mode_colors_min);
                 ui->SpinBoxModeColors->setMaximum(mode_colors_max);
                 ui->SpinBoxModeColors->setValue(mode_colors);
+                ui->SpinBoxModeColors->blockSignals(false);
 
                 /*-----------------------------------------*\
                 | Swap Select ALl button for Mode Colors    |
@@ -1310,23 +1314,37 @@ void OpenRGBDevicePage::UpdateModeList()
 
     int entry_count = 0;
 
-    if(!selected_all_zones && !(device->GetModeFlags(device->GetActiveMode()) & MODE_FLAG_REQUIRES_ENTIRE_DEVICE) && (selected_zone >= 0) && device->SupportsPerZoneModes())
+    if(!selected_all_zones && (selected_zone >= 0) && device->SupportsPerZoneModes())
     {
         ui->ModeBox->addItem("Follow Device Mode");
         ui->ModeBox->setItemData(entry_count, "Follow the device's global mode", Qt::ToolTipRole);
 
         entry_count++;
 
-        for(unsigned int i = 0; i < device->GetZoneModeCount(selected_zone); i++)
+        /*-------------------------------------------------*\
+        | If the device level mode requires the entire      |
+        | device, per-zone modes are not usable.  Populate  |
+        | only the "Follow Device Mode" option and disable  |
+        | the mode box.                                     |
+        \*-------------------------------------------------*/
+        if(device->GetModeFlags(device->GetActiveMode()) & MODE_FLAG_REQUIRES_ENTIRE_DEVICE)
         {
-            ui->ModeBox->addItem(device->GetZoneModeName(selected_zone, (unsigned int)i).c_str());
-            ui->ModeBox->setItemData(entry_count, ModeDescription(device->GetZoneModeName(selected_zone, i)), Qt::ToolTipRole);
-
-            entry_count++;
+            ui->ModeBox->setCurrentIndex(0);
+            ui->ModeBox->setEnabled(false);
         }
+        else
+        {
+            for(unsigned int i = 0; i < device->GetZoneModeCount(selected_zone); i++)
+            {
+                ui->ModeBox->addItem(device->GetZoneModeName(selected_zone, (unsigned int)i).c_str());
+                ui->ModeBox->setItemData(entry_count, ModeDescription(device->GetZoneModeName(selected_zone, i)), Qt::ToolTipRole);
 
-        ui->ModeBox->setCurrentIndex(device->GetZoneActiveMode(selected_zone) + 1);
-        ui->ModeBox->setEnabled(true);
+                entry_count++;
+            }
+
+            ui->ModeBox->setCurrentIndex(device->GetZoneActiveMode(selected_zone) + 1);
+            ui->ModeBox->setEnabled(true);
+        }
     }
     else
     {
@@ -1607,47 +1625,71 @@ void OpenRGBDevicePage::UpdateModeUi()
 
     if(supports_per_led)
     {
+        ui->PerLEDCheck->blockSignals(true);
         ui->PerLEDCheck->setEnabled(enable_controls);
         ui->PerLEDCheck->setChecked(per_led);
+        ui->PerLEDCheck->blockSignals(false);
+    }
+    else
+    {
+        ui->PerLEDCheck->blockSignals(true);
+        ui->PerLEDCheck->setEnabled(false);
+        ui->PerLEDCheck->setAutoExclusive(false);
+        ui->PerLEDCheck->setChecked(false);
+        ui->PerLEDCheck->setAutoExclusive(true);
+        ui->PerLEDCheck->blockSignals(false);
 
+        ui->DeviceViewBoxFrame->hide();
+    }
+
+    /*-----------------------------------------------------*\
+    | Show the device view if the selected mode is a per-   |
+    | LED mode or if the selected zone mode is following    |
+    | entire device and the device mode is per-LED.         |
+    \*-----------------------------------------------------*/
+    if((per_led)
+    || ((selected_zone_mode)
+     && (selected_mode == -1)
+     && (device->GetModeColorMode(device->GetActiveMode()) == MODE_COLORS_PER_LED)))
+    {
         if(DeviceViewShowing)
         {
             ui->DeviceViewBoxFrame->show();
         }
     }
-    else
-    {
-        ui->PerLEDCheck->setEnabled(false);
-        ui->PerLEDCheck->setAutoExclusive(false);
-        ui->PerLEDCheck->setChecked(false);
-        ui->PerLEDCheck->setAutoExclusive(true);
-        ui->DeviceViewBoxFrame->hide();
-    }
 
     if(supports_mode_specific)
     {
+        ui->ModeSpecificCheck->blockSignals(true);
         ui->ModeSpecificCheck->setEnabled(enable_controls);
         ui->ModeSpecificCheck->setChecked(mode_specific);
+        ui->ModeSpecificCheck->blockSignals(false);
     }
     else
     {
+        ui->ModeSpecificCheck->blockSignals(true);
         ui->ModeSpecificCheck->setEnabled(false);
         ui->ModeSpecificCheck->setAutoExclusive(false);
         ui->ModeSpecificCheck->setChecked(false);
         ui->ModeSpecificCheck->setAutoExclusive(true);
+        ui->ModeSpecificCheck->blockSignals(false);
     }
 
     if(supports_random)
     {
+        ui->RandomCheck->blockSignals(true);
         ui->RandomCheck->setEnabled(enable_controls);
         ui->RandomCheck->setChecked(random);
+        ui->RandomCheck->blockSignals(false);
     }
     else
     {
+        ui->RandomCheck->blockSignals(true);
         ui->RandomCheck->setEnabled(false);
         ui->RandomCheck->setAutoExclusive(false);
         ui->RandomCheck->setChecked(false);
         ui->RandomCheck->setAutoExclusive(true);
+        ui->RandomCheck->blockSignals(false);
     }
 
     if(automatic_save)
@@ -1695,109 +1737,6 @@ void OpenRGBDevicePage::UpdateModeUi()
     }
 
     ui->SetAllButton->setDisabled((selected_mode_string != "Direct") && (selected_mode_string != "Custom") && (selected_mode_string != "Static"));
-
-#if 0
-        /*-----------------------------------------------------*\
-        | Fill in the zone box based on color mode              |
-        \*-----------------------------------------------------*/
-        switch(color_mode)
-        {
-            case MODE_COLORS_NONE:
-            case MODE_COLORS_RANDOM:
-                ui->ZoneBox->blockSignals(true);
-                ui->ZoneBox->clear();
-                ui->ZoneBox->blockSignals(false);
-
-                ui->LEDBox->blockSignals(true);
-                ui->LEDBox->clear();
-                ui->LEDBox->blockSignals(false);
-
-                ui->EditButton->setEnabled(false);
-                ui->ApplyColorsButton->setEnabled(false);
-                break;
-
-            case MODE_COLORS_PER_LED:
-                ui->ZoneBox->blockSignals(true);
-                ui->ZoneBox->clear();
-
-                if(device->GetZoneCount() > 1)
-                {
-                    ui->ZoneBox->addItem(tr("All Zones"));
-                }
-
-                for(unsigned int zone_idx = 0; zone_idx < device->GetZoneCount(); zone_idx++)
-                {
-                    ui->ZoneBox->addItem(device->GetZoneDisplayName((unsigned int)zone_idx).c_str());
-
-                    for(unsigned int segment_idx = 0; segment_idx < device->GetZoneSegmentCount(zone_idx); segment_idx++)
-                    {
-                        if(device->GetZoneSegmentFlags(zone_idx, segment_idx) & SEGMENT_FLAG_GROUP_MEMBER)
-                        {
-                            ui->ZoneBox->addItem(("        " + device->GetZoneSegmentName(zone_idx, segment_idx)).c_str());
-                        }
-                        else
-                        {
-                            ui->ZoneBox->addItem(("    " + device->GetZoneSegmentName(zone_idx, segment_idx)).c_str());
-                        }
-                    }
-                }
-
-                ui->ZoneBox->setCurrentIndex(0);
-                ui->ZoneBox->blockSignals(false);
-                ui->ApplyColorsButton->setEnabled(true);
-
-                /*-----------------------------------------------------*\
-                | Update LED box                                        |
-                \*-----------------------------------------------------*/
-                on_ZoneBox_currentIndexChanged(0);
-
-                /*-----------------------------------------------------*\
-                | Update color picker with color of first LED           |
-                \*-----------------------------------------------------*/
-                //on_LEDBox_currentIndexChanged(0);
-                break;
-
-            case MODE_COLORS_MODE_SPECIFIC:
-                ui->ZoneBox->blockSignals(true);
-                ui->ZoneBox->clear();
-                ui->ZoneBox->addItem(tr("Mode Specific"));
-                ui->ZoneBox->blockSignals(false);
-
-                int led_index = ui->LEDBox->currentIndex();
-
-                ui->LEDBox->blockSignals(true);
-                ui->LEDBox->clear();
-
-                if(device->GetModeColorsMin(selected_mode) == device->GetModeColorsMax(selected_mode))
-                {
-                    ui->EditButton->setEnabled(false);
-                }
-                else
-                {
-                    ui->EditButton->setEnabled(true);
-                }
-
-                for(unsigned int i = 0; i < device->GetModeColorsCount(selected_mode); i++)
-                {
-                    char id_buf[32];
-                    // TODO: translate
-                    snprintf(id_buf, 32, "Mode Color %u", i);
-                    ui->LEDBox->addItem(id_buf);
-                }
-
-                if(led_index >= ui->LEDBox->count())
-                {
-                    led_index = 0;
-                }
-
-                ui->LEDBox->setCurrentIndex(led_index);
-                on_LEDBox_currentIndexChanged(led_index);
-                ui->LEDBox->setEnabled(true);
-                ui->LEDBox->blockSignals(false);
-                ui->ApplyColorsButton->setEnabled(true);
-                break;
-        }
-#endif
 }
 
 void OpenRGBDevicePage::UpdateZoneList()
@@ -1878,7 +1817,19 @@ void OpenRGBDevicePage::ColorChanged()
 
     if(AutoUpdateEnabled())
     {
-        UpdateColor();
+        /*-----------------------------------------------------*\
+        | Coalesce rapid signals into one deferred update        |
+        \*-----------------------------------------------------*/
+        if(!color_update_pending)
+        {
+            color_update_pending = true;
+
+            QTimer::singleShot(0, this, [this]()
+            {
+                UpdateColor();
+                color_update_pending = false;
+            });
+        }
     }
 }
 
@@ -1894,7 +1845,7 @@ void OpenRGBDevicePage::GetSelectedMode(bool * selected_zone_mode, int * selecte
 
     GetSelectedZone(&selected_all_zones, &selected_zone, &selected_segment);
 
-    if(selected_all_zones || !device->SupportsPerZoneModes() || (device->GetModeFlags(device->GetActiveMode()) & MODE_FLAG_REQUIRES_ENTIRE_DEVICE))
+    if(selected_all_zones || !device->SupportsPerZoneModes())
     {
         *selected_zone_mode = false;
         *selected_mode      = ui->ModeBox->currentIndex();
@@ -2055,9 +2006,20 @@ void OpenRGBDevicePage::UpdateInterface(unsigned int update_reason)
     case RGBCONTROLLER_UPDATE_REASON_UPDATEMODE:
     case RGBCONTROLLER_UPDATE_REASON_SAVEMODE:
         /*-------------------------------------------------*\
-        | Update mode list to update selected mode          |
+        | If the update was initiated by the user, the mode |
+        | box already reflects the requested selection.     |
         \*-------------------------------------------------*/
-        UpdateModeList();
+        if(ModeUpdatePending)
+        {
+            ModeUpdatePending = false;
+        }
+        else
+        {
+            /*---------------------------------------------*\
+            | Update mode list to update selected mode      |
+            \*---------------------------------------------*/
+            UpdateModeList();
+        }
 
         /*-------------------------------------------------*\
         | Update mode user interface elements               |
@@ -2380,6 +2342,11 @@ void OpenRGBDevicePage::on_ModeBox_currentIndexChanged(int /*index*/)
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
     /*-----------------------------------------------------*\
+    | Mark the pending mode update                          |
+    \*-----------------------------------------------------*/
+    ModeUpdatePending = true;
+
+    /*-----------------------------------------------------*\
     | Update mode user interface elements                   |
     \*-----------------------------------------------------*/
     UpdateModeUi();
@@ -2403,6 +2370,11 @@ void OpenRGBDevicePage::on_ModeBox_currentIndexChanged(int /*index*/)
 void OpenRGBDevicePage::on_ModeSpecificCheck_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    /*-----------------------------------------------------*\
+    | Mark the pending mode update                          |
+    \*-----------------------------------------------------*/
+    ModeUpdatePending = true;
 
     /*-----------------------------------------------------*\
     | Change device mode                                    |
@@ -2430,6 +2402,11 @@ void OpenRGBDevicePage::on_PerLEDCheck_clicked()
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
 
     /*-----------------------------------------------------*\
+    | Mark the pending mode update                          |
+    \*-----------------------------------------------------*/
+    ModeUpdatePending = true;
+
+    /*-----------------------------------------------------*\
     | Change device mode                                    |
     \*-----------------------------------------------------*/
     UpdateMode();
@@ -2453,6 +2430,11 @@ void OpenRGBDevicePage::on_PerLEDCheck_clicked()
 void OpenRGBDevicePage::on_RandomCheck_clicked()
 {
     ResourceManager::get()->GetProfileManager()->ClearActiveProfile();
+
+    /*-----------------------------------------------------*\
+    | Mark the pending mode update                          |
+    \*-----------------------------------------------------*/
+    ModeUpdatePending = true;
 
     /*-----------------------------------------------------*\
     | Change device mode                                    |

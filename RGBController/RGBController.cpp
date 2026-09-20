@@ -21,7 +21,7 @@
 | while ensuring we don't access out of bounds              |
 \*---------------------------------------------------------*/
 #define COPY_DATA_FIELD(data_ptr, data_start, field)                                \
-    if((unsigned)(data_ptr + sizeof(field) - data_start) <= (unsigned)data_size)    \
+    if((size_t)(data_ptr + sizeof(field) - data_start) <= (size_t)data_size)        \
     {                                                                               \
         memcpy(&field, data_ptr, sizeof(field));                                    \
         data_ptr += sizeof(field);                                                  \
@@ -32,7 +32,7 @@
     }                                                                               \
 
 #define COPY_DATA_FIELD_UNLOCK(data_ptr, data_start, field, controller)             \
-    if((unsigned)(data_ptr + sizeof(field) - data_start) <= (unsigned)data_size)    \
+    if((size_t)(data_ptr + sizeof(field) - data_start) <= (size_t)data_size)        \
     {                                                                               \
         memcpy(&field, data_ptr, sizeof(field));                                    \
         data_ptr += sizeof(field);                                                  \
@@ -44,7 +44,7 @@
     }                                                                               \
 
 #define COPY_STRING_FIELD(data_ptr, data_start, length, field)                      \
-    if((unsigned)(data_ptr + length - data_start) <= (unsigned)data_size)           \
+    if((size_t)(data_ptr + length - data_start) <= (size_t)data_size)               \
     {                                                                               \
         field.assign((char *)data_ptr, length);                                     \
         field = StringUtils::remove_null_terminating_chars(field);                  \
@@ -56,7 +56,7 @@
     }                                                                               \
 
 #define COPY_STRING_FIELD_UNLOCK(data_ptr, data_start, length, field, controller)   \
-    if((unsigned)(data_ptr + length - data_start) <= (unsigned)data_size)           \
+    if((size_t)(data_ptr + length - data_start) <= (size_t)data_size)               \
     {                                                                               \
         field.assign((char *)data_ptr, length);                                     \
         field = StringUtils::remove_null_terminating_chars(field);                  \
@@ -1507,13 +1507,12 @@ void RGBController::SetCustomMode()
             && ((modes[mode_idx].color_mode == MODE_COLORS_PER_LED)
              || (modes[mode_idx].color_mode == MODE_COLORS_MODE_SPECIFIC)))
             {
-                active_mode = mode_idx;
+                SetActiveMode(mode_idx);
+                UpdateMode();
                 return;
             }
         }
     }
-
-    UpdateMode();
 }
 
 /*---------------------------------------------------------*\
@@ -2765,25 +2764,28 @@ unsigned int RGBController::GetLEDDescriptionSize(led led, unsigned int protocol
 
 unsigned char * RGBController::GetMatrixMapDescriptionData(unsigned char* data_ptr, matrix_map_type matrix_map, unsigned int /*protocol_version*/)
 {
-    /*-------------------------------------------------*\
-    | Copy in matrix height                             |
-    \*-------------------------------------------------*/
-    memcpy(data_ptr, &matrix_map.height, sizeof(matrix_map.height));
-    data_ptr += sizeof(matrix_map.height);
-
-    /*-------------------------------------------------*\
-    | Copy in matrix width                              |
-    \*-------------------------------------------------*/
-    memcpy(data_ptr, &matrix_map.width, sizeof(matrix_map.width));
-    data_ptr += sizeof(matrix_map.width);
-
-    /*-------------------------------------------------*\
-    | Copy in matrix map                                |
-    \*-------------------------------------------------*/
-    for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map.height * matrix_map.width); matrix_idx++)
+    if(!matrix_map.Empty())
     {
-        memcpy(data_ptr, &matrix_map.map[matrix_idx], sizeof(matrix_map.map[matrix_idx]));
-        data_ptr += sizeof(matrix_map.map[matrix_idx]);
+        /*---------------------------------------------*\
+        | Copy in matrix height                         |
+        \*---------------------------------------------*/
+        memcpy(data_ptr, &matrix_map.height, sizeof(matrix_map.height));
+        data_ptr += sizeof(matrix_map.height);
+
+        /*---------------------------------------------*\
+        | Copy in matrix width                          |
+        \*---------------------------------------------*/
+        memcpy(data_ptr, &matrix_map.width, sizeof(matrix_map.width));
+        data_ptr += sizeof(matrix_map.width);
+
+        /*---------------------------------------------*\
+        | Copy in matrix map                            |
+        \*---------------------------------------------*/
+        for(unsigned int matrix_idx = 0; matrix_idx < (matrix_map.height * matrix_map.width); matrix_idx++)
+        {
+            memcpy(data_ptr, &matrix_map.map[matrix_idx], sizeof(matrix_map.map[matrix_idx]));
+            data_ptr += sizeof(matrix_map.map[matrix_idx]);
+        }
     }
 
     return(data_ptr);
@@ -2800,9 +2802,12 @@ unsigned int RGBController::GetMatrixMapDescriptionSize(matrix_map_type matrix_m
     | Calculate description data size for the given matrix  |
     | map                                                   |
     \*-----------------------------------------------------*/
-    data_size                              += sizeof(matrix_map.height);
-    data_size                              += sizeof(matrix_map.width);
-    data_size                              += (matrix_map.height * matrix_map.width) * sizeof(unsigned int);
+    if(!matrix_map.Empty())
+    {
+        data_size                          += sizeof(matrix_map.height);
+        data_size                          += sizeof(matrix_map.width);
+        data_size                          += (matrix_map.height * matrix_map.width) * sizeof(unsigned int);
+    }
 
     return(data_size);
 }
@@ -3089,9 +3094,31 @@ unsigned char * RGBController::GetZoneDescriptionData(unsigned char* data_ptr, z
 
     /*-----------------------------------------------------*\
     | Copy in zone type                                     |
+    | For protocols below 6, convert the new zone types     |
     \*-----------------------------------------------------*/
-    memcpy(data_ptr, &zone.type, sizeof(zone.type));
-    data_ptr += sizeof(zone.type);
+    zone_type type = zone.type;
+
+    if(protocol_version < 6)
+    {
+        switch(type)
+        {
+            case ZONE_TYPE_LINEAR_LOOP:
+                type = ZONE_TYPE_LINEAR;
+                break;
+
+            case ZONE_TYPE_MATRIX_LOOP_X:
+            case ZONE_TYPE_MATRIX_LOOP_Y:
+                type = ZONE_TYPE_MATRIX;
+                break;
+
+            case ZONE_TYPE_SEGMENTED:
+                type = ZONE_TYPE_LINEAR;
+                break;
+        }
+    }
+
+    memcpy(data_ptr, &type, sizeof(type));
+    data_ptr += sizeof(type);
 
     /*-----------------------------------------------------*\
     | Check for resizable effects-only zone.  For protocol  |
@@ -4715,13 +4742,15 @@ bool RGBController::SetModeValuesFromMode(mode& destination, mode& source)
     && (destination.brightness_min == source.brightness_min)
     && (((destination.brightness_max >= destination.brightness_min) && (source.brightness >= destination.brightness_min) && (source.brightness <= destination.brightness_max))
      || ((destination.brightness_max <= destination.brightness_min) && (source.brightness <= destination.brightness_min) && (source.brightness >= destination.brightness_max)))
-    && ((((destination.flags & (MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR)) == 0) && (source.color_mode == MODE_COLORS_NONE))
-     || ((destination.flags & MODE_FLAG_HAS_PER_LED_COLOR)                                                                      && (source.color_mode == MODE_COLORS_PER_LED))
-     || ((destination.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)                                                                && (source.color_mode == MODE_COLORS_MODE_SPECIFIC))
-     || ((destination.flags & MODE_FLAG_HAS_RANDOM_COLOR)                                                                       && (source.color_mode == MODE_COLORS_RANDOM)))
-    && (destination.colors_max == source.colors_max)
-    && (destination.colors_min == source.colors_min)
-    && ((source.colors.size() >= destination.colors_min) && (source.colors.size() <= destination.colors_max))
+    && ((((destination.flags & (MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR)) == 0) && (source.color_mode == MODE_COLORS_NONE))
+     || ((destination.flags & MODE_FLAG_HAS_PER_LED_COLOR)                                                                           && (source.color_mode == MODE_COLORS_PER_LED))
+     || ((destination.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)                                                                     && (source.color_mode == MODE_COLORS_MODE_SPECIFIC))
+     || ((destination.flags & MODE_FLAG_HAS_RANDOM_COLOR)                                                                            && (source.color_mode == MODE_COLORS_RANDOM)))
+    && (((destination.flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR) == 0)
+     || ((destination.colors_max == source.colors_max)
+      && (destination.colors_min == source.colors_min)
+      && (source.colors.size() >= destination.colors_min)
+      && (source.colors.size() <= destination.colors_max)))
     && ((((destination.flags & (MODE_FLAG_HAS_DIRECTION_HV | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_DIRECTION_UD)) == 0) && (source.direction == 0))
      || ((destination.flags & MODE_FLAG_HAS_DIRECTION_HV)                                                                    && ((source.direction == MODE_DIRECTION_HORIZONTAL) || (source.direction == MODE_DIRECTION_VERTICAL)))
      || ((destination.flags & MODE_FLAG_HAS_DIRECTION_LR)                                                                    && ((source.direction == MODE_DIRECTION_LEFT)       || (source.direction == MODE_DIRECTION_RIGHT)))

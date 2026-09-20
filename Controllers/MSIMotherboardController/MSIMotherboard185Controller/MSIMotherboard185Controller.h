@@ -46,6 +46,7 @@ public:
                         );
 
     MSI_MODE        GetMode();
+    bool            GetFirmwareVersionInvalid();
 
     void            GetMode
                         (
@@ -77,10 +78,10 @@ public:
                         unsigned char   blu
                         );
 
-    void            SetCycleCount
+    void            SetZoneLEDCount
                         (
                         MSI_ZONE        zone,
-                        unsigned char   cycle_num
+                        unsigned char   led_num
                         );
 
     bool            Update
@@ -119,6 +120,8 @@ private:
     std::string                     name;
     std::string                     location;
     std::string                     version_APROM;
+    unsigned char                   version_APROM_val;
+    bool                            version_invalid;
     std::string                     version_LDROM;
 
     FeaturePacket_185               data;
@@ -128,6 +131,7 @@ private:
     FeaturePacket_PerLED_185        per_led_data_jcorsair;
     FeaturePacket_185               zone_based_per_led_data;
     bool                            direct_mode;
+    bool                            direct_mode_configured;
     bool                            sync_direct_mode;
     bool                            no_onboards;
     bool                            no_jrainbow1;
@@ -153,5 +157,5 @@ private:
                         (
                         MSI_ZONE zone
                         );
-    void            SelectPerLedProtocol();
+    bool            SelectPerLedProtocol();
 };

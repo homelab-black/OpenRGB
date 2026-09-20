@@ -6,7 +6,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DDPSettingsEntry/DDPSettingsEntry.ui" line="26"/>
         <source>DDP Device</source>
-        <translation>DDP-enhet</translation>
+        <translation>DDP-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DDPSettingsEntry/DDPSettingsEntry.ui" line="32"/>
@@ -41,7 +41,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DDPSettingsEntry/DDPSettingsEntry.ui" line="100"/>
         <source>Keepalive Time (ms):</source>
-        <translation>Holdvakttid (ms):</translation>
+        <translation>Levetid (ms):</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DDPSettingsEntry/DDPSettingsEntry.ui" line="116"/>
@@ -54,7 +54,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.ui" line="26"/>
         <source>DMX Device</source>
-        <translation>DMX-enhet</translation>
+        <translation>DMX-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.ui" line="32"/>
@@ -84,7 +84,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.ui" line="82"/>
         <source>Keepalive Time:</source>
-        <translation>Keepalive Time:</translation>
+        <translation>Levetid:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.ui" line="92"/>
@@ -92,7 +92,7 @@
         <translation>Port:</translation>
     </message>
     <message>
-        <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.cpp" line="36"/>
+        <location filename="../ManualDevicesSettingsPage/DMXSettingsEntry/DMXSettingsEntry.cpp" line="37"/>
         <source>No serial ports found</source>
         <translation>Ingen serielle porter funnet</translation>
     </message>
@@ -117,7 +117,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DebugSettingsEntry/DebugSettingsEntry.ui" line="49"/>
         <source>Zones</source>
-        <translation>Zoner</translation>
+        <translation>Soner</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DebugSettingsEntry/DebugSettingsEntry.ui" line="55"/>
@@ -137,7 +137,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DebugSettingsEntry/DebugSettingsEntry.ui" line="76"/>
         <source>Resizable</source>
-        <translation>Størrelsesendrbar</translation>
+        <translation>Størrelsesredigerbar</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DebugSettingsEntry/DebugSettingsEntry.ui" line="83"/>
@@ -158,38 +158,22 @@
 <context>
     <name>DetectionManager</name>
     <message>
-        <source>&lt;h2&gt;Some internal devices may not be detected:&lt;/h2&gt;&lt;p&gt;One or more I2C or SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB Graphics Cards, will not be available in OpenRGB&lt;/b&gt; without I2C or SMBus.&lt;/p&gt;&lt;h4&gt;How to fix this:&lt;/h4&gt;&lt;p&gt;On Windows, this is usually caused by a failure to load the PawnIO driver.&lt;/p&gt;&lt;p&gt;You must first install &lt;a href=&apos;https://pawnio.eu/&apos;&gt;PawnIO&lt;/a&gt;, then you must OpenRGB as administrator in order to access these devices.&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for additional troubleshooting steps if you keep seeing this message.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;If you are not using internal RGB on a desktop this message is not important to you.&lt;/h3&gt;</source>
-        <translation type="vanished">&lt;h2&gt;Noen interne enheter kan ikke oppdages:&lt;/h2&gt;&lt;p&gt;Én eller flere I2C- eller SMBus-interfaces har ikke klart å initialisere seg.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM-moduler, noen motherebords interne RGB-lys og RGB-grafikkort vil ikke være tilgjengelige i OpenRGB&lt;/b&gt; uten I2C eller SMBus.&lt;/p&gt;&lt;h4&gt;Hvordan du løser dette:&lt;/h4&gt;&lt;p&gt;På Windows er dette vanligvis forårsaket av en feil ved lasting av PawnIO-drevet.&lt;/p&gt;&lt;p&gt;Du må først installere &lt;a href=&apos;https://pawnio.eu/&apos;&gt;PawnIO&lt;/a&gt;, deretter må du kjøre OpenRGB som administrator for å få tilgang til disse enhetene.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for ekstra feilsøkingssteg hvis du fortsatt ser denne meldingen.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;Hvis du ikke bruker interne RGB på en datamaskin, er denne meldingen ikke viktig for deg.&lt;/h3&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;Some internal devices may not be detected:&lt;/h2&gt;&lt;p&gt;One or more I2C or SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB Graphics Cards, will not be available in OpenRGB&lt;/b&gt; without I2C or SMBus.&lt;/p&gt;&lt;h4&gt;How to fix this:&lt;/h4&gt;&lt;p&gt;On Linux, this is usually because the i2c-dev module is not loaded.&lt;/p&gt;&lt;p&gt;You must load the i2c-dev module along with the correct i2c driver for your motherboard. This is usually i2c-piix4 for AMD systems and i2c-i801 for Intel systems.&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for additional troubleshooting steps if you keep seeing this message.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;If you are not using internal RGB on a desktop this message is not important to you.&lt;/h3&gt;</source>
-        <translation type="vanished">&lt;h2&gt;Noen interne enheter blir muligens ikke oppdaget:&lt;/h2&gt;&lt;p&gt;Ett eller flere I2C eller SMBus grensesnitt kunne ikke initialiseres.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM moduler, noen hovedkorts&apos; interne RGB lys, og RGB grafikkkort vil ikke være tilgjengelig i OpenRGB&lt;/b&gt; uten I2C eller SMBus.&lt;/p&gt;&lt;h4&gt;Hvordan fikse dette:&lt;/h4&gt;&lt;p&gt;På Linux er dette vanligvis fordi i2c-dev modulen ikke er lastet.&lt;/p&gt;&lt;p&gt;Du må laste i2c-dev modulen sammen med riktig i2c driver for hovedkortet. Dette er vanligvis i2c-piix4 for AMD systemer og i2c-i801 for Intel systemer.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for flere feilsøkingstrinn hvis du fortsatt ser denne meldingen.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;Hvis du ikke bruker internt RGB er ikke denne meldingen viktig for deg.&lt;/h3&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;The OpenRGB udev rules are not installed.&lt;/p&gt;&lt;p&gt;Most devices will not be available unless running OpenRGB as root.&lt;/p&gt;&lt;p&gt;If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; to install the udev rules manually&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;OpenRGB udev reglene er ikke installert.&lt;/p&gt;&lt;p&gt;De fleste enhetene vil ikke være tilgjengelige med mindre du kjører OpenRGB som root.&lt;/p&gt;&lt;p&gt;Hvis du bruker AppImage, Flatpak eller egenkompilerte versjoner av OpenRGB, må du installere udev reglene manuelt&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; for å installere udev reglene manuelt&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;Multiple OpenRGB udev rules are installed.&lt;/p&gt;&lt;p&gt;The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Multiple udev rules files can conflict, it is recommended to remove one of them.&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h2&gt;ADVARSEL:&lt;/h2&gt;&lt;p&gt;Flere OpenRGB udev regler er installert.&lt;/p&gt;&lt;p&gt;Udev regelfilen 60-openrgb.rules er installert i både /etc/udev/rules.d og /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Flere udev-regelfiler kan komme i konflikt, det anbefales å fjerne en av dem.&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <location filename="../../DetectionManager.cpp" line="37"/>
+        <location filename="../../DetectionManager.cpp" line="48"/>
         <source>&lt;h2&gt;Warning:&lt;/h2&gt;&lt;p&gt;One or more I2C/SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.&lt;/p&gt;&lt;p&gt;On Windows, this is usually caused by a failure to load the PawnIO driver.&lt;/p&gt;&lt;p&gt;For OpenRGB to access these devices, you must install PawnIO from &lt;a href=&apos;https://pawnio.eu/&apos;&gt;https://pawnio.eu&lt;/a&gt; and run OpenRGB as administrator or as a system service.&lt;/p&gt;&lt;p&gt;If you are not using any of the devices listed above, you can safely ignore this message.&lt;/p&gt;</source>
-        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;Én eller flere I2C/SMBus-flater feilet under oppstart.&lt;/p&gt;&lt;p&gt;Avhengig av hvilke flater som feilet under oppstart, kan visse RGB DRAM-moduler, visse RGB-belysning på hovedkort og RGB-grafikkort ikke være tilgjengelige i OpenRGB.&lt;/p&gt;&lt;p&gt;På Windows er dette vanligvis forårsaket av en feil ved lasting av PawnIO-drevet.&lt;/p&gt;&lt;p&gt;For at OpenRGB skal kunne få tilgang til disse enhetene, må du installere PawnIO fra &lt;a href=&apos;https://pawnio.eu/&apos;&gt;https://pawnio.eu&lt;/a&gt; og kjøre OpenRGB som administrator eller som systemtjeneste.&lt;/p&gt;&lt;p&gt;Hvis du ikke bruker noen av enhetene som er nevnt ovenfor, kan du trygt ignorere denne meldingen.&lt;/p&gt;</translation>
+        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;Ett eller flere I2C/SMBus-grensesnitt har feilet å initalisere.&lt;/p&gt;&lt;p&gt;Avhengig av hvilke grensesnitt som feilet å initalisere, kan noen RGB DRAM-moduler, RGB-belysning på hovedkort og RGB-grafikkort ikke være tilgjengelige i OpenRGB.&lt;/p&gt;&lt;p&gt;På Windows er dette vanligvis grunnet en feil ved lasting av PawnIO-driveren.&lt;/p&gt;&lt;p&gt;For at OpenRGB skal kunne få tilgang til disse enhetene, må du installere PawnIO fra &lt;a href=&apos;https://pawnio.eu/&apos;&gt;https://pawnio.eu&lt;/a&gt; og kjøre OpenRGB som administrator eller som systemtjeneste.&lt;/p&gt;&lt;p&gt;Hvis du ikke bruker noen av enhetene som er nevnt ovenfor, kan du trygt ignorere denne meldingen.&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../../DetectionManager.cpp" line="44"/>
+        <location filename="../../DetectionManager.cpp" line="55"/>
         <source>&lt;h2&gt;Warning:&lt;/h2&gt;&lt;p&gt;One or more I2C/SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.&lt;/p&gt;&lt;p&gt;On Linux, this is usually because the i2c-dev module is not loaded.&lt;/p&gt;&lt;p&gt;For OpenRGB to access these devices, you must load the i2c-dev module along with the correct I2C driver module for your motherboard. This is usually i2c-piix4 for AMD systems and i2c-i801 for Intel systems.&lt;/p&gt;&lt;p&gt;If you are not using any of the devices listed above, you can safely ignore this message.&lt;/p&gt;</source>
-        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;Én eller flere I2C/SMBus-interfaces har ikke klart å initialisere.&lt;/p&gt;&lt;p&gt;Avhengig av hvilke grensesnitt som ikke klarte å initialisere, kan noen RGB DRAM-moduler, noen RGB-belysning på hovedkortet og RGB-grafikkort være utilgjengelige i OpenRGB.&lt;/p&gt;&lt;p&gt;På Linux er dette vanligvis fordi modulen i2c-dev ikke er lastet.&lt;/p&gt;&lt;p&gt;For at OpenRGB skal kunne tilgå disse enhetene, må du laste modulen i2c-dev sammen med den riktige I2C-drevmodulen for hovedkortet ditt. Dette er vanligvis i2c-piix4 for AMD-systemer og i2c-i801 for Intel-systemer.&lt;/p&gt;&lt;p&gt;Hvis du ikke bruker noen av enhetene som er nevnt ovenfor, kan du trygt ignorere denne meldingen.&lt;/p&gt;</translation>
+        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;Ett eller flere I2C/SMBus-grensesnitt har feilet å initialisere.&lt;/p&gt;&lt;p&gt;Avhengig av hvilke grensesnitt som feilet å initialisere, kan noen RGB DRAM-moduler, RGB-belysning på hovedkortet og RGB-grafikkort ikke være tilgjengelige i OpenRGB.&lt;/p&gt;&lt;p&gt;På Linux er dette vanligvis fordi modulen i2c-dev ikke er lastet.&lt;/p&gt;&lt;p&gt;For at OpenRGB skal kunne tilgå disse enhetene, må du laste modulen i2c-dev sammen med den riktige I2C-drivermodulen for hovedkortet ditt. Dette er vanligvis i2c-piix4 for AMD-systemer og i2c-i801 for Intel-systemer.&lt;/p&gt;&lt;p&gt;Hvis du ikke bruker noen av enhetene som er nevnt ovenfor, kan du trygt ignorere denne meldingen.&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../../DetectionManager.cpp" line="53"/>
-        <source>&lt;h2&gt;Warning:&lt;/h2&gt;&lt;p&gt;The OpenRGB udev rules are not installed.&lt;/p&gt;&lt;p&gt;Most devices will not be available unless running OpenRGB as root.&lt;/p&gt;&lt;p&gt;If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; to install the udev rules manually&lt;/p&gt;</source>
-        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;OpenRGBs udev-regler er ikke installert.&lt;/p&gt;&lt;p&gt;De fleste enheter vil ikke være tilgjengelige med mindre du kjører OpenRGB som rot.&lt;/p&gt;&lt;p&gt;Hvis du bruker AppImage, Flatpak eller selvbygde versjoner av OpenRGB, må du installere udev-reglene manuelt.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; for å installere udev-reglene manuelt.&lt;/p&gt;</translation>
+        <location filename="../../DetectionManager.cpp" line="64"/>
+        <source>&lt;h2&gt;Warning:&lt;/h2&gt;&lt;p&gt;The OpenRGB udev rules are not installed.&lt;/p&gt;&lt;p&gt;Most devices will not be available unless running OpenRGB as as a system service or as root.&lt;/p&gt;&lt;p&gt;If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; to install the udev rules manually&lt;/p&gt;</source>
+        <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;OpenRGBs udev-regler er ikke installert.&lt;/p&gt;&lt;p&gt;De fleste enhetene vil ikke være tilgjengelige med mindre du kjører OpenRGB som systemtjeneste eller som rotbruker.&lt;/p&gt;&lt;p&gt;Hvis du bruker AppImage, Flatpak eller selvbygde versjoner av OpenRGB, må du installere udev-reglene manuelt.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; for å installere udev-reglene manuelt.&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../../DetectionManager.cpp" line="59"/>
+        <location filename="../../DetectionManager.cpp" line="70"/>
         <source>&lt;h2&gt;Warning:&lt;/h2&gt;&lt;p&gt;Multiple OpenRGB udev rules are installed.&lt;/p&gt;&lt;p&gt;The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Multiple udev rules files can conflict, it is recommended to remove one of them.&lt;/p&gt;</source>
         <translation>&lt;h2&gt;Advarsel:&lt;/h2&gt;&lt;p&gt;Flere OpenRGB udev-regler er installert.&lt;/p&gt;&lt;p&gt;udev-reglerfilen 60-openrgb.rules er installert både i /etc/udev/rules.d og /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Flere udev-reglerfiler kan kollidere, det anbefales derfor å fjerne én av dem.&lt;/p&gt;</translation>
     </message>
@@ -212,12 +196,12 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="26"/>
         <source>E1.31 Device</source>
-        <translation>E1.31-enhet</translation>
+        <translation>E1.31-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="32"/>
         <source>Keepalive Time:</source>
-        <translation>Keepalive Time:</translation>
+        <translation>Levetid:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="39"/>
@@ -237,7 +221,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="72"/>
         <source>Universe Size:</source>
-        <translation>Univers størrelse:</translation>
+        <translation>Universe Størrelse:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="79"/>
@@ -247,7 +231,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.ui" line="92"/>
         <source>Start Universe:</source>
-        <translation>Start univers:</translation>
+        <translation>Start Universe:</translation>
     </message>
 </context>
 <context>
@@ -281,7 +265,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/GoveeSettingsEntry/GoveeSettingsEntry.ui" line="26"/>
         <source>Govee Device</source>
-        <translation>Govee-enhet</translation>
+        <translation>Govee-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/GoveeSettingsEntry/GoveeSettingsEntry.ui" line="32"/>
@@ -294,7 +278,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/KasaSmartSettingsEntry/KasaSmartSettingsEntry.ui" line="26"/>
         <source>Kasa Smart Device</source>
-        <translation>Kasa Smart-enhet</translation>
+        <translation>Kasa Smart-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/KasaSmartSettingsEntry/KasaSmartSettingsEntry.ui" line="35"/>
@@ -312,12 +296,12 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/LIFXSettingsEntry/LIFXSettingsEntry.ui" line="26"/>
         <source>LIFX Device</source>
-        <translation>LIFX-enhet</translation>
+        <translation>LIFX-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/LIFXSettingsEntry/LIFXSettingsEntry.ui" line="35"/>
         <source>Multizone</source>
-        <translation>Multizon</translation>
+        <translation>Multisone</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/LIFXSettingsEntry/LIFXSettingsEntry.ui" line="42"/>
@@ -332,7 +316,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/LIFXSettingsEntry/LIFXSettingsEntry.ui" line="62"/>
         <source>Extended Multizone</source>
-        <translation>Utvidet multizon</translation>
+        <translation>Utvidet multisone</translation>
     </message>
 </context>
 <context>
@@ -340,12 +324,12 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/DDPSettingsEntry/DDPSettingsEntry.cpp" line="98"/>
         <source>DDP (Distributed Display Protocol)</source>
-        <translation>DDP (fordelt visningsprotokoll)</translation>
+        <translation>DDP (Distributed Display Protocol)</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/DebugSettingsEntry/DebugSettingsEntry.cpp" line="143"/>
         <source>Debug Device</source>
-        <translation>Feilsøk enhet</translation>
+        <translation>Feilsøkingsenhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/E131SettingsEntry/E131SettingsEntry.cpp" line="116"/>
@@ -363,9 +347,9 @@
         <translation>QMK (VialRGB-protokoll)</translation>
     </message>
     <message>
-        <location filename="../ManualDevicesSettingsPage/SerialSettingsEntry/SerialSettingsEntry.cpp" line="162"/>
+        <location filename="../ManualDevicesSettingsPage/SerialSettingsEntry/SerialSettingsEntry.cpp" line="163"/>
         <source>Serial Device</source>
-        <translation>Seriell enhet</translation>
+        <translation>Seriell Enhet</translation>
     </message>
 </context>
 <context>
@@ -384,7 +368,7 @@
         <location filename="../ManualDevicesSettingsPage/ManualDevicesSettingsPage.ui" line="49"/>
         <location filename="../ManualDevicesSettingsPage/ManualDevicesSettingsPage.ui" line="61"/>
         <source>Save and Rescan</source>
-        <translation>Lagre og skann igjen</translation>
+        <translation>Lagre og skann på nytt</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/ManualDevicesSettingsPage.ui" line="66"/>
@@ -415,7 +399,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafScanDialog.ui" line="20"/>
         <source>To pair, hold the on-off button down for 5-7 seconds until the LED starts flashing in a pattern, a new entry should appear in the list below, then click the &quot;Pair&quot; button on the entry within 30 seconds.</source>
-        <translation>For å parre, hold på på/av-knappen i 5-7 sekunder til LED-en begynner å blinke i et mønster. En ny oppføring bør vises i listen under, deretter klikk på &quot;Parre&quot;-knappen for oppføringen innen 30 sekunder.</translation>
+        <translation>For å pare, hold på på/av-knappen i 5-7 sekunder til LED-en begynner å blinke i et mønster. En ny oppføring bør vises i listen under, deretter klikk på &quot;Parre&quot;-knappen på oppføringen innen 30 sekunder.</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafScanDialog.ui" line="42"/>
@@ -438,7 +422,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafSettingsEntry.ui" line="26"/>
         <source>Nanoleaf Device</source>
-        <translation>Nanoleaf-enhet</translation>
+        <translation>Nanoleaf-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafSettingsEntry.ui" line="32"/>
@@ -453,7 +437,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafSettingsEntry.ui" line="60"/>
         <source>Auth Key:</source>
-        <translation>Auth Key:</translation>
+        <translation>Auth Nøkkel:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/NanoleafSettingsEntry/NanoleafSettingsEntry.ui" line="74"/>
@@ -499,60 +483,19 @@
         <translation>Lagre tilkobling</translation>
     </message>
     <message>
-        <location filename="../OpenRGBClientInfoPage/OpenRGBClientInfoPage.cpp" line="188"/>
+        <location filename="../OpenRGBClientInfoPage/OpenRGBClientInfoPage.cpp" line="203"/>
         <source>Rescan Devices</source>
         <translation>Skann enheter på nytt</translation>
     </message>
     <message>
-        <location filename="../OpenRGBClientInfoPage/OpenRGBClientInfoPage.cpp" line="203"/>
+        <location filename="../OpenRGBClientInfoPage/OpenRGBClientInfoPage.cpp" line="220"/>
         <source>Disconnect</source>
         <translation>Koble fra</translation>
     </message>
-</context>
-<context>
-    <name>OpenRGBDMXSettingsEntry</name>
     <message>
-        <source>Name:</source>
-        <translation type="vanished">Navn:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation type="vanished">Port:</translation>
-    </message>
-    <message>
-        <source>Red Channel:</source>
-        <translation type="vanished">Rød kanal:</translation>
-    </message>
-    <message>
-        <source>Green Channel:</source>
-        <translation type="vanished">Grønn kanal:</translation>
-    </message>
-    <message>
-        <source>Blue Channel:</source>
-        <translation type="vanished">Blå kanal:</translation>
-    </message>
-    <message>
-        <source>Brightness Channel:</source>
-        <translation type="vanished">Lystyrkekanal:</translation>
-    </message>
-    <message>
-        <source>Keepalive Time:</source>
-        <translation type="vanished">Keepalive Time:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBDMXSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
+        <location filename="../OpenRGBClientInfoPage/OpenRGBClientInfoPage.cpp" line="226"/>
+        <source>OpenRGB is in local client mode.  The local connection may not be disconnected.</source>
+        <translation>OpenRGB er i lokal klientmodus. Den lokale forbindelsen kan ikke bli koblet fra.</translation>
     </message>
 </context>
 <context>
@@ -564,44 +507,64 @@
     </message>
     <message>
         <location filename="../OpenRGBDeviceEditorDialog/OpenRGBDeviceEditorDialog.ui" line="20"/>
+        <source>Device Configuration</source>
+        <translation>Enhetskonfigurasjon</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDeviceEditorDialog/OpenRGBDeviceEditorDialog.ui" line="26"/>
+        <source>Device Name:</source>
+        <translation>Enhetsnavn:</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDeviceEditorDialog/OpenRGBDeviceEditorDialog.ui" line="39"/>
         <source>Device-Specific Configuration</source>
         <translation>Enhetspesifikk konfigurasjon</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDeviceEditorDialog/OpenRGBDeviceEditorDialog.ui" line="47"/>
+        <source>Reset Device Configuration</source>
+        <translation>Nullstill enhetskonfigurasjon</translation>
     </message>
 </context>
 <context>
     <name>OpenRGBDeviceInfoPage</name>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="68"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="51"/>
         <source>Name:</source>
         <translation>Navn:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="85"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="109"/>
         <source>Vendor:</source>
         <translation>Produsent:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="102"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="133"/>
         <source>Type:</source>
         <translation>Type:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="129"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="177"/>
+        <source>Display Name:</source>
+        <translation>Visningsnavn: </translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="75"/>
         <source>Description:</source>
         <translation>Beskrivelse:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="136"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="126"/>
         <source>Version:</source>
         <translation>Versjon:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="143"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="92"/>
         <source>Location:</source>
         <translation>Sted:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="51"/>
+        <location filename="../OpenRGBDeviceInfoPage/OpenRGBDeviceInfoPage.ui" line="58"/>
         <source>Serial:</source>
         <translation>Serienummer:</translation>
     </message>
@@ -704,7 +667,7 @@
         <translation>V:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="592"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="593"/>
         <source>Edit Zone</source>
         <translation>Rediger zone</translation>
     </message>
@@ -725,7 +688,7 @@
     </message>
     <message>
         <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.ui" line="183"/>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1617"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1662"/>
         <source>Save To Device</source>
         <translation>Lagre til enheten</translation>
     </message>
@@ -735,113 +698,133 @@
         <translation>Hex:</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1968"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2013"/>
         <source>Set individual LEDs to static colors.  Safe for use with software-driven effects.</source>
         <translation>Sett individuelle LEDer til statiske farger.  Trygt for bruk med programvaredrevne effekter.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1969"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2014"/>
         <source>Set individual LEDs to static colors.  Not safe for use with software-driven effects.</source>
         <translation>Sett individuelle LEDer til statiske farger.  Ikke trygt for bruk med programvaredrevne effekter.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1970"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2015"/>
         <source>Sets the entire device or a zone to a single color.</source>
         <translation>Setter hele enheten eller en sone til en enkelt farge.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1971"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2016"/>
         <source>Gradually fades between fully off and fully on.</source>
         <translation>Tones gradvis mellom helt av og helt på.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1972"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2017"/>
         <source>Abruptly changes between fully off and fully on.</source>
         <translation>Skifter brått mellom helt av og helt på.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1973"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2018"/>
         <source>Gradually cycles through the entire color spectrum.  All lights on the device are the same color.</source>
         <translation>Går gradvis gjennom hele fargespekteret.  Alle lysene på enheten er samme farge.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1974"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2019"/>
         <source>Gradually cycles through the entire color spectrum.  Produces a rainbow pattern that moves.</source>
         <translation>Går gradvis gjennom hele fargespekteret.  Gir et regnbuemønster som beveger seg.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1975"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="2020"/>
         <source>Flashes lights when keys or buttons are pressed.</source>
         <translation>Blinker lyser når taster eller knapper trykkes.</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="505"/>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1766"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="506"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1811"/>
         <source>Entire Device</source>
         <translation>Hele enheten</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="536"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="537"/>
         <source>Edit Device</source>
-        <translation type="unfinished"></translation>
+        <translation>Rediger enhet</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="561"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="562"/>
         <source>Entire Zone</source>
         <translation>Hele sonen</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1499"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1523"/>
         <source>Left</source>
         <translation>Venstre</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1500"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1524"/>
         <source>Right</source>
         <translation>Høyre</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1505"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1529"/>
         <source>Up</source>
         <translation>Opp</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1506"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1530"/>
         <source>Down</source>
         <translation>Ned</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1511"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1535"/>
         <source>Horizontal</source>
         <translation>Horisontal</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1512"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1536"/>
         <source>Vertical</source>
         <translation>Vertikal</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1612"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1541"/>
+        <source>Up-Left</source>
+        <translation>Opp-venstre</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1542"/>
+        <source>Up-Right</source>
+        <translation>Opp-høyre</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1543"/>
+        <source>Down-Left</source>
+        <translation>Ned-venstre</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1544"/>
+        <source>Down-Right</source>
+        <translation>Ned-til høyre</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1657"/>
         <source>Saved To Device</source>
         <translation>Lagret til enhet</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1622"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1667"/>
         <source>Saving Not Supported</source>
         <translation>Lagring ikke støttet</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1682"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1727"/>
         <source>All Zones</source>
         <translation>Alle soner</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1720"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="1765"/>
         <source>Mode Specific</source>
         <translation>Modus spesifikk</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="615"/>
+        <location filename="../OpenRGBDevicePage/OpenRGBDevicePage.cpp" line="616"/>
         <source>Entire Segment</source>
         <translation>Hele segmentet</translation>
     </message>
@@ -880,7 +863,8 @@
     </message>
     <message>
         <location filename="../OpenRGBDialog/OpenRGBDialog.ui" line="108"/>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="378"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="386"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="569"/>
         <source>Rescan Devices</source>
         <translation>Skann enheter på nytt</translation>
     </message>
@@ -893,13 +877,9 @@
     </message>
     <message>
         <location filename="../OpenRGBDialog/OpenRGBDialog.ui" line="115"/>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="1828"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="1985"/>
         <source>Delete Profile</source>
         <translation>Slett profil</translation>
-    </message>
-    <message>
-        <source>Load Profile</source>
-        <translation type="vanished">Bruk profil</translation>
     </message>
     <message>
         <location filename="../OpenRGBDialog/OpenRGBDialog.ui" line="165"/>
@@ -922,166 +902,126 @@
         <translation>Lagre profil med navn</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="333"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="342"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="567"/>
         <source>Show/Hide</source>
         <translation>Vis/skjul</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="337"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="346"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="558"/>
         <source>Profiles</source>
         <translation>Profiler</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="341"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="350"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="559"/>
         <source>Quick Colors</source>
         <translation>Raske farger</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="343"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="352"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="560"/>
         <source>Red</source>
         <translation>Rød</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="347"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="356"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="561"/>
         <source>Yellow</source>
         <translation>Gul</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="351"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="360"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="562"/>
         <source>Green</source>
         <translation>Grønn</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="355"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="364"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="563"/>
         <source>Cyan</source>
         <translation>Cyan</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="359"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="368"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="564"/>
         <source>Blue</source>
         <translation>Blå</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="363"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="372"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="565"/>
         <source>Magenta</source>
         <translation>Magenta</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="367"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="376"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="566"/>
         <source>White</source>
         <translation>Hvit</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="373"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="382"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="568"/>
         <source>Lights Off</source>
         <translation>Lys av</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="382"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="390"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="570"/>
         <source>Exit</source>
         <translation>Lukk</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="658"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="686"/>
         <source>Plugins</source>
         <translation>Plugins</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="675"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="703"/>
         <source>About OpenRGB</source>
         <translation>Om OpenRGB</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="726"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="754"/>
         <source>Manually Added Devices</source>
         <translation>Manuelt tillegg av enheter</translation>
     </message>
     <message>
-        <source>Software</source>
-        <translation type="vanished">Software</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="692"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="720"/>
         <source>Supported Devices</source>
         <translation>Støttede enheter</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="709"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="737"/>
         <source>General Settings</source>
         <translation>Generelle innstillinger</translation>
     </message>
     <message>
-        <source>DMX Devices</source>
-        <translation type="vanished">DMX enheter</translation>
-    </message>
-    <message>
-        <source>E1.31 Devices</source>
-        <translation type="vanished">E1.31 enheter</translation>
-    </message>
-    <message>
-        <source>Kasa Smart Devices</source>
-        <translation type="vanished">Kasa Smart enheter</translation>
-    </message>
-    <message>
-        <source>Philips Hue Devices</source>
-        <translation type="vanished">Philips Hue enheter</translation>
-    </message>
-    <message>
-        <source>Philips Wiz Devices</source>
-        <translation type="vanished">Philips Wiz enheter</translation>
-    </message>
-    <message>
-        <source>OpenRGB QMK Protocol</source>
-        <translation type="vanished">OpenRGB QMK Protokoll</translation>
-    </message>
-    <message>
-        <source>Serial Devices</source>
-        <translation type="vanished">Serielle enheter</translation>
-    </message>
-    <message>
-        <source>Yeelight Devices</source>
-        <translation type="vanished">Yeelight enheter</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="889"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="917"/>
         <source>SMBus Tools</source>
         <translation>SMBus verktøy</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="903"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="931"/>
         <source>SDK Client</source>
         <translation>SDK klient</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="916"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="944"/>
         <source>SDK Server</source>
         <translation>SDK server</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="1828"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="1985"/>
         <source>Do you really want to delete this profile?</source>
         <translation>Vil du virkelig slette denne profilen?</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="2096"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="2255"/>
         <source>Log Console</source>
         <translation>Loggkonsoll</translation>
-    </message>
-    <message>
-        <source>LIFX Devices</source>
-        <translation type="vanished">LIFX enheter</translation>
-    </message>
-    <message>
-        <source>Nanoleaf Devices</source>
-        <translation type="vanished">Nanoleaf enheter</translation>
-    </message>
-    <message>
-        <source>Elgato KeyLight Devices</source>
-        <translation type="vanished">Elgato KeyLight enheter</translation>
-    </message>
-    <message>
-        <source>Elgato LightStrip Devices</source>
-        <translation type="vanished">Elgato LightStrip enheter</translation>
     </message>
 </context>
 <context>
@@ -1095,178 +1035,6 @@
         <location filename="../OpenRGBDynamicSettingsWidget/OpenRGBDynamicSettingsWidget.cpp" line="361"/>
         <source>System Default</source>
         <translation>System standard</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBE131SettingsEntry</name>
-    <message>
-        <source>Start Channel:</source>
-        <translation type="vanished">Startkanal:</translation>
-    </message>
-    <message>
-        <source>Number of LEDs:</source>
-        <translation type="vanished">Antall av LEDer:</translation>
-    </message>
-    <message>
-        <source>Start Universe:</source>
-        <translation type="vanished">Start univers:</translation>
-    </message>
-    <message>
-        <source>Name:</source>
-        <translation type="vanished">Navn:</translation>
-    </message>
-    <message>
-        <source>Matrix Order:</source>
-        <translation type="vanished">Matrix rekkefølge:</translation>
-    </message>
-    <message>
-        <source>Matrix Height:</source>
-        <translation type="vanished">Matrix høyde:</translation>
-    </message>
-    <message>
-        <source>Matrix Width:</source>
-        <translation type="vanished">Matrix bredde:</translation>
-    </message>
-    <message>
-        <source>Type:</source>
-        <translation type="vanished">Type:</translation>
-    </message>
-    <message>
-        <source>IP (Unicast):</source>
-        <translation type="vanished">IP (Unicast):</translation>
-    </message>
-    <message>
-        <source>Universe Size:</source>
-        <translation type="vanished">Univers størrelse:</translation>
-    </message>
-    <message>
-        <source>Keepalive Time:</source>
-        <translation type="vanished">Keepalive Time:</translation>
-    </message>
-    <message>
-        <source>RGB Order:</source>
-        <translation type="vanished">RGB rekkefølge:</translation>
-    </message>
-    <message>
-        <source>Single</source>
-        <translation type="vanished">Enkel</translation>
-    </message>
-    <message>
-        <source>Linear</source>
-        <translation type="vanished">Lineær</translation>
-    </message>
-    <message>
-        <source>Matrix</source>
-        <translation type="vanished">Matrix</translation>
-    </message>
-    <message>
-        <source>Horizontal Top Left</source>
-        <translation type="vanished">Horisontal opp venstre</translation>
-    </message>
-    <message>
-        <source>Horizontal Top Right</source>
-        <translation type="vanished">Horisontal opp høyre</translation>
-    </message>
-    <message>
-        <source>Horizontal Bottom Left</source>
-        <translation type="vanished">Horisontal ned venstre</translation>
-    </message>
-    <message>
-        <source>Horizontal Bottom Right</source>
-        <translation type="vanished">Horisontal ned høyre</translation>
-    </message>
-    <message>
-        <source>Vertical Top Left</source>
-        <translation type="vanished">Vertikal opp venstre</translation>
-    </message>
-    <message>
-        <source>Vertical Top Right</source>
-        <translation type="vanished">Vertikal opp høyre</translation>
-    </message>
-    <message>
-        <source>Vertical Bottom Left</source>
-        <translation type="vanished">Vertikal ned venstre</translation>
-    </message>
-    <message>
-        <source>Vertical Bottom Right</source>
-        <translation type="vanished">Vertikal ned høyre</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBE131SettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoKeyLightSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoKeyLightSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoLightStripSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBElgatoLightStripSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBGoveeSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="obsolete">IP:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBGoveeSettingsPage</name>
-    <message>
-        <source>Remove</source>
-        <translation type="obsolete">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="obsolete">Lagre</translation>
     </message>
 </context>
 <context>
@@ -1295,58 +1063,6 @@
         <location filename="../OpenRGBHardwareIDsDialog/OpenRGBHardwareIDsDialog.ui" line="14"/>
         <source>Hardware IDs</source>
         <translation>Hardware IDer</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBKasaSmartSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation type="vanished">Navn</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBKasaSmartSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg Til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBLIFXSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation type="vanished">Navn</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBLIFXSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
     </message>
 </context>
 <context>
@@ -1383,155 +1099,6 @@
         <location filename="../OpenRGBMatrixMapEditorDialog/OpenRGBMatrixMapEditorDialog.ui" line="72"/>
         <source>Width:</source>
         <translation>Bredde:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafNewDeviceDialog</name>
-    <message>
-        <source>New Nanoleaf device</source>
-        <translation type="vanished">Ny Nanoleaf enhet</translation>
-    </message>
-    <message>
-        <source>IP address:</source>
-        <translation type="vanished">IP adresse:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation type="vanished">Port:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation type="vanished">Port:</translation>
-    </message>
-    <message>
-        <source>Auth Key:</source>
-        <translation type="vanished">Auth Key:</translation>
-    </message>
-    <message>
-        <source>Unpair</source>
-        <translation type="vanished">Koble fra</translation>
-    </message>
-    <message>
-        <source>Pair</source>
-        <translation type="vanished">Koble til</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBNanoleafSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Scan</source>
-        <translation type="vanished">Skann</translation>
-    </message>
-    <message>
-        <source>To pair, hold the on-off button down for 5-7 seconds until the LED starts flashing in a pattern, then click the &quot;Pair&quot; button within 30 seconds.</source>
-        <translation type="vanished">For å pare, hold på-av-knappen nede i 5-7 sekunder til LED-lampen begynner å blinke i et mønster, og klikk deretter på &quot;Koble til&quot; knappen innen 30 sekunder.</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsHueSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>Entertainment Mode:</source>
-        <translation type="vanished">Kinomodus:</translation>
-    </message>
-    <message>
-        <source>Username:</source>
-        <translation type="vanished">Brukernavn:</translation>
-    </message>
-    <message>
-        <source>Client Key:</source>
-        <translation type="vanished">Klient nøkkel:</translation>
-    </message>
-    <message>
-        <source>Unpair Bridge</source>
-        <translation type="vanished">Koble fra bridge</translation>
-    </message>
-    <message>
-        <source>MAC:</source>
-        <translation type="vanished">MAC:</translation>
-    </message>
-    <message>
-        <source>Auto Connect Group:</source>
-        <translation type="vanished">Auto connect gruppe:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsHueSettingsPage</name>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-    <message>
-        <source>After adding a Hue entry and saving, restart OpenRGB and press the Sync button on your Hue bridge to pair it.</source>
-        <translation type="vanished">Etter å ha lagt til en Hue-oppføring og lagret, start OpenRGB på nytt og trykk på Sync-knappen på Hue-broen for å pare den.</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsWizSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>Use Cool White</source>
-        <translation type="vanished">Bruk kalthvit</translation>
-    </message>
-    <message>
-        <source>Use Warm White</source>
-        <translation type="vanished">Bruk varmhvit</translation>
-    </message>
-    <message>
-        <source>White Strategy:</source>
-        <translation type="vanished">Hvit strategi:</translation>
-    </message>
-    <message>
-        <source>Average</source>
-        <translation type="vanished">Gjennomsnitt</translation>
-    </message>
-    <message>
-        <source>Minimum</source>
-        <translation type="vanished">Minimum</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBPhilipsWizSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
     </message>
 </context>
 <context>
@@ -1576,10 +1143,6 @@
         <source>API Version:</source>
         <translation>API Versjon:</translation>
     </message>
-    <message>
-        <source>API Version Value</source>
-        <translation type="vanished">API Versjon verdi</translation>
-    </message>
 </context>
 <context>
     <name>OpenRGBPluginsPage</name>
@@ -1590,7 +1153,7 @@
     </message>
     <message>
         <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.ui" line="37"/>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="161"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="164"/>
         <source>Remove Plugin</source>
         <translation>Fjern plugin</translation>
     </message>
@@ -1600,37 +1163,37 @@
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;Ser etter plugins? Finn den  offisielle listen her &lt;a href=&quot;https://openrgb.org/plugins.html&quot;&gt;OpenRGB.org&lt;/a&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="86"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="89"/>
         <source>Install OpenRGB Plugin</source>
         <translation>Installer OpenRGB plugin</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="86"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="89"/>
         <source>Plugin files (*.dll *.dylib *.so *.so.*)</source>
         <translation>Plugin filer (*.dll *.dylib *.so *.so.*)</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="123"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="126"/>
         <source>Replace Plugin</source>
         <translation>Erstatt plugin</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="123"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="126"/>
         <source>A plugin with this filename is already installed.  Are you sure you want to replace this plugin?</source>
         <translation>Et plugin med dette filnavnet er allerede installert.  Er du sikker på at du vil erstatte dette pluginet?</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="161"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="164"/>
         <source>Are you sure you want to remove this plugin?</source>
         <translation>Vil du virkelig fjerne dette pluginet?</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="221"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="224"/>
         <source>Restart Needed</source>
         <translation>Omstart kreves</translation>
     </message>
     <message>
-        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="221"/>
+        <location filename="../OpenRGBPluginsPage/OpenRGBPluginsPage.cpp" line="224"/>
         <source>The plugin will be fully removed after restarting OpenRGB.</source>
         <translation>Pluginet vil bli fullstendig fjernet etter omstart av OpenRGB.</translation>
     </message>
@@ -1698,10 +1261,6 @@
 <context>
     <name>OpenRGBProfileListDialog</name>
     <message>
-        <source>Profile Name</source>
-        <translation type="vanished">Profilnavn</translation>
-    </message>
-    <message>
         <location filename="../OpenRGBProfileListDialog/OpenRGBProfileListDialog.ui" line="20"/>
         <source>Profile Selection</source>
         <translation>Profilvalg</translation>
@@ -1715,40 +1274,6 @@
         <location filename="../OpenRGBProfileListDialog/OpenRGBProfileListDialog.ui" line="36"/>
         <source>Create a new profile:</source>
         <translation>Opprett ny profil:</translation>
-    </message>
-    <message>
-        <source>Save to an existing profile:</source>
-        <translation type="vanished">Lagre til eksisterende profil:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBQMKORGBSettingsEntry</name>
-    <message>
-        <source>Name:</source>
-        <translation type="vanished">Navn:</translation>
-    </message>
-    <message>
-        <source>USB PID:</source>
-        <translation type="vanished">USB PID:</translation>
-    </message>
-    <message>
-        <source>USB VID:</source>
-        <translation type="vanished">USB VID:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBQMKORGBSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
     </message>
 </context>
 <context>
@@ -1777,44 +1302,6 @@
         <location filename="../OpenRGBSegmentExportDialog/OpenRGBSegmentExportDialog.ui" line="72"/>
         <source>Device Name (Optional):</source>
         <translation>Enhetsnavn (valgfritt):</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBSerialSettingsEntry</name>
-    <message>
-        <source>Baud:</source>
-        <translation type="vanished">Baud:</translation>
-    </message>
-    <message>
-        <source>Name:</source>
-        <translation type="vanished">Navn:</translation>
-    </message>
-    <message>
-        <source>Number of LEDs:</source>
-        <translation type="vanished">Antall av LEDer:</translation>
-    </message>
-    <message>
-        <source>Port:</source>
-        <translation type="vanished">Port:</translation>
-    </message>
-    <message>
-        <source>Protocol:</source>
-        <translation type="vanished">Protokoll:</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBSerialSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
     </message>
 </context>
 <context>
@@ -1937,14 +1424,6 @@
         <translation>Nettside:</translation>
     </message>
     <message>
-        <source>&lt;a href=&quot;https://openrgb.org&quot;&gt;https://openrgb.org&lt;/a&gt;</source>
-        <translation type="vanished">&lt;a href=&quot;https://openrgb.org&quot;&gt;https://openrgb.org&lt;/a&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;a href=&quot;https://gitlab.com/CalcProgrammer1/OpenRGB&quot;&gt;https://gitlab.com/CalcProgrammer1/OpenRGB&lt;/a&gt;</source>
-        <translation type="vanished">&lt;a href=&quot;https://gitlab.com/CalcProgrammer1/OpenRGB&quot;&gt;https://gitlab.com/CalcProgrammer1/OpenRGB&lt;/a&gt;</translation>
-    </message>
-    <message>
         <location filename="../OpenRGBSoftwareInfoPage/OpenRGBSoftwareInfoPage.ui" line="41"/>
         <source>SDK Version:</source>
         <translation>SDK Versjon:</translation>
@@ -2051,10 +1530,6 @@
         <translation>Adresse:</translation>
     </message>
     <message>
-        <source>Read Device</source>
-        <translation type="vanished">Les enhet</translation>
-    </message>
-    <message>
         <location filename="../OpenRGBSystemInfoPage/OpenRGBSystemInfoPage.ui" line="34"/>
         <source>SMBus Dumper:</source>
         <translation>SMBus Dumper:</translation>
@@ -2107,10 +1582,6 @@
         <translation>Dump enheter</translation>
     </message>
     <message>
-        <source>SMBus Reader:</source>
-        <translation type="vanished">SMBus leser:</translation>
-    </message>
-    <message>
         <location filename="../OpenRGBSystemInfoPage/OpenRGBSystemInfoPage.ui" line="91"/>
         <source>Addr:</source>
         <translation>Adr:</translation>
@@ -2127,57 +1598,7 @@
     </message>
 </context>
 <context>
-    <name>OpenRGBYeelightSettingsEntry</name>
-    <message>
-        <source>IP:</source>
-        <translation type="vanished">IP:</translation>
-    </message>
-    <message>
-        <source>?</source>
-        <translation type="vanished">?</translation>
-    </message>
-    <message>
-        <source>Music Mode:</source>
-        <translation type="vanished">Musikkmodus:</translation>
-    </message>
-    <message>
-        <source>Override host IP:</source>
-        <translation type="vanished">Override host IP:</translation>
-    </message>
-    <message>
-        <source>Left blank for auto discovering host ip</source>
-        <translation type="vanished">Las tomt for automatisk oppdagelse av host IPen</translation>
-    </message>
-    <message>
-        <source>Choose an IP...</source>
-        <translation type="vanished">Velg en IP...</translation>
-    </message>
-    <message>
-        <source>Choose the correct IP for the host</source>
-        <translation type="vanished">Velg riktig IP for hosten</translation>
-    </message>
-</context>
-<context>
-    <name>OpenRGBYeelightSettingsPage</name>
-    <message>
-        <source>Add</source>
-        <translation type="vanished">Legg til</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Fjern</translation>
-    </message>
-    <message>
-        <source>Save</source>
-        <translation type="vanished">Lagre</translation>
-    </message>
-</context>
-<context>
     <name>OpenRGBZoneEditorDialog</name>
-    <message>
-        <source>Resize Zone</source>
-        <translation type="vanished">Endre størrelse på sone</translation>
-    </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="40"/>
         <source>Add Segment</source>
@@ -2191,7 +1612,7 @@
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="14"/>
         <source>Zone Editor</source>
-        <translation>Zoneredigerer</translation>
+        <translation>Soneredigerer</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="20"/>
@@ -2226,37 +1647,37 @@
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="99"/>
         <source>Reset Zone Configuration</source>
-        <translation>Nullstill konfigurasjon for område</translation>
+        <translation>Nullstill konfigurasjon for soner</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="124"/>
         <source>Device-Specific Zone Configuration</source>
-        <translation>Enhetspesifikk zonkonfigurasjon</translation>
+        <translation>Enhetspesifikk sonekonfigurasjon</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="151"/>
         <source>Zone Configuration</source>
-        <translation>Zonkonfigurasjon</translation>
+        <translation>Sonekonfigurasjon</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="159"/>
         <source>Zone Type:</source>
-        <translation>Zonetype:</translation>
+        <translation>Sonetype:</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="176"/>
         <source>Zone Matrix Map:</source>
-        <translation>Zonematrisekart:</translation>
+        <translation>Sonematrisekart:</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="185"/>
         <source>Zone Name:</source>
-        <translation>Zonenummer:</translation>
+        <translation>Sonenummer:</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneEditorDialog/OpenRGBZoneEditorDialog.ui" line="192"/>
         <source>Zone Size:</source>
-        <translation>Størrelse på zone:</translation>
+        <translation>Størrelse på sone:</translation>
     </message>
 </context>
 <context>
@@ -2265,7 +1686,7 @@
         <location filename="../OpenRGBZoneInitializationDialog/OpenRGBZoneInitializationDialog.ui" line="14"/>
         <location filename="../OpenRGBZoneInitializationDialog/OpenRGBZoneInitializationDialog.cpp" line="81"/>
         <source>Zone Initialization</source>
-        <translation>Zonestart</translation>
+        <translation>Sonestart</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneInitializationDialog/OpenRGBZoneInitializationDialog.ui" line="39"/>
@@ -2286,18 +1707,6 @@
         <location filename="../OpenRGBZoneInitializationDialog/OpenRGBZoneInitializationDialog.ui" line="88"/>
         <source>Ignore</source>
         <translation>Ignorer</translation>
-    </message>
-    <message>
-        <source>Zones Resizer</source>
-        <translation type="vanished">Sone resizer</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;One or more resizable zones have not been configured.  Resizable zones are most commonly used for addressable RGB headers where the size of the connected device cannot be detected automatically.&lt;/p&gt;&lt;p&gt;Please enter the number of LEDs in each zone below.&lt;/p&gt;&lt;p&gt;For more information about calcuating the correct size, please check &lt;a href=&quot;https://openrgb.org/resize.html&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;this link.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="vanished">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;En eller flere soner som kan endre størrelse er ikke konfigurert.  Soner som kan endres er oftest brukt for adresserbare RGB headere der størrelsen på den tilkoblede enheten ikke kan oppdages automatisk.&lt;/p&gt;&lt;p&gt;Vennligst oppgi antall LEDer i hver sone nedenfor.&lt;/p&gt;&lt;p&gt;For mer informasjon om beregning av riktig størrelse, vennligst sjekk &lt;a href=&quot;https://openrgb.org/resize.html&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;this link.&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Resize the zones</source>
-        <translation type="vanished">Endre sonestørrelse</translation>
     </message>
     <message>
         <location filename="../OpenRGBZoneInitializationDialog/OpenRGBZoneInitializationDialog.cpp" line="119"/>
@@ -2330,7 +1739,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsHueSettingsEntry/PhilipsHueSettingsEntry.ui" line="46"/>
         <source>Auto Connect Group:</source>
-        <translation>Auto connect gruppe:</translation>
+        <translation>Auto-connect-gruppe:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsHueSettingsEntry/PhilipsHueSettingsEntry.ui" line="60"/>
@@ -2340,7 +1749,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsHueSettingsEntry/PhilipsHueSettingsEntry.ui" line="74"/>
         <source>Client Key:</source>
-        <translation>Klient nøkkel:</translation>
+        <translation>Klientnøkkel:</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsHueSettingsEntry/PhilipsHueSettingsEntry.ui" line="81"/>
@@ -2363,7 +1772,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsWizSettingsEntry/PhilipsWizSettingsEntry.ui" line="26"/>
         <source>Philips Wiz Device</source>
-        <translation>Philips Wiz-enhet</translation>
+        <translation>Philips Wiz-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/PhilipsWizSettingsEntry/PhilipsWizSettingsEntry.ui" line="32"/>
@@ -2401,7 +1810,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/QMKORGBSettingsEntry/QMKORGBSettingsEntry.ui" line="26"/>
         <source>QMK OpenRGB Device</source>
-        <translation>QMK OpenRGB-enhet</translation>
+        <translation>QMK OpenRGB-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/QMKORGBSettingsEntry/QMKORGBSettingsEntry.ui" line="38"/>
@@ -2424,7 +1833,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/QMKVialRGBSettingsEntry/QMKVialRGBSettingsEntry.ui" line="26"/>
         <source>QMK VialRGB Device</source>
-        <translation>QMK VialRGB-enhet</translation>
+        <translation>QMK VialRGB-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/QMKVialRGBSettingsEntry/QMKVialRGBSettingsEntry.ui" line="38"/>
@@ -2440,25 +1849,6 @@
         <location filename="../ManualDevicesSettingsPage/QMKVialRGBSettingsEntry/QMKVialRGBSettingsEntry.ui" line="55"/>
         <source>USB VID:</source>
         <translation>USB VID:</translation>
-    </message>
-</context>
-<context>
-    <name>ResourceManager</name>
-    <message>
-        <source>&lt;h2&gt;Some internal devices may not be detected:&lt;/h2&gt;&lt;p&gt;One or more I2C or SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB Graphics Cards, will not be available in OpenRGB&lt;/b&gt; without I2C or SMBus.&lt;/p&gt;&lt;h4&gt;How to fix this:&lt;/h4&gt;&lt;p&gt;On Windows, this is usually caused by a failure to load the WinRing0 driver.&lt;/p&gt;&lt;p&gt;You must run OpenRGB as administrator at least once to allow WinRing0 to set up.&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for additional troubleshooting steps if you keep seeing this message.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;If you are not using internal RGB on a desktop this message is not important to you.&lt;/h3&gt;</source>
-        <translation type="vanished">&lt;h2&gt;Noen interne enheter blir muligens ikke oppdaget:&lt;/h2&gt;&lt;p&gt;Ett eller flere I2C eller SMBus grensesnitt kunne ikke initialiseres.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM moduler, noen hovedkorts&apos; interne RGB lys, og RGB grafikkkort vil ikke være tilgjengelig i OpenRGB&lt;/b&gt; uten I2C eller SMBus.&lt;/p&gt;&lt;h4&gt;Hvordan fikse dette:&lt;/h4&gt;&lt;p&gt;På Windows er dette vanligvis forårsaket av en feil med å laste WinRing0 driveren.&lt;/p&gt;&lt;p&gt;Du må kjøre OpenRGB som administrator minst én gang for å tillate at WinRing0 konfigureres.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for flere feilsøkingstrinn hvis du fortsatt ser denne meldingen.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;Hvis du ikke bruker internt RGB er ikke denne meldingen viktig for deg.&lt;/h3&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;Some internal devices may not be detected:&lt;/h2&gt;&lt;p&gt;One or more I2C or SMBus interfaces failed to initialize.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM modules, some motherboards&apos; onboard RGB lighting, and RGB Graphics Cards, will not be available in OpenRGB&lt;/b&gt; without I2C or SMBus.&lt;/p&gt;&lt;h4&gt;How to fix this:&lt;/h4&gt;&lt;p&gt;On Linux, this is usually because the i2c-dev module is not loaded.&lt;/p&gt;&lt;p&gt;You must load the i2c-dev module along with the correct i2c driver for your motherboard. This is usually i2c-piix4 for AMD systems and i2c-i801 for Intel systems.&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for additional troubleshooting steps if you keep seeing this message.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;If you are not using internal RGB on a desktop this message is not important to you.&lt;/h3&gt;</source>
-        <translation type="vanished">&lt;h2&gt;Noen interne enheter blir muligens ikke oppdaget:&lt;/h2&gt;&lt;p&gt;Ett eller flere I2C eller SMBus grensesnitt kunne ikke initialiseres.&lt;/p&gt;&lt;p&gt;&lt;b&gt;RGB DRAM moduler, noen hovedkorts&apos; interne RGB lys, og RGB grafikkkort vil ikke være tilgjengelig i OpenRGB&lt;/b&gt; uten I2C eller SMBus.&lt;/p&gt;&lt;h4&gt;Hvordan fikse dette:&lt;/h4&gt;&lt;p&gt;På Linux er dette vanligvis fordi i2c-dev modulen ikke er lastet.&lt;/p&gt;&lt;p&gt;Du må laste i2c-dev modulen sammen med riktig i2c driver for hovedkortet. Dette er vanligvis i2c-piix4 for AMD systemer og i2c-i801 for Intel systemer.&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://help.openrgb.org/&apos;&gt;help.openrgb.org&lt;/a&gt; for flere feilsøkingstrinn hvis du fortsatt ser denne meldingen.&lt;br&gt;&lt;/p&gt;&lt;h3&gt;Hvis du ikke bruker internt RGB er ikke denne meldingen viktig for deg.&lt;/h3&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;The OpenRGB udev rules are not installed.&lt;/p&gt;&lt;p&gt;Most devices will not be available unless running OpenRGB as root.&lt;/p&gt;&lt;p&gt;If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually&lt;/p&gt;&lt;p&gt;See &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; to install the udev rules manually&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;OpenRGB udev reglene er ikke installert.&lt;/p&gt;&lt;p&gt;De fleste enhetene vil ikke være tilgjengelige med mindre du kjører OpenRGB som root.&lt;/p&gt;&lt;p&gt;Hvis du bruker AppImage, Flatpak eller egenkompilerte versjoner av OpenRGB, må du installere udev reglene manuelt&lt;/p&gt;&lt;p&gt;Se &lt;a href=&apos;https://openrgb.org/udev&apos;&gt;https://openrgb.org/udev&lt;/a&gt; for å installere udev reglene manuelt&lt;/p&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;h2&gt;WARNING:&lt;/h2&gt;&lt;p&gt;Multiple OpenRGB udev rules are installed.&lt;/p&gt;&lt;p&gt;The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Multiple udev rules files can conflict, it is recommended to remove one of them.&lt;/p&gt;</source>
-        <translation type="vanished">&lt;h2&gt;ADVARSEL:&lt;/h2&gt;&lt;p&gt;Flere OpenRGB udev regler er installert.&lt;/p&gt;&lt;p&gt;Udev regelfilen 60-openrgb.rules er installert i både /etc/udev/rules.d og /usr/lib/udev/rules.d.&lt;/p&gt;&lt;p&gt;Flere udev-regelfiler kan komme i konflikt, det anbefales å fjerne en av dem.&lt;/p&gt;</translation>
     </message>
 </context>
 <context>
@@ -2494,7 +1884,7 @@
         <translation>Port:</translation>
     </message>
     <message>
-        <location filename="../ManualDevicesSettingsPage/SerialSettingsEntry/SerialSettingsEntry.cpp" line="41"/>
+        <location filename="../ManualDevicesSettingsPage/SerialSettingsEntry/SerialSettingsEntry.cpp" line="42"/>
         <source>No serial ports found</source>
         <translation>Ingen serielle porter funnet</translation>
     </message>
@@ -2502,343 +1892,279 @@
 <context>
     <name>Settings</name>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="229"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="238"/>
         <source>Load Window Geometry</source>
         <translation>Bruk vindugeometri</translation>
     </message>
     <message>
-        <source>90000</source>
-        <translation type="vanished">90000</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="221"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="230"/>
         <source>Run Zone Checks on Rescan</source>
         <translation>Kjør sonekontroll ved skanning</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="217"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="226"/>
         <source>Disable Key Expansion</source>
-        <translation>Deaktiver nøkkelutvidelse i enhetsvisning</translation>
+        <translation>Deaktiver Key-utvidelse i enhetsvisning</translation>
     </message>
     <message>
-        <source>Start Server</source>
-        <translation type="vanished">Start server</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="208"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="217"/>
         <source>Show LED View by Default</source>
         <translation>Vis LED visning som standard</translation>
     </message>
     <message>
-        <source>Set Profile on Suspend</source>
-        <translation type="vanished">Sett profil ved hvilemodus</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="154"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="163"/>
         <source>Enable Start at Login</source>
         <translation>Aktiver start ved pålogging</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="156"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="165"/>
         <source>Start OpenRGB on login</source>
         <translation>Start OpenRGB ved pålogging</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="159"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="168"/>
         <source>Start Minimized</source>
         <translation>Start minimert</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="161"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="170"/>
         <source>Start minimized to the system tray</source>
-        <translation>Start minimeret til systemtrayen</translation>
+        <translation>Start minimeret til systemtrayet</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="166"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="175"/>
         <source>Additional command line arguments to pass to OpenRGB when starting on login</source>
         <translation>Ekstra kommandolinjeargumenter som skal sendes til OpenRGB når programmet starter ved innlogging</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="178"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="187"/>
         <source>Language for the user interface</source>
         <translation>Språk for brukergrensesnittet</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="182"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="191"/>
         <source>Keep OpenRGB active in the system tray when closing the main window</source>
-        <translation>Hold OpenRGB aktiv i systemtrayen når hovedvinduet lukkes</translation>
+        <translation>Hold OpenRGB aktiv i systemtrayet når hovedvinduet lukkes</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="186"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="195"/>
         <source>Monochrome Tray Icon</source>
-        <translation>Grått icon</translation>
+        <translation>Monokromt tray icon</translation>
     </message>
     <message>
-        <source>User Interface Settings:</source>
-        <translation type="vanished">Innstillinger for brukergrensesnitt:</translation>
-    </message>
-    <message>
-        <source>Set Profile on Resume</source>
-        <translation type="vanished">Sett profil ved våkning</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="169"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="178"/>
         <source>Start at Login</source>
         <translation>Start ved pålogging</translation>
     </message>
     <message>
-        <source>Set Profile on Exit</source>
-        <translation type="vanished">Sett profil ved lukking</translation>
-    </message>
-    <message>
-        <location filename="../../ResourceManager.cpp" line="160"/>
+        <location filename="../../ResourceManager.cpp" line="197"/>
         <source>HID Safe Mode</source>
-        <translation>HID trygge modus</translation>
+        <translation>HID tryggmodus</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="162"/>
+        <location filename="../../ResourceManager.cpp" line="199"/>
         <source>Use an alternate method for detecting HID devices</source>
         <translation>Bruk en alternativ metode for å oppdage HID-enheter</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="164"/>
+        <location filename="../../ResourceManager.cpp" line="201"/>
         <source>Initial Detection Delay (ms)</source>
         <translation>Innledende oppdagelsesforsinkelse (ms)</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="166"/>
+        <location filename="../../ResourceManager.cpp" line="203"/>
         <source>Amount of time, in milliseconds, to wait before detecting devices when started</source>
-        <translation>Antall millisekunder som skal vente før enheter oppdages når programmet startes</translation>
+        <translation>Antall millisekunder som skal ventes før enheter oppdages når programmet startes</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="168"/>
+        <location filename="../../ResourceManager.cpp" line="205"/>
         <source>Detection</source>
         <translation>Deteksjon</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="178"/>
+        <location filename="../../ResourceManager.cpp" line="215"/>
         <source>Enable Log File</source>
         <translation>Aktiver loggfil</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="182"/>
+        <location filename="../../ResourceManager.cpp" line="219"/>
         <source>Log Level</source>
         <translation>Loggnivå</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="200"/>
+        <location filename="../../ResourceManager.cpp" line="237"/>
         <source>Log File Count Limit</source>
-        <translation>Antall loggfiler grense</translation>
+        <translation>Loggfil antallsgrense</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="202"/>
+        <location filename="../../ResourceManager.cpp" line="239"/>
         <source>Maximum number of log files to keep, 0 for no limit</source>
-        <translation>Maksimal antall loggfiler som skal beholdes, 0 for ubegrenset</translation>
+        <translation>Maksimalt antall loggfiler som skal beholdes, 0 for ubegrenset</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="206"/>
+        <location filename="../../ResourceManager.cpp" line="243"/>
         <source>Log Manager</source>
-        <translation>Loggadministrator</translation>
+        <translation>Loggmanager</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="213"/>
+        <location filename="../../ResourceManager.cpp" line="250"/>
         <source>Serve All Controllers</source>
         <translation>Kjør alle kontrollere</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="215"/>
+        <location filename="../../ResourceManager.cpp" line="252"/>
         <source>Include controllers provided by client connections and plugins</source>
         <translation>Inkluder kontrollere fra klientsambindelser og tillegg</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="217"/>
+        <location filename="../../ResourceManager.cpp" line="254"/>
         <source>Default Host</source>
         <translation>Standardvært</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="221"/>
+        <location filename="../../ResourceManager.cpp" line="258"/>
         <source>Default Port</source>
         <translation>Standardport</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="227"/>
+        <location filename="../../ResourceManager.cpp" line="264"/>
         <source>Legacy Workaround</source>
-        <translation>Tilbakeholdelse for eldre systemer</translation>
+        <translation>Workaround for eldre systemer</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="229"/>
+        <location filename="../../ResourceManager.cpp" line="266"/>
         <source>Workaround for some older SDK implementations that sent incorrect packet size for certain packets</source>
         <translation>Workaround for noen eldre SDK-tilfeller som sendte feil pakkestørrelse for visse pakker</translation>
     </message>
     <message>
-        <location filename="../../ResourceManager.cpp" line="231"/>
+        <location filename="../../ResourceManager.cpp" line="268"/>
         <source>Server</source>
         <translation>Server</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="181"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="190"/>
         <source>Minimize on Close</source>
         <translation>Minimer ved lukking</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="187"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="196"/>
         <source>Use a monochrome icon in the system tray instead of a full color icon</source>
-        <translation>Bruk en monokrom ikon i systemlåsen istedenfor et fargelagt ikon</translation>
+        <translation>Bruk et monokromt ikon i systemtrayet istedenfor et farget ikon</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="193"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="202"/>
         <source>Select #BBGGRR or #RRGGBB format for hex display and input</source>
         <translation>Velg #BBGGRR- eller #RRGGBB-format for heksadesimalvisning og -inndata</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="198"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="207"/>
         <source>Compact Tabs</source>
-        <translation>Kompakte faneinnhold</translation>
+        <translation>Kompakte faner</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="200"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="209"/>
         <source>Display sidebar tabs as icons only</source>
         <translation>Vis sidefeltfane som bare ikoner</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="203"/>
-        <source>Tabs on Top</source>
-        <translation>Fanebånd på toppen</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="205"/>
-        <source>Display tabs on top instead of on the left</source>
-        <translation>Vis faneinnholdet øverst istedenfor på venstre side</translation>
-    </message>
-    <message>
         <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="212"/>
+        <source>Tabs on Top</source>
+        <translation>Faner på toppen</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="214"/>
+        <source>Display tabs on top instead of on the left</source>
+        <translation>Vis faner øverst istedenfor på venstre side</translation>
+    </message>
+    <message>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="221"/>
         <source>Numerical Labels</source>
         <translation>Numeriske etiketter</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="213"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="222"/>
         <source>Display numerical labels for otherwise non-labeled LEDs in the LED view</source>
         <translation>Vis numeriske etiketter for LED-er som ellers ikke har etiketter i LED-visningen</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="225"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="234"/>
         <source>Window Geometry</source>
-        <translation>Vindu geometri</translation>
+        <translation>Vindugeometri</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="233"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="242"/>
         <source>Save on Exit</source>
         <translation>Lagre geometri ved lukking</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="235"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="244"/>
         <source>Save window geometry on exit</source>
-        <translation>Lagre vinduets geometri ved avslutt</translation>
+        <translation>Lagre vindugeometri ved avslutting</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="238"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="247"/>
         <source>X</source>
         <translation>X</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="242"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="251"/>
         <source>Y</source>
         <translation>Y</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="246"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="255"/>
         <source>Width</source>
         <translation>Bredde</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="250"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="259"/>
         <source>Height</source>
         <translation>Høyde</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="254"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="263"/>
         <source>User Interface</source>
-        <translation>Bruker grensesnitt</translation>
+        <translation>Brukergrensesnitt</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="266"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="275"/>
         <source>SMBus Sleep Mode (restart required)</source>
-        <translation>SMBus-søvnmodus (omstart kreves)</translation>
+        <translation>SMBus-Søvnmodus (omstart kreves)</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="279"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="288"/>
         <source>Drivers</source>
-        <translation>Journaler</translation>
+        <translation>Drivere</translation>
     </message>
     <message>
-        <source>Start Client</source>
-        <translation type="vanished">Start klient</translation>
-    </message>
-    <message>
-        <source>Load Profile</source>
-        <translation type="vanished">Bruk profil</translation>
-    </message>
-    <message>
-        <source>Set Server Port</source>
-        <translation type="vanished">Sett server port</translation>
-    </message>
-    <message>
-        <location filename="../../ResourceManager.cpp" line="175"/>
+        <location filename="../../ResourceManager.cpp" line="212"/>
         <source>Enable Log Console</source>
         <translation>Aktiver loggkonsoll</translation>
     </message>
     <message>
-        <source>Drivers Settings</source>
-        <translation type="vanished">Driverinnstillinger</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="275"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="284"/>
         <source>AMD SMBus: Reduce CPU Usage (restart required)</source>
-        <translation>AMD SMBus: reduser CPU bruk (omstart kreves)</translation>
+        <translation>AMD SMBus: Reduser CPU bruk (omstart kreves)</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="164"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="173"/>
         <source>Custom Arguments</source>
-        <translation>Eigene Argumente</translation>
+        <translation>Egene Argumenter</translation>
     </message>
     <message>
-        <source>Log Manager Settings:</source>
-        <translation type="vanished">Loggbehandlingsinnstillinger:</translation>
-    </message>
-    <message>
-        <source>Start at Login Status</source>
-        <translation type="vanished">Start ved pålogging status</translation>
-    </message>
-    <message>
-        <source>Start at Login Settings:</source>
-        <translation type="vanished">Startinnstillinger</translation>
-    </message>
-    <message>
-        <source>Open Settings Folder</source>
-        <translation type="vanished">Åpne innstillingsmappen</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="263"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="272"/>
         <source>Shared SMBus Access (restart required)</source>
         <translation>Delt SMBus tilgang (omstart kreves)</translation>
     </message>
     <message>
-        <source>Set Server Host</source>
-        <translation type="vanished">Sett server host</translation>
-    </message>
-    <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="176"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="185"/>
         <source>Language</source>
         <translation>Språk</translation>
     </message>
     <message>
-        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="191"/>
+        <location filename="../OpenRGBDialog/OpenRGBDialog.cpp" line="200"/>
         <source>Hex Format</source>
-        <translation>Hex format</translation>
-    </message>
-    <message>
-        <source>A problem occurred enabling Start at Login.</source>
-        <translation type="vanished">Det oppstod et problem ved aktivering av Start ved pålogging.</translation>
+        <translation>Hex Format</translation>
     </message>
     <message>
         <location filename="../OpenRGBDynamicSettingsWidget/OpenRGBDynamicSettingsWidget.cpp" line="357"/>
@@ -2846,13 +2172,9 @@
         <translation>Norsk</translation>
     </message>
     <message>
-        <source>System Default</source>
-        <translation type="vanished">System standard</translation>
-    </message>
-    <message>
         <location filename="../../ProfileManager.cpp" line="51"/>
         <source>Load Profile on Exit</source>
-        <translation>Last ned profil ved avslutt</translation>
+        <translation>Last profil ved avslutting</translation>
     </message>
     <message>
         <location filename="../../ProfileManager.cpp" line="53"/>
@@ -2862,7 +2184,7 @@
     <message>
         <location filename="../../ProfileManager.cpp" line="55"/>
         <source>Load Profile on Open</source>
-        <translation>Last inn profil ved åpning</translation>
+        <translation>Last profil ved åpning</translation>
     </message>
     <message>
         <location filename="../../ProfileManager.cpp" line="57"/>
@@ -2872,7 +2194,7 @@
     <message>
         <location filename="../../ProfileManager.cpp" line="59"/>
         <source>Load Profile on Resume</source>
-        <translation>Last ned profil ved gjenoppretting</translation>
+        <translation>Last profil ved våkning</translation>
     </message>
     <message>
         <location filename="../../ProfileManager.cpp" line="61"/>
@@ -2881,18 +2203,38 @@
     </message>
     <message>
         <location filename="../../ProfileManager.cpp" line="63"/>
-        <source>Load Profile on Suspend</source>
-        <translation>Last ned profil ved å sette på pause</translation>
+        <source>Load Profile on Service Shutdown</source>
+        <translation>Last profil ved tjenestestopp</translation>
     </message>
     <message>
         <location filename="../../ProfileManager.cpp" line="65"/>
+        <source>Profile to load when the OpenRGB background service shuts down</source>
+        <translation>Profil som skal lastes når OpenRGB bakgrunnstjenesten slutter</translation>
+    </message>
+    <message>
+        <location filename="../../ProfileManager.cpp" line="67"/>
+        <source>Load Profile on Service Startup</source>
+        <translation>Last profil ved tjenestestart</translation>
+    </message>
+    <message>
+        <location filename="../../ProfileManager.cpp" line="69"/>
+        <source>Profile to load when the OpenRGB background service starts up</source>
+        <translation>Profil som skal lastes når OpenRGB-tjenesten starter</translation>
+    </message>
+    <message>
+        <location filename="../../ProfileManager.cpp" line="71"/>
+        <source>Load Profile on Suspend</source>
+        <translation>Last profil ved suspendering</translation>
+    </message>
+    <message>
+        <location filename="../../ProfileManager.cpp" line="73"/>
         <source>Profile to load before system enters sleep mode</source>
         <translation>Profil som skal lastes inn før systemet går i søvnmodus</translation>
     </message>
     <message>
-        <location filename="../../ProfileManager.cpp" line="67"/>
+        <location filename="../../ProfileManager.cpp" line="75"/>
         <source>Profile Manager</source>
-        <translation>Profilhåndterer</translation>
+        <translation>Profilmanager</translation>
     </message>
 </context>
 <context>
@@ -2908,7 +2250,7 @@
     <message>
         <location filename="../ManualDevicesSettingsPage/YeelightSettingsEntry/YeelightSettingsEntry.ui" line="26"/>
         <source>Yeelight Device</source>
-        <translation>Yeelight-enhet</translation>
+        <translation>Yeelight-Enhet</translation>
     </message>
     <message>
         <location filename="../ManualDevicesSettingsPage/YeelightSettingsEntry/YeelightSettingsEntry.ui" line="39"/>

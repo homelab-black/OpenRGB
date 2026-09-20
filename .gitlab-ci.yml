@@ -14,9 +14,9 @@
 #   run only if manually started to save CI minutes if      #
 #   GitLab hosted runners                                   #
 # * For commits to the CalcProgrammer1/OpenRGB repository,  #
-#   automatically run all jobs on the default branch,       #
-#   otherwise run them if the source is part of a merge     #
-#   request                                                 #
+#   automatically run all jobs on the default branch or     #
+#   tag builds, otherwise run them if the source is part    #
+#   of a merge request                                      #
 #-----------------------------------------------------------#
 .downstream_rules:
   rules:
@@ -26,7 +26,7 @@
 
 .upstream_rules:
   rules:
-  - if: '$CI_PROJECT_PATH == "CalcProgrammer1/OpenRGB" && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "merge_request_event")'
+  - if: '$CI_PROJECT_PATH == "CalcProgrammer1/OpenRGB" && ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_TAG || $CI_PIPELINE_SOURCE == "merge_request_event")'
     when: on_success
   - !reference [.downstream_rules, rules]
 
@@ -51,7 +51,7 @@ before_script:
 # Supported Devices Build Target                            #
 #-----------------------------------------------------------#
 "Supported Devices":
-  image: registry.gitlab.com/openrgbdevelopers/openrgb-linux-ci-deb-builder:bookworm-amd64
+  image: registry.gitlab.com/openrgbdevelopers/openrgb-linux-ci-deb-builder:trixie-amd64
   tags:
   - linux
   - amd64
@@ -71,10 +71,10 @@ before_script:
     - !reference [.upstream_rules, rules]
 
 #-----------------------------------------------------------#
-# OpenRGB Common Appimage Build Steps                       #
+# OpenRGB Common AppImage Build Steps                       #
 #-----------------------------------------------------------#
 .hidden_appimage_script: &appimage_script_steps
-  image: registry.gitlab.com/openrgbdevelopers/openrgb-linux-ci-deb-builder:bookworm-${TGT_ARCH}
+  image: registry.gitlab.com/openrgbdevelopers/openrgb-linux-ci-deb-builder:trixie-${TGT_ARCH}
   tags:
   - linux
   - ${TGT_ARCH}
@@ -87,8 +87,6 @@ before_script:
     name: "${CI_PROJECT_NAME}_Linux_${TGT_NAME}_${CI_COMMIT_SHORT_SHA}"
     paths:
     - OpenRGB-${TGT_PATH}.AppImage
-    - 60-openrgb.rules
-    - README.md
     expire_in: 30 days
 
   rules:
@@ -290,13 +288,13 @@ before_script:
   <<: *debian_script_steps
 
 #-----------------------------------------------------------#
-# Linux (.rpm, F43) 64-bit Build Target                     #
+# Linux (.rpm) Fedora 44 amd64 Build Target                 #
 #-----------------------------------------------------------#
-"Linux 64 F43 rpm":
-  image: fedora:43
+"Linux amd64 .rpm (Fedora 44)":
+  image: fedora:44
   stage: build
   script:
-  - dnf install rpmdevtools dnf-plugins-core libcurl-devel qt5-qtbase-devel git wget -y
+  - dnf install rpmdevtools dnf-plugins-core libcurl-devel qt6-qtbase-devel git wget -y
   - 'wget -O hidapi-hotplug.zip https://gitlab.com/OpenRGBDevelopers/hidapi-hotplug/-/jobs/artifacts/master/download?job=Linux+64+F43+rpm'
   - unzip hidapi-hotplug.zip
   - dnf install ./*.rpm -y
@@ -312,7 +310,7 @@ before_script:
   - cd ${CI_PROJECT_DIR}
 
   artifacts:
-    name: "${CI_PROJECT_NAME}_Linux_64_rpm_${CI_COMMIT_SHORT_SHA}"
+    name: "${CI_PROJECT_NAME}_Linux_amd64_rpm_${CI_COMMIT_SHORT_SHA}"
     paths:
     - openrgb*.rpm
     expire_in: 30 days
@@ -425,10 +423,10 @@ before_script:
   - !reference [.upstream_rules, rules]
 
 #-----------------------------------------------------------#
-# Fedora 64 v43 test                                        #
+# Fedora amd64 44 test                                      #
 #-----------------------------------------------------------#
-"Fedora 64 v43":
-  image: fedora:43
+"Fedora 64 44":
+  image: fedora:44
   stage: test
   script:
   - dnf install unzip wget -y
@@ -439,9 +437,9 @@ before_script:
   - openrgb --version
   - dnf5 -y remove openrgb
   dependencies:
-  - "Linux 64 F43 rpm"
+  - "Linux amd64 .rpm (Fedora 44)"
   needs:
-  - "Linux 64 F43 rpm"
+  - "Linux amd64 .rpm (Fedora 44)"
   rules:
   - !reference [.upstream_rules, rules]
 

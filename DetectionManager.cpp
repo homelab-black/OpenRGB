@@ -11,6 +11,9 @@
 \*---------------------------------------------------------*/
 
 #include <chrono>
+#include <cctype>
+#include <cstdio>
+#include <set>
 #include "DetectionManager.h"
 #include "JsonUtils.h"
 #include "LogManager.h"
@@ -22,6 +25,10 @@
 
 #ifdef __linux__
 #include <unistd.h>
+#endif
+
+#ifdef __APPLE__
+#include <hidapi_darwin.h>
 #endif
 
 using namespace std::chrono_literals;
@@ -39,33 +46,39 @@ const char* DETECTIONMANAGER = "DetectionManager";
 /*---------------------------------------------------------*\
 | Warning Dialog Strings                                    |
 \*---------------------------------------------------------*/
-const char* I2C_ERR_WIN =   QT_TRANSLATE_NOOP("DetectionManager",
-                                              "<h2>Warning:</h2>"
-                                              "<p>One or more I2C/SMBus interfaces failed to initialize.</p>"
-                                              "<p>Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards' onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.</p>"
-                                              "<p>On Windows, this is usually caused by a failure to load the PawnIO driver.</p>"
-                                              "<p>For OpenRGB to access these devices, you must install PawnIO from <a href='https://pawnio.eu/'>https://pawnio.eu</a> and run OpenRGB as administrator or as a system service.</p>"
-                                              "<p>If you are not using any of the devices listed above, you can safely ignore this message.</p>");
-const char* I2C_ERR_LINUX = QT_TRANSLATE_NOOP("DetectionManager",
-                                              "<h2>Warning:</h2>"
-                                              "<p>One or more I2C/SMBus interfaces failed to initialize.</p>"
-                                              "<p>Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards' onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.</p>"
-                                              "<p>On Linux, this is usually because the i2c-dev module is not loaded.</p>"
-                                              "<p>For OpenRGB to access these devices, you must load the i2c-dev module along with the correct I2C driver module for your motherboard. "
-                                              "This is usually i2c-piix4 for AMD systems and i2c-i801 for Intel systems.</p>"
-                                              "<p>If you are not using any of the devices listed above, you can safely ignore this message.</p>");
+#ifdef _WIN32
+static const char* I2C_ERR_WIN =   QT_TRANSLATE_NOOP("DetectionManager",
+                                                     "<h2>Warning:</h2>"
+                                                     "<p>One or more I2C/SMBus interfaces failed to initialize.</p>"
+                                                     "<p>Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards' onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.</p>"
+                                                     "<p>On Windows, this is usually caused by a failure to load the PawnIO driver.</p>"
+                                                     "<p>For OpenRGB to access these devices, you must install PawnIO from <a href='https://pawnio.eu/'>https://pawnio.eu</a> and run OpenRGB as administrator or as a system service.</p>"
+                                                     "<p>If you are not using any of the devices listed above, you can safely ignore this message.</p>");
+#endif
+#ifdef __linux__
+static const char* I2C_ERR_LINUX = QT_TRANSLATE_NOOP("DetectionManager",
+                                                     "<h2>Warning:</h2>"
+                                                     "<p>One or more I2C/SMBus interfaces failed to initialize.</p>"
+                                                     "<p>Depending on which interfaces failed to initialize, some RGB DRAM modules, some motherboards' onboard RGB lighting, and RGB graphics cards may not be available in OpenRGB.</p>"
+                                                     "<p>On Linux, this is usually because the i2c-dev module is not loaded.</p>"
+                                                     "<p>For OpenRGB to access these devices, you must load the i2c-dev module along with the correct I2C driver module for your motherboard. "
+                                                     "This is usually i2c-piix4 for AMD systems and i2c-i801 for Intel systems.</p>"
+                                                     "<p>If you are not using any of the devices listed above, you can safely ignore this message.</p>");
+#endif
 
-const char* UDEV_MISSING =  QT_TRANSLATE_NOOP("DetectionManager",
-                                              "<h2>Warning:</h2>"
-                                              "<p>The OpenRGB udev rules are not installed.</p>"
-                                              "<p>Most devices will not be available unless running OpenRGB as root.</p>"
-                                              "<p>If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually</p>"
-                                              "<p>See <a href='https://openrgb.org/udev'>https://openrgb.org/udev</a> to install the udev rules manually</p>");
-const char* UDEV_MUTLI =    QT_TRANSLATE_NOOP("DetectionManager",
-                                              "<h2>Warning:</h2>"
-                                              "<p>Multiple OpenRGB udev rules are installed.</p>"
-                                              "<p>The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.</p>"
-                                              "<p>Multiple udev rules files can conflict, it is recommended to remove one of them.</p>");
+#ifdef __linux__
+static const char* UDEV_MISSING =  QT_TRANSLATE_NOOP("DetectionManager",
+                                                     "<h2>Warning:</h2>"
+                                                     "<p>The OpenRGB udev rules are not installed.</p>"
+                                                     "<p>Most devices will not be available unless running OpenRGB as as a system service or as root.</p>"
+                                                     "<p>If using AppImage, Flatpak, or self-compiled versions of OpenRGB you must install the udev rules manually</p>"
+                                                     "<p>See <a href='https://openrgb.org/udev'>https://openrgb.org/udev</a> to install the udev rules manually</p>");
+static const char* UDEV_MUTLI =    QT_TRANSLATE_NOOP("DetectionManager",
+                                                     "<h2>Warning:</h2>"
+                                                     "<p>Multiple OpenRGB udev rules are installed.</p>"
+                                                     "<p>The udev rules file 60-openrgb.rules is installed in both /etc/udev/rules.d and /usr/lib/udev/rules.d.</p>"
+                                                     "<p>Multiple udev rules files can conflict, it is recommended to remove one of them.</p>");
+#endif
 
 /*---------------------------------------------------------*\
 | Default hidapi wrappter that just uses default hidapi     |
@@ -102,12 +115,15 @@ bool BasicHIDBlock::compare(hid_device_info* info)
          || (usage      == info->usage))
         && ((interface  == HID_INTERFACE_ANY)
          || (interface  == info->interface_number))
+        && ((bus        == HID_BUS_ANY)
+         || (bus        == (int)info->bus_type))
         );
 }
 
 bool BasicHIDBlock::matching_id(hid_device_info* info)
 {
-    return((vid == info->vendor_id) && (pid == info->product_id));
+    return(((vid == info->vendor_id))
+        && ((pid == info->product_id) || (pid == HID_PID_ANY)));
 }
 
 /*---------------------------------------------------------*\
@@ -246,10 +262,11 @@ void DetectionManager::RegisterI2CBusDetector(I2CBusDetectorFunction detector)
 /*---------------------------------------------------------*\
 | RGBController Detector Registration Functions             |
 \*---------------------------------------------------------*/
-void DetectionManager::RegisterDeviceDetector(std::string name, DeviceDetectorFunction detector)
+void DetectionManager::RegisterDeviceDetector(std::string name, DeviceDetectorFunction detector, bool enabled_by_default)
 {
     device_detector_strings.push_back(name);
     device_detectors.push_back(detector);
+    device_detector_default_enabled.push_back(enabled_by_default);
 }
 
 void DetectionManager::RegisterDynamicDetector(std::string name, DynamicDetectorFunction detector)
@@ -258,17 +275,19 @@ void DetectionManager::RegisterDynamicDetector(std::string name, DynamicDetector
     dynamic_detectors.push_back(detector);
 }
 
-void DetectionManager::RegisterHIDDeviceDetector(std::string name, HIDDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage)
+void DetectionManager::RegisterHIDDeviceDetector(std::string name, HIDDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage, bool enabled_by_default, int bus)
 {
     HIDDeviceDetectorBlock block;
 
-    block.name          = name;
-    block.vid           = vid;
-    block.pid           = pid;
-    block.function      = detector;
-    block.interface     = interface;
-    block.usage_page    = usage_page;
-    block.usage         = usage;
+    block.name                  = name;
+    block.vid                   = vid;
+    block.pid                   = pid;
+    block.function              = detector;
+    block.interface             = interface;
+    block.usage_page            = usage_page;
+    block.usage                 = usage;
+    block.bus                   = bus;
+    block.enabled_by_default    = enabled_by_default;
 
     if(block.vid == HID_VID_ANY && block.pid == HID_PID_ANY)
     {
@@ -280,17 +299,19 @@ void DetectionManager::RegisterHIDDeviceDetector(std::string name, HIDDeviceDete
     }
 }
 
-void DetectionManager::RegisterHIDWrappedDeviceDetector(std::string name, HIDWrappedDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage)
+void DetectionManager::RegisterHIDWrappedDeviceDetector(std::string name, HIDWrappedDeviceDetectorFunction  detector, int vid, int pid, int interface, int usage_page, int usage, bool enabled_by_default, int bus)
 {
     HIDWrappedDeviceDetectorBlock block;
 
-    block.name          = name;
-    block.vid           = vid;
-    block.pid           = pid;
-    block.function      = detector;
-    block.interface     = interface;
-    block.usage_page    = usage_page;
-    block.usage         = usage;
+    block.name                  = name;
+    block.vid                   = vid;
+    block.pid                   = pid;
+    block.function              = detector;
+    block.interface             = interface;
+    block.usage_page            = usage_page;
+    block.usage                 = usage;
+    block.bus                   = bus;
+    block.enabled_by_default    = enabled_by_default;
 
     if(block.vid == HID_VID_ANY && block.pid == HID_PID_ANY)
     {
@@ -302,35 +323,38 @@ void DetectionManager::RegisterHIDWrappedDeviceDetector(std::string name, HIDWra
     }
 }
 
-void DetectionManager::RegisterI2CDeviceDetector(std::string name, I2CDeviceDetectorFunction detector)
+void DetectionManager::RegisterI2CDeviceDetector(std::string name, I2CDeviceDetectorFunction detector, bool enabled_by_default)
 {
     i2c_device_detector_strings.push_back(name);
     i2c_device_detectors.push_back(detector);
+    i2c_device_detector_default_enabled.push_back(enabled_by_default);
 }
 
-void DetectionManager::RegisterI2CDRAMDeviceDetector(std::string name, I2CDRAMDeviceDetectorFunction detector, uint16_t jedec_id, uint8_t dram_type)
+void DetectionManager::RegisterI2CDRAMDeviceDetector(std::string name, I2CDRAMDeviceDetectorFunction detector, uint16_t jedec_id, uint8_t dram_type, bool enabled_by_default)
 {
     I2CDRAMDeviceDetectorBlock block;
 
-    block.name          = name;
-    block.function      = detector;
-    block.jedec_id      = jedec_id;
-    block.dram_type     = dram_type;
+    block.name                  = name;
+    block.function              = detector;
+    block.jedec_id              = jedec_id;
+    block.dram_type             = dram_type;
+    block.enabled_by_default    = enabled_by_default;
 
     i2c_dram_device_detectors.push_back(block);
 }
 
-void DetectionManager::RegisterI2CPCIDeviceDetector(std::string name, I2CPCIDeviceDetectorFunction detector, uint16_t ven_id, uint16_t dev_id, uint16_t subven_id, uint16_t subdev_id, uint8_t i2c_addr)
+void DetectionManager::RegisterI2CPCIDeviceDetector(std::string name, I2CPCIDeviceDetectorFunction detector, uint16_t ven_id, uint16_t dev_id, uint16_t subven_id, uint16_t subdev_id, uint8_t i2c_addr, bool enabled_by_default)
 {
     I2CPCIDeviceDetectorBlock block;
 
-    block.name          = name;
-    block.function      = detector;
-    block.ven_id        = ven_id;
-    block.dev_id        = dev_id;
-    block.subven_id     = subven_id;
-    block.subdev_id     = subdev_id;
-    block.i2c_addr      = i2c_addr;
+    block.name                  = name;
+    block.function              = detector;
+    block.ven_id                = ven_id;
+    block.dev_id                = dev_id;
+    block.subven_id             = subven_id;
+    block.subdev_id             = subdev_id;
+    block.i2c_addr              = i2c_addr;
+    block.enabled_by_default    = enabled_by_default;
 
     i2c_pci_device_detectors.push_back(block);
 }
@@ -342,6 +366,21 @@ void DetectionManager::RegisterPreDetectionHook(PreDetectionHookFunction hook)
 {
     pre_detection_hooks.push_back(hook);
 }
+
+#ifdef __linux__
+/*---------------------------------------------------------*\
+| Custom Udev Rules Registration Function                   |
+\*---------------------------------------------------------*/
+void DetectionManager::RegisterCustomUdevRule(std::string name, std::string rule)
+{
+    CustomUdevRuleBlock block;
+
+    block.name = name;
+    block.rule = rule;
+
+    custom_udev_rules.push_back(block);
+}
+#endif
 
 /*---------------------------------------------------------*\
 | Detection Callback Registration Functions                 |
@@ -852,14 +891,14 @@ void DetectionManager::BackgroundDetectDevices()
     | Track if rules exist in any /etc location             |
     | Note: Flatpak mounts this at /run/host/etc            |
     \*-----------------------------------------------------*/
-    bool in_etc             = (access("/etc/udev/rules.d/60-openrgb.rules", F_OK) == 0) || 
+    bool in_etc             = (access("/etc/udev/rules.d/60-openrgb.rules", F_OK) == 0) ||
                               (access("/run/host/etc/udev/rules.d/60-openrgb.rules", F_OK) == 0);
 
     /*-----------------------------------------------------*\
     | Track if rules exist in any /usr/lib location         |
     | Note: Flatpak mounts this at /run/host/usr            |
     \*-----------------------------------------------------*/
-    bool in_usr_lib         = (access("/usr/lib/udev/rules.d/60-openrgb.rules", F_OK) == 0) || 
+    bool in_usr_lib         = (access("/usr/lib/udev/rules.d/60-openrgb.rules", F_OK) == 0) ||
                               (access("/run/host/usr/lib/udev/rules.d/60-openrgb.rules", F_OK) == 0);
 
     /*-----------------------------------------------------*\
@@ -1180,7 +1219,9 @@ void DetectionManager::BackgroundDetectHIDDevicesSafe(json& detector_settings)
 
         LOG_VERBOSE("[%s] Trying to run detector for [%s] (for %04x:%04x)", DETECTIONMANAGER, detector.name.c_str(), detector.vid, detector.pid);
 
-        hid_device_info* current_hid_device = hid_enumerate(detector.vid, detector.pid);
+        unsigned short enumerate_vid = (detector.vid == HID_VID_ANY) ? 0 : detector.vid;
+        unsigned short enumerate_pid = (detector.pid == HID_PID_ANY) ? 0 : detector.pid;
+        hid_device_info* current_hid_device = hid_enumerate(enumerate_vid, enumerate_pid);
 
         while(current_hid_device)
         {
@@ -1350,6 +1391,15 @@ void DetectionManager::BackgroundHIDInit()
 
     LOG_DEBUG("[%s] Initializing HID interfaces: %s", DETECTIONMANAGER, ((hid_status == 0) ? "Success" : "Failed"));
 
+#ifdef __APPLE__
+    /*-----------------------------------------------------*\
+    | hidapi defaults macOS opens to exclusive (seize)      |
+    | mode: privileged, and a second open of a held device  |
+    | fails. Shared matches Linux and Windows.              |
+    \*-----------------------------------------------------*/
+    hid_darwin_set_open_exclusive(0);
+#endif
+
 #ifdef __linux__
 #ifdef __GLIBC__
     /*-----------------------------------------------------*\
@@ -1378,7 +1428,7 @@ void DetectionManager::BackgroundHIDInit()
             .hid_enumerate                      = (hidapi_wrapper_enumerate)                    dlsym(hidapi_libusb_handle,"hid_enumerate"),
             .hid_free_enumeration               = (hidapi_wrapper_free_enumeration)             dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
             .hid_close                          = (hidapi_wrapper_close)                        dlsym(hidapi_libusb_handle,"hid_close"),
-            .hid_error                          = (hidapi_wrapper_error)                        dlsym(hidapi_libusb_handle,"hid_free_enumeration"),
+            .hid_error                          = (hidapi_wrapper_error)                        dlsym(hidapi_libusb_handle,"hid_error"),
 #if(HID_HOTPLUG_ENABLED)
             .hid_hotplug_register_callback      = (hidapi_wrapper_hotplug_register_callback)    dlsym(hidapi_libusb_handle,"hid_hotplug_register_callback"),
             .hid_hotplug_deregister_callback    = (hidapi_wrapper_hotplug_deregister_callback)  dlsym(hidapi_libusb_handle,"hid_hotplug_deregister_callback"),
@@ -1403,7 +1453,7 @@ void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json&
         const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
         const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
 
-        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
+        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d B=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, (int)current_hid_device->bus_type, manu_name, prod_name);
     }
 
     detection_string = "";
@@ -1519,7 +1569,7 @@ void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_
         const char* manu_name = StringUtils::wchar_to_char(current_hid_device->manufacturer_string);
         const char* prod_name = StringUtils::wchar_to_char(current_hid_device->product_string);
 
-        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, manu_name, prod_name);
+        LOG_DEBUG("[%s] %04X:%04X U=%04X P=0x%04X I=%d B=%d - %-25s - %s", DETECTIONMANAGER, current_hid_device->vendor_id, current_hid_device->product_id, current_hid_device->usage, current_hid_device->usage_page, current_hid_device->interface_number, (int)current_hid_device->bus_type, manu_name, prod_name);
     }
 
     detection_string = "";
@@ -1767,7 +1817,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = i2c_device_detector_default_enabled[i2c_detector_idx];
             save_settings = true;
         }
     }
@@ -1782,7 +1832,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = i2c_dram_device_detectors[i2c_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1797,7 +1847,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = i2c_pci_device_detectors[i2c_pci_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1812,7 +1862,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = hid_generic_detectors[hid_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1827,7 +1877,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = hid_specific_detectors[hid_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1842,7 +1892,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = hid_wrapped_generic_detectors[hid_wrapped_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1857,7 +1907,7 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = hid_wrapped_specific_detectors[hid_wrapped_detector_idx].enabled_by_default;
             save_settings = true;
         }
     }
@@ -1872,9 +1922,81 @@ void DetectionManager::UpdateDetectorSettings()
 
         if(!(detector_settings.contains("detectors") && detector_settings["detectors"].contains(detection_string)))
         {
-            detector_settings["detectors"][detection_string] = true;
+            detector_settings["detectors"][detection_string] = device_detector_default_enabled[detector_idx];
             save_settings = true;
         }
+    }
+
+    /*-----------------------------------------------------*\
+    | Loop through the existing detector settings and       |
+    | remove any detectors that no longer exist in the      |
+    | registered detector lists.                            |
+    \------------------------------------------------------*/
+    if(detector_settings.contains("detectors") && detector_settings["detectors"].is_object())
+    {
+        std::set<std::string> active_detector_names;
+
+        /*-------------------------------------------------*\
+        | Collect all currently registered detector names   |
+        \--------------------------------------------------*/
+        for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_device_detector_strings.size(); i2c_detector_idx++)
+        {
+            active_detector_names.insert(i2c_device_detector_strings[i2c_detector_idx]);
+        }
+
+        for(std::size_t i2c_detector_idx = 0; i2c_detector_idx < i2c_dram_device_detectors.size(); i2c_detector_idx++)
+        {
+            active_detector_names.insert(i2c_dram_device_detectors[i2c_detector_idx].name);
+        }
+
+        for(std::size_t i2c_pci_detector_idx = 0; i2c_pci_detector_idx < i2c_pci_device_detectors.size(); i2c_pci_detector_idx++)
+        {
+            active_detector_names.insert(i2c_pci_device_detectors[i2c_pci_detector_idx].name);
+        }
+
+        for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_generic_detectors.size(); hid_detector_idx++)
+        {
+            active_detector_names.insert(hid_generic_detectors[hid_detector_idx].name);
+        }
+
+        for(std::size_t hid_detector_idx = 0; hid_detector_idx < hid_specific_detectors.size(); hid_detector_idx++)
+        {
+            active_detector_names.insert(hid_specific_detectors[hid_detector_idx].name);
+        }
+
+        for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_generic_detectors.size(); hid_wrapped_detector_idx++)
+        {
+            active_detector_names.insert(hid_wrapped_generic_detectors[hid_wrapped_detector_idx].name);
+        }
+
+        for(std::size_t hid_wrapped_detector_idx = 0; hid_wrapped_detector_idx < hid_wrapped_specific_detectors.size(); hid_wrapped_detector_idx++)
+        {
+            active_detector_names.insert(hid_wrapped_specific_detectors[hid_wrapped_detector_idx].name);
+        }
+
+        for(std::size_t detector_idx = 0; detector_idx < device_detector_strings.size(); detector_idx++)
+        {
+            active_detector_names.insert(device_detector_strings[detector_idx]);
+        }
+
+        /*-------------------------------------------------*\
+        | Remove stale detector entries                     |
+        \--------------------------------------------------*/
+        json active_detectors;
+        for(const nlohmann::detail::iteration_proxy_value<nlohmann::json::iterator>& element : detector_settings["detectors"].items())
+        {
+            if(active_detector_names.count(element.key()) > 0)
+            {
+                active_detectors[element.key()] = element.value();
+            }
+            else
+            {
+                LOG_INFO("[%s] Removing stale detector \"%s\" from settings", DETECTIONMANAGER, element.key().c_str());
+                save_settings = true;
+            }
+        }
+
+        detector_settings["detectors"] = active_detectors;
     }
 
     /*-----------------------------------------------------*\
@@ -2052,3 +2174,241 @@ bool DetectionManager::IsAnyDimmDetectorEnabled(json &detector_settings)
     }
     return false;
 }
+
+#ifdef __linux__
+/*---------------------------------------------------------*\
+| Convert a device name into a udev tag.                    |
+|                                                           |
+| Replace spaces with underscores and strip any character   |
+| that is not alphanumeric, e.g.                            |
+|   "MSI Mystic Light MS_7E12" -> "MSI_Mystic_Light_MS7E12" |
+| This matches the name processing used by                  |
+| build-udev-rules.sh so both generators produce the same   |
+| device name tags.                                         |
+\*---------------------------------------------------------*/
+static std::string UdevDeviceNameToTag(std::string device_name)
+{
+    for(std::string::iterator character = device_name.begin(); character != device_name.end();)
+    {
+        if(*character == ' ')
+        {
+            *character = '_';
+            ++character;
+        }
+        else if(!isalnum(*character))
+        {
+            character = device_name.erase(character);
+        }
+        else
+        {
+            ++character;
+        }
+    }
+
+    return device_name;
+}
+
+/*---------------------------------------------------------*\
+| Apply the processed device name tag to a registered custom|
+| udev rule. Any device-name TAG value inside the rule is   |
+| replaced with the normalized device name so that custom   |
+| rules follow the same naming convention as the grouped    |
+| HID rules. "uaccess" tags and tags that already match are |
+| left untouched.                                           |
+\*---------------------------------------------------------*/
+static std::string UdevApplyDeviceNameTagToRule(const std::string& rule, const std::string& device_name_tag)
+{
+    std::string       processed_rule  = rule;
+    const std::string tag_prefix      = "TAG+=\"";
+    std::size_t       search_position = 0;
+
+    while(search_position < processed_rule.length())
+    {
+        std::size_t tag_start = processed_rule.find(tag_prefix, search_position);
+        if(tag_start == std::string::npos)
+        {
+            break;
+        }
+
+        std::size_t value_start = tag_start + tag_prefix.length();
+        std::size_t value_end   = processed_rule.find('"', value_start);
+
+        if(value_end == std::string::npos)
+        {
+            break;
+        }
+
+        std::string tag_value     = processed_rule.substr(value_start, value_end - value_start);
+        std::string new_tag_value = tag_value;
+
+        if(tag_value != "uaccess" && tag_value != device_name_tag)
+        {
+            new_tag_value = device_name_tag;
+        }
+
+        if(new_tag_value != tag_value)
+        {
+            processed_rule.replace(value_start, value_end - value_start, new_tag_value);
+        }
+
+        search_position = value_start + new_tag_value.length() + 1;
+    }
+
+    return processed_rule;
+}
+
+/*---------------------------------------------------------*\
+| Udev rules generation function                            |
+\*---------------------------------------------------------*/
+bool DetectionManager::GenerateUdevRules(const std::string& filepath)
+{
+    LOG_INFO("[%s] Generating udev rules file: %s", DETECTIONMANAGER, filepath.c_str());
+
+    FILE* output_file = fopen(filepath.c_str(), "w");
+    if(!output_file)
+    {
+        LOG_ERROR("[%s] Failed to open output file: %s", DETECTIONMANAGER, filepath.c_str());
+        return false;
+    }
+
+    bool result = WriteUdevRules(output_file);
+
+    fclose(output_file);
+
+    LOG_INFO("[%s] Successfully generated udev rules file: %s", DETECTIONMANAGER, filepath.c_str());
+    return result;
+}
+
+bool DetectionManager::PrintUdevRules()
+{
+    return WriteUdevRules(stdout);
+}
+
+/*---------------------------------------------------------*\
+| Write udev rules to the given output stream               |
+\*---------------------------------------------------------*/
+bool DetectionManager::WriteUdevRules(FILE* output_file)
+{
+    /*-----------------------------------------------------*\
+    | Write udev rules header                               |
+    \*-----------------------------------------------------*/
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "#  OpenRGB udev rules                                           #\n");
+
+    int written             = fprintf(output_file, "#  Generated by OpenRGB " VERSION_STRING);
+    int total_line_width    = 64;
+
+    if(written < total_line_width)
+    {
+        fprintf(output_file, "%*s#\n", total_line_width - written, "");
+    }
+    else
+    {
+        fprintf(output_file, " #\n");
+    }
+
+    written                 = fprintf(output_file, "#  Git commit: " GIT_COMMIT_ID);
+
+    if(written < total_line_width)
+    {
+        fprintf(output_file, "%*s#\n", total_line_width - written, "");
+    }
+    else
+    {
+        fprintf(output_file, " #\n");
+    }
+
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "\n");
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "#  User I2C/SMBus Access                                        #\n");
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "KERNEL==\"i2c-[0-99]*\", TAG+=\"uaccess\"\n");
+    fprintf(output_file, "\n");
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "#  Super I/O Access                                             #\n");
+    fprintf(output_file, "#---------------------------------------------------------------#\n");
+    fprintf(output_file, "KERNEL==\"port\", TAG+=\"uaccess\"\n");
+    fprintf(output_file, "\n");
+
+    /*-----------------------------------------------------*\
+    | Group detectors by name to avoid duplicate headers    |
+    \*-----------------------------------------------------*/
+    std::map<std::string, std::vector<std::pair<int, int>>> detector_groups;
+
+    for(std::size_t detector_idx = 0; detector_idx < hid_specific_detectors.size(); detector_idx++)
+    {
+        HIDDeviceDetectorBlock& detector = hid_specific_detectors[detector_idx];
+
+        if(detector.vid == HID_VID_ANY && detector.pid == HID_PID_ANY)
+        {
+            continue;
+        }
+
+        detector_groups[detector.name].push_back({detector.vid, detector.pid});
+    }
+
+    for(std::size_t detector_idx = 0; detector_idx < hid_wrapped_specific_detectors.size(); detector_idx++)
+    {
+        HIDWrappedDeviceDetectorBlock& detector = hid_wrapped_specific_detectors[detector_idx];
+
+        if(detector.vid == HID_VID_ANY && detector.pid == HID_PID_ANY)
+        {
+            continue;
+        }
+
+        std::string group_name = detector.name;
+        detector_groups[group_name].push_back({detector.vid, detector.pid});
+    }
+
+    /*-----------------------------------------------------*\
+    | Write grouped HID device rules                        |
+    \*-----------------------------------------------------*/
+    for(const std::pair<const std::string, std::vector<std::pair<int, int>>>& group : detector_groups)
+    {
+        fprintf(output_file, "#---------------------------------------------------------------#\n");
+        fprintf(output_file, "#  %s\n", group.first.c_str());
+        fprintf(output_file, "#---------------------------------------------------------------#\n");
+
+        std::string device_name_tag = UdevDeviceNameToTag(group.first);
+
+        for(const std::pair<int, int>& vid_pid : group.second)
+        {
+            fprintf(output_file, "SUBSYSTEMS==\"usb|hidraw\", ");
+
+            if(vid_pid.first >= 0)
+            {
+                fprintf(output_file, "ATTRS{idVendor}==\"%04x\", ", vid_pid.first);
+            }
+
+            if(vid_pid.second >= 0)
+            {
+                fprintf(output_file, "ATTRS{idProduct}==\"%04x\", ", vid_pid.second);
+            }
+
+            fprintf(output_file, "TAG+=\"uaccess\", TAG+=\"%s\"\n", device_name_tag.c_str());
+        }
+        fprintf(output_file, "\n");
+    }
+
+    /*-----------------------------------------------------*\
+    | Write custom udev rules                               |
+    \*-----------------------------------------------------*/
+    for(const CustomUdevRuleBlock& custom_rule : custom_udev_rules)
+    {
+        fprintf(output_file, "#---------------------------------------------------------------#\n");
+        fprintf(output_file, "#  %s\n", custom_rule.name.c_str());
+        fprintf(output_file, "#---------------------------------------------------------------#\n");
+
+        /*-----------------------------------------------------*\
+        | Apply the shared device name processing to any        |
+        | device-name tag embedded in the custom rule           |
+        \*-----------------------------------------------------*/
+        std::string device_name_tag = UdevDeviceNameToTag(custom_rule.name);
+        fprintf(output_file, "%s\n", UdevApplyDeviceNameTagToRule(custom_rule.rule, device_name_tag).c_str());
+        fprintf(output_file, "\n");
+    }
+
+    return true;
+}
+#endif

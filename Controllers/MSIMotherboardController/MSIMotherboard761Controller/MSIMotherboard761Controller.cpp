@@ -72,9 +72,14 @@ static const std::string board_names[] =
     "MSI MAG B850 TOMAHAWK WIFI (MS-7E53)",
     "MSI MEG Z890 UNIFY-X (MS-7E20)",
     "MSI PRO X870E-S EVO WIFI (MS-7E86)",
+    "MSI MAG X870E GAMING MAX WIFI (MS-7E86)",
     "MSI PRO Z890-P WIFI (MS-7E34)",
     "MSI B850 GAMING PLUS WIFI PZ (MS-7E75)",
     "MSI MAG X870E TOMAHAWK MAX WIFI PZ (MS-7E84)",
+    "MSI PRO B850M-A WIFI PZ (MS-7E78)",
+    "MSI B850MPOWER (MS-7E83)",
+    "MSI B840M GAMING WIFI6E (MS-7E76)",
+    "MSI PRO B850M-A WIFI (MS-7E66)"
 };
 
 static const mystic_light_761_config board_configs[] =
@@ -104,9 +109,14 @@ static const mystic_light_761_config board_configs[] =
     { &(board_names[22]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MAG B850 TOMAHAWK WIFI (MS-7E53)
     { &(board_names[23]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MEG Z890 UNIFY-X (MS-7E20)
     { &(board_names[24]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO X870E-S EVO WIFI (MS-7E86)
-    { &(board_names[25]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO Z890-P WIFI (MS-7E34)
-    { &(board_names[26]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI B850 GAMING PLUS WIFI PZ (MS-7E75)
-    { &(board_names[27]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MAG X870E TOMAHAWK MAX WIFI PZ (MS-7E84)
+    { &(board_names[25]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MAG X870E GAMING MAX WIFI (MS-7E86)
+    { &(board_names[26]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO Z890-P WIFI (MS-7E34)
+    { &(board_names[27]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI B850 GAMING PLUS WIFI PZ (MS-7E75)
+    { &(board_names[28]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI MAG X870E TOMAHAWK MAX WIFI PZ (MS-7E84)
+    { &(board_names[29]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO B850M-A WIFI PZ (MS-7E78)
+    { &(board_names[30]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI B850MPOWER (MS-7E83)
+    { &(board_names[31]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI B840M GAMING WIFI6E (MS-7E76)
+    { &(board_names[32]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },     // MSI PRO B850M-A WIFI (MS-7E66)
 };
 
 enum MSI_ZONE setup_map [] =
@@ -482,7 +492,7 @@ void MSIMotherboard761Controller::SetLedColor
 
     std::size_t candidate_index = (index * 3);
 
-    if((candidate_index + 2) <= GetMaxDirectLeds(zone))
+    if(index < GetMaxDirectLeds(zone))
     {
         set_data_color(ptr, candidate_index,     red);
         set_data_color(ptr, candidate_index + 1, grn);
@@ -591,10 +601,10 @@ void MSIMotherboard761Controller::GetMode
     color           = ToRGBColor(zone_data->color.R, zone_data->color.G, zone_data->color.B);
 }
 
-void MSIMotherboard761Controller::SetCycleCount
+void MSIMotherboard761Controller::SetZoneLEDCount
     (
     MSI_ZONE        /*zone*/,
-    unsigned char   /*cycle_num*/
+    unsigned char   /*led_num*/
     )
 {
     return;

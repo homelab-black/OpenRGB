@@ -70,6 +70,7 @@ static void ResourceManagerDetectionCallback(void * this_ptr, unsigned int updat
             break;
 
         case DETECTIONMANAGER_UPDATE_REASON_DETECTION_COMPLETE:
+            this_obj->HandleDetectionComplete();
             this_obj->SignalResourceManagerUpdate(RESOURCEMANAGER_UPDATE_REASON_DETECTION_COMPLETE);
             break;
     }
@@ -118,7 +119,7 @@ static void ResourceManagerNetworkClientCallback(void* this_ptr, unsigned int up
         case NETWORKCLIENT_UPDATE_REASON_PROFILEMANAGER_ACTIVE_PROFILE_CHANGED:
             this_obj->GetProfileManager()->SignalProfileManagerUpdate(PROFILEMANAGER_UPDATE_REASON_ACTIVE_PROFILE_CHANGED);
             break;
-        
+
         case NETWORKCLIENT_UPDATE_REASON_SERVER_FLAGS_RECEIVED:
             if(this_obj->IsLocalClient())
             {
@@ -137,6 +138,46 @@ const char* RESOURCEMANAGER = "ResourceManager";
 | ResourceManager Global Instance Pointer                   |
 \*---------------------------------------------------------*/
 ResourceManager* ResourceManager::instance;
+
+/*---------------------------------------------------------*\
+| Save default Server settings to the settings file if      |
+| they do not already exist in the loaded settings          |
+\*---------------------------------------------------------*/
+static void SaveDefaultServerSettings(SettingsManager* settings_manager)
+{
+    json server_settings    = settings_manager->GetSettings("Server");
+    bool settings_changed   = false;
+
+    if(!server_settings.contains("default_host"))
+    {
+        server_settings["default_host"]     = OPENRGB_SDK_HOST;
+        settings_changed                    = true;
+    }
+
+    if(!server_settings.contains("default_port"))
+    {
+        server_settings["default_port"]     = OPENRGB_SDK_PORT;
+        settings_changed                    = true;
+    }
+
+    if(!server_settings.contains("all_controllers"))
+    {
+        server_settings["all_controllers"]  = false;
+        settings_changed                    = true;
+    }
+
+    if(!server_settings.contains("legacy_workaround"))
+    {
+        server_settings["legacy_workaround"]= false;
+        settings_changed                    = true;
+    }
+
+    if(settings_changed)
+    {
+        settings_manager->SetSettings("Server", server_settings);
+        settings_manager->SaveSettings();
+    }
+}
 
 ResourceManager::ResourceManager()
 {
@@ -167,6 +208,7 @@ ResourceManager::ResourceManager()
     default_server_host         = "";
     default_server_port         = 0;
     detection_enabled           = true;
+    first_detection_complete    = false;
     init_finished               = false;
     plugin_manager              = NULL;
     server                      = NULL;
@@ -200,7 +242,7 @@ ResourceManager::ResourceManager()
     detection_settings_schema["initial_detection_delay_ms"]["type"]         = "integer";
     detection_settings_schema["initial_detection_delay_ms"]["description"]  = QT_TRANSLATE_NOOP("Settings", "Amount of time, in milliseconds, to wait before detecting devices when started");
 
-    settings_manager->RegisterSettingsSchema("Detectors", QT_TRANSLATE_NOOP("Settings", "Detection"), detection_settings_schema);
+    settings_manager->RegisterSettingsSchemaIgnoreFilter("Detectors", QT_TRANSLATE_NOOP("Settings", "Detection"), detection_settings_schema);
 
     /*-----------------------------------------------------*\
     | Create LogManager settings schema                     |
@@ -238,6 +280,12 @@ ResourceManager::ResourceManager()
     logmanager_settings_schema["file_count_limit"]["default"]               = 10;
     logmanager_settings_schema["file_count_limit"]["minimum"]               = 0;
 
+    logmanager_settings_schema["dialog_no_show_hashes"]["title"]            = QT_TRANSLATE_NOOP("Settings", "Dialog No-Show Hashes");
+    logmanager_settings_schema["dialog_no_show_hashes"]["type"]             = "array";
+    logmanager_settings_schema["dialog_no_show_hashes"]["description"]      = QT_TRANSLATE_NOOP("Settings", "A list of hashes of dialog text that should not be shown.  Selecting \"Do Not Show Again\" on a dialog adds it to this list.");
+    logmanager_settings_schema["dialog_no_show_hashes"]["items"]["type"]    = "integer";
+    logmanager_settings_schema["dialog_no_show_hashes"]["visible"]          = false;
+
     settings_manager->RegisterSettingsSchema("LogManager", QT_TRANSLATE_NOOP("Settings", "Log Manager"), logmanager_settings_schema);
 
     /*-----------------------------------------------------*\
@@ -263,12 +311,17 @@ ResourceManager::ResourceManager()
     server_settings_schema["legacy_workaround"]["type"]                     = "bool";
     server_settings_schema["legacy_workaround"]["description"]              = QT_TRANSLATE_NOOP("Settings", "Workaround for some older SDK implementations that sent incorrect packet size for certain packets");
 
-    settings_manager->RegisterSettingsSchema("Server", QT_TRANSLATE_NOOP("Settings", "Server"), server_settings_schema);
+    settings_manager->RegisterSettingsSchemaLocalOnly("Server", QT_TRANSLATE_NOOP("Settings", "Server"), server_settings_schema);
 
     /*-----------------------------------------------------*\
     | Configure the log manager                             |
     \*-----------------------------------------------------*/
     LogManager::get()->Configure(settings_manager->GetSettings("LogManager"), GetConfigurationDirectory());
+
+    /*-----------------------------------------------------*\
+    | Save default Server settings if not present           |
+    \*-----------------------------------------------------*/
+    SaveDefaultServerSettings(settings_manager);
 
     /*-----------------------------------------------------*\
     | Load sizes list from file                             |
@@ -546,6 +599,7 @@ void ResourceManager::SetConfigurationDirectory(const filesystem::path &director
     config_dir = directory;
     settings_manager->LoadSettings(directory / "OpenRGB.json");
     LogManager::get()->Configure(settings_manager->GetSettings("LogManager"), GetConfigurationDirectory());
+    SaveDefaultServerSettings(settings_manager);
     profile_manager->SetConfigurationDirectory(directory);
 }
 
@@ -823,6 +877,60 @@ std::string ResourceManager::GetDetectionString()
     }
 }
 
+void ResourceManager::HandleDetectionComplete()
+{
+    if(!first_detection_complete)
+    {
+        if(start_server && !start_gui)
+        {
+            profile_manager->LoadAutoProfileServiceStartup();
+        }
+
+        first_detection_complete = true;
+    }
+}
+
+void ResourceManager::ServiceShutdown()
+{
+    /*-----------------------------------------------------*\
+    | Only run service shutdown operations when running as  |
+    | a background service (headless server mode). In GUI   |
+    | mode, the GUI close event handles profile loading.    |
+    \*-----------------------------------------------------*/
+    if(!start_server || start_gui)
+    {
+        return;
+    }
+
+    LOG_INFO("[%s] Service shutting down", RESOURCEMANAGER);
+
+    /*-----------------------------------------------------*\
+    | Wait for any in-progress detection to finish before   |
+    | loading a profile so that the full device list is     |
+    | available.                                            |
+    \*-----------------------------------------------------*/
+    WaitForDetection();
+
+    /*-----------------------------------------------------*\
+    | Load the exit profile if one is configured. This      |
+    | runs the same profile mechanism used when the GUI     |
+    | closes, allowing a profile to be applied to           |
+    | controllers before they are closed and deleted during |
+    | Cleanup().                                            |
+    \*-----------------------------------------------------*/
+    if(profile_manager)
+    {
+        if(profile_manager->LoadAutoProfileServiceShutdown())
+        {
+            /*---------------------------------------------*\
+            | Pause briefly to ensure that all profiles     |
+            | are loaded.                                   |
+            \*---------------------------------------------*/
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+    }
+}
+
 void ResourceManager::RescanDevices()
 {
     /*-----------------------------------------------------*\
@@ -1056,6 +1164,7 @@ bool ResourceManager::AttemptLocalConnection()
     titleString.append(VERSION_STRING);
 
     auto_connection_client->RequestLocalClient(true);
+    auto_connection_client->SetConnectTimeout(1000);
     auto_connection_client->SetName(titleString.c_str());
     auto_connection_client->StartClient();
 
@@ -1097,23 +1206,12 @@ bool ResourceManager::AttemptLocalConnection()
             }
             std::this_thread::sleep_for(5ms);
         }
-
-        /*-------------------------------------------------*\
-        | If local client, set local log level to server's  |
-        | log level and download log entries                |
-        \*-------------------------------------------------*/
-        if(auto_connection_client->GetLocal() && auto_connection_client->GetSupportsLogManagerAPI())
-        {
-            unsigned int log_level = auto_connection_client->LogManager_GetLogLevel();
-            LogManager::get()->SetLogLevel(log_level, true);
-            auto_connection_client->LogManager_GetLogBuffer();
-        }
     }
 
     return success;
 }
 
-void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool startServer, bool applyPostOptions)
+void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool startServer, bool applyPostOptions, bool startGui)
 {
     /*-----------------------------------------------------*\
     | Cache the parameters                                  |
@@ -1122,6 +1220,7 @@ void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool start
     tryAutoConnect                  = tryConnect && !startServer;
     detection_enabled               = detectDevices;
     start_server                    = startServer;
+    start_gui                       = startGui;
     apply_post_options              = applyPostOptions;
 
     /*-----------------------------------------------------*\
@@ -1144,6 +1243,35 @@ void ResourceManager::Initialize(bool tryConnect, bool detectDevices, bool start
             auto_connection_active  = true;
             detection_enabled       = false;
 
+            /*---------------------------------------------*\
+            | If local client, set local log level to       |
+            | server's log level and download log entries   |
+            \*---------------------------------------------*/
+            if(auto_connection_client->GetLocal() && auto_connection_client->GetSupportsLogManagerAPI())
+            {
+                /*-----------------------------------------*\
+                | Reconfigure local log manager using       |
+                | remote settings                           |
+                \*-----------------------------------------*/
+                LogManager::get()->Configure(settings_manager->GetSettings("LogManager"), GetConfigurationDirectory());
+
+                /*-----------------------------------------*\
+                | Update local log manager log level from   |
+                | the server's log level                    |
+                \*-----------------------------------------*/
+                unsigned int log_level = auto_connection_client->LogManager_GetLogLevel();
+                LogManager::get()->SetLogLevel(log_level, true);
+
+                /*-----------------------------------------*\
+                | Download the server's buffered log        |
+                | entries                                   |
+                \*-----------------------------------------*/
+                auto_connection_client->LogManager_GetLogBuffer();
+            }
+
+            /*---------------------------------------------*\
+            | Update the profile list                       |
+            \*---------------------------------------------*/
             profile_manager->UpdateProfileList();
         }
 

@@ -10,6 +10,8 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -40,6 +42,8 @@ static SERVICE_STATUS        service_status;
 
 static bool                  started_as_service;
 static volatile bool         service_stop_requested;
+static std::mutex            service_stop_mutex;
+static std::condition_variable service_stop_cv;
 static bool                  have_console;
 
 static std::mutex            service_status_mutex;
@@ -224,6 +228,7 @@ static DWORD WINAPI ServiceControlHandler(DWORD dwControl, DWORD dwEventType, LP
         case SERVICE_CONTROL_PRESHUTDOWN:
             ReportServiceStatus(SERVICE_STOP_PENDING, NO_ERROR, 10000);
             service_stop_requested = true;
+            service_stop_cv.notify_one();
             break;
 
         default:
@@ -518,13 +523,15 @@ void InitializeTimerResolutionThreadFunction()
 \*---------------------------------------------------------*/
 static void WaitWhileServerOnline(NetworkServer* srv)
 {
+    std::unique_lock<std::mutex> lock(service_stop_mutex);
     while(srv->GetOnline())
     {
-        std::this_thread::sleep_for(1s);
         if(service_stop_requested)
         {
             srv->StopServer();
+            break;
         }
+        service_stop_cv.wait_for(lock, 1s);
     };
 }
 
@@ -587,7 +594,8 @@ static int common_main(int argc, char* argv[])
         !(ret_flags & RET_FLAG_NO_AUTO_CONNECT),
         !(ret_flags & RET_FLAG_NO_DETECT),
         ret_flags & RET_FLAG_START_SERVER,
-        ret_flags & RET_FLAG_CLI_POST_DETECTION);
+        ret_flags & RET_FLAG_CLI_POST_DETECTION,
+        ret_flags & RET_FLAG_START_GUI);
 
     /*-----------------------------------------------------*\
     | If running as a service, register the service startup |
@@ -631,6 +639,13 @@ static int common_main(int argc, char* argv[])
             WaitWhileServerOnline(server);
         }
     }
+
+    /*-----------------------------------------------------*\
+    | Call ServiceShutdown to allow operations before       |
+    | controllers are closed and deleted. Only runs when    |
+    | running as a background service (headless server).    |
+    \*-----------------------------------------------------*/
+    ResourceManager::get()->ServiceShutdown();
 
     /*-----------------------------------------------------*\
     | Clean up detected devices so destructors can run.     |

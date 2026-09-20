@@ -7,19 +7,19 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <map>
+#include <set>
 #include <thread>
 #include <hidapi.h>
 #include "DetectionManager.h"
 #include "LogManager.h"
+#include "ResourceManager.h"
+#include "SettingsManager.h"
 #include "LogitechProtocolCommon.h"
 #include "LogitechG203LController.h"
 #include "LogitechG213Controller.h"
-#include "LogitechG560Controller.h"
 #include "LogitechG600Controller.h"
 #include "LogitechG933Controller.h"
-#include "LogitechG810Controller.h"
-#include "LogitechGProKeyboardController.h"
-#include "LogitechG910Controller.h"
 #include "LogitechG815Controller.h"
 #include "LogitechG915Controller.h"
 #include "LogitechGLightsyncController.h"
@@ -27,12 +27,8 @@
 #include "LogitechX56Controller.h"
 #include "RGBController_LogitechG203L.h"
 #include "RGBController_LogitechG213.h"
-#include "RGBController_LogitechG560.h"
 #include "RGBController_LogitechG600.h"
 #include "RGBController_LogitechG933.h"
-#include "RGBController_LogitechG810.h"
-#include "RGBController_LogitechGProKeyboard.h"
-#include "RGBController_LogitechG910.h"
 #include "RGBController_LogitechG815.h"
 #include "RGBController_LogitechG915.h"
 #include "RGBController_LogitechGLightsync.h"
@@ -41,8 +37,11 @@
 #include "RGBController_LogitechGPowerPlay.h" // Linux-only
 #include "RGBController_LogitechX56.h"
 #include "LogitechHIDPP20Controller.h"
+#include "LogitechHIDPP20ReceiverWatcher.h"
 #include "RGBController_LogitechHIDPP20.h"
 #include "StringUtils.h"
+
+#include <memory>
 
 using namespace std::chrono_literals;
 
@@ -56,12 +55,6 @@ using namespace std::chrono_literals;
 | Keyboard product IDs                                      |
 \*---------------------------------------------------------*/
 #define LOGITECH_G213_PID                           0xC336
-#define LOGITECH_G512_PID                           0xC342
-#define LOGITECH_G512_RGB_PID                       0xC33C
-#define LOGITECH_G610_1_PID                         0xC333
-#define LOGITECH_G610_2_PID                         0xC338
-#define LOGITECH_G810_1_PID                         0xC331
-#define LOGITECH_G810_2_PID                         0xC337
 #define LOGITECH_G813_PID                           0xC232
 #define LOGITECH_G815_PID                           0xC33F
 #define LOGITECH_G915_WIRED_PID                     0xC33E
@@ -69,9 +62,6 @@ using namespace std::chrono_literals;
 #define LOGITECH_G915_RECEIVER_2_PID                0xC547
 #define LOGITECH_G915TKL_WIRED_PID                  0xC343
 #define LOGITECH_G915TKL_RECEIVER_PID               0xC545
-#define LOGITECH_G910_ORION_SPARK_PID               0xC32B
-#define LOGITECH_G910_PID                           0xC335
-#define LOGITECH_GPRO_KEYBOARD_1_PID                0xC339
 
 /*---------------------------------------------------------*\
 | Mouse product IDs                                         |
@@ -104,11 +94,6 @@ using namespace std::chrono_literals;
 | Mousemat product IDs                                      |
 \*---------------------------------------------------------*/
 #define LOGITECH_G_LIGHTSPEED_POWERPLAY_PID         0xC53A
-
-/*---------------------------------------------------------*\
-| Speaker product IDs                                       |
-\*---------------------------------------------------------*/
-#define LOGITECH_G560_PID                           0x0A78
 
 /*---------------------------------------------------------*\
 | Headset product IDs                                       |
@@ -167,112 +152,6 @@ DetectedControllers DetectLogitechKeyboardG213(hid_device_info* info, const std:
         RGBController_LogitechG213* rgb_controller = new RGBController_LogitechG213(controller);
 
         detected_controllers.push_back(rgb_controller);
-    }
-
-    return(detected_controllers);
-}
-
-DetectedControllers DetectLogitechKeyboardG810(hid_device_info* info, const std::string& name)
-{
-    /*-----------------------------------------------------*\
-    | Logitech keyboards use two different usages, one for  |
-    | 20-byte packets and one for 64-byte packets.  Usage   |
-    | 0x0602 for 20 byte, usage 0x0604 for 64 byte, both    |
-    | are on usage page 0xFF43                              |
-    \*-----------------------------------------------------*/
-    DetectedControllers detected_controllers;
-
-    hid_device* dev_usage_0x0602 = nullptr;
-    hid_device* dev_usage_0x0604 = nullptr;
-    hid_device_info* info_temp = info;
-
-    while(info_temp)
-    {
-        if(info_temp->vendor_id        == info->vendor_id           // constant LOGITECH_VID
-        && info_temp->product_id       == info->product_id          // NON-constant
-        && info_temp->interface_number == info->interface_number    // constant 1
-        && info_temp->usage_page       == info->usage_page)         // constant 0xFF43
-        {
-            if(info_temp->usage == 0x0602)
-            {
-                dev_usage_0x0602 = hid_open_path(info_temp->path);
-            }
-            else if(info_temp->usage == 0x0604)
-            {
-                dev_usage_0x0604 = hid_open_path(info_temp->path);
-            }
-        }
-        if(dev_usage_0x0602 && dev_usage_0x0604)
-        {
-            break;
-        }
-        info_temp = info_temp->next;
-    }
-    if(dev_usage_0x0602 && dev_usage_0x0604)
-    {
-        LogitechG810Controller*     controller     = new LogitechG810Controller(dev_usage_0x0602, dev_usage_0x0604, info->path, name);
-        RGBController_LogitechG810* rgb_controller = new RGBController_LogitechG810(controller);
-
-        detected_controllers.push_back(rgb_controller);
-    }
-    else
-    {
-        // Not all of them could be opened, do some cleanup
-        hid_close(dev_usage_0x0602);
-        hid_close(dev_usage_0x0604);
-    }
-
-    return(detected_controllers);
-}
-
-DetectedControllers DetectLogitechKeyboardG910(hid_device_info* info, const std::string& name)
-{
-    /*-----------------------------------------------------*\
-    | Logitech keyboards use two different usages, one for  |
-    | 20-byte packets and one for 64-byte packets.  Usage   |
-    | 0x0602 for 20 byte, usage 0x0604 for 64 byte, both    |
-    | are on usage page 0xFF43                              |
-    \*-----------------------------------------------------*/
-    DetectedControllers detected_controllers;
-
-    hid_device* dev_usage_0x0602 = nullptr;
-    hid_device* dev_usage_0x0604 = nullptr;
-    hid_device_info* info_temp = info;
-
-    while(info_temp)
-    {
-        if(info_temp->vendor_id        == info->vendor_id           // constant LOGITECH_VID
-        && info_temp->product_id       == info->product_id          // NON-constant
-        && info_temp->interface_number == info->interface_number    // constant 1
-        && info_temp->usage_page       == info->usage_page)         // constant 0xFF43
-        {
-            if(info_temp->usage == 0x0602)
-            {
-                dev_usage_0x0602 = hid_open_path(info_temp->path);
-            }
-            else if(info_temp->usage == 0x0604)
-            {
-                dev_usage_0x0604 = hid_open_path(info_temp->path);
-            }
-        }
-        if(dev_usage_0x0602 && dev_usage_0x0604)
-        {
-            break;
-        }
-        info_temp = info_temp->next;
-    }
-    if(dev_usage_0x0602 && dev_usage_0x0604)
-    {
-        LogitechG910Controller*     controller     = new LogitechG910Controller(dev_usage_0x0602, dev_usage_0x0604, info->path, name);
-        RGBController_LogitechG910* rgb_controller = new RGBController_LogitechG910(controller);
-
-        detected_controllers.push_back(rgb_controller);
-    }
-    else
-    {
-        // Not all of them could be opened, do some cleanup
-        hid_close(dev_usage_0x0602);
-        hid_close(dev_usage_0x0604);
     }
 
     return(detected_controllers);
@@ -423,11 +302,22 @@ DetectedControllers DetectLogitechKeyboardG915Receiver2(hid_device_info* info, c
 
         if(ok)
         {
-            /*-------------------------------------------------*\
-            | Route based on probed name. Check for TKL before  |
-            | full G915 since both contain "G915".              |
-            \*-------------------------------------------------*/
-            if(probed_name.find("G915 TKL") != std::string::npos)
+            /*---------------------------------------------*\
+            | Route on probed name. G915 X first, then      |
+            | TKL before full G915 (all contain "G915").    |
+            \*---------------------------------------------*/
+            if(probed_name.find("G915 X") != std::string::npos)
+            {
+                /*-----------------------------------------*\
+                | G915 X family: the unified HID++ 2.0      |
+                | controller handles it. Skip so the        |
+                | unified detector, registered after this   |
+                | one, claims it.                           |
+                \*-----------------------------------------*/
+                LOG_DEBUG("[LogitechControllerDetect] 0xC547 G915 X -> unified controller, skipping legacy");
+                hid_close(dev);
+            }
+            else if(probed_name.find("G915 TKL") != std::string::npos)
             {
                 LogitechG915Controller*     controller     = new LogitechG915Controller(dev, false, name);
                 RGBController_LogitechG915* rgb_controller = new RGBController_LogitechG915(controller, true);
@@ -478,59 +368,6 @@ DetectedControllers DetectLogitechKeyboardG915Wired(hid_device_info* info, const
         RGBController_LogitechG915* rgb_controller = new RGBController_LogitechG915(controller, is_tkl);
 
         detected_controllers.push_back(rgb_controller);
-    }
-
-    return(detected_controllers);
-}
-
-DetectedControllers DetectLogitechKeyboardGPro(hid_device_info* info, const std::string& name)
-{
-    /*-----------------------------------------------------*\
-    | Logitech keyboards use two different usages, one for  |
-    | 20-byte packets and one for 64-byte packets.  Usage   |
-    | 0x0602 for 20 byte, usage 0x0604 for 64 byte, both    |
-    | are on usage page 0xFF43                              |
-    \*-----------------------------------------------------*/
-    DetectedControllers detected_controllers;
-
-    hid_device* dev_usage_0x0602 = nullptr;
-    hid_device* dev_usage_0x0604 = nullptr;
-    hid_device_info* info_temp = info;
-
-    while(info_temp)
-    {
-        if(info_temp->vendor_id        == info->vendor_id           // constant LOGITECH_VID
-        && info_temp->product_id       == info->product_id          // NON-constant
-        && info_temp->interface_number == info->interface_number    // constant 1
-        && info_temp->usage_page       == info->usage_page)         // constant 0xFF43
-        {
-            if(info_temp->usage == 0x0602)
-            {
-                dev_usage_0x0602 = hid_open_path(info_temp->path);
-            }
-            else if(info_temp->usage == 0x0604)
-            {
-                dev_usage_0x0604 = hid_open_path(info_temp->path);
-            }
-        }
-        if(dev_usage_0x0602 && dev_usage_0x0604)
-        {
-            break;
-        }
-        info_temp = info_temp->next;
-    }
-    if(dev_usage_0x0602 && dev_usage_0x0604)
-    {
-        LogitechGProKeyboardController*     controller     = new LogitechGProKeyboardController(dev_usage_0x0602, dev_usage_0x0604, name);
-        RGBController_LogitechGProKeyboard* rgb_controller = new RGBController_LogitechGProKeyboard(controller);
-
-        detected_controllers.push_back(rgb_controller);
-    }
-    else
-    {
-        // Not all of them could be opened, do some cleanup
-        hid_close(dev_usage_0x0602);
-        hid_close(dev_usage_0x0604);
     }
 
     return(detected_controllers);
@@ -692,27 +529,6 @@ DetectedControllers DetectLogitechMouseGPRO(hid_device_info* info, const std::st
 /*---------------------------------------------------------*\
 | Other Logitech Devices                                    |
 \*---------------------------------------------------------*/
-DetectedControllers DetectLogitechG560(hid_device_info* info, const std::string& name)
-{
-    DetectedControllers detected_controllers;
-    hid_device*         dev;
-
-    dev = hid_open_path(info->path);
-
-    if(dev)
-    {
-        /*-------------------------------------------------*\
-        | Add G560 Speaker                                  |
-        \*-------------------------------------------------*/
-        LogitechG560Controller*     controller     = new LogitechG560Controller(dev, info->path, name);
-        RGBController_LogitechG560* rgb_controller = new RGBController_LogitechG560(controller);
-
-        detected_controllers.push_back(rgb_controller);
-    }
-
-    return(detected_controllers);
-}
-
 DetectedControllers DetectLogitechG933(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -755,237 +571,965 @@ DetectedControllers DetectLogitechX56(hid_device_info* info, const std::string& 
     return(detected_controllers);
 }
 
-/*------------------------------------------------------------------------------*\
-| Unified HID++ 2.0 Detection                                                    |
-|   Probes IRoot (feature 0x0000) to determine if the device speaks HID++ 2.0.   |
-|   If it does and has RGB features, the unified controller handles it.          |
-|   If not, the device is released for legacy controllers.                       |
-\*------------------------------------------------------------------------------*/
-DetectedControllers DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
+/*---------------------------------------------------------*\
+| Group the nodes of one physical device by path. Windows   |
+| splits a multi-collection HID interface into one node per |
+| collection (the RAP usage-1 and FAP usage-2 handles are   |
+| separate nodes), and numbers the collection twice:        |
+|                                                           |
+|   ...&MI_02&Col01#8&b41415e&0&0000#{guid}   usage 1       |
+|   ...&MI_02&Col02#8&b41415e&0&0001#{guid}   usage 2       |
+|                                                           |
+| Trim both or the two nodes key apart and never bundle.    |
+| The instance id stays, so two identical receivers still   |
+| key apart. Linux/macOS paths carry no &Col token, so      |
+| neither trim runs and a path names itself.                |
+\*---------------------------------------------------------*/
+static std::string LogitechDevicePathKey(const char* path)
 {
-    DetectedControllers detected_controllers;
-    hid_device*         dev;
+    std::string key        = (path != nullptr) ? path : "";
+    bool        collection = false;
 
-    dev = hid_open_path(info->path);
-
-    if(dev)
+    for(size_t pos = 0; pos + 4 <= key.size(); pos++)
     {
-        LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr, info->usage_page);
-
-        if(controller->Probe())
+        if((key[pos] == '&')
+        && (key[pos + 1] == 'c' || key[pos + 1] == 'C')
+        && (key[pos + 2] == 'o' || key[pos + 2] == 'O')
+        && (key[pos + 3] == 'l' || key[pos + 3] == 'L'))
         {
-            controller->Initialize();
+            size_t end = pos + 4;
 
-            const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
-
-            if(caps.has_zone_effects || caps.has_perkey)
+            while(end < key.size() && isxdigit((unsigned char)key[end]))
             {
-                /*-------------------------------------------------*\
-                | Device has RGB features — create and register     |
-                | RGBController for the UI.                         |
-                \*-------------------------------------------------*/
-                RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller);
-
-                detected_controllers.push_back(rgb_controller);
-
-                /*--------------------------------------------------*\
-                | Start reader + power threads immediately so we     |
-                | detect connection events and handle power mgmt     |
-                | from the start — not deferred to DeviceUpdateMode. |
-                \*--------------------------------------------------*/
-                if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
-                {
-                    controller->StartPowerManager();
-
-                    if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
-                    {
-                        controller->StartEventWatcher();
-                    }
-                }
+                end++;
             }
-            else if(controller->HasBridge())
+
+            key.erase(pos, end - pos);
+            collection = true;
+            break;
+        }
+    }
+
+    if(collection)
+    {
+        size_t guid = key.rfind('#');
+        size_t last = (guid == std::string::npos) ? std::string::npos : key.rfind('&', guid);
+
+        if(last != std::string::npos)
+        {
+            key.erase(last, guid - last);
+        }
+    }
+
+    return key;
+}
+
+usages BundleLogitechUsages(hid_device_info* info)
+{
+    /*-----------------------------------------------------*\
+    | Grab every usage of the device that triggered this    |
+    | callback (usage 1, 2 and 4 on normal FAP devices).    |
+    | Match by path, not VID/PID: two identical receivers   |
+    | share a VID/PID, and bundling their handles sent      |
+    | one receiver's pairing-table read to the other.       |
+    \*-----------------------------------------------------*/
+    usages temp_usages;
+
+    std::string      device_key = LogitechDevicePathKey(info->path);
+    hid_device_info* temp_info  = hid_enumerate(info->vendor_id, info->product_id);
+    hid_device_info* enumerated = temp_info;
+
+    while(temp_info)
+    {
+        if(temp_info->interface_number == 2
+        && LogitechDevicePathKey(temp_info->path) == device_key)
+        {
+            LOG_DEBUG("Attempting to open dev path: %s", temp_info->path);
+            hid_device* dev = hid_open_path(temp_info->path);
+
+            if(dev)
             {
-                /*--------------------------------------------------*\
-                | Centurion dongle with no sub-device — keep the     |
-                | controller alive and start reader thread to watch  |
-                | for sub-device connection events.                  |
-                \*--------------------------------------------------*/
-// TODO: this behavior does not work on hotplug-aware DetectionManager
-//                LOG_INFO("[%s] Dongle registered, watching for sub-device",
-//                        caps.device_name.c_str());
-//
-//                controller->SetRegisterCallback([](RGBController* rgb)
-//                {
-//                    DetectionManager::get()->RegisterRGBController(rgb);
-//                });
-//
-//                controller->StartEventWatcher();
+                LOG_DEBUG("Success! Adding Usage %i for device @ path %s", temp_info->usage, temp_info->path);
+                temp_usages.emplace((uint8_t)temp_info->usage, dev);
             }
             else
             {
-                /*--------------------------------------------------*\
-                | Device probed successfully but has no RGB and no   |
-                | bridge — nothing to do (e.g., headset without RGB) |
-                \*--------------------------------------------------*/
-                LOG_INFO("[%s] No RGB features, skipping", caps.device_name.c_str());
-                delete controller;
+                LOG_INFO("FAILED! Can not add Usage %i for device @ path %s", temp_info->usage, temp_info->path);
             }
         }
-        else
+        temp_info = temp_info->next;
+    }
+
+    hid_free_enumeration(enumerated);
+
+    return temp_usages;
+}
+
+/*---------------------------------------------------------*\
+| Paired slots owned by a legacy controller: the virtual    |
+| PID the receiver reports for the slot, mapped to the      |
+| name its legacy detector registers under. A slot is       |
+| left to legacy only while that detector is enabled,       |
+| turn it off in Settings and the slot comes here on the    |
+| next detection, same as the wired nodes. A wireless       |
+| PID with no legacy detector does not belong here.         |
+\*---------------------------------------------------------*/
+static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
+{
+    { 0x4053, "Logitech G900 Wireless Gaming Mouse"      },
+    { 0x405D, "Logitech G403 Wireless Gaming Mouse"      },
+    { 0x405F, "Logitech Powerplay Mat"                   },
+    { 0x4067, "Logitech G903 Wireless Gaming Mouse"      },
+    { 0x4070, "Logitech G703 Wireless Gaming Mouse"      },
+    { 0x4079, "Logitech G Pro Wireless Gaming Mouse"     },
+    { 0x407F, "Logitech G502 Wireless Gaming Mouse"      },
+    { 0x4086, "Logitech G703 HERO Wireless Gaming Mouse" },
+    { 0x4087, "Logitech G903 HERO Wireless Gaming Mouse" },
+};
+
+/*---------------------------------------------------------*\
+| Is the legacy controller that owns this slot still        |
+| enabled? Detectors are enabled unless Settings says       |
+| otherwise, which is also what DetectionManager            |
+| assumes for a detector it has not seen before.            |
+\*---------------------------------------------------------*/
+static bool HIDPP20SlotOwnedByLegacy(uint16_t dev_pid, std::string& detector_name)
+{
+    std::map<uint16_t, const char*>::const_iterator legacy = hidpp20_legacy_wireless_pids.find(dev_pid);
+
+    if(legacy == hidpp20_legacy_wireless_pids.end())
+    {
+        return(false);
+    }
+
+    detector_name = legacy->second;
+
+    json detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
+
+    if(detector_settings.contains("detectors")
+    && detector_settings["detectors"].contains(detector_name))
+    {
+        return(detector_settings["detectors"][detector_name]);
+    }
+
+    return(true);
+}
+
+/*---------------------------------------------------------*\
+| A paired slot on a receiver, keyed by the serial the      |
+| receiver stores for it, the same string the device        |
+| reports as its unit id, so cable and receiver sightings   |
+| land on one identity without either being awake. Slots    |
+| share the receiver's node and the mutex serializing it.   |
+\*---------------------------------------------------------*/
+class HIDPP20Slot
+{
+public:
+    std::string                 node_path;
+    uint8_t                     index;
+    uint16_t                    usage_page;
+    std::string                 pairing_name;
+    std::shared_ptr<std::mutex> node_mutex;
+};
+
+static std::map<std::string, HIDPP20Slot>                       hidpp20_slots;
+static std::map<std::string, std::shared_ptr<std::mutex>>       hidpp20_node_mutexes;
+static std::mutex                                               hidpp20_registry_mutex;
+static bool                                                     hidpp20_hook_registered = false;
+
+/*---------------------------------------------------------*\
+| Devices already built this pass, by unit id. A device     |
+| reachable on more than one node reports the same id on    |
+| each, so the first node to build it registers it and      |
+| later nodes skip it. Cleared by the pre-detection hook.   |
+\*---------------------------------------------------------*/
+static std::set<std::string>                                    hidpp20_claimed_devices;
+
+/*---------------------------------------------------------*\
+| One persistent watcher per receiver node. Watchers        |
+| outlive detection passes, so a device waking between      |
+| them is still detected. A watcher that lost its node is   |
+| held for destruction on the detection thread:             |
+| destroying one joins its threads, and its own worker      |
+| may be in Create right now, wanting the same lock.        |
+\*---------------------------------------------------------*/
+static std::map<std::string, std::unique_ptr<LogitechHIDPP20ReceiverWatcher>>   hidpp20_watchers;
+static std::vector<std::unique_ptr<LogitechHIDPP20ReceiverWatcher>>             hidpp20_watchers_to_destroy;
+static std::mutex                                                               hidpp20_watcher_mutex;
+static bool                                                                     hidpp20_watchers_enabled = true;
+
+static void HIDPP20PreDetectionReset()
+{
+    {
+        std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+        hidpp20_slots.clear();
+        hidpp20_node_mutexes.clear();
+        hidpp20_claimed_devices.clear();
+    }
+
+    /*-----------------------------------------------------*\
+    | Destroy dead watchers outside the lock so a watcher   |
+    | mid-build never deadlocks against ensure-watcher.     |
+    \*-----------------------------------------------------*/
+    std::vector<std::unique_ptr<LogitechHIDPP20ReceiverWatcher>> to_destroy;
+
+    {
+        std::lock_guard<std::mutex> lock(hidpp20_watcher_mutex);
+
+        to_destroy.swap(hidpp20_watchers_to_destroy);
+
+        for(std::map<std::string, std::unique_ptr<LogitechHIDPP20ReceiverWatcher>>::iterator it = hidpp20_watchers.begin();
+            it != hidpp20_watchers.end();)
         {
-            /*--------------------------------------------------*\
-            | Probe failed. Could be an offline paired device,   |
-            | a stale pairing slot, or a receiver itself.        |
-            |                                                    |
-            | Only skip if the name explicitly says "Receiver".  |
-            | Everything else gets a watcher — devices can come  |
-            | back at any time (power cycle, dongle swap, etc.)  |
-            \*--------------------------------------------------*/
-            std::string hid_name;
-
-            if(info->product_string)
+            if(!it->second->IsAlive())
             {
-                hid_name = StringUtils::wstring_to_string(info->product_string);
-            }
-
-            if(hid_name.find("Receiver") != std::string::npos || hid_name.find("receiver") != std::string::npos)
-            {
-                delete controller;
+                to_destroy.push_back(std::move(it->second));
+                it = hidpp20_watchers.erase(it);
             }
             else
             {
-// TODO: this behavior does not work on hotplug-aware DetectionManager
-//                LOG_INFO("[HID++2.0 %s] Probe failed — watching for device (name='%s')", info->path, hid_name.c_str());
-
-//                controller->SetRegisterCallback([](RGBController* rgb)
-//                {
-//                    DetectionManager::get()->RegisterRGBController(rgb);
-//                });
-
-//                controller->StartProbeWatcher();
-
-                delete controller;
+                ++it;
             }
         }
     }
 
-    return(detected_controllers);
+    to_destroy.clear();
 }
 
-#if defined(_WIN32) || defined(__APPLE__)
-/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Unified HID++ 2.0 Lightspeed Receiver Detection (Windows / macOS)                                                                                 |
-|                                                                                                                                                   |
-|   On Linux, hid-logitech-dj splits receiver traffic into per-slot virtual child hidraw nodes with their own 0x40XX PIDs, so Linux detection can   |
-|   use DetectLogitechHIDPP20 directly against the virtual PIDs. Windows and macOS have no DJ driver — the receiver appears as a single HID device  |
-|   and we must probe each paired slot by hand, addressing it via the HID++ device_index header byte.                                               |
-|                                                                                                                                                   |
-|   Iterates device indices 0x01..0x06. c547 is dual-pair, but the loop covers Unifying-style receivers and any future wider-pair variants. Each    |
-|   responding slot gets its own hid_device handle and a shared std::mutex so sibling slots serialize HID writes — matching the pattern in the      |
-|   legacy LogitechLightspeedController (see CreateLogitechLightspeedDevice around line 860).                                                       |
-|                                                                                                                                                   |
-|   TODO (untested on Windows): runtime reader-thread coordination. Each slot controller starts its own reader thread; on a shared receiver both    |
-|   threads will see both slots' incoming packets. The reader needs to drop frames whose device_index doesn't match its own, or dispatch across     |
-|   sibling controllers. Safe during probe (mutex serializes writes, reads are direct); becomes an issue post-StartPowerManager.                    |
-\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-DetectedControllers DetectLogitechHIDPP20LightspeedReceiver(hid_device_info* info, const std::string& /*name*/)
+static void HIDPP20ShutdownWatchers()
 {
-    DetectedControllers detected_controllers;
-    std::shared_ptr<std::mutex> receiver_mutex = std::make_shared<std::mutex>();
+    std::map<std::string, std::unique_ptr<LogitechHIDPP20ReceiverWatcher>> live;
+    std::vector<std::unique_ptr<LogitechHIDPP20ReceiverWatcher>>           dead;
 
-    for(uint8_t idx = 0x01; idx <= 0x06; idx++)
     {
-        hid_device* dev = hid_open_path(info->path);
+        std::lock_guard<std::mutex> lock(hidpp20_watcher_mutex);
 
-        if(!dev)
+        hidpp20_watchers_enabled = false;
+
+        live.swap(hidpp20_watchers);
+        dead.swap(hidpp20_watchers_to_destroy);
+    }
+
+    live.clear();
+    dead.clear();
+}
+
+/*---------------------------------------------------------*\
+| Has this device already been built this pass?             |
+\*---------------------------------------------------------*/
+static bool HIDPP20ClaimDevice(const std::string& device_id)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    return hidpp20_claimed_devices.insert(device_id).second;
+}
+
+/*---------------------------------------------------------*\
+| Free the device claim when the device is unplugged        |
+\*---------------------------------------------------------*/
+static bool HIDPP20UnclaimDevice(const std::string& device_id)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    return hidpp20_claimed_devices.erase(device_id);
+}
+
+/*---------------------------------------------------------*\
+| Watchers own threads and a node handle, so they have to   |
+| be stopped before the process exits.                      |
+\*---------------------------------------------------------*/
+class HIDPP20WatcherShutdown
+{
+public:
+    ~HIDPP20WatcherShutdown()
+    {
+        HIDPP20ShutdownWatchers();
+    }
+};
+
+static HIDPP20WatcherShutdown hidpp20_watcher_shutdown;
+
+static bool HIDPP20BuildForWatcher(const std::string& node_path, uint8_t index);
+
+static void HIDPP20RegisterHook()
+{
+    if(!hidpp20_hook_registered)
+    {
+        DetectionManager::get()->RegisterPreDetectionHook(HIDPP20PreDetectionReset);
+        LogitechHIDPP20ReceiverWatcher::SetBuilder(HIDPP20BuildForWatcher);
+        hidpp20_hook_registered = true;
+    }
+}
+
+/*---------------------------------------------------------*\
+| Make sure this receiver node has a live watcher. A dead   |
+| one (node unplugged) is destroyed and replaced, the same  |
+| path reappearing means the receiver was replugged.        |
+\*---------------------------------------------------------*/
+static void HIDPP20EnsureWatcher(const std::string& node_path, uint8_t bridge_feat_idx,
+                                 uint8_t bridge_report_id, bool bridge_addressed)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_watcher_mutex);
+
+    if(!hidpp20_watchers_enabled)
+    {
+        return;
+    }
+
+    std::map<std::string, std::unique_ptr<LogitechHIDPP20ReceiverWatcher>>::iterator it = hidpp20_watchers.find(node_path);
+
+    if(it != hidpp20_watchers.end())
+    {
+        if(it->second->IsAlive())
         {
-            continue;
+            return;
         }
 
-        LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(dev, info->path, idx, true, receiver_mutex, info->usage_page);
+        hidpp20_watchers_to_destroy.push_back(std::move(it->second));
+        hidpp20_watchers.erase(it);
+    }
 
-        if(!controller->Probe())
+    std::unique_ptr<LogitechHIDPP20ReceiverWatcher> watcher(
+        new LogitechHIDPP20ReceiverWatcher(node_path, bridge_feat_idx, bridge_report_id, bridge_addressed));
+
+    if(watcher->Start())
+    {
+        hidpp20_watchers[node_path] = std::move(watcher);
+    }
+}
+
+static std::shared_ptr<std::mutex> HIDPP20NodeMutex(const std::string& node_path)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    std::map<std::string, std::shared_ptr<std::mutex>>::iterator it = hidpp20_node_mutexes.find(node_path);
+
+    if(it != hidpp20_node_mutexes.end())
+    {
+        return it->second;
+    }
+
+    std::shared_ptr<std::mutex> node_mutex = std::make_shared<std::mutex>();
+
+    hidpp20_node_mutexes[node_path] = node_mutex;
+
+    return node_mutex;
+}
+
+/*---------------------------------------------------------*\
+| Is the node in hand this device's receiver slot?          |
+|                                                           |
+| Keyed on the node as well as the device, because a        |
+| device reachable over its receiver AND over its           |
+| cable answers to the same id on both. Ask only            |
+| whether THIS node is the slot, otherwise the cable        |
+| gets mistaken for the receiver it is also paired          |
+| to, and the link we were handed is never taken.           |
+\*---------------------------------------------------------*/
+static bool HIDPP20LookupSlot(const std::string& device_id, const std::string& node_path, HIDPP20Slot& slot_out)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    std::map<std::string, HIDPP20Slot>::iterator it = hidpp20_slots.find(device_id);
+
+    if(it == hidpp20_slots.end() || it->second.node_path != node_path)
+    {
+        return false;
+    }
+
+    slot_out = it->second;
+
+    return true;
+}
+
+/*---------------------------------------------------------*\
+| Enumerate: which devices does this node reach? A device   |
+| answers for itself (unit id). A receiver answers for      |
+| everything paired to it out of its own registers, so a    |
+| device that is asleep or away on its cable is still       |
+| known, under the same identity it has everywhere else.    |
+\*---------------------------------------------------------*/
+static std::vector<std::string> HIDPP20Enumerate(hid_device_info* info)
+{
+    std::vector<std::string> device_ids;
+
+    if(info->vendor_id != LOGITECH_VID)
+    {
+        return(device_ids);
+    }
+
+#ifdef __linux__
+    /*-----------------------------------------------------*\
+    | hid-logitech-dj virtual child nodes (0x40XX) are the  |
+    | kernel's view of devices the receiver's own node      |
+    | already reaches. Driving one device over two          |
+    | unsynchronized handles helps nobody.                  |
+    \*-----------------------------------------------------*/
+    if((info->product_id & 0xFF00) == 0x4000)
+    {
+        LOG_DEBUG("[Logitech HID++ 2.0] skipping DJ virtual node %04X @ %s (the receiver's node owns it)",
+                  info->product_id, info->path);
+        return(device_ids);
+    }
+#endif
+
+    HIDPP20RegisterHook();
+
+    /*-----------------------------------------------------*\
+    | Is the node itself a device? The probe controller     |
+    | is a stack object that is never Initialize()d; it     |
+    | changes nothing on the device, so it is safe          |
+    | against hardware another controller is driving.       |
+    \*-----------------------------------------------------*/
+    hid_device* dev = hid_open_path(info->path);
+
+    if(dev == nullptr)
+    {
+        return(device_ids);
+    }
+
+    {
+        LogitechHIDPP20Controller probe(dev, info->path, LOGITECH_DEFAULT_DEVICE_INDEX, false, nullptr,
+                                        info->usage_page, nullptr,
+                                        info->bus_type == HID_API_BUS_BLUETOOTH);
+
+        std::string unit_id = probe.ProbeIdentity();
+
+        if(!unit_id.empty())
         {
-            /*--------------------------------------------------*\
-            | Slot is empty, stale, or not HID++ 2.0. Destructor |
-            | closes the per-slot handle we opened above.        |
-            \*--------------------------------------------------*/
-            delete controller;
-            continue;
+            LOG_DEBUG("[Logitech HID++ 2.0] %s is device %s", info->path, unit_id.c_str());
+
+            device_ids.push_back(unit_id);
+
+            return(device_ids);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Not a device. On the standard transport that is the   |
+    | receiver signature, ask it who is paired to it.       |
+    \*-----------------------------------------------------*/
+    if(info->usage_page != 0xFF00)
+    {
+        return(device_ids);
+    }
+
+    usages bundle = BundleLogitechUsages(info);
+
+    /*-----------------------------------------------------*\
+    | Linux and macOS expose the whole interface as one     |
+    | node that accepts every report ID, so it may not key  |
+    | a usage-1 handle. One handle serves RAP and FAP both. |
+    | Not on Windows: the node this runs on is the usage-2  |
+    | collection, which rejects the 7-byte writes the       |
+    | pairing read is made of. Aliasing it turns a missing  |
+    | handle into silent read timeouts.                     |
+    \*-----------------------------------------------------*/
+#if !defined(_WIN32)
+    if(bundle.find(1) == bundle.end())
+    {
+        hid_device* rap = hid_open_path(info->path);
+
+        if(rap)
+        {
+            bundle.emplace((uint8_t)1, rap);
+        }
+    }
+#endif
+
+    wireless_map            wireless_devices;
+    std::map<uint8_t, bool> online;
+    int                     count = 0;
+
+    if(bundle.find(1) != bundle.end())
+    {
+        count = getWirelessDevice(bundle, info->product_id, &wireless_devices, &online);
+    }
+
+    if(count > 0)
+    {
+        LOG_INFO("[Logitech receiver %04X @ %s] %d paired device(s)", info->product_id, info->path, count);
+
+        std::shared_ptr<std::mutex> node_mutex = HIDPP20NodeMutex(info->path);
+
+        for(wireless_map::iterator wd = wireless_devices.begin(); wd != wireless_devices.end(); wd++)
+        {
+            uint16_t    dev_pid = wd->first;
+            uint8_t     idx     = wd->second;
+
+            std::string legacy_name;
+
+            if(HIDPP20SlotOwnedByLegacy(dev_pid, legacy_name))
+            {
+                LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X is owned by '%s', leaving it alone "
+                         "(disable that detector to hand it to HID++ 2.0)",
+                         info->product_id, idx, dev_pid, legacy_name.c_str());
+                continue;
+            }
+
+            if(!legacy_name.empty())
+            {
+                LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X: '%s' is disabled, taking the slot",
+                         info->product_id, idx, dev_pid, legacy_name.c_str());
+            }
+
+            std::string serial = getWirelessDeviceSerial(bundle, idx);
+            std::string name   = getWirelessDeviceName(bundle, idx);
+
+            /*---------------------------------------------*\
+            | Some receivers store no serial. The slot is   |
+            | still a device, it just cannot be recognized  |
+            | as the same one over another link, name it    |
+            | after where it lives.                         |
+            \*---------------------------------------------*/
+            if(serial.empty())
+            {
+                serial = std::string(info->path) + "#" + std::to_string(idx);
+
+                LOG_INFO("[Logitech receiver %04X] slot=%u '%s' has no stored serial; it will not be recognized over a second link",
+                         info->product_id, idx, name.c_str());
+            }
+
+            HIDPP20Slot slot;
+
+            slot.node_path    = info->path;
+            slot.index        = idx;
+            slot.usage_page   = info->usage_page;
+            slot.pairing_name = name;
+            slot.node_mutex   = node_mutex;
+
+            {
+                std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+                hidpp20_slots[serial] = slot;
+            }
+
+            LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X '%s' is device %s",
+                     info->product_id, idx, dev_pid, name.c_str(), serial.c_str());
+
+            device_ids.push_back(serial);
+        }
+    }
+    else
+    {
+        LOG_DEBUG("[Logitech HID++ 2.0] %04X @ %s answered neither the device probe nor the pairing read, ignoring",
+                  info->product_id, info->path);
+    }
+
+    for(usages::iterator u = bundle.begin(); u != bundle.end(); u++)
+    {
+        if(u->second)
+        {
+            hid_close(u->second);
+        }
+    }
+
+    return(device_ids);
+}
+
+/*---------------------------------------------------------*\
+| What it takes to build one device: the node, which slot   |
+| on it, and how to talk to it. Kept past the pass that     |
+| found it so the node watcher can build the same device    |
+| when it turns up later.                                   |
+\*---------------------------------------------------------*/
+class HIDPP20BuildTarget
+{
+public:
+    std::string                 node_path;
+    uint8_t                     index               = LOGITECH_DEFAULT_DEVICE_INDEX;
+    uint16_t                    usage_page          = 0;
+    uint16_t                    vendor_id           = 0;
+    uint16_t                    product_id          = 0;
+    bool                        behind_receiver     = false;
+    bool                        bluetooth           = false;
+    std::shared_ptr<std::mutex> node_mutex;
+    std::string                 pairing_name;
+};
+
+static std::map<std::pair<std::string, uint8_t>, HIDPP20BuildTarget>    hidpp20_build_targets;
+
+/*---------------------------------------------------------*\
+| Slots being built right now. A detection pass and a       |
+| watcher can reach the same slot at the same moment; the   |
+| first to claim it builds, the second skips it.            |
+\*---------------------------------------------------------*/
+static std::set<std::pair<std::string, uint8_t>>                        hidpp20_building;
+
+class HIDPP20BuildClaim
+{
+public:
+    HIDPP20BuildClaim(const std::string& node_path, uint8_t index)
+    {
+        key    = std::make_pair(node_path, index);
+
+        std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+        held = hidpp20_building.insert(key).second;
+    }
+
+    ~HIDPP20BuildClaim()
+    {
+        if(!held)
+        {
+            return;
         }
 
+        std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+        hidpp20_building.erase(key);
+    }
+
+    bool Held() const   { return held; }
+
+private:
+    std::pair<std::string, uint8_t> key;
+    bool                            held;
+};
+
+static void HIDPP20RecordTarget(const HIDPP20BuildTarget& target)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    hidpp20_build_targets[std::make_pair(target.node_path, target.index)] = target;
+}
+
+static bool HIDPP20LookupTarget(const std::string& node_path, uint8_t index, HIDPP20BuildTarget& target_out)
+{
+    std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+
+    std::map<std::pair<std::string, uint8_t>, HIDPP20BuildTarget>::iterator it =
+        hidpp20_build_targets.find(std::make_pair(node_path, index));
+
+    if(it == hidpp20_build_targets.end())
+    {
+        return false;
+    }
+
+    target_out = it->second;
+
+    return true;
+}
+
+/*---------------------------------------------------------*\
+| Build one device. Returns nullptr for a device that is    |
+| not reachable yet and for one that answers with no        |
+| lighting; both leave the target on file, so a device      |
+| that was asleep is built when its dongle reports it.      |
+\*---------------------------------------------------------*/
+static RGBController_LogitechHIDPP20* HIDPP20BuildController(const HIDPP20BuildTarget& target, const std::string& device_id="")
+{
+    HIDPP20BuildClaim claim(target.node_path, target.index);
+
+    if(!claim.Held())
+    {
+        LOG_DEBUG("[Logitech HID++ 2.0] %s index=0x%02X is already being built",
+                  target.node_path.c_str(), target.index);
+        return(nullptr);
+    }
+
+    hid_device* dev = hid_open_path(target.node_path.c_str());
+
+    if(dev == nullptr)
+    {
+        return(nullptr);
+    }
+
+    /*-----------------------------------------------------*\
+    | 0x8080 fn3 rides the 0x12 very-long report, which     |
+    | Windows splits onto a separate usage 0x0604           |
+    | collection on the same interface (the legacy G810 /   |
+    | G910 controllers opened it as a second handle). Open  |
+    | that node when it exists; otherwise the main handle   |
+    | carries every report ID (single node per interface    |
+    | on Linux/macOS). Match by path key, not VID/PID, so   |
+    | two identical keyboards do not cross wires.           |
+    \*-----------------------------------------------------*/
+    hid_device* perkey_vl = nullptr;
+
+    if(target.usage_page == 0xFF43)
+    {
+        std::string      device_key = LogitechDevicePathKey(target.node_path.c_str());
+        hid_device_info* enumerated = hid_enumerate(target.vendor_id, target.product_id);
+
+        for(hid_device_info* n = enumerated; n != nullptr; n = n->next)
+        {
+            if(n->usage_page == 0xFF43 && n->usage == 0x0604
+            && LogitechDevicePathKey(n->path) == device_key)
+            {
+                perkey_vl = hid_open_path(n->path);
+                break;
+            }
+        }
+
+        hid_free_enumeration(enumerated);
+    }
+
+    if(perkey_vl == nullptr)
+    {
+        perkey_vl = dev;
+    }
+
+    LogitechHIDPP20Controller* controller = new LogitechHIDPP20Controller(dev, target.node_path.c_str(), target.index,
+                                                                          target.behind_receiver, target.node_mutex,
+                                                                          target.usage_page, perkey_vl,
+                                                                          target.bluetooth);
+
+    if(target.behind_receiver)
+    {
+        controller->SetPairingName(target.pairing_name);
+    }
+
+    if(!controller->Probe())
+    {
+        /*-------------------------------------------------*\
+        | The receiver reports it as paired here, but it    |
+        | is not answering. The watcher builds it on the    |
+        | 0x41 connection notification.                     |
+        \*-------------------------------------------------*/
+        delete controller;
+
+        if(target.behind_receiver)
+        {
+            HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
+        }
+
+        return(nullptr);
+    }
+
+    const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+
+    if(caps.has_zone_effects || caps.has_perkey)
+    {
         controller->Initialize();
 
-        const HIDPP20DeviceCapabilities& caps = controller->GetCapabilities();
+        RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller, [device_id](){HIDPP20UnclaimDevice(device_id);});
 
-        if(caps.has_zone_effects || caps.has_perkey)
+        /*-------------------------------------------------*\
+        | Reader and power threads from the start, so we    |
+        | see connection events and handle power management |
+        | without waiting for a mode update.                |
+        \*-------------------------------------------------*/
+        if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
         {
-            RGBController_LogitechHIDPP20* rgb_controller = new RGBController_LogitechHIDPP20(controller);
+            controller->StartPowerManager();
 
-            LOG_INFO("[%s slot=%u] Registering RGB controller", caps.device_name.c_str(), idx);
-
-            detected_controllers.push_back(rgb_controller);
-
-            if(caps.has_power_mgmt || caps.idx_wireless_status != 0)
+            if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
             {
-                controller->StartPowerManager();
-
-                if(!caps.has_power_mgmt && caps.idx_wireless_status != 0)
-                {
-                    controller->StartEventWatcher();
-                }
+                controller->StartEventWatcher();
             }
         }
-        else
+        else if(target.behind_receiver || controller->HasBridge())
         {
-            LOG_INFO("[%s slot=%u] No RGB features, skipping", caps.device_name.c_str(), idx);
-            delete controller;
+            /*---------------------------------------------*\
+            | No power management and no WirelessStatus;    |
+            | threads anyway, so the node watcher's nudge   |
+            | has a power thread to land on.                |
+            \*---------------------------------------------*/
+            controller->StartEventWatcher();
+        }
+
+        /*-------------------------------------------------*\
+        | Wireless devices answer to the node watcher's     |
+        | nudges; keep it current on who is built here.     |
+        \*-------------------------------------------------*/
+        if(target.behind_receiver)
+        {
+            LogitechHIDPP20ReceiverWatcher::RegisterSubDevice(target.node_path, target.index, controller);
+            HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
+        }
+        else if(controller->HasBridge())
+        {
+            const HIDPP20Transport& transport = controller->GetTransport();
+
+            LogitechHIDPP20ReceiverWatcher::RegisterSubDevice(target.node_path, target.index, controller);
+            HIDPP20EnsureWatcher(target.node_path, transport.bridge_feat_idx, transport.report_id,
+                                 transport.addressed);
+        }
+
+        return(rgb_controller);
+    }
+
+    if(controller->HasBridge() && controller->GetTransport().bridge_mtu == 0)
+    {
+        /*-------------------------------------------------*\
+        | A dongle whose sub-device is not powered on. The  |
+        | watcher builds it on the bridge's                 |
+        | ConnectionStateChangedEvent.                      |
+        \*-------------------------------------------------*/
+        LOG_INFO("[%s] Dongle has no sub-device yet", caps.device_name.c_str());
+
+        const HIDPP20Transport& transport = controller->GetTransport();
+
+        HIDPP20EnsureWatcher(target.node_path, transport.bridge_feat_idx, transport.report_id,
+                             transport.addressed);
+
+        delete controller;
+
+        return(nullptr);
+    }
+
+    /*-----------------------------------------------------*\
+    | It answered, and it has no lighting. Not ours.        |
+    \*-----------------------------------------------------*/
+    LOG_INFO("[%s] No RGB features, skipping", caps.device_name.c_str());
+
+    delete controller;
+
+    return(nullptr);
+}
+
+/*---------------------------------------------------------*\
+| Create: build the controller for a device this pass has   |
+| not built yet.                                            |
+|                                                           |
+| Returning nothing means "it is there, we just cannot      |
+| reach it yet", asleep, switched off, paired to another    |
+| host. The target is on file either way.                   |
+\*---------------------------------------------------------*/
+static DetectedControllers HIDPP20Create(hid_device_info* info, const std::string& device_id)
+{
+    DetectedControllers detected;
+
+    HIDPP20Slot         slot;
+    HIDPP20BuildTarget  target;
+
+    target.behind_receiver = HIDPP20LookupSlot(device_id, std::string(info->path), slot);
+    target.node_path       = std::string(info->path);
+    target.index           = target.behind_receiver ? slot.index : (uint8_t)LOGITECH_DEFAULT_DEVICE_INDEX;
+    target.usage_page      = (uint16_t)info->usage_page;
+    target.vendor_id       = (uint16_t)info->vendor_id;
+    target.product_id      = (uint16_t)info->product_id;
+    target.node_mutex      = slot.node_mutex;
+    target.pairing_name    = slot.pairing_name;
+    target.bluetooth       = (info->bus_type == HID_API_BUS_BLUETOOTH);
+
+    HIDPP20RecordTarget(target);
+
+    RGBController_LogitechHIDPP20* rgb_controller = HIDPP20BuildController(target, device_id);
+
+    if(rgb_controller != nullptr)
+    {
+        LOG_INFO("[%s] Registering RGB controller (device %s)",
+                 rgb_controller->GetController()->GetCapabilities().device_name.c_str(), device_id.c_str());
+
+        detected.push_back(rgb_controller);
+    }
+
+    return(detected);
+}
+
+/*---------------------------------------------------------*\
+| Build a device the node watcher reports as connected.     |
+| Runs on the watcher's worker thread, never on its reader. |
+|                                                           |
+| A pass in flight may be building this very device, so     |
+| wait it out, then check the sub-device registry, which    |
+| is the live answer to whether this slot has a controller. |
+| A link established is not a device ready to answer: a     |
+| failed build leaves the target recorded for the next      |
+| connection event.                                         |
+\*---------------------------------------------------------*/
+static bool HIDPP20BuildForWatcher(const std::string& node_path, uint8_t index)
+{
+    HIDPP20BuildTarget target;
+
+    if(!HIDPP20LookupTarget(node_path, index, target))
+    {
+        LOG_DEBUG("[Logitech HID++ 2.0] %s index=0x%02X connected but was never enumerated, leaving it to the next detection",
+                  node_path.c_str(), index);
+        return false;
+    }
+
+    DetectionManager::get()->WaitForDetection();
+
+    if(LogitechHIDPP20ReceiverWatcher::HasSubDevice(node_path, index))
+    {
+        return false;
+    }
+
+    /*-----------------------------------------------------*\
+    | Nothing is registered once teardown starts.           |
+    \*-----------------------------------------------------*/
+    {
+        std::lock_guard<std::mutex> lock(hidpp20_watcher_mutex);
+
+        if(!hidpp20_watchers_enabled)
+        {
+            return false;
         }
     }
 
-    return(detected_controllers);
+    RGBController_LogitechHIDPP20* rgb_controller = HIDPP20BuildController(target);
+
+    if(rgb_controller == nullptr)
+    {
+        return false;
+    }
+
+    LOG_INFO("[%s] Connected, registering RGB controller",
+             rgb_controller->GetController()->GetCapabilities().device_name.c_str());
+
+    /*-----------------------------------------------------*\
+    | The node it was built on, so the unplug callback      |
+    | unregisters it with everything else on that node.     |
+    \*-----------------------------------------------------*/
+    DetectionManager::get()->RegisterRGBController(rgb_controller, node_path);
+
+    return true;
 }
-#endif
 
-/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Unified HID++ 2.0 Devices                                                                                                                         |
-|   PID-specific registrations for devices tested with the unified controller.                                                                      |
-|   Wired paths use the device's own USB PID; wireless paths on Linux use the hid-logitech-dj virtual child PIDs (0x40XX range).                    |
-\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G502 X Plus (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G502_X_PLUS_PID,  2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wired)",                DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G515_LS_TKL_PID,  2, 0xFF00, 2);
-#ifdef __linux__
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G502 X Plus (wireless)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G502_X_PLUS_LIGHTSPEED_VIRTUAL_PID, 2, 0xFF00, 2);
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 G515 LS TKL (wireless)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G515_LS_TKL_LIGHTSPEED_VIRTUAL_PID, 2, 0xFF00, 2);
-#endif
-#if defined(_WIN32) || defined(__APPLE__)
-REGISTER_HID_DETECTOR_IPU("Logitech HID++ 2.0 Lightspeed Receiver (C547)",         DetectLogitechHIDPP20LightspeedReceiver, LOGITECH_VID, 0xC547, 2, 0xFF00, 2);
-#endif
+/*---------------------------------------------------------*\
+| Every device this node reaches, built once each. A device |
+| on more than one node reports the same unit id on each,   |
+| so the first node to build it registers it and later      |
+| nodes skip it; the node it was built on is the one        |
+| DetectionManager unregisters it from.                     |
+\*---------------------------------------------------------*/
+DetectedControllers DetectLogitechHIDPP20(hid_device_info* info, const std::string& /*name*/)
+{
+    DetectedControllers      detected;
+    std::vector<std::string> device_ids = HIDPP20Enumerate(info);
 
-/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Centurion-transport devices (63-byte reports on usage page 0xFFA0, 0x50 addressed or 0x51 direct).                                                |
-|   Centurion receivers are not DJ-style Lightspeed receivers and are not split by hid-logitech-dj — the dongle PID enumerates as a single hidraw   |
-|   on all platforms. The controller's DiscoverTransport parses the report descriptor to pick the 0x50/0x51 variant and runs a 0x00..0xFF address   |
-|   sweep for the 0x50 (addressed) variant, so the detector only needs VID/PID + usage page 0xFFA0.                                                 |
-\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_P("Logitech HID++ 2.0 G522 Lightspeed (wired)",              DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G522_LIGHTSPEED_USB_PID,    0xFFA0);
-REGISTER_HID_DETECTOR_P("Logitech HID++ 2.0 G522 Lightspeed (dongle)",             DetectLogitechHIDPP20,        LOGITECH_VID, LOGITECH_G522_LIGHTSPEED_DONGLE_PID, 0xFFA0);
+    for(size_t i = 0; i < device_ids.size(); i++)
+    {
+        const std::string& device_id = device_ids[i];
+
+        if(!HIDPP20ClaimDevice(device_id))
+        {
+            LOG_DEBUG("[Logitech HID++ 2.0] device %s is already built this pass, skipping %s",
+                      device_id.c_str(), info->path);
+            continue;
+        }
+
+        DetectedControllers built = HIDPP20Create(info, device_id);
+
+        if(built.empty())
+        {
+            /*---------------------------------------------*\
+            | Nothing to drive, or nothing answering yet.   |
+            | Let another node try it this pass.            |
+            \*---------------------------------------------*/
+            std::lock_guard<std::mutex> lock(hidpp20_registry_mutex);
+            hidpp20_claimed_devices.erase(device_id);
+            continue;
+        }
+
+        detected.insert(detected.end(), built.begin(), built.end());
+    }
+
+    return(detected);
+}
+
+REGISTER_CUSTOM_UDEV_RULE(logitech_hidpp20, "Logitech HID++ 2.0", "SUBSYSTEM==\"hidraw\", ATTRS{idVendor}==\"046d\", TAG+=\"uaccess\", TAG+=\"Logitech_HID_20\"\nSUBSYSTEM==\"usb\", ATTR{idVendor}==\"046d\", TAG+=\"uaccess\", TAG+=\"Logitech_HID_20\"");
+REGISTER_CUSTOM_UDEV_RULE(logitech_g560, "Logitech G560 Lightsync Speaker", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"046d\", ATTRS{idProduct}==\"0a78\", TAG+=\"uaccess\", TAG+=\"Logitech_G560_Lightsync_Speaker\"");
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Keyboards                                                                                                                                         |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech G213",                                  DetectLogitechKeyboardG213, LOGITECH_VID, LOGITECH_G213_PID,                    1, 0xFF43, 0x0602);
-REGISTER_HID_DETECTOR_IP ("Logitech G512",                                  DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G512_PID,                    1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G512 RGB",                              DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G512_RGB_PID,                1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G610 Orion",                            DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G610_1_PID,                  1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G610 Orion",                            DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G610_2_PID,                  1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G810 Orion Spectrum",                   DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G810_1_PID,                  1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G810 Orion Spectrum",                   DetectLogitechKeyboardG810, LOGITECH_VID, LOGITECH_G810_2_PID,                  1, 0xFF43);
 REGISTER_HID_DETECTOR_IP ("Logitech G813 RGB Mechanical Gaming Keyboard",   DetectLogitechKeyboardG815, LOGITECH_VID, LOGITECH_G813_PID,                    1, 0xFF43);
 REGISTER_HID_DETECTOR_IP ("Logitech G815 RGB Mechanical Gaming Keyboard",   DetectLogitechKeyboardG815, LOGITECH_VID, LOGITECH_G815_PID,                    1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G910 Orion Spark",                      DetectLogitechKeyboardG910, LOGITECH_VID, LOGITECH_G910_ORION_SPARK_PID,        1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G910 Orion Spectrum",                   DetectLogitechKeyboardG910, LOGITECH_VID, LOGITECH_G910_PID,                    1, 0xFF43);
-REGISTER_HID_DETECTOR_IP ("Logitech G Pro RGB Mechanical Gaming Keyboard",  DetectLogitechKeyboardGPro, LOGITECH_VID, LOGITECH_GPRO_KEYBOARD_1_PID,         1, 0xFF43);
 
 REGISTER_HID_DETECTOR_IPU("Logitech G915 Wireless RGB Mechanical Gaming Keyboard",              DetectLogitechKeyboardG915,      LOGITECH_VID, LOGITECH_G915_RECEIVER_PID,      2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G915 Wireless RGB Mechanical Gaming Keyboard (Receiver 2)", DetectLogitechKeyboardG915Receiver2, LOGITECH_VID, LOGITECH_G915_RECEIVER_2_PID, 2, 0xFF00, 2);
@@ -1003,10 +1547,6 @@ REGISTER_HID_DETECTOR_IP ("Logitech G403 HERO",                             Dete
 REGISTER_HID_DETECTOR_IP ("Logitech G600 Gaming Mouse",                     DetectLogitechMouseG600,    LOGITECH_VID, LOGITECH_G600_PID,                    1, 0xFF80);
 REGISTER_HID_DETECTOR_IP ("Logitech G Pro Gaming Mouse",                    DetectLogitechMouseGPRO,    LOGITECH_VID, LOGITECH_G_PRO_PID,                   1, 0xFF00);
 REGISTER_HID_DETECTOR_IP ("Logitech G Pro HERO Gaming Mouse",               DetectLogitechMouseGPRO,    LOGITECH_VID, LOGITECH_G_PRO_HERO_PID,              1, 0xFF00);
-/*-------------------------------------------------------------------------------------------------------------------------------------------------*\
-| Speakers                                                                                                                                          |
-\*-------------------------------------------------------------------------------------------------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IPU("Logitech G560 Lightsync Speaker",                DetectLogitechG560,         LOGITECH_VID, LOGITECH_G560_PID,                    2, 0xFF43, 514);
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Headsets                                                                                                                                          |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -1102,42 +1642,6 @@ DetectedControllers DetectLogitechWired(hid_device_info* info, const std::string
 \*---------------------------------------------------------------------------------------------------------*/
 #if defined(_WIN32) || defined(__APPLE__)
 
-usages BundleLogitechUsages(hid_device_info* info)
-{
-    /*-----------------------------------------------------------------*\
-    | Need a unique ID to group usages for 1 device if multiple exist   |
-    |   Grab all usages that you can open. For normal Logitech FAP      |
-    |   devices this will be usage 1, 2 and 4                           |
-    \*-----------------------------------------------------------------*/
-    usages temp_usages;
-
-    hid_device_info* temp_info  = hid_enumerate(info->vendor_id, info->product_id);
-    while(temp_info)
-    {
-        /*-----------------------------------------------------------------*\
-        | Only bundle the device that triggered this callback               |
-        \*-----------------------------------------------------------------*/
-        if(temp_info->interface_number == 2)
-        {
-            LOG_DEBUG("Attempting to open dev path: %s", info->path);
-            hid_device* dev = hid_open_path(temp_info->path);
-
-            if(dev)
-            {
-                LOG_DEBUG("Success! Adding Usage %i for device @ path %s", temp_info->usage, temp_info->path);
-                temp_usages.emplace((uint8_t)temp_info->usage, dev);
-            }
-            else
-            {
-                LOG_INFO("FAILED! Can not add Usage %i for device @ path %s", temp_info->usage, temp_info->path);
-            }
-        }
-        temp_info = temp_info->next;
-    }
-
-    return temp_usages;
-}
-
 DetectedControllers DetectLogitechLightspeedReceiver(hid_device_info* info, const std::string& /*name*/)
 {
     /*-----------------------------------------------------------------*\
@@ -1225,9 +1729,6 @@ DetectedControllers DetectLogitechWireless(hid_device_info* info, const std::str
 
 /*--------------------------------------------------------------------------------------------------------------------------------------------------*\
 | Lightspeed Devices (Linux Wireless)                                                                                                                |
-|                                                                                                                                                    |
-|    DUMMY_DEVICE_DETECTOR("Logitech G Lightspeed Receiver", DetectLogitechWireless, 0x046D, 0xC539 )                                                |
-|    DUMMY_DEVICE_DETECTOR("Logitech Powerplay Mat Receiver", DetectLogitechWireless, 0x046D, 0xC53A )                                               |
 \*--------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech G403 Wireless Gaming Mouse",                DetectLogitechWireless,     LOGITECH_VID, LOGITECH_G403_LIGHTSPEED_VIRTUAL_PID,         2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G502 Wireless Gaming Mouse",                DetectLogitechWireless,     LOGITECH_VID, LOGITECH_G502_LIGHTSPEED_VIRTUAL_PID,         2, 0xFF00, 2);
@@ -1238,6 +1739,9 @@ REGISTER_HID_DETECTOR_IPU("Logitech G903 Wireless Gaming Mouse",                
 REGISTER_HID_DETECTOR_IPU("Logitech G903 HERO Wireless Gaming Mouse",           DetectLogitechWireless,     LOGITECH_VID, LOGITECH_G903_LIGHTSPEED_VIRTUAL_HERO_PID,    2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech G Pro Wireless Gaming Mouse",               DetectLogitechWireless,     LOGITECH_VID, LOGITECH_G_PRO_WIRELESS_VIRTUAL_PID,          2, 0xFF00, 2);
 REGISTER_HID_DETECTOR_IPU("Logitech Powerplay Mat",                             DetectLogitechWireless,     LOGITECH_VID, LOGITECH_POWERPLAY_MAT_VIRTUAL_PID,           2, 0xFF00, 2);
+
+REGISTER_CUSTOM_UDEV_RULE(logitech_lightspeed, "Logitech G Lightspeed Receiver", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"046d\", ATTRS{idProduct}==\"c539\", TAG+=\"uaccess\", TAG+=\"Logitech_G_Lightspeed_Receiver\"");
+REGISTER_CUSTOM_UDEV_RULE(logitech_powerplay, "Logitech Powerplay Mat Receiver", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"046d\", ATTRS{idProduct}==\"c53a\", TAG+=\"uaccess\", TAG+=\"Logitech_Powerplay_Mat_Receiver\"");
 
 #endif
 
@@ -1262,3 +1766,31 @@ REGISTER_HID_DETECTOR_IPU("Logitech G733 Gaming Headset",                       
 REGISTER_HID_DETECTOR_IPU("Logitech G733 Gaming Headset",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G733_2_PID,                          3, 0xFF43, 514);
 REGISTER_HID_DETECTOR_IPU("Logitech G733 Gaming Headset",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G733_3_PID,                          3, 0xFF43, 514);
 REGISTER_HID_DETECTOR_IPU("Logitech G935 Gaming Headset",                       DetectLogitechWired,        LOGITECH_VID, LOGITECH_G935_PID,                            3, 0xFF43, 514);
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*\
+| Unified HID++ 2.0. Keyed to the Logitech VID, so these are specific detectors and no generic detector runs on a Logitech node;        |
+| HID LampArray in particular, which the official app publishes as a virtual device for older boards. Registered last on purpose:       |
+| specific detectors run in registration order and the first to return a controller wins, so a legacy controller keeps its device       |
+| while its detector is enabled, and disabling it in Settings hands the device over on the next detection.                              |
+|                                                                                                                                       |
+| USB, every legacy transport signature:                                                                                                |
+|  0xFF00 usage 2                   standard HID++ long report (modern keyboards/mice, receivers, G915 family, wired Lightspeed mice).  |
+|                                   Usage 2 is the collection we write to, on Windows, the only one that accepts our writes.            |
+|  0xFF43 any usage                 keyboards (G213/G512/G610/G810/G813/G815/G910/G Pro), the G560 speaker, the G933 headset            |
+|  interface 1, 0xFF00 any usage    older mice whose HID++ collection is not the usage-2 one. No bus key: an interface number           |
+|                                   only exists on USB.                                                                                 |
+|  0xFFA0 usage 1                   Centurion (G522, PRO X 2)                                                                           |
+| Bluetooth, which reports no interface number:                                                                                         |
+|  0xFF43 any usage                 G-series keyboards (G515)                                                                           |
+|  0xFF00 usage 2                   mice, the collection Solaar drives them on                                                          |
+|                                                                                                                                       |
+| Not covered, deliberately: the G600 (page 0xFF80) and the X56 (own VID) are not HID++ 2.0. A matching non-HID++ node costs one failed |
+| probe, ProbeIdentity changes nothing on the device. Receivers are recognized at runtime: the device probe fails and the pairing table |
+| answers; paired slots follow the same enabled/disabled rule (hidpp20_legacy_wireless_pids).                                           |
+\*-------------------------------------------------------------------------------------------------------------------------------------*/
+REGISTER_HID_DETECTOR_BPU("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, HID_API_BUS_USB,       0xFF00, 2);
+REGISTER_HID_DETECTOR_BP ("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, HID_API_BUS_USB,       0xFF43);
+REGISTER_HID_DETECTOR_IP ("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, 1,                     0xFF00);
+REGISTER_HID_DETECTOR_BPU("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, HID_API_BUS_USB,       0xFFA0, 1);
+REGISTER_HID_DETECTOR_BP ("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, HID_API_BUS_BLUETOOTH, 0xFF43);
+REGISTER_HID_DETECTOR_BPU("Logitech HID++ 2.0", DetectLogitechHIDPP20, LOGITECH_VID, HID_PID_ANY, HID_API_BUS_BLUETOOTH, 0xFF00, 2);

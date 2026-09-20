@@ -83,6 +83,8 @@ RGBController_HIDLampArray::RGBController_HIDLampArray(HIDLampArrayController* c
 
 RGBController_HIDLampArray::~RGBController_HIDLampArray()
 {
+    Shutdown();
+
     delete controller;
 }
 
@@ -194,7 +196,7 @@ static const char *HIDUsageIDsToKeyNames[HID_KEYBOARD_USAGE_IDS_COUNT] =
     KEY_EN_NUMPAD_0,            // Keypad 0 and Insert
     KEY_EN_NUMPAD_PERIOD,       // Keypad . and Delete
     KEY_EN_BACK_SLASH,          // Keyboard Non-US \ and |
-    KEY_EN_UNUSED,              // Keyboard Application
+    KEY_EN_MENU,                // Keyboard Application
     KEY_EN_POWER,               // Keyboard Power
     KEY_EN_NUMPAD_EQUAL,        // Keypad =
     KEY_EN_F13,                 // Keyboard F13
@@ -258,6 +260,16 @@ static const char *HIDUsageIDsToKeyNames[HID_KEYBOARD_USAGE_IDS_COUNT] =
     KEY_EN_UNUSED,              // Keyboard Clear/Again
     KEY_EN_UNUSED,              // Keyboard CrSel/Props
     KEY_EN_UNUSED,              // Keyboard ExSel
+    KEY_EN_UNUSED,              // A5 Reserved
+    KEY_EN_UNUSED,              // A6 Reserved
+    KEY_EN_UNUSED,              // A7 Reserved
+    KEY_EN_UNUSED,              // A8 Reserved
+    KEY_EN_UNUSED,              // A9 Reserved
+    KEY_EN_UNUSED,              // AA Reserved
+    KEY_EN_UNUSED,              // AB Reserved
+    KEY_EN_UNUSED,              // AC Reserved
+    KEY_EN_UNUSED,              // AD Reserved
+    KEY_EN_UNUSED,              // AE Reserved
     KEY_EN_UNUSED,              // AF Reserved
     KEY_EN_UNUSED,              // Keypad 00
     KEY_EN_UNUSED,              // Keypad 000
@@ -305,6 +317,7 @@ static const char *HIDUsageIDsToKeyNames[HID_KEYBOARD_USAGE_IDS_COUNT] =
     KEY_EN_UNUSED,              // Keypad Octal
     KEY_EN_UNUSED,              // Keypad Decimal
     KEY_EN_UNUSED,              // Keypad Hexadecimal
+    KEY_EN_UNUSED,              // DE Reserved
     KEY_EN_UNUSED,              // DF Reserved
     KEY_EN_LEFT_CONTROL,        // Keyboard LeftControl
     KEY_EN_LEFT_SHIFT,          // Keyboard LeftShift
@@ -334,8 +347,8 @@ void RGBController_HIDLampArray::SetupZones()
         columns.insert(controller->GetLamps()[lamp_idx].PositionXInMicrometers);
     }
 
-    new_zone.matrix_map.height  = rows.size();
-    new_zone.matrix_map.width   = columns.size();
+    new_zone.matrix_map.height  = (unsigned int)rows.size();
+    new_zone.matrix_map.width   = (unsigned int)columns.size();
     new_zone.matrix_map.map.resize(rows.size() * columns.size());
 
     memset(new_zone.matrix_map.map.data(), 0xFF, (new_zone.matrix_map.map.size() * sizeof(unsigned int)));
@@ -346,7 +359,7 @@ void RGBController_HIDLampArray::SetupZones()
         size_t idx      = std::distance(columns.begin(), columns.find(controller->GetLamps()[lamp_idx].PositionXInMicrometers));
         size_t idy      = std::distance(rows.begin(), rows.find(controller->GetLamps()[lamp_idx].PositionYInMicrometers));
 
-        new_zone.matrix_map.map[idx + idy * new_zone.matrix_map.width] = lamp_idx;
+        new_zone.matrix_map.map[idx + idy * new_zone.matrix_map.width] = (unsigned int)lamp_idx;
     }
 
     zones.push_back(new_zone);
@@ -355,9 +368,11 @@ void RGBController_HIDLampArray::SetupZones()
     {
         led new_led;
 
-        if(controller->GetLamps()[lamp_idx].LampKey < HID_KEYBOARD_USAGE_IDS_COUNT)
+        unsigned char lamp_key = controller->GetLamps()[lamp_idx].LampKey;
+
+        if(lamp_key < HID_KEYBOARD_USAGE_IDS_COUNT && HIDUsageIDsToKeyNames[lamp_key] != nullptr)
         {
-            new_led.name = HIDUsageIDsToKeyNames[controller->GetLamps()[lamp_idx].LampKey];
+            new_led.name = HIDUsageIDsToKeyNames[lamp_key];
         }
         else
         {
@@ -371,7 +386,7 @@ void RGBController_HIDLampArray::SetupZones()
 
 void RGBController_HIDLampArray::DeviceUpdateLEDs()
 {
-    unsigned int leds_to_go = leds.size();
+    unsigned int leds_to_go = (unsigned int)leds.size();
 
     while(leds_to_go > 0)
     {
@@ -387,7 +402,7 @@ void RGBController_HIDLampArray::DeviceUpdateLEDs()
 
         for(unsigned int led_frame_idx = 0; led_frame_idx < leds_this_frame; led_frame_idx++)
         {
-            unsigned short led_idx = (leds.size() - leds_to_go) + led_frame_idx;
+            unsigned short led_idx = (unsigned short)((leds.size() - leds_to_go) + led_frame_idx);
             LampIds[led_frame_idx] = led_idx;
             UpdateColors[led_frame_idx].RedChannel = RGBGetRValue(colors[led_idx]);
             UpdateColors[led_frame_idx].GreenChannel = RGBGetGValue(colors[led_idx]);

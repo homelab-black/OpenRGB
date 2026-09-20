@@ -15,7 +15,8 @@
 #include <cctype>
 #include "DetectionManager.h"
 #include "filesystem.h"
-#include "RGBController_ValveSteamMachine_Linux.h"
+#include "RGBController_ValveSteamMachine_Windows_Linux.h"
+#include "ValveSteamMachineController_Linux.h"
 
 /*---------------------------------------------------------*\
 | Helper function to extract the numeric index enclosed     |
@@ -140,3 +141,5 @@ DetectedControllers DetectValveSteamMachineControllers()
 }
 
 REGISTER_DETECTOR("Valve Steam Machine", DetectValveSteamMachineControllers);
+
+REGISTER_CUSTOM_UDEV_RULE(valve_steam, "Valve Steam Machine", "SUBSYSTEM==\"leds\", KERNEL==\"valve-leds[0-9]*\", TAG+=\"uaccess\"");

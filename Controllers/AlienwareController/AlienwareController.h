@@ -22,6 +22,14 @@
 #define ALIENWARE_REPORT_SIZE               33
 #define HIDAPI_ALIENWARE_REPORT_SIZE        (ALIENWARE_REPORT_SIZE + 1)
 #define ALIENWARE_CONTROLLER_NAME           "AlienWare Controller"
+
+/*---------------------------------------------------------*\
+| Max zone IDs that fit in one report after the command     |
+| header.  Selections larger than this must be split across |
+| multiple packets; writing them into a single report       |
+| overflows usb_buf (e.g. desktops with ~100 zones).        |
+\*---------------------------------------------------------*/
+#define ALIENWARE_MAX_ZONES_PER_PACKET      25
 enum
 {
     ALIENWARE_COMMAND_REPORT                = 0x20,     /* Set report type to get               */
@@ -115,11 +123,13 @@ public:
     void                        SetPeriod(uint8_t zone, uint16_t period);
     void                        SetTempo(uint8_t zone, uint16_t tempo);
     void                        SetDim(uint8_t zone, uint8_t dim);
+    void                        SetDirection(uint8_t zone, uint8_t direction);
     AlienwareReport             GetStatus(uint8_t subcommand);
 
     void                        UpdateDim();
     void                        UpdateMode();
     void                        UpdateController();
+    void                        SaveController();
 
 protected:
     hid_device* dev;
@@ -132,6 +142,7 @@ private:
         uint16_t                period;
         uint16_t                tempo;
         uint8_t                 dim;
+        uint8_t                 direction;
     } alienware_zone;
 
     typedef struct
@@ -145,6 +156,7 @@ private:
     std::string                 serial_number;
     std::string                 version;
     std::vector<const char*>    zone_names;
+    std::vector<uint8_t>        zone_ids;
     bool                        dirty;
     bool                        dirty_dim;
 

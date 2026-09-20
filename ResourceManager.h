@@ -125,6 +125,7 @@ public:
     bool                                GetDetectionEnabled();
     unsigned int                        GetDetectionPercent();
     std::string                         GetDetectionString();
+    void                                HandleDetectionComplete();
     void                                StopDeviceDetection();
     void                                RescanDevices();
     void                                UpdateDeviceList();
@@ -135,10 +136,15 @@ public:
     \*-----------------------------------------------------*/
     void                                SignalResourceManagerUpdate(unsigned int update_reason);
 
-    void                                Initialize(bool tryConnect, bool detectDevices, bool startServer, bool applyPostOptions);
+    void                                Initialize(bool tryConnect, bool detectDevices, bool startServer, bool applyPostOptions, bool startGui);
     void                                InitializeServer();
 
     void                                WaitForInitialization();
+
+    /*-----------------------------------------------------*\
+    | Service Shutdown                                      |
+    \*-----------------------------------------------------*/
+    void                                ServiceShutdown();
 
 private:
     bool                                AttemptLocalConnection();
@@ -161,6 +167,11 @@ private:
     bool                                        detection_enabled;
 
     /*-----------------------------------------------------*\
+    | Flag to track the first detection completion          |
+    \*-----------------------------------------------------*/
+    bool                                        first_detection_complete;
+
+    /*-----------------------------------------------------*\
     | Auto connection active flag                           |
     \*-----------------------------------------------------*/
     bool                                        auto_connection_active;
@@ -169,6 +180,11 @@ private:
     | Auto connection client pointer                        |
     \*-----------------------------------------------------*/
     NetworkClient *                             auto_connection_client;
+
+    /*-----------------------------------------------------*\
+    | GUI start flag                                        |
+    \*-----------------------------------------------------*/
+    bool                                        start_gui;
 
     /*-----------------------------------------------------*\
     | Auto connection permitting flag                       |

@@ -43,70 +43,103 @@ ProfileManager::ProfileManager(const filesystem::path& config_dir)
     UpdateProfileList();
 
     /*-----------------------------------------------------*\
+    | Initialize active state variables                     |
+    \*-----------------------------------------------------*/
+    active_profile                          = "";
+    active_base_color                       = 0;
+    active_base_color_enabled               = false;
+
+    /*-----------------------------------------------------*\
     | Create ProfileManager settings schema                 |
     \*-----------------------------------------------------*/
-    SettingsManager*    settings_manager                                = ResourceManager::get()->GetSettingsManager();
+    SettingsManager*    settings_manager                                        = ResourceManager::get()->GetSettingsManager();
     json                profilemanager_settings_schema;
 
-    profilemanager_settings_schema["exit_profile"]["title"]             = QT_TRANSLATE_NOOP("Settings", "Load Profile on Exit");
-    profilemanager_settings_schema["exit_profile"]["type"]              = "profile";
-    profilemanager_settings_schema["exit_profile"]["description"]       = QT_TRANSLATE_NOOP("Settings", "Profile to load when OpenRGB exits");
+    profilemanager_settings_schema["exit_profile"]["title"]                     = QT_TRANSLATE_NOOP("Settings", "Load Profile on Exit");
+    profilemanager_settings_schema["exit_profile"]["type"]                      = "profile";
+    profilemanager_settings_schema["exit_profile"]["description"]               = QT_TRANSLATE_NOOP("Settings", "Profile to load when OpenRGB exits");
 
-    profilemanager_settings_schema["open_profile"]["title"]             = QT_TRANSLATE_NOOP("Settings", "Load Profile on Open");
-    profilemanager_settings_schema["open_profile"]["type"]              = "profile";
-    profilemanager_settings_schema["open_profile"]["description"]       = QT_TRANSLATE_NOOP("Settings", "Profile to load when OpenRGB opens");
+    profilemanager_settings_schema["open_profile"]["title"]                     = QT_TRANSLATE_NOOP("Settings", "Load Profile on Open");
+    profilemanager_settings_schema["open_profile"]["type"]                      = "profile";
+    profilemanager_settings_schema["open_profile"]["description"]               = QT_TRANSLATE_NOOP("Settings", "Profile to load when OpenRGB opens");
 
-    profilemanager_settings_schema["resume_profile"]["title"]           = QT_TRANSLATE_NOOP("Settings", "Load Profile on Resume");
-    profilemanager_settings_schema["resume_profile"]["type"]            = "profile";
-    profilemanager_settings_schema["resume_profile"]["description"]     = QT_TRANSLATE_NOOP("Settings", "Profile to load after system resumes from sleep");
+    profilemanager_settings_schema["resume_profile"]["title"]                   = QT_TRANSLATE_NOOP("Settings", "Load Profile on Resume");
+    profilemanager_settings_schema["resume_profile"]["type"]                    = "profile";
+    profilemanager_settings_schema["resume_profile"]["description"]             = QT_TRANSLATE_NOOP("Settings", "Profile to load after system resumes from sleep");
 
-    profilemanager_settings_schema["suspend_profile"]["title"]          = QT_TRANSLATE_NOOP("Settings", "Load Profile on Suspend");
-    profilemanager_settings_schema["suspend_profile"]["type"]           = "profile";
-    profilemanager_settings_schema["suspend_profile"]["description"]    = QT_TRANSLATE_NOOP("Settings", "Profile to load before system enters sleep mode");
+    profilemanager_settings_schema["service_shutdown_profile"]["title"]         = QT_TRANSLATE_NOOP("Settings", "Load Profile on Service Shutdown");
+    profilemanager_settings_schema["service_shutdown_profile"]["type"]          = "profile";
+    profilemanager_settings_schema["service_shutdown_profile"]["description"]   = QT_TRANSLATE_NOOP("Settings", "Profile to load when the OpenRGB background service shuts down");
 
-    settings_manager->RegisterSettingsSchema("ProfileManager", QT_TRANSLATE_NOOP("Settings", "Profile Manager"), profilemanager_settings_schema, 1);
+    profilemanager_settings_schema["service_startup_profile"]["title"]          = QT_TRANSLATE_NOOP("Settings", "Load Profile on Service Startup");
+    profilemanager_settings_schema["service_startup_profile"]["type"]           = "profile";
+    profilemanager_settings_schema["service_startup_profile"]["description"]    = QT_TRANSLATE_NOOP("Settings", "Profile to load when the OpenRGB background service starts up");
+
+    profilemanager_settings_schema["suspend_profile"]["title"]                  = QT_TRANSLATE_NOOP("Settings", "Load Profile on Suspend");
+    profilemanager_settings_schema["suspend_profile"]["type"]                   = "profile";
+    profilemanager_settings_schema["suspend_profile"]["description"]            = QT_TRANSLATE_NOOP("Settings", "Profile to load before system enters sleep mode");
+
+    settings_manager->RegisterSettingsSchemaOrder("ProfileManager", QT_TRANSLATE_NOOP("Settings", "Profile Manager"), profilemanager_settings_schema, 1);
 
     /*-----------------------------------------------------*\
     | Read in profile manager settings and initialize any   |
     | missing settings to defaults                          |
     \*-----------------------------------------------------*/
-    json                profilemanager_settings     = settings_manager->GetSettings("ProfileManager");
-    bool                new_settings_keys           = false;
+    json                profilemanager_settings             = settings_manager->GetSettings("ProfileManager");
+    bool                new_settings_keys                   = false;
 
     if(!profilemanager_settings.contains("open_profile"))
     {
         json profile;;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["open_profile"]     = profile;
-        new_settings_keys                           = true;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["open_profile"]             = profile;
+        new_settings_keys                                   = true;
     }
 
     if(!profilemanager_settings.contains("exit_profile"))
     {
         json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["exit_profile"]     = profile;
-        new_settings_keys                           = true;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["exit_profile"]             = profile;
+        new_settings_keys                                   = true;
     }
 
     if(!profilemanager_settings.contains("resume_profile"))
     {
         json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["resume_profile"]   = profile;
-        new_settings_keys                           = true;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["resume_profile"]           = profile;
+        new_settings_keys                                   = true;
+    }
+
+    if(!profilemanager_settings.contains("service_shutdown_profile"))
+    {
+        json profile;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["service_shutdown_profile"] = profile;
+        new_settings_keys                                   = true;
+    }
+
+    if(!profilemanager_settings.contains("service_startup_profile"))
+    {
+        json profile;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["service_startup_profile"]  = profile;
+        new_settings_keys                                   = true;
     }
 
     if(!profilemanager_settings.contains("suspend_profile"))
     {
         json profile;
-        profile["enabled"]                          = false;
-        profile["name"]                             = "";
-        profilemanager_settings["suspend_profile"]  = profile;
-        new_settings_keys                           = true;
+        profile["enabled"]                                  = false;
+        profile["name"]                                     = "";
+        profilemanager_settings["suspend_profile"]          = profile;
+        new_settings_keys                                   = true;
     }
 
     /*-----------------------------------------------------*\
@@ -206,7 +239,6 @@ std::vector<RGBController*> ProfileManager::GetControllerListFromLegacyProfile(s
 
     if(!profile_file.is_open())
     {
-        LOG_WARNING("[%s] Unable to open legacy profile: %s", PROFILEMANAGER, filename.string().c_str());
         return(temp_controllers);
     }
 
@@ -387,6 +419,16 @@ bool ProfileManager::LoadAutoProfileResume()
     return(LoadAutoProfile("resume_profile"));
 }
 
+bool ProfileManager::LoadAutoProfileServiceShutdown()
+{
+    return(LoadAutoProfile("service_shutdown_profile"));
+}
+
+bool ProfileManager::LoadAutoProfileServiceStartup()
+{
+    return(LoadAutoProfile("service_startup_profile"));
+}
+
 bool ProfileManager::LoadAutoProfileSuspend()
 {
     return(LoadAutoProfile("suspend_profile"));
@@ -394,7 +436,14 @@ bool ProfileManager::LoadAutoProfileSuspend()
 
 bool ProfileManager::LoadControllerActiveProfile(RGBController* load_controller)
 {
-    return(LoadControllerFromListWithOptions(active_rgb_controllers, load_controller, false, true));
+    if(active_profile == "")
+    {
+        return false;
+    }
+    else
+    {
+        return(LoadControllerFromListWithOptions(active_rgb_controllers, load_controller, false, true));
+    }
 }
 
 bool ProfileManager::LoadControllerConfiguration(RGBController* load_controller)
@@ -621,10 +670,19 @@ bool ProfileManager::SaveProfile(std::string profile_name)
                 | Read the controller data for this         |
                 | controller into the profile json          |
                 \*-----------------------------------------*/
-                    profile_json["controllers"][new_profile_controller_index] = RGBController::GetDeviceDescriptionJSON(manually_configured_rgb_controllers[existing_controller_index]);
+                    profile_json["controllers"][new_profile_controller_index] = RGBController::GetDeviceDescriptionJSON(existing_controllers[existing_controller_index]);
                     new_profile_controller_index++;
                 }
             }
+        }
+
+        /*-------------------------------------------------*\
+        | Preserve plugin data when no plugin manager is    |
+        | available to refresh it.                          |
+        \*-------------------------------------------------*/
+        if(existing_profile_json.contains("plugins"))
+        {
+            profile_json["plugins"] = existing_profile_json["plugins"];
         }
 
         /*-------------------------------------------------*\
@@ -647,7 +705,7 @@ bool ProfileManager::SaveProfile(std::string profile_name)
 
                 for(unsigned int plugin_idx = 0; plugin_idx < plugin_manager->GetPluginCount(); plugin_idx++)
                 {
-                    if(profile_json["plugins"].contains(plugin_manager->GetPluginName(plugin_idx)))
+                    if(existing_profile_json["plugins"].contains(plugin_manager->GetPluginName(plugin_idx)))
                     {
                         plugins_to_save.push_back(plugin_manager->GetPluginName(plugin_idx));
                     }
@@ -831,10 +889,22 @@ bool ProfileManager::SaveProfileFromPlugin(std::string profile_name, std::string
 bool ProfileManager::SaveConfiguration()
 {
     /*-----------------------------------------------------*\
+    | A local client shares the configuration file with the |
+    | local server, and the server saves it when it handles |
+    | the request, so the client must not write over it     |
+    \*-----------------------------------------------------*/
+    if(ResourceManager::get()->IsLocalClient())
+    {
+        return(true);
+    }
+
+    /*-----------------------------------------------------*\
     | Get the list of controllers from the resource manager |
     \*-----------------------------------------------------*/
     std::vector<RGBController *> controllers = ResourceManager::get()->GetRGBControllers();
 
+    configuration_save_mutex.lock();
+    
     /*-----------------------------------------------------*\
     | Open an output file in the profile directory          |
     \*-----------------------------------------------------*/
@@ -850,32 +920,40 @@ bool ProfileManager::SaveConfiguration()
     profile_json["profile_name"]    = "Controller Configuration";
 
     /*-----------------------------------------------------*\
+    | Remote and virtual controllers are not saved, and     |
+    | they are not evidence that a saved controller is      |
+    | still present                                         |
+    \*-----------------------------------------------------*/
+    std::vector<RGBController *> local_controllers;
+
+    for(std::size_t controller_index = 0; controller_index < controllers.size(); controller_index++)
+    {
+        if(controllers[controller_index]->GetFlags() & CONTROLLER_FLAG_REMOTE
+        || controllers[controller_index]->GetFlags() & CONTROLLER_FLAG_VIRTUAL)
+        {
+            continue;
+        }
+
+        local_controllers.push_back(controllers[controller_index]);
+    }
+
+    /*-----------------------------------------------------*\
     | Write controller data for each controller             |
     \*-----------------------------------------------------*/
     std::size_t new_saved_controller_index = 0;
 
-    for(std::size_t controller_index = 0; controller_index < controllers.size(); controller_index++)
+    for(std::size_t controller_index = 0; controller_index < local_controllers.size(); controller_index++)
     {
         bool save_controller = false;
 
-        /*-------------------------------------------------*\
-        | Ignore remote and virtual controllers when saving |
-        | configuration                                     |
-        \*-------------------------------------------------*/
-        if(controllers[controller_index]->GetFlags() & CONTROLLER_FLAG_REMOTE
-        || controllers[controller_index]->GetFlags() & CONTROLLER_FLAG_VIRTUAL)
-        {
-            break;
-        }
-
-        if(controllers[controller_index]->GetFlags() & CONTROLLER_FLAGS_MANUALLY_CONFIGURED)
+        if(local_controllers[controller_index]->GetFlags() & CONTROLLER_FLAGS_MANUALLY_CONFIGURED)
         {
             save_controller = true;
         }
 
-        for(unsigned int zone_index = 0; zone_index < controllers[controller_index]->GetZoneCount(); zone_index++)
+        for(unsigned int zone_index = 0; zone_index < local_controllers[controller_index]->GetZoneCount(); zone_index++)
         {
-            if(controllers[controller_index]->GetZoneFlags(zone_index) & ZONE_FLAGS_MANUALLY_CONFIGURED)
+            if(local_controllers[controller_index]->GetZoneFlags(zone_index) & ZONE_FLAGS_MANUALLY_CONFIGURED)
             {
                 save_controller = true;
                 break;
@@ -888,7 +966,7 @@ bool ProfileManager::SaveConfiguration()
             | Read the controller data for this controller  |
             | into the profile json if manually configured  |
             \*---------------------------------------------*/
-            profile_json["controllers"][new_saved_controller_index] = RGBController::GetDeviceDescriptionJSON(controllers[controller_index]);
+            profile_json["controllers"][new_saved_controller_index] = RGBController::GetDeviceDescriptionJSON(local_controllers[controller_index]);
             new_saved_controller_index++;
         }
     }
@@ -902,9 +980,9 @@ bool ProfileManager::SaveConfiguration()
     {
         bool found = false;
 
-        for(std::size_t controller_index = 0; controller_index < controllers.size(); controller_index++)
+        for(std::size_t controller_index = 0; controller_index < local_controllers.size(); controller_index++)
         {
-            if(RGBController::CompareControllers(manually_configured_rgb_controllers[old_saved_controller_index], controllers[controller_index]))
+            if(RGBController::CompareControllers(manually_configured_rgb_controllers[old_saved_controller_index], local_controllers[controller_index]))
             {
                 found = true;
                 break;
@@ -928,6 +1006,8 @@ bool ProfileManager::SaveConfiguration()
     | Close the file when done                              |
     \*-----------------------------------------------------*/
     controller_file.close();
+
+    configuration_save_mutex.unlock();
 
     /*-----------------------------------------------------*\
     | Reinitialize manually configured controllers list     |
@@ -1001,7 +1081,16 @@ void ProfileManager::MigrateLegacyProfiles()
             }
         }
 
+        /*-------------------------------------------------*\
+        | Save the configuration in JSON format             |
+        \*-------------------------------------------------*/
         SaveConfiguration();
+
+        /*-------------------------------------------------*\
+        | Rename the legacy sizes to .ors.bak so it does    |
+        | not get re-migrated on subsequent loads           |
+        \*-------------------------------------------------*/
+        RenameLegacyProfile("sizes", true);
     }
 
     /*-----------------------------------------------------*\
@@ -1052,6 +1141,12 @@ void ProfileManager::MigrateLegacyProfiles()
         | Save the profile in JSON format                   |
         \*-------------------------------------------------*/
         SaveProfileCustom(profile_name, profile_controllers, 0, false, profile_plugin_data);
+
+        /*-------------------------------------------------*\
+        | Rename the legacy profile to .orp.bak so it does  |
+        | not get re-migrated on subsequent loads           |
+        \*-------------------------------------------------*/
+        RenameLegacyProfile(profile_name, false);
     }
 }
 
@@ -1591,4 +1686,37 @@ nlohmann::json ProfileManager::ReadProfileFileJSON(filesystem::path profile_file
     profile_file.close();
 
     return(profile_json);
+}
+
+void ProfileManager::RenameLegacyProfile(std::string profile_name, bool sizes)
+{
+    /*-----------------------------------------------------*\
+    | Rename legacy profile file with the .bak extension    |
+    | so it does not get re-migrated on subsequent startups |
+    \*-----------------------------------------------------*/
+    filesystem::path profile_filename = configuration_directory / StringUtils::make_filename(profile_name);
+
+    if(sizes)
+    {
+        profile_filename.concat(".ors");
+    }
+    else
+    {
+        profile_filename.concat(".orp");
+    }
+
+    filesystem::path profile_bak_filename = profile_filename;
+    profile_bak_filename.concat(".bak");
+
+    std::error_code rename_ec;
+    filesystem::rename(profile_filename, profile_bak_filename, rename_ec);
+
+    if(rename_ec)
+    {
+        LOG_ERROR("[%s] Failed to rename legacy profile %s to %s: %s", PROFILEMANAGER, profile_filename.string().c_str(), profile_bak_filename.string().c_str(), rename_ec.message().c_str());
+    }
+    else
+    {
+        LOG_INFO("[%s] Renamed legacy profile %s to %s", PROFILEMANAGER, profile_filename.string().c_str(), profile_bak_filename.string().c_str());
+    }
 }

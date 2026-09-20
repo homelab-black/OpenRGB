@@ -93,6 +93,8 @@ public:
     bool                        LoadAutoProfileExit();
     bool                        LoadAutoProfileOpen();
     bool                        LoadAutoProfileResume();
+    bool                        LoadAutoProfileServiceShutdown();
+    bool                        LoadAutoProfileServiceStartup();
     bool                        LoadAutoProfileSuspend();
 
     bool                        LoadControllerFromListWithOptions
@@ -154,6 +156,8 @@ private:
     filesystem::path            configuration_directory;
     filesystem::path            profile_directory;
 
+    std::mutex                  configuration_save_mutex;
+    
     /*-----------------------------------------------------*\
     | ProfileManager Callbacks                              |
     \*-----------------------------------------------------*/
@@ -186,4 +190,6 @@ private:
                                     );
 
     nlohmann::json              ReadProfileFileJSON(filesystem::path profile_filepath);
+
+    void                        RenameLegacyProfile(std::string profile_name, bool sizes);
 };

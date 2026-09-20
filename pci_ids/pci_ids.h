@@ -1,4 +1,4 @@
-﻿/*---------------------------------------------------------*\
+/*---------------------------------------------------------*\
 | pci_ids.h                                                 |
 |                                                           |
 |   PCI Vendor and Device ID constants                      |
@@ -373,6 +373,7 @@
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING                    0x89E3
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_2                  0x89E4
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF                0x8A3C
+#define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_BTF_2              0x8A5A
 #define ASUS_ROG_ASTRAL_RTX_5090_O32G_GAMING_WHITE              0x8A2E
 #define ASUS_ROG_ASTRAL_LC_RTX_5090_O32G_GAMING                 0x89EC
 #define ASUS_ROG_ASTRAL_LC_OC_RTX_5090_O32G_GAMING              0x89ED
@@ -575,6 +576,8 @@
 #define GAINWARD_RTX_3090TI_PHANTOM                             0xF295
 #define GAINWARD_RTX_4070_GHOST_SUB_DEV                         0xF303
 #define GAINWARD_RTX_4080_PHANTOM_GS_SUB_DEV                    0xF297
+#define GAINWARD_RTX_4090_PHANTOM_SUB_DEV                       0xF297
+#define GAINWARD_RTX_5080_PHOENIX_SUB_DEV                       0xF323
 
 /*-----------------------------------------------------*\
 | GALAX / KFA2 Sub-Device IDs                           |
@@ -607,6 +610,7 @@
 #define GIGABYTE_GTX1070_G1_GAMING_8G_SUB_DEV                   0x3772
 #define GIGABYTE_GTX1070TI_GAMING_SUB_DEV                       0x3794
 #define GIGABYTE_GTX1080_G1_GAMING_SUB_DEV                      0x3702
+#define GIGABYTE_GTX1080_8G_SUB_DEV                             0x377D
 #define GIGABYTE_GTX1080TI_SUB_DEV                              0x3752
 #define GIGABYTE_GTX1080TI_GAMING_OC_SUB_DEV                    0x374C
 #define GIGABYTE_GTX1080TI_GAMING_OC_BLACK_SUB_DEV              0x377A
@@ -655,6 +659,7 @@
 #define GIGABYTE_AORUS_RTX2080S_WATERFORCE_SUB_DEV_P            0x4005
 #define GIGABYTE_AORUS_RTX2080TI_EXTREME_SUB_DEV_H              0x37BC
 #define GIGABYTE_AORUS_RTX2080TI_EXTREME_SUB_DEV_P              0x37BD
+#define GIGABYTE_AORUS_RTX2080TI_11G_SUB_DEV_H                  0x37BF
 #define GIGABYTE_RTX3050_GAMING_OC_8GB_SUB_DEV                  0x40AA
 #define GIGABYTE_RTX3060_EAGLE_OC_12GB_SUB_DEV                  0x4072
 #define GIGABYTE_RTX3060_VISION_OC_12GB_SUB_DEV                 0x4073
@@ -696,11 +701,13 @@
 #define GIGABYTE_RTX4060_GAMING_OC_8G_SUB_DEV                   0x4109
 #define GIGABYTE_RTX4060TI_GAMING_OC_8G_SUB_DEV                 0x40F8
 #define GIGABYTE_RTX4060TI_GAMING_OC_16G_SUB_DEV                0x4112
+#define GIGABYTE_RTX4060TI_AERO_OC_16G_SUB_DEV                  0x4113
 #define GIGABYTE_RTX4070_GAMING_OC_12G                          0x40C6
 #define GIGABYTE_RTX4070_GAMING_OC_12G_V2                       0x412B
 #define GIGABYTE_RTX4070_AERO_OC_12G_SUB_DEV                    0x40E6
 #define GIGABYTE_RTX4070S_GAMING_OC_12G                         0x4138
 #define GIGABYTE_RTX4070S_AERO_OC_12G                           0x4139
+#define GIGABYTE_RTX4070S_EAGLE_OC_12G                          0x413A
 #define GIGABYTE_RTX4070S_EAGLE_OC_ICE_12G                      0x4148
 #define GIGABYTE_RTX4070TI_GAMING_12G                           0x40DF
 #define GIGABYTE_RTX4070TI_GAMING_OC_12G                        0x40C6
@@ -745,8 +752,8 @@
 #define GIGABYTE_AORUS_RTX5090_MASTER_ICE_32G_SUB_DEV           0x4199
 #define GIGABYTE_AORUS_RTX5090D_MASTER_32G_SUB_DEV              0x4188
 #define GIGABYTE_AORUS_RTX5090D_V2_MASTER_ICE_24G_SUB_DEV       0x41CA
-#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV1         0x4171
-#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV2         0x4172
+#define GIGABYTE_RTX5090_XTREME_WATERFORCE_32G_SUB_DEV          0x4171
+#define GIGABYTE_RTX5090_XTREME_WATERFORCE_WB_32G_SUB_DEV       0x4172
 #define GIGABYTE_RX6700XT_GAMING_OC_12G_SUB_DEV                 0x232D
 #define GIGABYTE_RX6700XT_EAGLE_12G_SUB_DEV                     0x2331
 #define GIGABYTE_AORUS_RX_6750_XT_ELITE_12G_SUB_DEV             0x2407
@@ -756,6 +763,7 @@
 #define GIGABYTE_RX6900XT_GAMING_OC_SUB_DEV                     0x232C
 #define GIGABYTE_RX9060XT_GAMING_16G_SUB_DEV                    0x2434
 #define GIGABYTE_RX9060XT_GAMING_OC_16G_SUB_DEV                 0x2429
+#define GIGABYTE_RX9060XT_GAMING_OC_8G_SUB_DEV                  0x2430
 #define GIGABYTE_AORUS_RX9070XT_ELITE_16G_SUB_DEV               0x2426
 #define GIGABYTE_RX9070XT_GAMING_OC_16G_SUB_DEV                 0x2424
 #define GIGABYTE_RX9070_GAMING_OC_16G_SUB_DEV                   0x2425
@@ -850,6 +858,7 @@
 #define MSI_RTX4090_GAMING_X_TRIO_SUB_DEV                       0x5103
 #define MSI_RTX4090_SUPRIM_LIQUID_X_SUB_DEV                     0x5104
 #define MSI_RTX4090_SUPRIM_X_SUB_DEV                            0x5102
+#define MSI_RTX4090_SUPRIM_X_CLASSIC_SUB_DEV                    0x5105
 #define MSI_RTX5070_GAMING_TRIO_SUB_DEV                         0x5322
 #define MSI_RTX5070TI_GAMING_TRIO_SUB_DEV                       0x5315
 #define MSI_RTX5070TI_VANGUARD_SOC_SUB_DEV                      0X5314
@@ -880,6 +889,7 @@
 \*-----------------------------------------------------*/
 #define PNY_RTX_2060_XLR8_OC_SUB_DEV                            0x1363
 #define PNY_RTX_3060_XLR8_REVEL_EPIC_X_SUB_DEV                  0x138E
+#define PNY_RTX_3060_XLR8_REVEL_EPIC_X_LHR_SUB_DEV              0x138F
 #define PNY_RTX_3070_XLR8_REVEL_EPIC_X_SUB_DEV                  0x136E
 #define PNY_RTX_3070_XLR8_REVEL_EPIC_X_LHR_SUB_DEV              0x138A
 #define PNY_RTX_3070TI_XLR8_UPRISING_EPIC_X_SUB_DEV             0x138D
@@ -901,7 +911,9 @@
 #define PNY_RTX_4090_VERTO_EPIC_X_SUB_DEV                       0x13D8
 #define PNY_RTX_4090_VERTO_EPIC_X_OC_SUB_DEV                    0x13D9
 #define PNY_RTX_5070_ARGB_EPIC_X_OC_SUB_DEV                     0x1439
+#define PNY_RTX_5070TI_ARGB_EPIC_X_SUB_DEV                      0x143B
 #define PNY_RTX_5070TI_ARGB_EPIC_X_OC_SUB_DEV                   0x143A
+#define PNY_RTX_5070TI_ARGB_EPIC_X_OC_SUB_DEV2                  0x144A
 #define PNY_RTX_5060TI_ARGB_EPIC_X_OC_SUB_DEV                   0x143E
 #define PNY_RTX_5080_ARGB_EPIC_X_OC_SUB_DEV                     0x1435
 #define PNY_RTX_5090_ARGB_EPIC_X_OC_SUB_DEV                     0x1446
@@ -925,6 +937,7 @@
 #define PALIT_RTX3080TI_GAMEROCK_SUB_DEV                        0xF278
 #define PALIT_RTX3090_SUB_DEV                                   0x2204
 #define PALIT_RTX3090_GAMEROCK_SUB_DEV                          0xF278
+#define PALIT_RTX3090TI_GAMEROCK_SUB_DEV                        0xF294
 #define PALIT_RTX4060_SUB_DEV                                   0xF311
 #define PALIT_RTX4070_SUB_DEV                                   0xF302
 #define PALIT_RTX4070S_SUB_DEV                                  0xF302
@@ -958,6 +971,8 @@
 #define POWERCOLOR_RED_DEVIL_RX6750XT_SUB_DEV                   0x2419
 #define POWERCOLOR_RED_DEVIL_RX6950XT_SUB_DEV                   0x2420
 
+#define POWERCOLOR_RED_DEVIL_RX7900XTX_SUB_DEV                  0x2422
+
 #define POWERCOLOR_RED_DEVIL_RX9070XT_SUB_DEV                   0x2435
 #define POWERCOLOR_RED_DEVIL_RX9070_SUB_DEV                     0x2436
 
@@ -989,6 +1004,7 @@
 #define SAPPHIRE_NAVI44_PURE_XT_SUB_DEV                         0x493E
 #define SAPPHIRE_NAVI48_NITRO_PLUS_SUB_DEV                      0xE489
 #define SAPPHIRE_NAVI48_NITRO_PLUS_SUB_DEV1                     0xE493
+#define SAPPHIRE_NAVI48_NITRO_PLUS_SUB_DEV2                     0x4892
 #define SAPPHIRE_NAVI48_PURE_SUB_DEV                            0x4499
 #define SAPPHIRE_NAVI48_PURE_XT_SUB_DEV                         0x3490
 #define SAPPHIRE_NAVI31_GRE_NITRO_PLUS_SUB_DEV                  0xE475
@@ -1019,6 +1035,7 @@
 #define ZOTAC_RTX4090_AMP_SUB_DEV                               0x4675
 #define ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV                       0x1762
 #define ZOTAC_RTX5090_SOLID_OC_SUB_DEV                          0x1761
+#define ZOTAC_RTX5090D_SOLID_OC_SUB_DEV                         0x2761
 
 /*-----------------------------------------------------*\
 | Manli Sub-Device IDs                                  |

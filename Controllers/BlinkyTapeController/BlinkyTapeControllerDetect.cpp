@@ -40,8 +40,4 @@ DetectedControllers DetectBlinkyTapeControllers()
 }
 
 REGISTER_DETECTOR("BlinkyTape", DetectBlinkyTapeControllers);
-/*---------------------------------------------------------------------------------------------------------*\
-| Entries for dynamic UDEV rules                                                                            |
-|                                                                                                           |
-| DUMMY_DEVICE_DETECTOR("BlinkyTape", DetectBlinkyTapeControllers, 0x1D50, 0x605E )                         |
-\*---------------------------------------------------------------------------------------------------------*/
+REGISTER_CUSTOM_UDEV_RULE(blinky_tape, "BlinkyTape", "SUBSYSTEMS==\"serial|hidraw\", ATTRS{idVendor}==\"1d50\", ATTRS{idProduct}==\"605e\", TAG+=\"uaccess\", TAG+=\"BlinkyTape\"");

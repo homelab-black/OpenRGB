@@ -24,8 +24,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 #-----------------------------------------------------------------------------------------------#
 # Application Configuration                                                                     #
 #-----------------------------------------------------------------------------------------------#
-MAJOR       = 0
-MINOR       = 9
+MAJOR       = 1
+MINOR       = 0
 SUFFIX      = git
 
 SHORTHASH   = $$system("git rev-parse --short=7 HEAD")
@@ -166,6 +166,7 @@ HEADERS +=                                                                      
     Colors.h                                                                                    \
     dependencies/ColorWheel/ColorWheel.h                                                        \
     dependencies/json/nlohmann/json.hpp                                                         \
+    fair_mutex.h                                                                                \
     JsonUtils.h                                                                                 \
     LogManager.h                                                                                \
     NetworkClient.h                                                                             \
@@ -338,6 +339,20 @@ win32:INCLUDEPATH +=                                                            
 
 win32:SOURCES += $$CONTROLLER_CPP_WINDOWS
 
+#-----------------------------------------------------------------------------------------------#
+# Exclude controllers that depend on PawnIO from the 32-bit BUILDDATE_STRING                    #
+#-----------------------------------------------------------------------------------------------#
+win32:!contains(QMAKE_TARGET.arch, x86_64) {
+    win32:SOURCES -=                                                                            \
+        Controllers/ValveSteamMachineController/RGBController_ValveSteamMachine_Windows_Linux.cpp \
+        Controllers/ValveSteamMachineController/ValveSteamMachineController_Windows.cpp         \
+        Controllers/ValveSteamMachineController/ValveSteamMachineControllerDetect_Windows.cpp   \
+
+    win32:HEADERS -=                                                                            \
+        Controllers/ValveSteamMachineController/RGBController_ValveSteamMachine_Windows_Linux.h \
+        Controllers/ValveSteamMachineController/ValveSteamMachineController_Windows.h           \
+}
+
 win32:SOURCES +=                                                                                \
     dependencies/hueplusplus-1.2.0/src/WinHttpHandler.cpp                                       \
     dependencies/NVFC/nvapi.cpp                                                                 \
@@ -441,6 +456,7 @@ win32:contains(QMAKE_TARGET.arch, x86_64) {
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusIntelSkylakeIMC.bin     )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/SmbusNCT6793.bin             )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/LpcIO.bin                    )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
+    copydata.commands += $(COPY_FILE) \"$$shell_path($$PWD/dependencies/PawnIO/modules/LedsValve.bin                )\" \"$$shell_path($$DESTDIR)\" $$escape_expand(\n\t)
     first.depends = $(first) copydata
     export(first.depends)
     export(copydata.commands)
@@ -473,11 +489,22 @@ contains(QMAKE_PLATFORM, linux) {
     HEADERS +=                                                                                  \
     dependencies/NVFC/nvapi.h                                                                   \
     i2c_smbus/Linux/i2c_smbus_linux.h                                                           \
-    AutoStart/AutoStart-Linux.h                                                                 \
     SPDAccessor/EE1004Accessor_Linux.h                                                          \
     SPDAccessor/SPD5118Accessor_Linux.h                                                         \
     SuspendResume/SuspendResume_Linux_FreeBSD.h                                                 \
     super_io/super_io.h                                                                         \
+
+    #-------------------------------------------------------------------------------------------#
+    # AutoStart implementation - Flatpak uses portal-based autostart, Linux uses desktop files  #
+    #   Auto-detect Flatpak build environment via /.flatpak-info file                           #
+    #-------------------------------------------------------------------------------------------#
+    exists(/.flatpak-info) {
+        HEADERS += AutoStart/AutoStart-Flatpak.h
+        DEFINES += FLATPAK_BUILD
+        PKGCONFIG += gio-2.0
+    } else {
+        HEADERS += AutoStart/AutoStart-Linux.h
+    }
 
     INCLUDEPATH +=                                                                              \
     dependencies/NVFC                                                                           \
@@ -543,12 +570,21 @@ contains(QMAKE_PLATFORM, linux) {
     i2c_smbus/Linux/i2c_smbus_linux.cpp                                                         \
     scsiapi/scsiapi_linux.c                                                                     \
     serial_port/find_usb_serial_port_linux.cpp                                                  \
-    AutoStart/AutoStart-Linux.cpp                                                               \
     SPDAccessor/EE1004Accessor_Linux.cpp                                                        \
     SPDAccessor/SPD5118Accessor_Linux.cpp                                                       \
     SuspendResume/SuspendResume_Linux_FreeBSD.cpp                                               \
     startup/main_FreeBSD_Linux_MacOS.cpp                                                        \
     super_io/super_io.cpp                                                                       \
+
+    #-------------------------------------------------------------------------------------------#
+    # AutoStart implementation - Flatpak uses portal-based autostart, Linux uses desktop files  #
+    #   Auto-detect Flatpak build environment via /.flatpak-info file                           #
+    #-------------------------------------------------------------------------------------------#
+    exists(/.flatpak-info) {
+        SOURCES += AutoStart/AutoStart-Flatpak.cpp
+    } else {
+        SOURCES += AutoStart/AutoStart-Linux.cpp
+    }
 
     #-------------------------------------------------------------------------------------------#
     # Set up install paths                                                                      #
@@ -565,35 +601,6 @@ contains(QMAKE_PLATFORM, linux) {
         OPENRGB_SYSTEM_PLUGIN_DIRECTORY=\\"\"\"$$OPENRGB_SYSTEM_PLUGIN_DIRECTORY\\"\"\"         \
 
     #-------------------------------------------------------------------------------------------#
-    # Custom target for dynamically created udev_rules                                          #
-    #   Ordinarily you would add the 'udev_rules' target to both QMAKE_EXTRA_TARGETS to add a   #
-    #   rule in the Makefile and PRE_TARGETDEPS to ensure it is a dependency of the TARGET      #
-    #                                                                                           #
-    #   ie. QMAKE_EXTRA_TARGETS += udev_rules                                                   #
-    #       PRE_TARGETDEPS      += udev_rules                                                   #
-    #-------------------------------------------------------------------------------------------#
-    CONFIG(release, debug|release) {
-        udev_rules.CONFIG       = no_check_exist
-        udev_rules.target       = 60-openrgb.rules
-        udev_rules.path         = $$PREFIX/lib/udev/rules.d/
-
-        exists($$udev_rules.target) {
-            message($$udev_rules.target " - UDEV rules file exists. Removing from build")
-            udev_rules.files    = $$udev_rules.target
-        } else {
-            message($$udev_rules.target " - UDEV rules file missing. Adding script to build")
-            #-----------------------------------------------------------------------------------#
-            # This is a compiler config flag to save the preproccessed .ii & .s                 #
-            #   files so as to automatically process the UDEV rules and the Supported Devices   #
-            #-----------------------------------------------------------------------------------#
-            QMAKE_CXXFLAGS+=-save-temps
-            QMAKE_CXXFLAGS-=-pipe
-            udev_rules.extra    = $$PWD/scripts/build-udev-rules.sh $$PWD $$GIT_COMMIT_ID
-            udev_rules.files    = $$OUT_PWD/60-openrgb.rules
-        }
-    }
-
-    #-------------------------------------------------------------------------------------------#
     # Add static files to installation                                                          #
     #-------------------------------------------------------------------------------------------#
     target.path=$$PREFIX/bin/
@@ -607,7 +614,7 @@ contains(QMAKE_PLATFORM, linux) {
     systemd_service.files+=qt/openrgb.service
     tmpfiles.path=$$PREFIX/lib/tmpfiles.d/
     tmpfiles.files+=qt/openrgb.conf
-    INSTALLS += target desktop icon metainfo udev_rules systemd_service tmpfiles
+    INSTALLS += target desktop icon metainfo systemd_service tmpfiles
 }
 
 #-----------------------------------------------------------------------------------------------#
@@ -692,9 +699,7 @@ contains(QMAKE_PLATFORM, freebsd) {
     icon.files+=qt/org.openrgb.OpenRGB.png
     metainfo.path=$$PREFIX/share/metainfo/
     metainfo.files+=qt/org.openrgb.OpenRGB.metainfo.xml
-    rules.path=$$PREFIX/lib/udev/rules.d/
-    rules.files+=60-openrgb.rules
-    INSTALLS += target desktop icon metainfo rules
+    INSTALLS += target desktop icon metainfo
 }
 
 unix:!macx:CONFIG(asan) {
@@ -821,10 +826,6 @@ macx:contains(QMAKE_HOST.arch, x86_64) {
     DEFINES +=                                                                                  \
     _MACOSX_X86_X64                                                                             \
 }
-
-DISTFILES += \
-    debian/openrgb-udev.postinst \
-    debian/openrgb.postinst
 
 #-----------------------------------------------------------------------------------------------#
 # Print build configuration                                                                     #

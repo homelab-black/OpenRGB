@@ -44,8 +44,4 @@ DetectedControllers DetectArcticControllers()
 }
 
 REGISTER_DETECTOR("Arctic RGB controller", DetectArcticControllers);
-/*---------------------------------------------------------------------------------------------------------*\
-| Entries for dynamic UDEV rules                                                                            |
-|                                                                                                           |
-| DUMMY_DEVICE_DETECTOR("Arctic RGB controller", DetectArcticControllers, 0x1A86, 0x7523 )                  |
-\*---------------------------------------------------------------------------------------------------------*/
+REGISTER_CUSTOM_UDEV_RULE(arctic, "Arctic RGB controller", "SUBSYSTEMS==\"serial|hidraw\", ATTRS{idVendor}==\"1a86\", ATTRS{idProduct}==\"7523\", TAG+=\"uaccess\", TAG+=\"Arctic_RGB_controller\"");

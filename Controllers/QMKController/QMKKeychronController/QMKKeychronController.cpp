@@ -13,132 +13,30 @@
 #include <string.h>
 #include "hsv.h"
 #include "QMKKeychronController.h"
+#include "QMKKeychronController_Devices.h"
 #include "QMKViaCommands.h"
 #include "StringUtils.h"
 #include "LogManager.h"
 
 using namespace std::chrono_literals;
 
-/*---------------------------------------------------------*\
-| Keychron Patch Types                                      |
-|   The Keychron protocol does not provide RGB matrix X/Y   |
-|   coordinates, only the position in the wiring matrix.    |
-|   For most Keychron keyboards, the wiring matrix mostly   |
-|   matches the physical position, but there are often a    |
-|   few misplaced LEDs.  Implement a matrix patching system |
-|   to apply keyboard-specific patches for these misplaced  |
-|   LEDs.                                                   |
-\*---------------------------------------------------------*/
-typedef struct
-{
-    unsigned int                led_idx;
-    unsigned int                row;
-    unsigned int                col;
-} keychron_patch_entry;
-
-typedef struct
-{
-    unsigned short              pid;
-    unsigned int                num_entries;
-    const keychron_patch_entry* patch;
-} keychron_patch;
-
-/*---------------------------------------------------------*\
-| Keychron K5 V2 ANSI Encoder                               |
-\*---------------------------------------------------------*/
-#define KEYCHRON_K5_V2_ANSI_RGB_PATCH_ENTRIES_COUNT \
-    (sizeof(keychron_k5_v2_ansi_rgb_patch_entries) / sizeof(keychron_patch_entry))
-
-static const keychron_patch_entry keychron_k5_v2_ansi_rgb_patch_entries[] =
-{
-    {  18,   0,     19 },
-    {  19,   0,     20 },
-    {  39,   1,     19 },
-    {  40,   1,     20 },
-    {  60,   2,     19 },
-    {  61,   2,     20 },
-    {  74,   3,     12 },
-    {  77,   3,     19 },
-    {  89,   4,     12 },
-    {  93,   4,     19 },
-    { 107,   5,     19 },
-    {  94,   5,     20 },
-};
-
-static const keychron_patch keychron_k5_v2_ansi_rgb_patch =
-{
-    KEYCHRON_K5_V2_ANSI_RGB_PID,
-    KEYCHRON_K5_V2_ANSI_RGB_PATCH_ENTRIES_COUNT,
-    keychron_k5_v2_ansi_rgb_patch_entries
-};
-
-/*---------------------------------------------------------*\
-| Keychron Q2 ANSI Encoder                                  |
-\*---------------------------------------------------------*/
-#define KEYCHRON_Q2_ANSI_ENCODER_PATCH_ENTRIES_COUNT (sizeof(keychron_q2_ansi_encoder_patch_entries) / sizeof(keychron_patch_entry))
-
-static const keychron_patch_entry keychron_q2_ansi_encoder_patch_entries[] =
-{
-    { 60,   4,      9 },
-    { 61,   4,     10 },
-    { 62,   4,     11 },
-    { 63,   4,     12 },
-    { 54,   3,     12 },
-    { 55,   3,     13 },
-    { 64,   4,     13 },
-};
-
-static const keychron_patch keychron_q2_ansi_encoder_patch =
-{
-    KEYCHRON_Q2_ANSI_ENCODER_PID,
-    KEYCHRON_Q2_ANSI_ENCODER_PATCH_ENTRIES_COUNT,
-    keychron_q2_ansi_encoder_patch_entries
-};
-
-/*---------------------------------------------------------*\
-| Keychron Q6 ANSI Encoder                                  |
-\*---------------------------------------------------------*/
-#define KEYCHRON_Q6_ULTRA_8K_ANSI_PATCH_ENTRIES_COUNT (sizeof(keychron_q6_ultra_8k_ansi_patch_entries) / sizeof(keychron_patch_entry))
-
-static const keychron_patch_entry keychron_q6_ultra_8k_ansi_patch_entries[] =
-{
-    { 19,   0,     20 },
-    { 40,   1,     20 },
-    { 77,   3,     20 },
-    { 107,  5,     20 },
-};
-
-static const keychron_patch keychron_q6_ultra_8k_ansi_patch =
-{
-    KEYCHRON_Q6_ULTRA_8K_ANSI_PID,
-    KEYCHRON_Q6_ULTRA_8K_ANSI_PATCH_ENTRIES_COUNT,
-    keychron_q6_ultra_8k_ansi_patch_entries
-};
-
-/*---------------------------------------------------------*\
-| List of all Keychron patches                              |
-\*---------------------------------------------------------*/
-#define KEYCHRON_PATCH_COUNT (sizeof(keychron_patches) / sizeof(keychron_patch*))
-
-static const keychron_patch* keychron_patches[] =
-{
-    &keychron_q2_ansi_encoder_patch,
-    &keychron_q6_ultra_8k_ansi_patch,
-    &keychron_k5_v2_ansi_rgb_patch,
-};
 
 QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char *path, unsigned short dev_pid)
 {
     /*-----------------------------------------------------*\
     | Initialize controller fields                          |
     \*-----------------------------------------------------*/
-    dev                     = dev_handle;
-    location                = path;
-    kc_protocol_version     = 0;
-    kc_rgb_protocol_version = 0;
-    pid                     = dev_pid;
-    supported_features      = 0;
-    via_protocol_version    = 0;
+    dev                         = dev_handle;
+    location                    = path;
+    kc_dongle_firmware_version  = "";
+    kc_firmware_version         = "";
+    kc_protocol_version         = 0;
+    kc_rgb_protocol_version     = 0;
+    number_leds                 = 0;
+    supported_features          = 0;
+    via_protocol_version        = 0;
+    wireless_device_pid         = 0;
+    wireless_device_vid         = 0;
 
     /*-----------------------------------------------------*\
     | Read product string                                   |
@@ -189,6 +87,22 @@ QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char 
     }
 
     /*-----------------------------------------------------*\
+    | If the device is a Keychron wireless dongle that      |
+    | supports wireless RGB control, probe the attached     |
+    | keyboard's information                                |
+    \*-----------------------------------------------------*/
+    CmdGetWirelessDeviceInfo(&wireless_device_vid, &wireless_device_pid);
+
+    if(wireless_device_vid != 0 && wireless_device_pid != 0)
+    {
+        /*-------------------------------------------------*\
+        | Wireless keyboard detected, update dev_pid to use |
+        | the keyboard's PID instead of the dongle's PID    |
+        \*-------------------------------------------------*/
+        dev_pid = wireless_device_pid;
+    }
+
+    /*-----------------------------------------------------*\
     | Get VIA protocol version                              |
     \*-----------------------------------------------------*/
     CmdGetViaProtocolVersion(&via_protocol_version);
@@ -201,7 +115,27 @@ QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char 
     /*-----------------------------------------------------*\
     | Get Keychron firmware version                         |
     \*-----------------------------------------------------*/
-    kc_firmware_version = CmdGetKeychronFirmwareVersion();
+    std::string initial_firmware = CmdGetKeychronFirmwareVersion();
+
+    if(wireless_device_vid != 0 && wireless_device_pid != 0)
+    {
+        /*-------------------------------------------------*\
+        | For wireless connections:                         |
+        | - The initial firmware is the dongle's version    |
+        | - Query the keyboard's firmware via wireless      |
+        \*-------------------------------------------------*/
+        kc_dongle_firmware_version = initial_firmware;
+        kc_firmware_version = CmdGetWirelessKeyboardFirmwareVersion();
+    }
+    else
+    {
+        /*-------------------------------------------------*\
+        | For wired connections:                            |
+        | - Use the firmware version directly               |
+        | - No dongle firmware to display                   |
+        \*-------------------------------------------------*/
+        kc_firmware_version = initial_firmware;
+    }
 
     /*-----------------------------------------------------*\
     | Get supported Keychron features                       |
@@ -252,21 +186,46 @@ QMKKeychronController::QMKKeychronController(hid_device* dev_handle, const char 
 
     for(unsigned short led_index = 0; led_index < number_leds; led_index++)
     {
-        keycodes[led_index] = CmdGetKeycode(0, led_info[led_index].row, led_info[led_index].col);
+        if(led_info[led_index].valid)
+        {
+            keycodes[led_index] = CmdGetKeycode(0, led_info[led_index].row, led_info[led_index].col);
+        }
+        else
+        {
+            keycodes[led_index] = 0;
+        }
     }
 
     /*-----------------------------------------------------*\
     | Apply matrix corrections                              |
     \*-----------------------------------------------------*/
+    const std::vector<qmk_rgb_matrix_led_info> raw_led_info = led_info;
+
     for(unsigned int patch_idx = 0; patch_idx < KEYCHRON_PATCH_COUNT; patch_idx++)
     {
-        if(pid == keychron_patches[patch_idx]->pid)
+        if(dev_pid == keychron_patches[patch_idx]->pid)
         {
-            for(unsigned int patch_entry_idx = 0; patch_entry_idx < keychron_patches[patch_idx]->num_entries; patch_entry_idx++)
+            for(unsigned int patch_entry_idx = 0;
+                patch_entry_idx < keychron_patches[patch_idx]->num_entries;
+                patch_entry_idx++)
             {
-                led_info[keychron_patches[patch_idx]->patch[patch_entry_idx].led_idx].row = keychron_patches[patch_idx]->patch[patch_entry_idx].row;
-                led_info[keychron_patches[patch_idx]->patch[patch_entry_idx].led_idx].col = keychron_patches[patch_idx]->patch[patch_entry_idx].col;
+                const keychron_patch_entry& patch_entry =
+                    keychron_patches[patch_idx]->patch[patch_entry_idx];
+
+                for(unsigned int led_idx = 0; led_idx < raw_led_info.size(); led_idx++)
+                {
+                    if(raw_led_info[led_idx].valid &&
+                    raw_led_info[led_idx].row == patch_entry.source_row &&
+                    raw_led_info[led_idx].col == patch_entry.source_col)
+                    {
+                        led_info[led_idx].row = patch_entry.row;
+                        led_info[led_idx].col = patch_entry.col;
+                        break;
+                    }
+                }
             }
+
+            break;
         }
     }
 }
@@ -301,10 +260,27 @@ std::string QMKKeychronController::GetVersion()
     /*-----------------------------------------------------*\
     | Format multi-line version text                        |
     \*-----------------------------------------------------*/
-    return("VIA: "          + std::to_string(via_protocol_version) + "\r\n" +
-           "Keychron: "     + std::to_string(kc_protocol_version) + "\r\n" +
-           "Keychron RGB: " + std::to_string(kc_rgb_protocol_version) + "\r\n" +
-           "Keychron FW: "  + kc_firmware_version);
+    std::string result = "VIA: "          + std::to_string(via_protocol_version) + "\r\n" +
+                         "Keychron: "     + std::to_string(kc_protocol_version) + "\r\n" +
+                         "Keychron RGB: " + std::to_string(kc_rgb_protocol_version) + "\r\n";
+
+    if(!kc_dongle_firmware_version.empty())
+    {
+        /*-------------------------------------------------*\
+        | Wireless - show both dongle and keyboard          |
+        \*-------------------------------------------------*/
+        result += "Dongle FW: "   + kc_dongle_firmware_version + "\r\n" +
+                  "Keyboard FW: " + kc_firmware_version;
+    }
+    else
+    {
+        /*-------------------------------------------------*\
+        | Wired - show keyboard only                        |
+        \*-------------------------------------------------*/
+        result += "Keychron FW: " + kc_firmware_version;
+    }
+
+    return(result);
 }
 
 bool QMKKeychronController::GetSupported()
@@ -378,26 +354,29 @@ unsigned short QMKKeychronController::CmdGetKeycode
     )
 {
     unsigned char       args[3];
-    unsigned char       response[5];
-    unsigned short      keycode;
+    unsigned char       response[5] = { 0 };
 
     args[0] = layer;
     args[1] = row;
     args[2] = col;
 
-    ViaSendCommand(QMK_VIA_CMD_VIA_DYNAMIC_KEYMAP_GET_KEYCODE, args, sizeof(args), response, sizeof(response));
+    if(ViaSendCommand(QMK_VIA_CMD_VIA_DYNAMIC_KEYMAP_GET_KEYCODE, args, sizeof(args), response, sizeof(response)) <= 0)
+    {
+        return(0);
+    }
 
-    keycode = ( response[3] << 8 )| response[4];
-
-    return(keycode);
+    return((response[3] << 8) | response[4]);
 }
 
 
 std::string QMKKeychronController::CmdGetKeychronFirmwareVersion()
 {
-    char                response[30];
+    char                response[30] = { 0 };
 
-    ViaSendCommand(KC_GET_FIRMWARE_VERSION, NULL, 0, (unsigned char*)response, sizeof(response));
+    if(ViaSendCommand(KC_GET_FIRMWARE_VERSION, NULL, 0, (unsigned char*)response, sizeof(response)) <= 0)
+    {
+        return("");
+    }
 
     /*-----------------------------------------------------*\
     | Ensure response null termination                      |
@@ -412,12 +391,19 @@ void QMKKeychronController::CmdGetKeychronProtocolVersion
     unsigned char*      kc_protocol_version
     )
 {
+    *kc_protocol_version = 0;
+
     ViaSendCommand(KC_GET_PROTOCOL_VERSION, NULL, 0, (unsigned char*)kc_protocol_version, sizeof(unsigned char));
 }
 
 void QMKKeychronController::CmdGetKeychronRGBProtocolVersion(unsigned short* kc_rgb_protocol_version)
 {
-    ViaSendCommandSub(KC_KEYCHRON_RGB, KEYCHRON_RGB_PROTOCOL_VER, NULL, 0, (unsigned char*)kc_rgb_protocol_version, sizeof(unsigned short));
+    *kc_rgb_protocol_version = 0;
+
+    if(ViaSendCommandSub(KC_KEYCHRON_RGB, KEYCHRON_RGB_PROTOCOL_VER, NULL, 0, (unsigned char*)kc_rgb_protocol_version, sizeof(unsigned short)) <= 0)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | The RGB protocol version byte order is reversed       |
@@ -455,7 +441,12 @@ void QMKKeychronController::CmdGetNumberLEDs
     unsigned short*     number_leds
     )
 {
-    ViaSendCommandSub(KC_KEYCHRON_RGB, KEYCHRON_RGB_LED_COUNT, NULL, 0, (unsigned char*)number_leds, sizeof(unsigned short));
+    *number_leds = 0;
+
+    if(ViaSendCommandSub(KC_KEYCHRON_RGB, KEYCHRON_RGB_LED_COUNT, NULL, 0, (unsigned char*)number_leds, sizeof(unsigned short)) <= 0)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | The LED count byte order is reversed                  |
@@ -465,9 +456,14 @@ void QMKKeychronController::CmdGetNumberLEDs
 
 void QMKKeychronController::CmdGetSupportFeature(unsigned short* supported_features)
 {
-    unsigned char response[3];
+    unsigned char response[3] = { 0 };
 
-    ViaSendCommand(KC_GET_SUPPORT_FEATURE, NULL, 0, response, sizeof(response));
+    *supported_features = 0;
+
+    if(ViaSendCommand(KC_GET_SUPPORT_FEATURE, NULL, 0, response, sizeof(response)) <= 0)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | The QMK and ZMK variants of this packet differ by one |
@@ -488,12 +484,79 @@ void QMKKeychronController::CmdGetViaProtocolVersion
     unsigned short*     via_protocol_version
     )
 {
-    ViaSendCommand(QMK_VIA_CMD_GET_PROTOCOL_VERSION, NULL, 0, (unsigned char*)via_protocol_version, sizeof(unsigned short));
+    *via_protocol_version = 0;
+
+    if(ViaSendCommand(QMK_VIA_CMD_GET_PROTOCOL_VERSION, NULL, 0, (unsigned char*)via_protocol_version, sizeof(unsigned short)) <= 0)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | The protocol version byte order is reversed           |
     \*-----------------------------------------------------*/
     *via_protocol_version = ((*via_protocol_version & 0x00FF) << 8) | ((*via_protocol_version & 0xFF00) >> 8);
+}
+
+void QMKKeychronController::CmdGetWirelessDeviceInfo
+    (
+    unsigned short*     wireless_vid,
+    unsigned short*     wireless_pid
+    )
+{
+    /*-----------------------------------------------------*\
+    | Query wireless keyboard information via dongle        |
+    | This allows the controller to identify the actual     |
+    | keyboard's USB VID/PID instead of the dongle's        |
+    \*-----------------------------------------------------*/
+    unsigned char response[10] = { 0 };
+
+    *wireless_vid = 0;
+    *wireless_pid = 0;
+
+    if(ViaSendCommand(KC_WIRELESS_DEVICE_INFO, NULL, 0, response, sizeof(response)) <= 0)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Response format:                                      |
+    | Byte 0: Status (0x01 = connected/valid)               |
+    | Bytes 1-2: VID (little-endian)                        |
+    | Bytes 3-4: PID (little-endian)                        |
+    | Bytes 5+: Additional info                             |
+    \*-----------------------------------------------------*/
+    if(response[0] != 0x01)
+    {
+        /*-------------------------------------------------*\
+        | No wireless keyboard connected                    |
+        \*-------------------------------------------------*/
+        return;
+    }
+
+    *wireless_vid = response[1] | (response[2] << 8);
+    *wireless_pid = response[3] | (response[4] << 8);
+}
+
+std::string QMKKeychronController::CmdGetWirelessKeyboardFirmwareVersion()
+{
+    /*-----------------------------------------------------*\
+    | Query wireless keyboard firmware version via dongle   |
+    | Similar to CmdGetKeychronFirmwareVersion but for      |
+    | the connected wireless keyboard instead of the dongle |
+    \*-----------------------------------------------------*/
+    char response[30] = { 0 };
+
+    if(ViaSendCommand(KC_WIRELESS_FIRMWARE_VERSION, NULL, 0, (unsigned char*)response, sizeof(response)) <= 0)
+    {
+        return("");
+    }
+
+    /*-----------------------------------------------------*\
+    | Ensure response null termination                      |
+    \*-----------------------------------------------------*/
+    response[29] = 0;
+
+    return(std::string(response));
 }
 
 void QMKKeychronController::CmdSaveMode()
@@ -504,6 +567,8 @@ void QMKKeychronController::CmdSaveMode()
 void QMKKeychronController::CmdSendLEDs(unsigned char start_index, unsigned char number_leds, RGBColor* color_data)
 {
     unsigned char args[KEYCHRON_QHE_PACKET_SIZE - 2];
+
+    memset(args, 0, sizeof(args));
 
     args[0]         = start_index;
     args[1]         = number_leds;
@@ -615,7 +680,7 @@ int QMKKeychronController::ViaSendCommand
     /*-----------------------------------------------------*\
     | Read response                                         |
     \*-----------------------------------------------------*/
-    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, 1000);
+    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, KEYCHRON_QHE_HID_READ_TIMEOUT);
 
     if(usb_buf[0] != cmd)
     {
@@ -660,7 +725,7 @@ int QMKKeychronController::ViaSendCommandSub
     /*-----------------------------------------------------*\
     | Read response                                         |
     \*-----------------------------------------------------*/
-    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, 1000);
+    int bytes_received = hid_read_timeout(dev, usb_buf, sizeof(usb_buf) - 1, KEYCHRON_QHE_HID_READ_TIMEOUT);
 
     if(usb_buf[0] != cmd || usb_buf[1] != subcmd)
     {
