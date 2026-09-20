@@ -3,7 +3,7 @@
 |                                                           |
 |   RGBController for Corsair H100i Hydro Series cooler     |
 |                                                           |
-|   RaddedMC (mycooljames@hotmail.com)          27 Jun 2026 |
+|   RaddedMC (mycooljames@hotmail.com)          20 Sep 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -44,6 +44,7 @@ RGBController_CorsairHydroH100i::RGBController_CorsairHydroH100i(CorsairHydroH10
 
 RGBController_CorsairHydroH100i::~RGBController_CorsairHydroH100i()
 {
+    Shutdown();
     delete controller;
 }
 
@@ -56,7 +57,6 @@ void RGBController_CorsairHydroH100i::SetupZones()
     new_zone.leds_min   = 1;
     new_zone.leds_max   = 1;
     new_zone.leds_count = 1;
-    new_zone.matrix_map = NULL;
     zones.push_back(new_zone);
 
     led new_led;
@@ -65,13 +65,6 @@ void RGBController_CorsairHydroH100i::SetupZones()
     leds.push_back(new_led);
 
     SetupColors();
-}
-
-void RGBController_CorsairHydroH100i::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
 }
 
 void RGBController_CorsairHydroH100i::DeviceUpdateLEDs()

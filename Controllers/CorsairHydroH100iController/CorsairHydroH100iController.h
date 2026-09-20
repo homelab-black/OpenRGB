@@ -3,7 +3,7 @@
 |                                                           |
 |   Driver for Corsair H100i Hydro Series cooler            |
 |                                                           |
-|   RaddedMC (mycooljames@hotmail.com)          27 Jun 2026 |
+|   RaddedMC (mycooljames@hotmail.com)          20 Sep 2026 |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
@@ -12,11 +12,11 @@
 #pragma once
 
 #include <vector>
-#include <libusb.h>
+#include <hidapi.h>
 #include "RGBController.h"
 
 /*-----------------------------------------------------*\
-| Corsair Coolit (Link) Commands                        |
+| Corsair H100/Link Commands                           |
 \*-----------------------------------------------------*/
 enum
 {
@@ -26,7 +26,7 @@ enum
 };
 
 /*-----------------------------------------------------*\
-| Corsair Coolit Register Addresses                    |
+| Corsair H100i Register Addresses                     |
 \*-----------------------------------------------------*/
 enum
 {
@@ -36,7 +36,7 @@ enum
 };
 
 /*-----------------------------------------------------*\
-| Corsair Coolit LED Modes                             |
+| Corsair H100i LED Modes                              |
 \*-----------------------------------------------------*/
 enum
 {
@@ -46,7 +46,7 @@ enum
 class CorsairHydroH100iController
 {
 public:
-    CorsairHydroH100iController(libusb_device_handle* dev_handle, std::string dev_name);
+    CorsairHydroH100iController(hid_device* dev_handle, const char* dev_path, std::string dev_name);
     ~CorsairHydroH100iController();
 
     std::string     GetLocation();
@@ -58,7 +58,7 @@ public:
                         );
 
 private:
-    libusb_device_handle*   dev;
+    hid_device*             dev;
     std::string             location;
     std::string             name;
 
@@ -73,5 +73,4 @@ private:
                             unsigned int            length
                         );
 
-    int             GetHIDInterfaceNumber();
 };
