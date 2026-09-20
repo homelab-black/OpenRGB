@@ -34,7 +34,7 @@ std::string ENESMBusInterface_i2c_smbus::GetLocation()
 
 int ENESMBusInterface_i2c_smbus::GetMaxBlock()
 {
-    return(3);
+    return(ENE_SMBUS_MAX_BLOCK);
 }
 
 unsigned char ENESMBusInterface_i2c_smbus::ENERegisterRead(ene_dev_id dev, ene_register reg)

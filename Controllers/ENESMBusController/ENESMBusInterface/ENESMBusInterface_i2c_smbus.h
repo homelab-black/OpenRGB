@@ -14,6 +14,13 @@
 #include "ENESMBusInterface.h"
 #include "i2c_smbus.h"
 
+/*---------------------------------------------------------*\
+| Largest block written at once, in bytes.  SMBus allows 32 |
+| and this is the largest multiple of 3 (one LED) that fits |
+| in it, the same size the ENE NVMe and USB interfaces use. |
+\*---------------------------------------------------------*/
+#define ENE_SMBUS_MAX_BLOCK 24
+
 class ENESMBusInterface_i2c_smbus : public ENESMBusInterface
 {
 public:
