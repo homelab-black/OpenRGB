@@ -12,6 +12,12 @@
 #include <cstring>
 #include "CorsairHydroH100iController.h"
 
+static void AppendHIDByte(unsigned char* buffer, unsigned int& index, unsigned char value)
+{
+    index++;
+    buffer[index] = value;
+}
+
 CorsairHydroH100iController::CorsairHydroH100iController(hid_device* dev_handle, const char* dev_path, std::string dev_name)
 {
     dev         = dev_handle;
@@ -29,7 +35,7 @@ CorsairHydroH100iController::~CorsairHydroH100iController()
 
 std::string CorsairHydroH100iController::GetLocation()
 {
-    return("USB: " + location);
+    return("HID: " + location);
 }
 
 std::string CorsairHydroH100iController::GetNameString()
@@ -63,34 +69,25 @@ void CorsairHydroH100iController::SendColors
     unsigned char cmd_id = CORSAIR_COOLIT_CMD_ID_BASE;
 
     /*-----------------------------------------------------*\
-    | Helper function to append bytes to buffer             |
+    | Select current LED = 0                                |
     \*-----------------------------------------------------*/
-    auto app = [&](unsigned char val)
-    {
-        idx++;
-        buf[idx] = val & 0xFF;
-    };
-
-    /*-----------------------------------------------------*\
-    | Select current LED = 0                               |
-    \*-----------------------------------------------------*/
-    app(cmd_id);
+    AppendHIDByte(buf, idx, cmd_id);
     cmd_id = (cmd_id + 1) & 0xFF;
-    app(CORSAIR_COOLIT_WRITE_ONE_BYTE);
-    app(CORSAIR_COOLIT_REG_LED_SELECT_CURRENT);
-    app(0x00);
+    AppendHIDByte(buf, idx, CORSAIR_COOLIT_WRITE_ONE_BYTE);
+    AppendHIDByte(buf, idx, CORSAIR_COOLIT_REG_LED_SELECT_CURRENT);
+    AppendHIDByte(buf, idx, 0x00);
 
     /*-----------------------------------------------------*\
-    | Set mode = StaticColor                               |
+    | Set mode = StaticColor                                |
     \*-----------------------------------------------------*/
-    app(cmd_id);
+    AppendHIDByte(buf, idx, cmd_id);
     cmd_id = (cmd_id + 1) & 0xFF;
-    app(CORSAIR_COOLIT_WRITE_ONE_BYTE);
-    app(CORSAIR_COOLIT_REG_LED_MODE);
-    app(CORSAIR_COOLIT_LED_MODE_STATIC_COLOR);
+    AppendHIDByte(buf, idx, CORSAIR_COOLIT_WRITE_ONE_BYTE);
+    AppendHIDByte(buf, idx, CORSAIR_COOLIT_REG_LED_MODE);
+    AppendHIDByte(buf, idx, CORSAIR_COOLIT_LED_MODE_STATIC_COLOR);
 
     /*-----------------------------------------------------*\
-    | Send RGB triplet as LED_CycleColors (repeated 4x)    |
+    | Send RGB triplet as LED_CycleColors (repeated 4x)     |
     \*-----------------------------------------------------*/
     if(!colors.empty())
     {
@@ -99,22 +96,25 @@ void CorsairHydroH100iController::SendColors
         unsigned char g  = RGBGetGValue(color);
         unsigned char b  = RGBGetBValue(color);
 
-        app(cmd_id);
+        AppendHIDByte(buf, idx, cmd_id);
         cmd_id = (cmd_id + 1) & 0xFF;
-        app(CORSAIR_COOLIT_WRITE_THREE_BYTES);
-        app(CORSAIR_COOLIT_REG_LED_CYCLE_COLORS);
-        app(0x0C);  /* count/length used by OpenCorsairLink */
+        AppendHIDByte(buf, idx, CORSAIR_COOLIT_WRITE_THREE_BYTES);
+        AppendHIDByte(buf, idx, CORSAIR_COOLIT_REG_LED_CYCLE_COLORS);
+        /*-----------------------------------------------------*\
+        | count/length used by OpenCorsairLink                  |
+        \*-----------------------------------------------------*/
+        AppendHIDByte(buf, idx, 0x0C);
 
         for(int i = 0; i < 4; i++)
         {
-            app(r);
-            app(g);
-            app(b);
+            AppendHIDByte(buf, idx, r);
+            AppendHIDByte(buf, idx, g);
+            AppendHIDByte(buf, idx, b);
         }
     }
 
     /*-----------------------------------------------------*\
-    | Set length at buf[0]                                 |
+    | Set length at buf[0]                                  |
     \*-----------------------------------------------------*/
     buf[1] = (idx - 1) & 0xFF;
 

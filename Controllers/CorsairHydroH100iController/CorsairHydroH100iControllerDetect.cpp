@@ -20,7 +20,7 @@
 #define CORSAIR_VID                     0x1B1C
 
 /*-----------------------------------------------------*\
-| Corsair H100i product ID                             |
+| Corsair H100i product ID                              |
 \*-----------------------------------------------------*/
 #define CORSAIR_H100I_PID               0x0C04
 
@@ -28,7 +28,6 @@ DetectedControllers DetectCorsairHydroH100iControllers(hid_device_info* info, co
 {
     DetectedControllers detected_controllers;
     hid_device*         dev = hid_open_path(info->path);
-
     if(dev)
     {
         CorsairHydroH100iController*     controller     = new CorsairHydroH100iController(dev, info->path, name);
@@ -41,4 +40,3 @@ DetectedControllers DetectCorsairHydroH100iControllers(hid_device_info* info, co
 }
 
 REGISTER_HID_DETECTOR("Corsair H100i Series", DetectCorsairHydroH100iControllers, CORSAIR_VID, CORSAIR_H100I_PID);
-REGISTER_CUSTOM_UDEV_RULE(corsair_hydro_h100i, "Corsair H100i Series", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"1b1c\", ATTRS{idProduct}==\"0c04\", TAG+=\"uaccess\", TAG+=\"Corsair_Hydro_H100i\"");
