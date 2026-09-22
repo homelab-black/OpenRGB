@@ -18,19 +18,22 @@
 #include "RoccatVulcanKeyboardController.h"
 #include "StringUtils.h"
 
-RoccatVulcanKeyboardController::RoccatVulcanKeyboardController(hid_device* dev_ctrl_handle, hid_device* dev_led_handle, char *path, uint16_t pid, std::string dev_name)
+RoccatVulcanKeyboardController::RoccatVulcanKeyboardController(hid_device* dev_ctrl_handle, hid_device* dev_led_handle, char *path, uint16_t pid, std::string dev_name, std::function<void()> release_paths_callback)
 {
     dev_ctrl    = dev_ctrl_handle;
     dev_led     = dev_led_handle;
     location    = path;
     name        = dev_name;
     device_pid  = pid;
+    release_paths = release_paths_callback;
 }
 
 RoccatVulcanKeyboardController::~RoccatVulcanKeyboardController()
 {
     hid_close(dev_ctrl);
     hid_close(dev_led);
+
+    release_paths();
 }
 
 std::string RoccatVulcanKeyboardController::GetLocation()
