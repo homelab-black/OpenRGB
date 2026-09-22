@@ -8,6 +8,13 @@
 \*---------------------------------------------------------*/
 
 #include <QTimer>
+#include <QFileDialog>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QHBoxLayout>
 
 #include "OpenRGBDevicePage.h"
 #include "OpenRGBDeviceEditorDialog.h"
@@ -41,6 +48,85 @@ OpenRGBDevicePage::OpenRGBDevicePage(RGBController *dev, QWidget *parent) :
     ui(new Ui::OpenRGBDevicePage)
 {
     ui->setupUi(this);
+
+    /* X1-only layout import/reset.  Keep this out of the generic device UI. */
+    if(dev->GetName() == "Thermaltake TT Premium X1 RGB")
+    {
+        QWidget *layout_buttons = new QWidget(this);
+        QHBoxLayout *layout = new QHBoxLayout(layout_buttons);
+        layout->setContentsMargins(0, 0, 0, 0);
+        QPushButton *import_button = new QPushButton(tr("Import Layout"), layout_buttons);
+        QPushButton *reset_button = new QPushButton(tr("Reset Layout"), layout_buttons);
+        layout->addWidget(import_button);
+        layout->addWidget(reset_button);
+        ui->ControlsGridLayout->addWidget(layout_buttons, 10, 0, 1, 4);
+
+        connect(import_button, &QPushButton::clicked, this, [this]()
+        {
+            const QString path = QFileDialog::getOpenFileName(this, tr("Import X1 Layout"), QString(), tr("JSON files (*.json)"));
+            if(path.isEmpty()) return;
+            QFile file(path);
+            if(!file.open(QIODevice::ReadOnly))
+            {
+                QMessageBox::warning(this, tr("Import X1 Layout"), tr("Could not open the selected file."));
+                return;
+            }
+            QJsonParseError error;
+            const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &error);
+            const QJsonObject root = document.object();
+            const QJsonObject colors = root.value("colors").toObject();
+            if(document.isNull() || colors.isEmpty() ||
+               (root.contains("device") && root.value("device").toString() != QString::fromStdString(device->GetName())))
+            {
+                QMessageBox::warning(this, tr("Import X1 Layout"), tr("Invalid X1 layout JSON."));
+                return;
+            }
+            int direct_mode = -1;
+            for(unsigned int mode = 0; mode < device->GetModeCount(); ++mode)
+                if(QString::fromStdString(device->GetModeName(mode)).compare("Direct", Qt::CaseInsensitive) == 0)
+                    direct_mode = (int)mode;
+            if(direct_mode < 0 || colors.size() != 110)
+            {
+                QMessageBox::warning(this, tr("Import X1 Layout"), tr("The file must contain exactly 110 LED colors and a Direct mode."));
+                return;
+            }
+            device->SetActiveMode(direct_mode);
+            for(int led = 0; led < 110; ++led)
+            {
+                const QJsonValue value = colors.value(QString::number(led));
+                QString hex = value.toString().trimmed();
+                if(hex.startsWith('#')) hex.remove(0, 1);
+                bool ok = false;
+                const unsigned int rgb = hex.toUInt(&ok, 16);
+                if(!ok || hex.size() != 6 || rgb > 0xFFFFFFu)
+                {
+                    QMessageBox::warning(this, tr("Import X1 Layout"), tr("Invalid color for LED %1.").arg(led));
+                    return;
+                }
+                device->SetColor((unsigned int)led, rgb);
+            }
+            device->UpdateLEDs();
+            UpdateModeUi();
+            UpdateLEDUi();
+        });
+
+        connect(reset_button, &QPushButton::clicked, this, [this]()
+        {
+            if(QMessageBox::question(this, tr("Reset X1 Layout"), tr("Reset all 110 X1 LED colors to off?"), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+                return;
+            int direct_mode = -1;
+            for(unsigned int mode = 0; mode < device->GetModeCount(); ++mode)
+                if(QString::fromStdString(device->GetModeName(mode)).compare("Direct", Qt::CaseInsensitive) == 0)
+                    direct_mode = (int)mode;
+            if(direct_mode < 0) return;
+            device->SetActiveMode(direct_mode);
+            for(int led = 0; led < 110; ++led)
+                device->SetColor((unsigned int)led, 0);
+            device->UpdateLEDs();
+            UpdateModeUi();
+            UpdateLEDUi();
+        });
+    }
 
     /*-----------------------------------------------------*\
     | Store device pointer                                  |
@@ -2732,4 +2818,3 @@ void OpenRGBDevicePage::on_ZoneBox_currentIndexChanged(int /*index*/)
     \*-----------------------------------------------------*/
     UpdateLEDUi();
 }
-
