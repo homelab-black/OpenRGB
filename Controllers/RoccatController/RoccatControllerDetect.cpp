@@ -29,9 +29,7 @@
 #include "RGBController_RoccatVulcanKeyboard.h"
 #include "RGBController_RoccatKova.h"
 #include "RGBController_RoccatElo.h"
-#include <chrono>
 #include <hidapi.h>
-#include <thread>
 #include <unordered_set>
 
 #define ROCCAT_VID                  0x1E7D
@@ -47,7 +45,6 @@
 |  MICE                                                             |
 \*-----------------------------------------------------------------*/
 #define ROCCAT_BURST_CORE_PID           0x2DE6
-#define ROCCAT_BURST_PRO_PID            0x2DE1
 #define ROCCAT_BURST_PRO_AIR_PID        0x2CA6
 #define ROCCAT_KONE_AIMO_PID            0x2E27
 #define ROCCAT_KONE_AIMO_16K_PID        0x2E2C
@@ -243,22 +240,12 @@ DetectedControllers DetectRoccatBurstProControllers(hid_device_info* info, const
 {
     DetectedControllers detected_controllers;
     hid_device*         dev;
-    const auto          start = std::chrono::steady_clock::now();
 
     dev = hid_open_path(info->path);
 
     if(dev)
     {
         RoccatBurstController *     controller          = new RoccatBurstController(dev, *info, name);
-
-        /*-----------------------------------------------------*\
-        | Burst Pro resets Direct during startup. Reassert it  |
-        | immediately after the observed reset window.        |
-        \*-----------------------------------------------------*/
-        std::this_thread::sleep_until(start + std::chrono::milliseconds(3255));
-        controller->SetupDirectMode();
-        std::this_thread::sleep_until(start + std::chrono::milliseconds(3280));
-        controller->SetupDirectMode();
 
         RGBController_RoccatBurst * rgb_controller      = new RGBController_RoccatBurst(controller, ROCCAT_BURST_PRO_NUMBER_OF_LEDS);
 

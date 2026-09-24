@@ -22,6 +22,7 @@
 #define ROCCAT_BURST_DIRECT_MODE_BYTE              0x0B
 #define ROCCAT_BURST_CORE_NUMBER_OF_LEDS           1
 #define ROCCAT_BURST_PRO_NUMBER_OF_LEDS            2
+#define ROCCAT_BURST_PRO_PID                       0x2DE1
 
 enum
 {

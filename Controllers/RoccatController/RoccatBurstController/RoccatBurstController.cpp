@@ -9,7 +9,9 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 #include "RoccatBurstController.h"
 #include "StringUtils.h"
 
@@ -18,6 +20,11 @@ RoccatBurstController::RoccatBurstController(hid_device* dev_handle, const hid_d
     dev                 = dev_handle;
     location            = info.path;
     name                = dev_name;
+
+    if(info.product_id == ROCCAT_BURST_PRO_PID)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3300));
+    }
 
     SetupDirectMode();
 }
