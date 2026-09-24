@@ -23,7 +23,7 @@
 #define ROCCAT_BURST_CORE_NUMBER_OF_LEDS           1
 #define ROCCAT_BURST_PRO_NUMBER_OF_LEDS            2
 #define ROCCAT_BURST_PRO_PID                       0x2DE1
-#define ROCCAT_BURST_PRO_RESET_DELAY_MS            3300
+#define ROCCAT_BURST_PRO_RESET_DELAY_MS            3600
 
 enum
 {
