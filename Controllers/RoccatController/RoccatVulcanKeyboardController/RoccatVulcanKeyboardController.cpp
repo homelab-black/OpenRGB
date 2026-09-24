@@ -509,19 +509,8 @@ void RoccatVulcanKeyboardController::SendMode(unsigned int mode, unsigned int sp
 
 void RoccatVulcanKeyboardController::WaitUntilReady()
 {
-    /*---------------------------------------------------------*\
-    | The Vulcan II Max does not report the ready state through |
-    | feature report 0x04.  Polling it therefore always reaches |
-    | the full timeout.  Allow the command a short settling time |
-    | without delaying controller registration by five seconds. |
-    \*---------------------------------------------------------*/
-    if(device_pid == ROCCAT_VULCAN_II_MAX_PID)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(25));
-        return;
-    }
-
     unsigned short packet_length;
+    unsigned short retry_count = 100;
 
     switch(device_pid)
     {
@@ -532,6 +521,10 @@ void RoccatVulcanKeyboardController::WaitUntilReady()
         case ROCCAT_VULCAN_TKL_PRO_PID:
             packet_length = 4;
             break;
+        case ROCCAT_VULCAN_II_MAX_PID:
+            packet_length = 3;
+            retry_count = 1;
+            break;
         default:
             packet_length = 3;
     }
@@ -541,14 +534,14 @@ void RoccatVulcanKeyboardController::WaitUntilReady()
 
     buf[0] = 0x04;
 
-    for(unsigned char i = 0; buf[1] != 1 && i < 100; i++)
+    for(unsigned char i = 0; buf[1] != 1 && i < retry_count; i++)
     {
-        if(i != 0)
+        hid_get_feature_report(dev_ctrl, buf, packet_length);
+
+        if(buf[1] != 1)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(25));
         }
-
-        hid_get_feature_report(dev_ctrl, buf, packet_length);
     }
 
     delete[] buf;
