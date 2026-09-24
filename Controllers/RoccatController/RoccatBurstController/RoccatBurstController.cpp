@@ -23,7 +23,7 @@ RoccatBurstController::RoccatBurstController(hid_device* dev_handle, const hid_d
 
     if(info.product_id == ROCCAT_BURST_PRO_PID)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3300));
+        std::this_thread::sleep_for(std::chrono::milliseconds(ROCCAT_BURST_PRO_RESET_DELAY_MS));
     }
 
     SetupDirectMode();
