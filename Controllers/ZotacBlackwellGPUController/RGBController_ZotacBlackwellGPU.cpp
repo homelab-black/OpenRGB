@@ -9,6 +9,7 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <cstring>
 #include "RGBController_ZotacBlackwellGPU.h"
 #include "LogManager.h"
 #include "pci_ids.h"
@@ -35,22 +36,37 @@
         `Controllers/ZotacBlackwellGPUController/ZotacBlackwellGPUControllerDetect.cpp`.
 \*-------------------------------------------------------------------*/
 
+/*---------------------------------------------------------*\
+| Some cards share a PCI sub-device ID but have a different |
+| zone layout.  Entries with a version prefix are matched   |
+| against the firmware version string and must be listed    |
+| before the generic entry for the same sub-device.  A null |
+| name keeps the name the detector registered.              |
+\*---------------------------------------------------------*/
 const RGBController_ZotacBlackwellGPU::DeviceZoneConfig RGBController_ZotacBlackwellGPU::device_zone_configs[] =
 {
-    { NVIDIA_RTX5080_DEV, ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV, { "Logo", "Side Bar", "Infinity Mirror" }, 3 },
-    { NVIDIA_RTX5090_DEV, ZOTAC_RTX5090_SOLID_OC_SUB_DEV,     { "ZOTAC Gaming", "Logo" },                2 },
-    { NVIDIA_RTX5090D_DEV, ZOTAC_RTX5090D_SOLID_OC_SUB_DEV,   { "ZOTAC Gaming", "Logo" },                2 },
-    { 0, 0, { nullptr }, 0 }
+    { NVIDIA_RTX5080_DEV, ZOTAC_RTX5080_AMP_EXTREME_SUB_DEV, nullptr, nullptr,                                           { "Logo", "Side Bar", "Infinity Mirror" },                  3 },
+    { NVIDIA_RTX5090_DEV, ZOTAC_RTX5090_SOLID_OC_SUB_DEV,    "N761W", "ZOTAC GAMING GeForce RTX 5090 ArcticStorm AIO", { "Backplate Accent", "Front", "Logo", "Radiator Fans" },    4 },
+    { NVIDIA_RTX5090_DEV, ZOTAC_RTX5090_SOLID_OC_SUB_DEV,    nullptr, nullptr,                                           { "ZOTAC Gaming", "Logo" },                                 2 },
+    { NVIDIA_RTX5090D_DEV, ZOTAC_RTX5090D_SOLID_OC_SUB_DEV,  nullptr, nullptr,                                           { "ZOTAC Gaming", "Logo" },                                 2 },
+    { 0, 0, nullptr, nullptr, { nullptr }, 0 }
 };
 
-const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlackwellGPU::FindZoneConfig(uint16_t device, uint16_t subdevice)
+const RGBController_ZotacBlackwellGPU::DeviceZoneConfig* RGBController_ZotacBlackwellGPU::FindZoneConfig(uint16_t device, uint16_t subdevice, std::string version)
 {
     for(const DeviceZoneConfig* cfg = device_zone_configs; cfg->zone_count != 0; cfg++)
     {
-        if(cfg->device == device && cfg->subdevice == subdevice)
+        if(cfg->device != device || cfg->subdevice != subdevice)
         {
-            return cfg;
+            continue;
         }
+
+        if(cfg->version_prefix != nullptr && version.compare(0, strlen(cfg->version_prefix), cfg->version_prefix) != 0)
+        {
+            continue;
+        }
+
+        return cfg;
     }
     return nullptr;
 }
@@ -60,7 +76,7 @@ RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellG
 {
     controller              = controller_ptr;
 
-    const DeviceZoneConfig* cfg = FindZoneConfig(device, subdevice);
+    const DeviceZoneConfig* cfg = FindZoneConfig(device, subdevice, controller->GetVersion());
     if(cfg == nullptr)
     {
         LOG_ERROR("[%s] Unrecognized PCI device/subdevice: %04X/%04X. Falling back to three generic zones.",
@@ -78,6 +94,12 @@ RGBController_ZotacBlackwellGPU::RGBController_ZotacBlackwellGPU(ZotacBlackwellG
     }
 
     name                    = controller->GetName();
+
+    if(cfg != nullptr && cfg->name != nullptr)
+    {
+        name                = cfg->name;
+    }
+
     vendor                  = "ZOTAC";
     description             = "ZOTAC RTX 50 series RGB GPU Device (" + controller->GetVersion() + ")";
     location                = controller->GetDeviceLocation();

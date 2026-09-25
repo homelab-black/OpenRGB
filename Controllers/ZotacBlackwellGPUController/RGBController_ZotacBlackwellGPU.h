@@ -40,11 +40,13 @@ private:
     {
         uint16_t device;
         uint16_t subdevice;
+        const char* version_prefix;
+        const char* name;
         const char* zones[4];
         uint8_t     zone_count;
     };
 
     static const DeviceZoneConfig device_zone_configs[];
 
-    static const DeviceZoneConfig* FindZoneConfig(uint16_t device, uint16_t subdevice);
+    static const DeviceZoneConfig* FindZoneConfig(uint16_t device, uint16_t subdevice, std::string version);
 };
