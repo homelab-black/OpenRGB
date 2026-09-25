@@ -26,7 +26,10 @@
 #include "RGBController_SinowealthKeyboard90.h"
 #include "RGBController_SinowealthGMOW.h"
 #include "RGBController_GenesisXenon200.h"
+#include <cstring>
 #include <hidapi.h>
+#include <string>
+#include <thread>
 #include "LogManager.h"
 
 #define SINOWEALTH_VID                      0x258A
@@ -393,24 +396,155 @@ DetectedControllers DetectSinowealthGenesisKeyboard(hid_device_info* info, const
     return(detected_controllers);
 }
 
+/*------------------------------------------------------------------------------------------------*\
+| Multiple 010C keyboards can be plugged in at once (AULA + LEOBOG K21, etc). Their HID            |
+| collections are interleaved in hid_enumerate(). DetectUsages() treats every 258A:010C            |
+| collection as one device, so the second board's firmware query often returns 0x00.               |
+| Group Windows HID paths by the device instance (8&xxxxxxxx) and query only that instance.        |
+\*------------------------------------------------------------------------------------------------*/
+static std::string GetHidDeviceInstance(const hid_device_info* info)
+{
+    if(info == nullptr || info->path == nullptr)
+    {
+        return("");
+    }
+
+    std::string path(info->path);
+    size_t      hash1 = path.find('#');
+    size_t      hash2 = (hash1 == std::string::npos) ? std::string::npos : path.find('#', hash1 + 1);
+
+    if(hash2 != std::string::npos)
+    {
+        size_t      hash3 = path.find('#', hash2 + 1);
+        std::string inst  = path.substr(hash2 + 1, (hash3 == std::string::npos) ? std::string::npos : (hash3 - hash2 - 1));
+        size_t      amp1  = inst.find('&');
+        size_t      amp2  = (amp1 == std::string::npos) ? std::string::npos : inst.find('&', amp1 + 1);
+
+        if(amp2 != std::string::npos)
+        {
+            return(inst.substr(0, amp2));
+        }
+
+        return(inst);
+    }
+
+    return(path);
+}
+
+static bool SameSinowealth010cDevice(const hid_device_info* a, const hid_device_info* b)
+{
+    return(a != nullptr
+        && b != nullptr
+        && a->vendor_id  == b->vendor_id
+        && a->product_id == b->product_id
+        && a->usage_page == b->usage_page
+        && GetHidDeviceInstance(a) == GetHidDeviceInstance(b));
+}
+
+static bool QuerySinowealth10cFirmware(hid_device* dev, unsigned char* response, unsigned int response_size)
+{
+    unsigned char command[520];
+
+    memset(command, 0x00, sizeof(command));
+    command[0] = 0x06;
+    command[1] = 0x82;
+    command[2] = 0x01;
+    command[3] = 0x00;
+    command[4] = 0x01;
+    command[5] = 0x00;
+    command[6] = 0x06;
+
+    if(hid_send_feature_report(dev, command, sizeof(command)) < 0)
+    {
+        return(false);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    memset(response, 0x00, response_size);
+    response[0] = 0x06;
+
+    return(hid_get_feature_report(dev, response, response_size) > -1);
+}
+
 DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
-    unsigned char       command[7] = {0x06, 0x82, 0x01, 0x00, 0x01, 0x00, 0x06};
-    expected_reports    reports{expected_report(0x06, 520, command, 520)};
+    std::string         instance           = GetHidDeviceInstance(info);
+    unsigned int        same_device_count  = 0;
 
-    if(DetectUsages(info, name, 3, reports))
+    for(hid_device_info* p = info; p != nullptr; p = p->next)
     {
-        hid_device *dev        = reports.at(0).device;
-        unsigned char model_id = reports.at(0).response[13];
-
-        if(dev && sinowealth_10c_keyboards.find(model_id) != sinowealth_10c_keyboards.end())
+        if(SameSinowealth010cDevice(info, p))
         {
-            SinowealthKeyboard10cController*     controller     = new SinowealthKeyboard10cController(dev, info->path, sinowealth_10c_keyboards.at(model_id).device_name);
-            RGBController_SinowealthKeyboard10c* rgb_controller = new RGBController_SinowealthKeyboard10c(controller, model_id);
-
-            detected_controllers.push_back(rgb_controller);
+            same_device_count++;
         }
+    }
+
+    /*-----------------------------------------------------*\
+    | Each 010C board exposes 3 matching FF00 collections.  |
+    | Only probe when this is the first collection of that  |
+    | physical device so we do not register it three times. |
+    \*-----------------------------------------------------*/
+    if(same_device_count == 0 || (same_device_count % 3) != 0)
+    {
+        LOG_INFO("[%s] Skipping instance %s (%d collections remaining)", name.c_str(), instance.c_str(), same_device_count);
+        return(detected_controllers);
+    }
+
+    hid_device*   opened_dev = nullptr;
+    unsigned char response[520];
+    unsigned char model_id = 0x00;
+
+    memset(response, 0x00, sizeof(response));
+
+    for(hid_device_info* p = info; p != nullptr; p = p->next)
+    {
+        if(!SameSinowealth010cDevice(info, p))
+        {
+            continue;
+        }
+
+        hid_device* dev = hid_open_path(p->path);
+
+        if(!dev)
+        {
+            LOG_ERROR("[%s] Couldn't open path \"HID: %s\"", name.c_str(), p->path);
+            continue;
+        }
+
+        unsigned char try_buf[520];
+
+        if(QuerySinowealth10cFirmware(dev, try_buf, sizeof(try_buf)) && try_buf[13] != 0x00)
+        {
+            memcpy(response, try_buf, sizeof(response));
+            model_id  = try_buf[13];
+            opened_dev = dev;
+            LOG_INFO("[%s] Sinowealth 010C model ID: 0x%02X from HID: %s", name.c_str(), model_id, p->path);
+            break;
+        }
+
+        LOG_DEBUG("[%s] No model ID on HID: %s (byte13=0x%02X)", name.c_str(), p->path, try_buf[13]);
+        hid_close(dev);
+    }
+
+    if(opened_dev == nullptr)
+    {
+        LOG_WARNING("[%s] Sinowealth 010C instance %s did not return a model ID", name.c_str(), instance.c_str());
+        return(detected_controllers);
+    }
+
+    if(sinowealth_10c_keyboards.find(model_id) != sinowealth_10c_keyboards.end())
+    {
+        SinowealthKeyboard10cController*     controller     = new SinowealthKeyboard10cController(opened_dev, info->path, sinowealth_10c_keyboards.at(model_id).device_name);
+        RGBController_SinowealthKeyboard10c* rgb_controller = new RGBController_SinowealthKeyboard10c(controller, model_id);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+    else
+    {
+        LOG_WARNING("[%s] Unknown Sinowealth 010C model ID 0x%02X — device not registered", name.c_str(), model_id);
+        hid_close(opened_dev);
     }
 
     return(detected_controllers);
