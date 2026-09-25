@@ -38,6 +38,11 @@ CorsairICueLinkController::~CorsairICueLinkController()
     SetControllerHardwareMode();    // Release device back to hardware mode
     hid_close(dev);
     delete guard_manager_ptr;
+
+    for(std::size_t duo_idx = 0; duo_idx < duo_endpoints.size(); duo_idx++)
+    {
+        delete duo_endpoints[duo_idx];
+    }
 }
 
 void CorsairICueLinkController::SetControllerSoftwareMode()
@@ -73,6 +78,8 @@ void CorsairICueLinkController::GetControllerDevices()
     unsigned char               channel                 = endpoint_data[6];
     std::vector<unsigned char>  index                   = std::vector<unsigned char>(endpoint_data.begin() + 7, endpoint_data.end());
     std::size_t                 pos                     = 0;
+    std::vector<unsigned short> led_counts;
+    unsigned int                duo_port                = 1;
 
     /*-----------------------------------------------------*\
     | Process each channel                                  |
@@ -116,6 +123,33 @@ void CorsairICueLinkController::GetControllerDevices()
             continue;
         }
 
+        /*-------------------------------------------------*\
+        | Commander DUO reports its LED count per port at   |
+        | runtime, so create a device entry for each port   |
+        \*-------------------------------------------------*/
+        if(device->type == CORSAIR_ICUE_LINK_TYPE_COMMANDER_DUO)
+        {
+            if(led_counts.empty())
+            {
+                led_counts = GetControllerLedCounts();
+            }
+
+            if(channel_idx >= led_counts.size() || led_counts[channel_idx] == 0)
+            {
+                pos += 8 + device_id_length;
+                duo_port++;
+                continue;
+            }
+
+            CorsairICueLinkDevice* duo_device   = new CorsairICueLinkDevice(*device);
+            duo_device->display_name           += " Port " + std::to_string(duo_port);
+            duo_device->led_channels            = (unsigned char)led_counts[channel_idx];
+            duo_endpoints.push_back(duo_device);
+
+            device                              = duo_device;
+            duo_port++;
+        }
+
         if(device->led_channels == 0)
         {
             LOG_WARNING("[CorsairICueLinkController] Device type %s has 0 LEDs, please open issue", device->display_name.c_str());
@@ -137,6 +171,43 @@ void CorsairICueLinkController::GetControllerDevices()
 
         pos += 8 + device_id_length;
     }
+}
+
+std::vector<unsigned short> CorsairICueLinkController::GetControllerLedCounts()
+{
+    /*-----------------------------------------------------*\
+    | Get the LED endpoint data.  Each channel is 4 bytes,  |
+    | a status word (2 = connected) followed by the LED     |
+    | count, both little endian.  Channels start at 1       |
+    \*-----------------------------------------------------*/
+    std::vector<unsigned char>  led_data                = Read(CORSAIR_ICUE_LINK_MODE_GET_LEDS, { });
+    unsigned char               channel                 = led_data[6];
+    std::vector<unsigned short> led_counts(channel + 1, 0);
+
+    for(std::size_t channel_idx = 1; channel_idx < (std::size_t)(channel + 1); channel_idx++)
+    {
+        std::size_t offset = 7 + (channel_idx * 4);
+
+        if(offset + 3 >= led_data.size())
+        {
+            break;
+        }
+
+        unsigned short status   = led_data[offset]     | (led_data[offset + 1] << 8);
+        unsigned short count    = led_data[offset + 2] | (led_data[offset + 3] << 8);
+
+        if(status == 2)
+        {
+            if(count > CORSAIR_ICUE_LINK_COMMANDER_DUO_MAX_LEDS)
+            {
+                count = CORSAIR_ICUE_LINK_COMMANDER_DUO_MAX_LEDS;
+            }
+
+            led_counts[channel_idx] = count;
+        }
+    }
+
+    return(led_counts);
 }
 
 std::string CorsairICueLinkController::GetFirmwareString()

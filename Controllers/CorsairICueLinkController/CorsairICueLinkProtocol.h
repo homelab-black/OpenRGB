@@ -54,8 +54,16 @@ static const CorsairICueLinkDevice known_devices[] =
     { 0x0E, 0x00, "iCUE LINK XD5 ELITE LCD",        22, true  },
     { 0x19, 0x00, "iCUE LINK XD6 ELITE",            22  },
     { 0x0A, 0x00, "iCUE LINK XG3 HYBRID",           0   },
-    { 0x0D, 0x00, "iCUE LINK XG7 RGB",              16  }
+    { 0x0D, 0x00, "iCUE LINK XG7 RGB",              16  },
+    { 0x1B, 0x00, "iCUE COMMANDER DUO",             0   }
 };
+
+/*---------------------------------------------------------*\
+| Commander DUO exposes one endpoint per ARGB port.  The    |
+| LED count is not fixed and is read from the hub instead   |
+\*---------------------------------------------------------*/
+#define CORSAIR_ICUE_LINK_TYPE_COMMANDER_DUO         0x1B
+#define CORSAIR_ICUE_LINK_COMMANDER_DUO_MAX_LEDS     50
 
 //Lengths
 #define CORSAIR_ICUE_LINK_BUFFER_WRITE_LENGTH        513
@@ -83,6 +91,7 @@ static const CorsairICueLinkDevice known_devices[] =
 #define CORSAIR_ICUE_LINK_MODE_GET_SPEEDS            {0x17,}
 #define CORSAIR_ICUE_LINK_MODE_SET_SPEED             {0x18,}
 #define CORSAIR_ICUE_LINK_MODE_SET_COLOR             {0x22,}
+#define CORSAIR_ICUE_LINK_MODE_GET_LEDS              {0x20,}
 
 //Command data types
 #define CORSAIR_ICUE_LINK_DATA_TYPE_GET_DEVICES      {0x21, 0x00}
