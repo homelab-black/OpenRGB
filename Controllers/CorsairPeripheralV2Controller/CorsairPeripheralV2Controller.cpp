@@ -67,7 +67,11 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     buffer[1] = write_cmd;
     buffer[2] = CORSAIR_V2_CMD_GET;
     buffer[3] = 0x11;
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
     hid_read_timeout(dev, buffer, CORSAIR_V2_PACKET_SIZE, CORSAIR_V2_TIMEOUT);
 
     /*---------------------------------------------------------*\
@@ -224,7 +228,11 @@ void CorsairPeripheralV2Controller::SetRenderMode(corsair_v2_device_mode mode)
     buffer[3]   = CORSAIR_V2_VALUE_MODE;
     buffer[5]   = mode;
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     if(!skip_reads)
     {
@@ -248,7 +256,11 @@ void CorsairPeripheralV2Controller::LightingControl(uint8_t opt1)
     buffer[3]   = opt1;
     buffer[5]   = 0x00;
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     if(!skip_reads)
     {
@@ -301,7 +313,11 @@ unsigned int CorsairPeripheralV2Controller::GetAddress(uint8_t address)
     buffer[2]   = CORSAIR_V2_CMD_GET;
     buffer[3]   = address;
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
     hid_read_timeout(dev, read, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
 
     unsigned int temp = (unsigned int)(read[6] << 24 | read[5] << 16 | read[4] << 8 | read[3]);
@@ -329,7 +345,11 @@ unsigned char CorsairPeripheralV2Controller::StartTransaction(uint8_t opt1)
     buffer[3]   = opt1;
     buffer[4]   = light_ctrl;
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     if(!skip_reads)
     {
@@ -350,7 +370,11 @@ void CorsairPeripheralV2Controller::StopTransaction(uint8_t opt1)
     buffer[3]   = 0x01;
     buffer[4]   = opt1;
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     if(!skip_reads)
     {
@@ -408,7 +432,11 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
     memcpy(&buffer[offset1], &data[0], copy_bytes);
 
-    hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+    if (r != CORSAIR_V2_WRITE_SIZE)
+    {
+        LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     if(!skip_reads)
     {
@@ -441,7 +469,11 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
 
         memcpy(&buffer[offset2], &data[index], copy_bytes);
 
-        hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+        int r = hid_write(dev, buffer, CORSAIR_V2_WRITE_SIZE);
+        if (r != CORSAIR_V2_WRITE_SIZE)
+        {
+            LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
+        }
 
         /*-----------------------------------------------------*\
         | Pace the transfer: the device does not acknowledge    |
