@@ -225,6 +225,7 @@ MSIMotherboard761Controller::MSIMotherboard761Controller(hid_device* handle, con
     if(board_config != nullptr)
     {
         supported_zones     = (std::vector<MSI_ZONE>*) board_config->supported_zones;
+        per_led_mode        = board_config->per_led_mode;
         unsigned int max    = 0;
 
         for(std::size_t i = 0; i < board_config->supported_zones[0].size(); i++)
@@ -288,13 +289,30 @@ MSIMotherboard761Controller::MSIMotherboard761Controller(hid_device* handle, con
         {
             ReadName();
             ReadFwVersion();
-            ReadSettings();
+
+            bool settings_read = ReadSettings();
 
             /*---------------------------------------------*\
-            | Push config so setting colors works           |
+            | Preserve the active 0x50 configuration on     |
+            | zone-based boards instead of overwriting it.  |
             \*---------------------------------------------*/
-            int res = hid_send_feature_report(dev, conf_arr, SETUP_ARRAY_SIZE);
-            LOG_INFO("Sending configuration resulted in %i\n", res);
+            if(per_led_mode == DIRECT_MODE_ZONE_BASED)
+            {
+                if(!settings_read)
+                {
+                    std::memcpy(setup_data, conf_arr, SETUP_ARRAY_SIZE);
+                    LOG_INFO("Could not read MSI 761 zone configuration, using defaults\n");
+                }
+            }
+            else
+            {
+                /*-----------------------------------------*\
+                | Per-LED mode requires the initialization  |
+                | configuration before 0x51 updates.        |
+                \*-----------------------------------------*/
+                int res = hid_send_feature_report(dev, conf_arr, SETUP_ARRAY_SIZE);
+                LOG_INFO("Sending configuration resulted in %i\n", res);
+            }
 
             data                        = new FeaturePacket_761;
 
@@ -392,36 +410,80 @@ std::string MSIMotherboard761Controller::GetSerial()
 bool MSIMotherboard761Controller::ReadSettings()
 {
     /*-----------------------------------------------------*\
-    | Read packet from hardware, return true if successful  |
+    | Zone-based 761 boards use the 290-byte 0x50 packet.  |
     \*-----------------------------------------------------*/
-    unsigned char buffer [500];
+    if(per_led_mode == DIRECT_MODE_ZONE_BASED)
+    {
+        std::memset(setup_data, 0x00, sizeof(setup_data));
+        setup_data[0] = 0x50;
+
+        return hid_get_feature_report
+            (
+            dev,
+            setup_data,
+            SETUP_ARRAY_SIZE
+            ) == SETUP_ARRAY_SIZE;
+    }
+
+    /*-----------------------------------------------------*\
+    | Per-LED controllers use report 0x51.                 |
+    \*-----------------------------------------------------*/
+    unsigned char buffer[500] = {};
     buffer[0] = 0x51;
-    return (hid_get_feature_report(dev, buffer, 500)) > 0 ;
+
+    return hid_get_feature_report(dev, buffer, sizeof(buffer)) > 0;
 }
 
 bool MSIMotherboard761Controller::Update
     (
-    bool /*save*/
+    bool save
     )
 {
+    if(per_led_mode == DIRECT_MODE_ZONE_BASED)
+    {
+        /*
+         * Runtime updates use store=0.
+         * Explicit DeviceSaveMode() uses store=1.
+         */
+        setup_data[SETUP_ARRAY_SIZE - 1] = save ? 0x01 : 0x00;
+
+        bool result = hid_send_feature_report
+            (
+            dev,
+            setup_data,
+            SETUP_ARRAY_SIZE
+            ) == SETUP_ARRAY_SIZE;
+
+        /*
+         * store=1 is a write trigger, not persistent state.
+         */
+        setup_data[SETUP_ARRAY_SIZE - 1] = 0x00;
+
+        return result;
+    }
+
     int ret = 0;
     bool flag = true;
-    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jaf.packet) , sizeof(FeaturePacket_PerLED_761));
+
+    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jaf.packet), sizeof(FeaturePacket_PerLED_761));
     if(ret < 0)
     {
         flag = false;
     }
-    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb1.packet) , sizeof(FeaturePacket_PerLED_761));
+
+    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb1.packet), sizeof(FeaturePacket_PerLED_761));
     if(ret < 0)
     {
         flag = false;
     }
-    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb2.packet) , sizeof(FeaturePacket_PerLED_761));
+
+    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb2.packet), sizeof(FeaturePacket_PerLED_761));
     if(ret < 0)
     {
         flag = false;
     }
-    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb3.packet) , sizeof(FeaturePacket_PerLED_761));
+
+    ret = hid_send_feature_report(dev, GET_CHAR_PTR_REF(data->jargb3.packet), sizeof(FeaturePacket_PerLED_761));
     if(ret < 0)
     {
         flag = false;
@@ -473,26 +535,65 @@ void MSIMotherboard761Controller::SetLedColor
     unsigned char   blu
     )
 {
-    FeaturePacket_Zone_761 * ptr = nullptr;
-    switch(zone)
+    if(per_led_mode == DIRECT_MODE_ZONE_BASED)
     {
-    case MSI_ZONE_JAF:
-        ptr = &data->jaf;
-        break;
-    case MSI_ZONE_JARGB_1:
-        ptr = &data->jargb1;
-        break;
-    case MSI_ZONE_JARGB_2:
-        ptr = &data->jargb2;
-        break;
-    case MSI_ZONE_JARGB_3:
-        ptr = &data->jargb3;
-        break;
-    default:
-        break;
+        if(index != 0)
+        {
+            return;
+        }
+
+        int row = get_zone_setup_index(zone);
+
+        if(row < 0)
+        {
+            return;
+        }
+
+        int offset = 1 + row * 16;
+
+        /* Static */
+        setup_data[offset + 0] = 0x02;
+
+        /* Primary colour */
+        setup_data[offset + 1] = red;
+        setup_data[offset + 2] = grn;
+        setup_data[offset + 3] = blu;
+
+        /*
+         * Bit 7 clear = use zone's own settings, not MASTER.
+         * Bit 5 set   = use the custom RGB colour.
+         */
+        setup_data[offset + 14] &= 0x7F;
+        setup_data[offset + 14] |= 0x20;
+
+        return;
     }
 
-    std::size_t candidate_index = (index * 3);
+    FeaturePacket_Zone_761 * ptr = nullptr;
+
+    switch(zone)
+    {
+        case MSI_ZONE_JAF:
+            ptr = &data->jaf;
+            break;
+
+        case MSI_ZONE_JARGB_1:
+            ptr = &data->jargb1;
+            break;
+
+        case MSI_ZONE_JARGB_2:
+            ptr = &data->jargb2;
+            break;
+
+        case MSI_ZONE_JARGB_3:
+            ptr = &data->jargb3;
+            break;
+
+        default:
+            break;
+    }
+
+    std::size_t candidate_index = index * 3;
 
     if(index < GetMaxDirectLeds(zone))
     {
