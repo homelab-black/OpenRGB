@@ -55,6 +55,8 @@ DetectedControllers DetectCorsairV2HardwareControllers(hid_device_info* info, co
         RGBController_CorsairV2HW*          rgb_controller  = new RGBController_CorsairV2HW(controller);
 
         detected_controllers.push_back(rgb_controller);
+    } else {
+        LOG_ERROR("[%s] hid_open_path('%s') returned error: %ls", name.c_str(), info->path, hid_error(NULL));
     }
 
     return(detected_controllers);
@@ -81,6 +83,8 @@ DetectedControllers DetectCorsairV2SoftwareControllers(hid_device_info* info, co
         RGBController_CorsairV2SW*          rgb_controller  = new RGBController_CorsairV2SW(controller);
 
         detected_controllers.push_back(rgb_controller);
+    } else {
+        LOG_ERROR("[%s] hid_open_path('%s') returned error: %ls", name.c_str(), info->path, hid_error(NULL));
     }
 
     return(detected_controllers);
