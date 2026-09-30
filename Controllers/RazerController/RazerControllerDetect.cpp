@@ -45,6 +45,48 @@ DetectedControllers DetectRazerControllers(hid_device_info* info, const std::str
 }
 
 /*---------------------------------------------------------*\
+| The Mouse Dock Pro contains a HyperPolling wireless       |
+| receiver.  A mouse paired through it does not enumerate   |
+| with its own PID - commands sent to the dock with         |
+| transaction ID 0x1F are forwarded to the paired mouse     |
+| while the dock's own LEDs use 0xFF.  Create a controller  |
+| for the dock and one for the paired mouse on the same     |
+| HID path.                                                 |
+\*---------------------------------------------------------*/
+DetectedControllers DetectRazerMouseDockProControllers(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+
+    /*-----------------------------------------------------*\
+    | Dock LEDs                                             |
+    \*-----------------------------------------------------*/
+    hid_device* dev_dock = hid_open_path(info->path);
+
+    if(dev_dock)
+    {
+        RazerController*     controller     = new RazerController(dev_dock, dev_dock, info->path, info->product_id, name);
+        RGBController_Razer* rgb_controller = new RGBController_Razer(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    /*-----------------------------------------------------*\
+    | Mouse paired through the dock's wireless receiver     |
+    \*-----------------------------------------------------*/
+    hid_device* dev_mouse = hid_open_path(info->path);
+
+    if(dev_mouse)
+    {
+        RazerController*     controller     = new RazerController(dev_mouse, dev_mouse, info->path, info->product_id, "Razer Basilisk V3 Pro 35K (Mouse Dock Pro)");
+        RGBController_Razer* rgb_controller = new RGBController_Razer(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return(detected_controllers);
+}
+
+/*---------------------------------------------------------*\
 | Tracks the paths used in DetectRazerARGBControllers so    |
 | multiple Razer devices can be detected without all        |
 | controlling the same device.                              |
@@ -342,6 +384,7 @@ REGISTER_HID_DETECTOR_IPU("Razer Deathadder V2 Mini",                        Det
 REGISTER_HID_DETECTOR_IPU("Razer Deathadder V2 Pro (Wired)",                 DetectRazerControllers,        RAZER_VID,  RAZER_DEATHADDER_V2_PRO_WIRED_PID,              0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Deathadder V2 Pro (Wireless)",              DetectRazerControllers,        RAZER_VID,  RAZER_DEATHADDER_V2_PRO_WIRELESS_PID,           0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Diamondback",                               DetectRazerControllers,        RAZER_VID,  RAZER_DIAMONDBACK_CHROMA_PID,                   0x00,   0x01,   0x02);
+REGISTER_HID_DETECTOR_IPU("Razer HyperPolling Wireless Dongle",              DetectRazerControllers,        RAZER_VID,  RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID,         0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Lancehead 2017 (Wired)",                    DetectRazerControllers,        RAZER_VID,  RAZER_LANCEHEAD_2017_WIRED_PID,                 0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Lancehead 2017 (Wireless)",                 DetectRazerControllers,        RAZER_VID,  RAZER_LANCEHEAD_2017_WIRELESS_PID,              0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Lancehead 2019 (Wired)",                    DetectRazerControllers,        RAZER_VID,  RAZER_LANCEHEAD_2019_WIRED_PID,                 0x00,   0x01,   0x02);
@@ -433,7 +476,7 @@ REGISTER_HID_DETECTOR_IPU("Razer Leviathan V2",                              Det
 REGISTER_HID_DETECTOR_IPU("Razer Leviathan V2 X",                            DetectRazerControllers,        RAZER_VID,  RAZER_LEVIATHAN_V2X_PID,                        0x00,   0x0C,   0x01);
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Bungee V3 Chroma",                    DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_BUNGEE_V3_CHROMA_PID,               0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Chroma",                         DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_DOCK_CHROMA_PID,                    0x00,   0x01,   0x02);
-REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Pro",                            DetectRazerControllers,        RAZER_VID,  RAZER_MOUSE_DOCK_PRO_PID,                       0x00,   0x01,   0x02);
+REGISTER_HID_DETECTOR_IPU("Razer Mouse Dock Pro",                            DetectRazerMouseDockProControllers, RAZER_VID, RAZER_MOUSE_DOCK_PRO_PID,                  0x00,   0x01,   0x02);
 REGISTER_HID_DETECTOR_IPU("Lian Li O11 Dynamic - Razer Edition",             DetectRazerControllers,        RAZER_VID,  RAZER_O11_DYNAMIC_PID,                          0x02,   0x01,   0x02);
 REGISTER_HID_DETECTOR_PU("Razer Seiren Emote",                               DetectRazerControllers,        RAZER_VID,  RAZER_SEIREN_EMOTE_PID,                         0x0C,   0x01        );
 REGISTER_HID_DETECTOR_PU("Razer Thunderbolt 4 Dock Chroma",                  DetectRazerControllers,        RAZER_VID,  RAZER_THUNDERBOLT_4_DOCK_CHROMA_PID,            0x0C,   0x01        );

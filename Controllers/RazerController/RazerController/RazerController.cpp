@@ -38,6 +38,16 @@ RazerController::RazerController(hid_device* dev_handle, hid_device* dev_argb_ha
             | Set device ID                                             |
             \*---------------------------------------------------------*/
             device_index = i;
+
+            /*---------------------------------------------------------*\
+            | Some PIDs have multiple entries (e.g. the Mouse Dock Pro  |
+            | is both a dock and a receiver for a paired mouse), so     |
+            | prefer the entry matching the detector name               |
+            \*---------------------------------------------------------*/
+            if(name == device_list[i]->name)
+            {
+                break;
+            }
         }
     }
 
@@ -115,6 +125,7 @@ RazerController::RazerController(hid_device* dev_handle, hid_device* dev_argb_ha
         case RAZER_GOLIATHUS_CHROMA_EXTENDED_PID:
         case RAZER_GOLIATHUS_CHROMA_PID:
         case RAZER_GOLIATHUS_CHROMA_3XL_PID:
+        case RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID:
         case RAZER_LAPTOP_STAND_CHROMA_PID:
         case RAZER_LAPTOP_STAND_CHROMA_V2_PID:
         case RAZER_LEVIATHAN_V2_PID:
@@ -183,12 +194,36 @@ RazerController::RazerController(hid_device* dev_handle, hid_device* dev_argb_ha
     | Start keepalive thread for devices that need it to prevent RGB    |
     | from timing out                                                   |
     \*-----------------------------------------------------------------*/
+    last_update_time    = std::chrono::steady_clock::now();
+    reassert_count      = 0;
+    frame_pending       = false;
+
     switch(dev_pid)
     {
         case RAZER_BLADE_14_2021_PID:
         case RAZER_BLADE_14_2022_PID:
             keepalive_thread_run = true;
             keepalive_thread     = new std::thread(&RazerController::KeepaliveThreadFunction, this);
+            break;
+
+        /*---------------------------------------------------------*\
+        | A mouse paired through the Mouse Dock Pro (transaction ID |
+        | 0x1F) restores its onboard lighting when it wakes from    |
+        | wireless sleep, so it needs the keepalive thread to       |
+        | re-assert the last frame.  The dock itself (0xFF) does    |
+        | not need it                                               |
+        \*---------------------------------------------------------*/
+        case RAZER_MOUSE_DOCK_PRO_PID:
+            if(dev_transaction_id == 0x1F)
+            {
+                keepalive_thread_run = true;
+                keepalive_thread     = new std::thread(&RazerController::KeepaliveThreadFunction, this);
+            }
+            else
+            {
+                keepalive_thread_run = false;
+                keepalive_thread     = NULL;
+            }
             break;
 
         default:
@@ -246,14 +281,77 @@ void RazerController::KeepaliveThreadFunction()
     | Performing a get device mode request seems to be enough to keep   |
     | the lighting active on devices with the lighting timeout, so      |
     | periodically send a device mode request every 2.5s.               |
+    |                                                                   |
+    | For a mouse paired through the Mouse Dock Pro, re-assert the last |
+    | direct mode frame instead - the mouse restores its onboard        |
+    | lighting when it wakes from wireless sleep, and with no color     |
+    | changes coming from software it would otherwise stay stuck on it  |
     \*-----------------------------------------------------------------*/
+    bool dock_paired_mouse = (dev_pid == RAZER_MOUSE_DOCK_PRO_PID) && (dev_transaction_id == 0x1F);
+
     while(keepalive_thread_run.load())
     {
-        if((std::chrono::steady_clock::now() - last_update_time) > 2500ms)
+        if(dock_paired_mouse)
         {
-            razer_get_device_mode();
+            /*---------------------------------------------------------*\
+            | Send the newest pending frame immediately.  When idle,    |
+            | re-send the last frame once shortly after a streaming     |
+            | burst ends (the final frame does not always reach the     |
+            | mouse) and then every second so the mouse also recovers   |
+            | after wireless sleep                                      |
+            \*---------------------------------------------------------*/
+            std::vector<RGBColor> frame;
+            bool                  fallback = false;
+
+            if(frame_pending.load())
+            {
+                std::lock_guard<std::mutex> lock(leds_mutex);
+                frame         = last_frame_colors;
+                frame_pending = false;
+            }
+            else
+            {
+                std::chrono::milliseconds idle = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_update_time);
+
+                /*---------------------------------------------------------*\
+                | Re-assert twice after a burst ends - at ~50ms in case the |
+                | final frame was dropped by the wireless link and again at |
+                | ~200ms for insurance - then every second for sleep wake   |
+                \*---------------------------------------------------------*/
+                std::chrono::milliseconds reassert_delay = (reassert_count.load() >= 2) ? 50ms : 200ms;
+
+                if(((reassert_count.load() > 0) && (idle > reassert_delay)) || (idle > 1000ms))
+                {
+                    std::lock_guard<std::mutex> lock(leds_mutex);
+                    frame    = last_frame_colors;
+                    fallback = frame.empty();
+
+                    if(reassert_count.load() > 0)
+                    {
+                        reassert_count--;
+                    }
+                }
+            }
+
+            if(!frame.empty())
+            {
+                razer_send_frame(frame.data());
+            }
+            else if(fallback)
+            {
+                razer_get_device_mode();
+            }
+
+            std::this_thread::sleep_for(1ms);
         }
-        std::this_thread::sleep_for(1s);
+        else
+        {
+            if((std::chrono::steady_clock::now() - last_update_time) > 2500ms)
+            {
+                razer_get_device_mode();
+            }
+            std::this_thread::sleep_for(1s);
+        }
     }
 }
 
@@ -293,6 +391,35 @@ void RazerController::SetBrightness(unsigned char brightness)
 }
 
 void RazerController::SetLEDs(RGBColor* colors)
+{
+    /*---------------------------------------------------------*\
+    | Frames for the mouse paired through the Mouse Dock Pro    |
+    | cost ~40ms of wireless relay round trips each.  Cache the |
+    | frame for the keepalive thread to send so callers are     |
+    | never blocked and stale frames are skipped rather than    |
+    | queued behind the relay - the mouse always shows the      |
+    | newest frame within a few milliseconds of it arriving     |
+    \*---------------------------------------------------------*/
+    if((dev_pid == RAZER_MOUSE_DOCK_PRO_PID) && (dev_transaction_id == 0x1F))
+    {
+        std::lock_guard<std::mutex> lock(leds_mutex);
+
+        unsigned int matrix_cols = device_list[device_index]->cols;
+        unsigned int matrix_rows = device_list[device_index]->rows;
+
+        last_frame_colors.assign(colors, colors + (matrix_rows * matrix_cols));
+
+        frame_pending    = true;
+        reassert_count   = 2;
+        last_update_time = std::chrono::steady_clock::now();
+
+        return;
+    }
+
+    razer_send_frame(colors);
+}
+
+void RazerController::razer_send_frame(RGBColor* colors)
 {
     /*---------------------------------------------------------*\
     | Get the matrix layout information from the device list    |
@@ -335,48 +462,77 @@ void RazerController::SetLEDs(RGBColor* colors)
     std::this_thread::sleep_for(1ms);
 
     /*---------------------------------------------------------*\
-    | Set custom mode to apply frame                            |
+    | Set custom mode to apply frame.  While in custom mode the |
+    | mouse paired through the Mouse Dock Pro displays row data |
+    | as it arrives, so when a newer frame is already waiting   |
+    | the apply is skipped to get the newer frame out sooner    |
     \*---------------------------------------------------------*/
-    razer_set_mode_custom();
+    if(!((dev_pid == RAZER_MOUSE_DOCK_PRO_PID) && (dev_transaction_id == 0x1F)) || !frame_pending.load())
+    {
+        razer_set_mode_custom();
+    }
 
     /*---------------------------------------------------------*\
     | Delete the output array                                   |
     \*---------------------------------------------------------*/
     delete[] output_array;
+
+    last_update_time = std::chrono::steady_clock::now();
+}
+
+/*---------------------------------------------------------*\
+| Forget the cached direct mode frame when a hardware       |
+| effect is selected so the keepalive thread does not       |
+| overwrite the effect with stale colors                    |
+\*---------------------------------------------------------*/
+void RazerController::razer_clear_frame_cache()
+{
+    std::lock_guard<std::mutex> lock(leds_mutex);
+    last_frame_colors.clear();
+    frame_pending    = false;
+    reassert_count   = 0;
+    last_update_time = std::chrono::steady_clock::now();
 }
 
 void RazerController::SetModeBreathingOneColor(unsigned char red, unsigned char grn, unsigned char blu)
 {
+    razer_clear_frame_cache();
     razer_set_mode_breathing_one_color(red, grn, blu);
 }
 
 void RazerController::SetModeBreathingRandom()
 {
+    razer_clear_frame_cache();
     razer_set_mode_breathing_random();
 }
 
 void RazerController::SetModeBreathingTwoColors(unsigned char r1, unsigned char g1, unsigned char b1, unsigned char r2, unsigned char g2, unsigned char b2)
 {
+    razer_clear_frame_cache();
     razer_set_mode_breathing_two_colors(r1, g1, b1, r2, g2, b2);
 }
 
 void RazerController::SetModeOff()
 {
+    razer_clear_frame_cache();
     razer_set_mode_none();
 }
 
 void RazerController::SetModeSpectrumCycle()
 {
+    razer_clear_frame_cache();
     razer_set_mode_spectrum_cycle();
 }
 
 void RazerController::SetModeStatic(unsigned char red, unsigned char grn, unsigned char blu)
 {
+    razer_clear_frame_cache();
     razer_set_mode_static(red, grn, blu);
 }
 
 void RazerController::SetModeWave(unsigned char direction)
 {
+    razer_clear_frame_cache();
     razer_set_mode_wave(direction);
 }
 
@@ -405,8 +561,20 @@ bool RazerController::SupportsBreathing()
         case RAZER_BASILISK_V3_PRO_35K_PG_WIRELESS_PID:
         case RAZER_BASILISK_V3_PRO_35K_PG_BLUETOOTH_PID:
         case RAZER_BASILISK_V3_PRO_BLUETOOTH_PID:
+        case RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID:
 
             supports_breathing = false;
+            break;
+
+        /*-----------------------------------------------------*\
+        | The Mouse Dock Pro PID is shared between the dock     |
+        | itself and a mouse paired through its receiver        |
+        | (transaction ID 0x1F).  The paired mouse does not     |
+        | support breathing                                     |
+        \*-----------------------------------------------------*/
+        case RAZER_MOUSE_DOCK_PRO_PID:
+
+            supports_breathing = (dev_transaction_id != 0x1F);
             break;
     }
 
@@ -527,6 +695,7 @@ bool RazerController::SupportsWave()
         case RAZER_COBRA_PRO_WIRED_PID:
         case RAZER_COBRA_PRO_WIRELESS_PID:
         case RAZER_DIAMONDBACK_CHROMA_PID:
+        case RAZER_HYPERPOLLING_WIRELESS_DONGLE_PID:
         case RAZER_MAMBA_2015_WIRED_PID:
         case RAZER_MAMBA_2015_WIRELESS_PID:
         case RAZER_MAMBA_ELITE_PID:
@@ -1892,6 +2061,7 @@ void RazerController::razer_set_mode_wave(unsigned char direction)
 
 int RazerController::razer_usb_receive(razer_report* report)
 {
+    DeviceGuardLock _ = guard_manager_ptr->AwaitExclusiveAccess();
     return hid_get_feature_report(dev, (unsigned char*)report, sizeof(*report));
 }
 
@@ -1900,6 +2070,86 @@ int RazerController::razer_usb_send(razer_report* report)
     report->crc = razer_calculate_crc(report);
 
     DeviceGuardLock _ = guard_manager_ptr->AwaitExclusiveAccess();
+
+    /*-----------------------------------------------------------------*\
+    | Commands addressed to a mouse paired through the Mouse Dock Pro   |
+    | (transaction ID 0x1F) are relayed over the wireless link.  Each   |
+    | relay takes 10-20ms (status 0x01 busy while in flight) and a few  |
+    | percent of them fail.  During streaming a dropped frame is        |
+    | corrected by the next one, but the final frame of a stream (e.g.  |
+    | lights off) has no successor and a drop leaves the mouse stuck on |
+    | stale colors, so wait for each command's result and retry on      |
+    | failure.  Status 0x02 is success, 0x05 is not supported           |
+    \*-----------------------------------------------------------------*/
+    if((dev_pid == RAZER_MOUSE_DOCK_PRO_PID) && (dev_transaction_id == 0x1F))
+    {
+        int ret = 0;
+
+        for(unsigned int attempt = 0; attempt < 3; attempt++)
+        {
+            ret = hid_send_feature_report(dev, (unsigned char*)report, sizeof(*report));
+
+            bool confirmed = false;
+
+            for(unsigned int retry = 0; retry < 40; retry++)
+            {
+                std::this_thread::sleep_for(1ms);
+
+                /*---------------------------------------------------------*\
+                | A newer frame is waiting - this command is already stale, |
+                | so stop confirming and let the newer frame go out now     |
+                \*---------------------------------------------------------*/
+                if(frame_pending.load())
+                {
+                    return ret;
+                }
+
+                razer_report response = razer_create_response();
+
+                if(hid_get_feature_report(dev, (unsigned char*)&response, sizeof(response)) < 0)
+                {
+                    break;
+                }
+
+                /*---------------------------------------------------------*\
+                | The dock has a single response buffer which may still     |
+                | hold the result of an earlier command (often the dock's   |
+                | own, reporting success), so only trust a response that    |
+                | echoes this command's transaction ID, class and ID        |
+                \*---------------------------------------------------------*/
+                if((response.transaction_id.id != report->transaction_id.id)
+                || (response.command_class     != report->command_class)
+                || (response.command_id.id     != report->command_id.id))
+                {
+                    continue;
+                }
+
+                if((response.status == 0x00) || (response.status == 0x01))
+                {
+                    continue;
+                }
+
+                confirmed = ((response.status == 0x02) || (response.status == 0x05));
+                break;
+            }
+
+            if(confirmed)
+            {
+                break;
+            }
+        }
+
+        /*-------------------------------------------------------------*\
+        | Keep holding exclusive access briefly after the relay reports |
+        | complete.  A local dock command (transaction ID 0xFF) issued  |
+        | immediately after can abort the final wireless delivery,      |
+        | leaving the mouse without the frame it just acknowledged      |
+        \*-------------------------------------------------------------*/
+        std::this_thread::sleep_for(5ms);
+
+        return ret;
+    }
+
     return hid_send_feature_report(dev, (unsigned char*)report, sizeof(*report));
 }
 
