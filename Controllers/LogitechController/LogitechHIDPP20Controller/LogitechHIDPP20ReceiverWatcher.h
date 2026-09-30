@@ -33,7 +33,7 @@ public:
     | Centurion framing given by report_id/addressed.       |
     \*-----------------------------------------------------*/
     LogitechHIDPP20ReceiverWatcher(const std::string& node_path, uint8_t bridge_feat_idx,
-                                   uint8_t bridge_report_id, bool bridge_addressed);
+                                   uint8_t bridge_report_id, bool bridge_addressed, const std::string& event_path);
     ~LogitechHIDPP20ReceiverWatcher();
 
     bool        Start();
@@ -67,6 +67,7 @@ private:
     static void PokeNode(const std::string& node_path, int direction);
 
     std::string                     node_path;
+    std::string                     event_path;
     uint8_t                         bridge_feat_idx;
     uint8_t                         bridge_report_id;
     bool                            bridge_addressed;

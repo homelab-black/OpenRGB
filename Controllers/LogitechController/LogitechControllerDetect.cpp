@@ -674,6 +674,7 @@ usages BundleLogitechUsages(hid_device_info* info)
 | next detection, same as the wired nodes. A wireless       |
 | PID with no legacy detector does not belong here.         |
 \*---------------------------------------------------------*/
+#ifdef __linux__
 static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
 {
     { 0x4053, "Logitech G900 Wireless Gaming Mouse"      },
@@ -686,6 +687,7 @@ static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
     { 0x4086, "Logitech G703 HERO Wireless Gaming Mouse" },
     { 0x4087, "Logitech G903 HERO Wireless Gaming Mouse" },
 };
+#endif
 
 /*---------------------------------------------------------*\
 | Is the legacy controller that owns this slot still        |
@@ -693,8 +695,26 @@ static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
 | otherwise, which is also what DetectionManager            |
 | assumes for a detector it has not seen before.            |
 \*---------------------------------------------------------*/
-static bool HIDPP20SlotOwnedByLegacy(uint16_t dev_pid, std::string& detector_name)
+static bool HIDPP20SlotOwnedByLegacy(uint16_t dev_pid, uint16_t receiver_pid, std::string& detector_name)
 {
+#if defined(_WIN32) || defined(__APPLE__)
+    (void)dev_pid;
+
+    if(receiver_pid == LOGITECH_G_LIGHTSPEED_POWERPLAY_PID)
+    {
+        detector_name = "Logitech G Powerplay Mousepad";
+    }
+    else if(receiver_pid == LOGITECH_G_LIGHTSPEED_RECEIVER_PID)
+    {
+        detector_name = "Logitech Lightspeed Receiver";
+    }
+    else
+    {
+        return(false);
+    }
+#elif defined(__linux__)
+    (void)receiver_pid;
+
     std::map<uint16_t, const char*>::const_iterator legacy = hidpp20_legacy_wireless_pids.find(dev_pid);
 
     if(legacy == hidpp20_legacy_wireless_pids.end())
@@ -703,6 +723,11 @@ static bool HIDPP20SlotOwnedByLegacy(uint16_t dev_pid, std::string& detector_nam
     }
 
     detector_name = legacy->second;
+#else
+    (void)dev_pid;
+    (void)receiver_pid;
+    return(false);
+#endif
 
     json detector_settings = ResourceManager::get()->GetSettingsManager()->GetSettings("Detectors");
 
@@ -890,8 +915,38 @@ static void HIDPP20EnsureWatcher(const std::string& node_path, uint8_t bridge_fe
         hidpp20_watchers.erase(it);
     }
 
+    std::string event_path = node_path;
+
+#ifdef _WIN32
+    if(bridge_feat_idx == 0)
+    {
+        event_path.clear();
+
+        std::string device_key = LogitechDevicePathKey(node_path.c_str());
+        hid_device_info* enumerated = hid_enumerate(LOGITECH_VID, 0);
+
+        for(hid_device_info* candidate = enumerated; candidate != nullptr; candidate = candidate->next)
+        {
+            if(candidate->interface_number == 2 && candidate->usage_page == 0xFF00 && candidate->usage == 1
+            && LogitechDevicePathKey(candidate->path) == device_key)
+            {
+                event_path = candidate->path;
+                break;
+            }
+        }
+
+        hid_free_enumeration(enumerated);
+
+        if(event_path.empty())
+        {
+            LOG_WARNING("[Logitech HID++ 2.0] No connection-event collection for %s", node_path.c_str());
+            return;
+        }
+    }
+#endif
+
     std::unique_ptr<LogitechHIDPP20ReceiverWatcher> watcher(
-        new LogitechHIDPP20ReceiverWatcher(node_path, bridge_feat_idx, bridge_report_id, bridge_addressed));
+        new LogitechHIDPP20ReceiverWatcher(node_path, bridge_feat_idx, bridge_report_id, bridge_addressed, event_path));
 
     if(watcher->Start())
     {
@@ -1060,7 +1115,7 @@ static std::vector<std::string> HIDPP20Enumerate(hid_device_info* info)
 
             std::string legacy_name;
 
-            if(HIDPP20SlotOwnedByLegacy(dev_pid, legacy_name))
+            if(HIDPP20SlotOwnedByLegacy(dev_pid, info->product_id, legacy_name))
             {
                 LOG_INFO("[Logitech receiver %04X] slot=%u PID=%04X is owned by '%s', leaving it alone "
                          "(disable that detector to hand it to HID++ 2.0)",
@@ -1278,6 +1333,7 @@ static RGBController_LogitechHIDPP20* HIDPP20BuildController(const HIDPP20BuildT
     if(target.behind_receiver)
     {
         controller->SetPairingName(target.pairing_name);
+        HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
     }
 
     if(!controller->Probe())
@@ -1288,11 +1344,6 @@ static RGBController_LogitechHIDPP20* HIDPP20BuildController(const HIDPP20BuildT
         | 0x41 connection notification.                     |
         \*-------------------------------------------------*/
         delete controller;
-
-        if(target.behind_receiver)
-        {
-            HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
-        }
 
         return(nullptr);
     }
