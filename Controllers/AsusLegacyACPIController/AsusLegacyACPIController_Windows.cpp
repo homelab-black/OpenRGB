@@ -8,6 +8,7 @@
 \*---------------------------------------------------------*/
 
 #include "AsusLegacyACPIController_Windows.h"
+#include "dmiinfo.h"
 #include "i2c_smbus_pawnio.h"
 #include "LogManager.h"
 #include "PawnIOLib.h"
@@ -304,24 +305,12 @@ std::string AsusLegacyACPIController_Windows::GetBoardName()
         return board_name;
     }
 
-    char board_product[256] = {};
-    DWORD board_product_size = sizeof(board_product);
-    const LSTATUS query_result = RegGetValueA(
-        HKEY_LOCAL_MACHINE,
-        "HARDWARE\\DESCRIPTION\\System\\BIOS",
-        "BaseBoardProduct",
-        RRF_RT_REG_SZ,
-        NULL,
-        board_product,
-        &board_product_size);
+    DMIInfo dmi;
+    board_name = dmi.getMainboard();
 
-    if(query_result == ERROR_SUCCESS)
+    if(board_name.empty())
     {
-        board_name = board_product;
-    }
-    else
-    {
-        LOG_ERROR("[AsusLegacyACPI] Unable to read BaseBoardProduct (error %ld)", query_result);
+        LOG_ERROR("[AsusLegacyACPI] Unable to read baseboard product from DMI");
     }
 
     return board_name;
