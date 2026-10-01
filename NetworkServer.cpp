@@ -1092,6 +1092,20 @@ void NetworkServer::ControllerListenThread(NetworkServerControllerThread* this_t
             {
                 NetworkServerControllerThreadQueueEntry queue_entry;
                 NetPacketStatus                         status      = NET_PACKET_STATUS_OK;
+                unsigned int                            controller_id;
+
+                /*-----------------------------------------*\
+                | Determine whether to pass ID or index to  |
+                | handler functions based on protocol       |
+                \*-----------------------------------------*/
+                if(queue_entry.client_info->client_protocol_version >= 6)
+                {
+                    controller_id = this_thread->id;
+                }
+                else
+                {
+                    controller_id = this_thread->index;
+                }
 
                 this_thread->queue_mutex.lock();
                 queue_entry = this_thread->queue.front();
@@ -1103,23 +1117,23 @@ void NetworkServer::ControllerListenThread(NetworkServerControllerThread* this_t
                 switch(queue_entry.header.pkt_id)
                 {
                     case NET_PACKET_ID_RGBCONTROLLER_UPDATELEDS:
-                        status = ProcessRequest_RGBController_UpdateLEDs(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, this_thread->id);
+                        status = ProcessRequest_RGBController_UpdateLEDs(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, controller_id);
                         break;
 
                     case NET_PACKET_ID_RGBCONTROLLER_UPDATEZONELEDS:
-                        status = ProcessRequest_RGBController_UpdateZoneLEDs(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, this_thread->id);
+                        status = ProcessRequest_RGBController_UpdateZoneLEDs(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, controller_id);
                         break;
 
                     case NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE:
-                        status = ProcessRequest_RGBController_UpdateSaveMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, this_thread->id, false);
+                        status = ProcessRequest_RGBController_UpdateSaveMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, controller_id, false);
                         break;
 
                     case NET_PACKET_ID_RGBCONTROLLER_SAVEMODE:
-                        status = ProcessRequest_RGBController_UpdateSaveMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, this_thread->id, true);
+                        status = ProcessRequest_RGBController_UpdateSaveMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, controller_id, true);
                         break;
 
                     case NET_PACKET_ID_RGBCONTROLLER_UPDATEZONEMODE:
-                        status = ProcessRequest_RGBController_UpdateZoneMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, this_thread->id);
+                        status = ProcessRequest_RGBController_UpdateZoneMode(queue_entry.client_info, queue_entry.header.pkt_size, queue_entry.data, controller_id);
                         break;
 
                     default:
