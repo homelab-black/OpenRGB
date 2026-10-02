@@ -53,7 +53,7 @@ DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::s
             /*----------------------------------------------------------------------------*\
             | These are mostly 75% keyboards, by default AdditionalZones can be kept false |
             \*----------------------------------------------------------------------------*/
-            settings["AdditionalZones"] == false;
+            settings["AdditionalZones"] = false;
         }
 
         if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
