@@ -33,6 +33,15 @@
 static const int HIDPP20_READ_DRAIN_BUDGET = 64;
 
 /*---------------------------------------------------------*\
+| Consecutive writes the handle refuses before the link     |
+| counts as gone. hid_write failing is the handle saying    |
+| the node is not there any more, not the device declining  |
+| something, so it takes only enough to rule out a single   |
+| transient.                                                |
+\*---------------------------------------------------------*/
+static const int HIDPP20_WIRE_ERROR_LIMIT = 3;
+
+/*---------------------------------------------------------*\
 | Per-candidate read timeout (ms) for the Centurion 0x50    |
 | device-address probe. USB round-trip is <1ms; 5ms gives   |
 | 5x margin. Worst case (no device responds) 256 x 5 =      |
@@ -202,6 +211,7 @@ LogitechHIDPP20Controller::LogitechHIDPP20Controller
     this->pending_power_check  = false;
     this->device_online        = true;
     this->consecutive_timeouts = 0;
+    this->consecutive_wire_errors = 0;
     this->power_state          = HIDPP20_POWER_ACTIVE;
     this->deep_sleep           = false;
     this->consecutive_frame_end_failures = 0;
@@ -890,6 +900,31 @@ int LogitechHIDPP20Controller::SendAckedIntoFAP
 \*---------------------------------------------------------*/
 
 /*---------------------------------------------------------*\
+| A write that never left the host says more than a missing |
+| answer does: the device declining something still         |
+| answers, while a handle whose node has gone refuses every |
+| write. Only a receiver announces a device that left, and  |
+| a device on a cable or a radio of its own has nobody to   |
+| speak for it, so this is the one signal that link has.    |
+\*---------------------------------------------------------*/
+void LogitechHIDPP20Controller::NoteWireResult(int result)
+{
+    if(result >= 0)
+    {
+        consecutive_wire_errors.store(0);
+
+        return;
+    }
+
+    if(++consecutive_wire_errors >= HIDPP20_WIRE_ERROR_LIMIT && device_online.load())
+    {
+        LOG_DEBUG("%s HID write error: link is gone", LOG_TAG);
+
+        device_online.store(false);
+    }
+}
+
+/*---------------------------------------------------------*\
 | Budget for the first exchange with a node: wider for a    |
 | device a receiver already named and for a Bluetooth link, |
 | whose connection interval puts the first answer hundreds  |
@@ -1027,6 +1062,8 @@ int LogitechHIDPP20Controller::SendStandard
             long_only.store(true);
         }
     }
+
+    NoteWireResult(result);
 
     return result;
 }
@@ -1338,6 +1375,8 @@ int LogitechHIDPP20Controller::SendCenturion
     {
         result = hid_write(dev, buf, 64);
     }
+
+    NoteWireResult(result);
 
     return result;
 }
@@ -6200,10 +6239,34 @@ void LogitechHIDPP20Controller::ReconnectDevice()
             dim_brightness_pct.store(100);
             power_state = HIDPP20_POWER_ACTIVE;
         }
+
+        /*-------------------------------------------------*\
+        | A device that stopped answering FrameEnd while    |
+        | asleep has its sends suppressed until something   |
+        | says it is back. Wake() says so when the firmware |
+        | reports activity, and this says so when the link  |
+        | returns; a device that came back this way would   |
+        | otherwise stay claimed, online and unpainted.     |
+        \*-------------------------------------------------*/
+        deep_sleep.store(false);
+        consecutive_frame_end_failures.store(0);
     }
 
     last_fap_error_ = 0;
-    ReclaimSWControl("reconnect", true);
+
+    /*-----------------------------------------------------*\
+    | Force the whole claim only for a link that actually   |
+    | went away. A receiver sends its connection            |
+    | notification more than once for one wake, and the     |
+    | device's own WirelessStatus arrives beside it: the    |
+    | first claim is verified before it reports success, so |
+    | tearing it down for the duplicates walks the board    |
+    | through the firmware's effect card and an unpainted   |
+    | buffer again, once per notification. Without the      |
+    | force the reapply below still runs and the claim      |
+    | inside it no-ops while held.                          |
+    \*-----------------------------------------------------*/
+    ReclaimSWControl("reconnect", first_event);
     /*-----------------------------------------------------*\
     | Catch a stale restored map whose reclaim raced the    |
     | radio and didn't surface the mismatch.                |
