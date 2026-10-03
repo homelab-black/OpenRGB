@@ -118,7 +118,7 @@ public:
 
     DIRECT_MODE     GetSupportedDirectMode()
     {
-        return DIRECT_MODE_PER_LED;
+        return per_led_mode;
     }
 
     struct ZoneConfig
@@ -136,6 +136,9 @@ private:
     std::string                                             version_aprom;
     std::string                                             version_ldrom;
     FeaturePacket_761* data;
+
+    DIRECT_MODE                                             per_led_mode = DIRECT_MODE_DISABLED;
+    unsigned char                                           setup_data[290] = {};
 
     bool            ReadSettings();
     bool            ReadFwVersion();
