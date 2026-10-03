@@ -11,6 +11,9 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -29,11 +32,13 @@ public:
 
     void ReceiveBroadcast(char* recv_buf, int size);
 
-    void SendRazerData(RGBColor* colors, unsigned int size);
+    bool SendRazerData(RGBColor* colors, unsigned int size);
     void SendRazerDisable();
-    void SendRazerEnable();
+    bool SendRazerEnable(bool new_session = false);
 
     void SendScan();
+    void RequestStatus();
+    bool NeedsRazerRecovery();
 
     void SetBrightness(unsigned int brightness);
     void SetColor(unsigned char red, unsigned char green, unsigned char blue);
@@ -51,21 +56,29 @@ private:
     std::string         wifiVersionHard;
     std::string         wifiVersionSoft;
 
-    bool                broadcast_received;
+    std::atomic<bool>    broadcast_received;
+    std::recursive_mutex session_mutex;
+    bool                status_known;
+    bool                powered;
+    bool                recovery_pending;
+    bool                frame_sent;
+    std::chrono::steady_clock::time_point last_status_time;
+    std::chrono::steady_clock::time_point last_frame_time;
 
     net_port            port;
 
 public:
     /*-----------------------------------------------------*\
     | One receive thread is shared among all instances of   |
-    | GoveeController, so the receive thread function is    |
-    | static and the thread is initialized in the detector  |
-    | if any GoveeControllers are created.                  |
+    | GoveeController. It runs from registration of the     |
+    | first controller until removal of the last one.       |
     \*-----------------------------------------------------*/
     static net_port                             broadcast_port;
     static std::vector<GoveeController*>        callbacks;
     static std::thread*                         ReceiveThread;
     static std::atomic<bool>                    ReceiveThreadRun;
+    static std::mutex                          callbacks_mutex;
+    static std::mutex                          receiver_lifecycle_mutex;
 
     static void ReceiveBroadcastThreadFunction();
     static void RegisterReceiveBroadcastCallback(GoveeController* controller_ptr);

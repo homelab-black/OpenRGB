@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 #include "base64.hpp"
 #include "GoveeController.h"
@@ -17,6 +18,9 @@
 
 using json = nlohmann::json;
 using namespace std::chrono_literals;
+
+#define GOVEE_STATUS_TIMEOUT    30
+#define GOVEE_FRAME_TIMEOUT     55
 
 base64::byte CalculateXorChecksum(std::vector<base64::byte> packet)
 {
@@ -35,14 +39,17 @@ GoveeController::GoveeController(std::string ip)
     /*-----------------------------------------------------*\
     | Fill in location string with device's IP address      |
     \*-----------------------------------------------------*/
-    ip_address  = ip;
+    ip_address          = ip;
+    broadcast_received  = false;
+    status_known        = false;
+    powered             = true;
+    recovery_pending    = false;
+    frame_sent          = false;
 
     /*-----------------------------------------------------*\
     | Register callback for receiving broadcasts            |
     \*-----------------------------------------------------*/
     RegisterReceiveBroadcastCallback(this);
-
-    broadcast_received = false;
 
     /*-----------------------------------------------------*\
     | Request device information                            |
@@ -66,12 +73,17 @@ GoveeController::GoveeController(std::string ip)
     | Open a UDP client sending to the Govee device IP,     |
     | port 4003                                             |
     \*-----------------------------------------------------*/
+    port.sock = INVALID_SOCKET;
     port.udp_client(ip_address.c_str(), "4003");
 }
 
 GoveeController::~GoveeController()
 {
     UnregisterReceiveBroadcastCallback(this);
+    if(port.sock != INVALID_SOCKET)
+    {
+        port.tcp_close();
+    }
 }
 
 std::string GoveeController::GetLocation()
@@ -81,11 +93,13 @@ std::string GoveeController::GetLocation()
 
 std::string GoveeController::GetSku()
 {
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
     return(sku);
 }
 
 std::string GoveeController::GetVersion()
 {
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
     return("BLE Hardware Version: "  + bleVersionHard  + "\r\n" +
            "BLE Software Version: "  + bleVersionSoft  + "\r\n" +
            "WiFi Hardware Version: " + wifiVersionHard + "\r\n" +
@@ -94,21 +108,71 @@ std::string GoveeController::GetVersion()
 
 void GoveeController::ReceiveBroadcast(char* recv_buf, int size)
 {
-    if(broadcast_received)
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
+
+    /*-----------------------------------------------------*\
+    | UDP responses are not null-terminated.                |
+    \*-----------------------------------------------------*/
+    json response;
+    if(size <= 0 || !JsonUtils::JsonParse(std::string(recv_buf, size), response)
+       || !response.is_object() || !response.contains("msg") || !response["msg"].is_object())
     {
         return;
     }
 
-    /*-----------------------------------------------------*\
-    | Responses are not null-terminated, so add termination |
-    \*-----------------------------------------------------*/
-    recv_buf[size] = '\0';
+    if(response["msg"].value("cmd", json()) == "status")
+    {
+        json data = response["msg"].value("data", json());
+        if(data.is_object() && data.contains("onOff") && data["onOff"].is_number_integer()
+           && (data["onOff"] == 0 || data["onOff"] == 1))
+        {
+            bool razer_state_known = false;
+            bool razer_enabled     = false;
 
-    /*-----------------------------------------------------*\
-    | Convert null-terminated response to JSON              |
-    \*-----------------------------------------------------*/
-    json response;
-    JsonUtils::JsonParse(recv_buf, response);
+            if(data.contains("pt") && data["pt"].is_string())
+            {
+                try
+                {
+                    std::vector<base64::byte> pt = base64::decode(data["pt"]);
+                    if(pt.size() == 6 && pt[0] == 0xBB && pt[1] == 0x00 && pt[2] == 0x01
+                       && pt[3] == 0xB2 && (pt[4] == 0 || pt[4] == 1) && CalculateXorChecksum(pt) == 0)
+                    {
+                        razer_state_known = true;
+                        razer_enabled     = pt[4] == 1;
+                    }
+                }
+                catch(const std::runtime_error&)
+                {
+                    /*-----------------------------------------*\
+                    | Ignore invalid PT data; onOff is usable.   |
+                    \*-----------------------------------------*/
+                }
+            }
+            bool power = data["onOff"] == 1;
+            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+            bool status_timeout = status_known && now - last_status_time >= std::chrono::seconds(GOVEE_STATUS_TIMEOUT);
+
+            /*-------------------------------------------------*\
+            | Recover after a power cycle, a missing status     |
+            | interval, or a reported loss of Razer mode.        |
+            \*-------------------------------------------------*/
+            if(status_timeout || (status_known && !powered && power)
+               || (power && razer_state_known && !razer_enabled))
+            {
+                recovery_pending = true;
+            }
+
+            status_known     = true;
+            powered          = power;
+            last_status_time = now;
+        }
+        return;
+    }
+
+    if(broadcast_received)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | Check if the response contains the method name        |
@@ -131,27 +195,27 @@ void GoveeController::ReceiveBroadcast(char* recv_buf, int size)
                     {
                         if(response["msg"]["data"]["ip"] == ip_address)
                         {
-                            if(response["msg"]["data"].contains("sku"))
+                            if(response["msg"]["data"].contains("sku") && response["msg"]["data"]["sku"].is_string())
                             {
                                 sku = response["msg"]["data"]["sku"];
                             }
 
-                            if(response["msg"]["data"].contains("bleVersionHard"))
+                            if(response["msg"]["data"].contains("bleVersionHard") && response["msg"]["data"]["bleVersionHard"].is_string())
                             {
                                 bleVersionHard = response["msg"]["data"]["bleVersionHard"];
                             }
 
-                            if(response["msg"]["data"].contains("bleVersionSoft"))
+                            if(response["msg"]["data"].contains("bleVersionSoft") && response["msg"]["data"]["bleVersionSoft"].is_string())
                             {
                                 bleVersionSoft = response["msg"]["data"]["bleVersionSoft"];
                             }
 
-                            if(response["msg"]["data"].contains("wifiVersionHard"))
+                            if(response["msg"]["data"].contains("wifiVersionHard") && response["msg"]["data"]["wifiVersionHard"].is_string())
                             {
                                 wifiVersionHard = response["msg"]["data"]["wifiVersionHard"];
                             }
 
-                            if(response["msg"]["data"].contains("wifiVersionSoft"))
+                            if(response["msg"]["data"].contains("wifiVersionSoft") && response["msg"]["data"]["wifiVersionSoft"].is_string())
                             {
                                 wifiVersionSoft = response["msg"]["data"]["wifiVersionSoft"];
                             }
@@ -183,15 +247,16 @@ void GoveeController::SetColor(unsigned char red, unsigned char green, unsigned 
     port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1);
 }
 
-void GoveeController::SendRazerData(RGBColor* colors, unsigned int size)
+bool GoveeController::SendRazerData(RGBColor* colors, unsigned int size)
 {
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
     /*-----------------------------------------------------*\
     | Do not send an empty frame (this was producing        |
     | length=2, count=0)                                    |
     \*-----------------------------------------------------*/
-    if(size == 0)
+    if(size == 0 || (status_known && !powered))
     {
-        return;
+        return(false);
     }
 
     /*-----------------------------------------------------*\
@@ -235,7 +300,17 @@ void GoveeController::SendRazerData(RGBColor* colors, unsigned int size)
     \*-----------------------------------------------------*/
     std::string command_str                     = command.dump();
 
-    port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1);
+    if(NeedsRazerRecovery() && !SendRazerEnable())
+    {
+        return(false);
+    }
+    if(port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1) > 0)
+    {
+        frame_sent      = true;
+        last_frame_time = std::chrono::steady_clock::now();
+        return(true);
+    }
+    return(false);
 }
 
 void GoveeController::SendRazerDisable()
@@ -254,8 +329,9 @@ void GoveeController::SendRazerDisable()
     port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1);
 }
 
-void GoveeController::SendRazerEnable()
+bool GoveeController::SendRazerEnable(bool new_session)
 {
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
     const std::vector<base64::byte> pkt = { 0xBB, 0x00, 0x01, 0xB1, 0x01, 0x0A };
     json command;
 
@@ -267,7 +343,48 @@ void GoveeController::SendRazerEnable()
     \*-----------------------------------------------------*/
     std::string command_str                     = command.dump();
 
-    port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1);
+    if(port.udp_write((char *)command_str.c_str(), (int)command_str.length() + 1) > 0)
+    {
+        recovery_pending = false;
+        frame_sent       = true;
+        last_frame_time  = std::chrono::steady_clock::now();
+
+        /*-------------------------------------------------*\
+        | Mode changes start a new status timeout. Recovery |
+        | keeps the last reply time to detect an outage.     |
+        \*-------------------------------------------------*/
+        if(new_session)
+        {
+            powered          = true;
+            last_status_time = last_frame_time;
+        }
+        return(true);
+    }
+
+    recovery_pending = true;
+    return(false);
+}
+
+void GoveeController::RequestStatus()
+{
+    char command[] = "{\"msg\":{\"cmd\":\"status\",\"data\":{}}}";
+    port.udp_write(command, sizeof(command));
+}
+
+bool GoveeController::NeedsRazerRecovery()
+{
+    std::lock_guard<std::recursive_mutex> lock(session_mutex);
+
+    if(status_known && !powered)
+    {
+        return(false);
+    }
+
+    /*-----------------------------------------------------*\
+    | Razer mode expires after about a minute without data. |
+    \*-----------------------------------------------------*/
+    bool frame_timeout = frame_sent && std::chrono::steady_clock::now() - last_frame_time >= std::chrono::seconds(GOVEE_FRAME_TIMEOUT);
+    return(recovery_pending || frame_timeout);
 }
 
 void GoveeController::SetBrightness(unsigned int brightness)
@@ -299,6 +416,11 @@ void GoveeController::SetPower(bool enabled)
 
 void GoveeController::SendScan()
 {
+    if(!ReceiveThreadRun)
+    {
+        return;
+    }
+
     json command;
 
     command["msg"]["cmd"]                       = "scan";
@@ -323,6 +445,8 @@ net_port                        GoveeController::broadcast_port;
 std::vector<GoveeController*>   GoveeController::callbacks;
 std::thread*                    GoveeController::ReceiveThread;
 std::atomic<bool>               GoveeController::ReceiveThreadRun;
+std::mutex                      GoveeController::callbacks_mutex;
+std::mutex                      GoveeController::receiver_lifecycle_mutex;
 
 void GoveeController::ReceiveBroadcastThreadFunction()
 {
@@ -336,28 +460,30 @@ void GoveeController::ReceiveBroadcastThreadFunction()
         | Receive up to 1024 bytes from the device with a   |
         | 1s timeout                                        |
         \*-------------------------------------------------*/
-        int size = broadcast_port.udp_listen(recv_buf, 1024);
+        sockaddr_in sender = {};
+#ifdef WIN32
+        int sender_size = sizeof(sender);
+#else
+        socklen_t sender_size = sizeof(sender);
+#endif
+        int size = recvfrom(broadcast_port.sock, recv_buf, sizeof(recv_buf), 0,
+                            (sockaddr*)&sender, &sender_size);
 
         /*-------------------------------------------------*\
-        | If data was received, loop through registered     |
-        | callback controllers and call the                 |
-        | ReceiveBroadcast function for the controller      |
-        | matching the received data                        |
-        |                                                   |
-        | NOTE: As implemented, it doesn't actually match   |
-        | the intended controller and just calls all        |
-        | registered controllers.  As they are all called   |
-        | sequence, this should work, but if parallel calls |
-        | are ever needed, receives should be filtered by   |
-        | IP address                                        |
+        | Status replies have no device ID, so match the    |
+        | source IP to the registered controller.            |
         \*-------------------------------------------------*/
         if(size > 0)
         {
+            std::lock_guard<std::mutex> lock(callbacks_mutex);
             for(std::size_t callback_idx = 0; callback_idx < callbacks.size(); callback_idx++)
             {
                 GoveeController* controller = callbacks[callback_idx];
 
-                controller->ReceiveBroadcast(recv_buf, size);
+                if(sender.sin_addr.s_addr == inet_addr(controller->ip_address.c_str()))
+                {
+                    controller->ReceiveBroadcast(recv_buf, size);
+                }
             }
         }
     }
@@ -365,11 +491,29 @@ void GoveeController::ReceiveBroadcastThreadFunction()
 
 void GoveeController::RegisterReceiveBroadcastCallback(GoveeController* controller_ptr)
 {
+    std::lock_guard<std::mutex> lifecycle_lock(receiver_lifecycle_mutex);
+    std::lock_guard<std::mutex> lock(callbacks_mutex);
+    if(callbacks.empty())
+    {
+        broadcast_port.sock = INVALID_SOCKET;
+        if(broadcast_port.udp_client("239.255.255.250", "4001", "4002"))
+        {
+            broadcast_port.udp_join_multicast_group("239.255.255.250");
+            ReceiveThreadRun = true;
+            ReceiveThread = new std::thread(&GoveeController::ReceiveBroadcastThreadFunction);
+        }
+        else if(broadcast_port.sock != INVALID_SOCKET)
+        {
+            broadcast_port.tcp_close();
+        }
+    }
     callbacks.push_back(controller_ptr);
 }
 
 void GoveeController::UnregisterReceiveBroadcastCallback(GoveeController* controller_ptr)
 {
+    std::lock_guard<std::mutex> lifecycle_lock(receiver_lifecycle_mutex);
+    std::unique_lock<std::mutex> lock(callbacks_mutex);
     for(std::size_t callback_idx = 0; callback_idx < callbacks.size(); callback_idx++)
     {
         if(callbacks[callback_idx] == controller_ptr)
@@ -377,5 +521,14 @@ void GoveeController::UnregisterReceiveBroadcastCallback(GoveeController* contro
             callbacks.erase(callbacks.begin() + callback_idx);
             break;
         }
+    }
+    if(callbacks.empty() && ReceiveThreadRun)
+    {
+        ReceiveThreadRun = false;
+        lock.unlock();
+        ReceiveThread->join();
+        delete ReceiveThread;
+        ReceiveThread = nullptr;
+        broadcast_port.tcp_close();
     }
 }
