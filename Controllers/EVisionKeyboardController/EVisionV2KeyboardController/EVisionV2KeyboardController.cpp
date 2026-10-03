@@ -270,7 +270,7 @@ int EVisionV2KeyboardController::GetMode(EVisionV2KeyboardPart part, EvisionV2Mo
         return ret;
     }
 
-    config.mode = buffer[EVISION_V2_PARAMETER_MODE];
+    config.mode = buffer[EVISION_V2_PARAMETER_MODE] - mode_offset;
     config.brightness = buffer[EVISION_V2_PARAMETER_BRIGHTNESS];
     config.speed = buffer[EVISION_V2_PARAMETER_SPEED];
     config.direction = buffer[EVISION_V2_PARAMETER_DIRECTION];
@@ -303,7 +303,7 @@ void EVisionV2KeyboardController::SetMode(EVisionV2KeyboardPart part, const Evis
     uint8_t buffer[18];
     memset(buffer, 0, sizeof(buffer));
 
-    buffer[EVISION_V2_PARAMETER_MODE] = config.mode;
+    buffer[EVISION_V2_PARAMETER_MODE] = config.mode + mode_offset;
     buffer[EVISION_V2_PARAMETER_BRIGHTNESS] = config.brightness;
     buffer[EVISION_V2_PARAMETER_SPEED] = config.speed;
     buffer[EVISION_V2_PARAMETER_DIRECTION] = config.direction;

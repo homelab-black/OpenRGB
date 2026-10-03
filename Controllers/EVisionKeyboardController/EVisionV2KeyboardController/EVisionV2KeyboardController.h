@@ -180,6 +180,7 @@ public:
     void SetLedsCustom(uint8_t colorset, const std::vector<RGBColor>& colours);
 
     EVisionV2KeyboardLayout  layout;
+    int8_t                   mode_offset = 0;
 
 private:
     std::string name;
