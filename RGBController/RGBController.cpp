@@ -1677,6 +1677,8 @@ void RGBController::SetDeviceSpecificConfiguration(nlohmann::json configuration_
     nlohmann::json configuration_string_json;
     nlohmann::json configuration_schema_json;
 
+    LOG_DEBUG("RGBController received configuration: %s", configuration_json.dump().c_str());
+
     AccessMutex.lock();
 
     try
