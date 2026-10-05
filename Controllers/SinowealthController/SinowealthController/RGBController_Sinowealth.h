@@ -27,7 +27,12 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone);
 
 private:
+    void        ApplyMode(mode& current);
+    bool        IsDPIZone(int zone);
+    bool        ReadDeviceState();
+
     SinowealthController* controller;
 };

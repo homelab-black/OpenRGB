@@ -14,14 +14,22 @@
 #include "SinowealthController.h"
 #include "StringUtils.h"
 
-SinowealthController::SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name)
+SinowealthController::SinowealthController(hid_device* dev_data_handle, hid_device* dev_cmd_handle, char *_path, std::string dev_name, sinowealth_variant dev_variant)
 {
     dev_data            = dev_data_handle;
     dev_cmd             = dev_cmd_handle;
     location            = _path;
     name                = dev_name;
+    variant             = dev_variant;
 
-    led_count           = 1;
+    /*---------------------------------------------------------*\
+    | The GXT 970 drives its logo and DPI indicator from the DPI  |
+    | stage colors, independently of the bottom strip             |
+    \*---------------------------------------------------------*/
+    led_count           = (variant == SINOWEALTH_VARIANT_TRUST_GXT970) ? 2 : 1;
+
+    dpi_color           = 0;
+    dpi_color_staged    = false;
 }
 
 SinowealthController::~SinowealthController()
@@ -51,6 +59,63 @@ std::string SinowealthController::GetName()
 unsigned int SinowealthController::GetLEDCount()
 {
     return(led_count);
+}
+
+std::string SinowealthController::GetLEDName(unsigned int led_idx)
+{
+    if(variant != SINOWEALTH_VARIANT_TRUST_GXT970)
+    {
+        return("Mouse LED");
+    }
+
+    return(led_idx == SINOWEALTH_LED_DPI ? "Logo / DPI Indicator" : "Bottom");
+}
+
+/*---------------------------------------------------------*\
+| Most variants expect red, blue, green in the packet, the   |
+| GXT 970 expects plain red, green, blue                     |
+\*---------------------------------------------------------*/
+void SinowealthController::SetPacketColor(unsigned char* usb_buf, unsigned int offset, RGBColor color)
+{
+    bool swapped        = (variant != SINOWEALTH_VARIANT_TRUST_GXT970);
+
+    usb_buf[offset]     = RGBGetRValue(color);
+    usb_buf[offset + 1] = swapped ? RGBGetBValue(color) : RGBGetGValue(color);
+    usb_buf[offset + 2] = swapped ? RGBGetGValue(color) : RGBGetBValue(color);
+}
+
+bool SinowealthController::RequiresStartupRefresh()
+{
+    return(variant == SINOWEALTH_VARIANT_TRUST_GXT970);
+}
+
+unsigned char SinowealthController::GetConfigByte(unsigned int offset)
+{
+    if(offset >= SINOWEALTH_CONFIG_REPORT_SIZE)
+    {
+        return(0x00);
+    }
+
+    return(device_configuration[offset]);
+}
+
+RGBColor SinowealthController::GetConfigColor(unsigned int offset)
+{
+    if(offset + 2 >= SINOWEALTH_CONFIG_REPORT_SIZE)
+    {
+        return(0);
+    }
+
+    /*-----------------------------------------------------*\
+    | ToRGBColor() does not parenthesize its arguments, so   |
+    | they have to be plain values rather than expressions   |
+    \*-----------------------------------------------------*/
+    bool          swapped = (variant != SINOWEALTH_VARIANT_TRUST_GXT970);
+    unsigned char red     = device_configuration[offset];
+    unsigned char green   = swapped ? device_configuration[offset + 2] : device_configuration[offset + 1];
+    unsigned char blue    = swapped ? device_configuration[offset + 1] : device_configuration[offset + 2];
+
+    return(ToRGBColor(red, green, blue));
 }
 
 std::string SinowealthController::GetSerialString()
@@ -95,8 +160,8 @@ void SinowealthController::SetMode
 {
     if (GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN) return;
 
-    unsigned char usb_buf[SINOWEALTH_CONFIG_REPORT_SIZE];
-    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE); // Yes, we only copy 167 bytes back, for now - if anything weird starts happening use SINOWEALTH_CONFIG_REPORT_SIZE
+    unsigned char usb_buf[SINOWEALTH_CONFIG_SIZE];
+    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE);
 
     usb_buf[0x03] = 0x7B;   //write to device
     usb_buf[0x06] = 0x00;
@@ -111,36 +176,16 @@ void SinowealthController::SetMode
         break;
     case GLORIOUS_MODE_STATIC:
         usb_buf[0x38] = ((brightness & 0xF) << 4);
-        usb_buf[0x39] = RGBGetRValue(color_buf[0]);
-        usb_buf[0x3A] = RGBGetBValue(color_buf[0]);
-        usb_buf[0x3B] = RGBGetGValue(color_buf[0]);
+        SetPacketColor(usb_buf, 0x39, color_buf[SINOWEALTH_LED_EFFECT]);
         break;
     case GLORIOUS_MODE_SPECTRUM_BREATING:
-        //colours not yet researched
         usb_buf[0x3C] = ((brightness & 0xF) << 4) | (speed & 0xF);
         usb_buf[0x3D] = 0x07;  //maybe some kind of bank change?+
         //usb_buf[0x3D] = 0x06;
-        usb_buf[0x3E] = RGBGetRValue(color_buf[0]);  //mode 3 red 1
-        usb_buf[0x3F] = RGBGetBValue(color_buf[0]);  //mode 3 blue 1
-        usb_buf[0x40] = RGBGetGValue(color_buf[0]);  //mode 3 green 1
-        usb_buf[0x41] = RGBGetRValue(color_buf[1]);  //mode 3 red 2
-        usb_buf[0x42] = RGBGetBValue(color_buf[1]);  //mode 3 blue 2
-        usb_buf[0x43] = RGBGetGValue(color_buf[1]);  //mode 3 green 2
-        usb_buf[0x44] = RGBGetRValue(color_buf[2]);  //mode 3 red 3
-        usb_buf[0x45] = RGBGetBValue(color_buf[2]);  //mode 3 blue 3
-        usb_buf[0x46] = RGBGetGValue(color_buf[2]);  //mode 3 green 3
-        usb_buf[0x47] = RGBGetRValue(color_buf[3]);  //mode 3 red 4
-        usb_buf[0x48] = RGBGetBValue(color_buf[3]);  //mode 3 blue 4
-        usb_buf[0x49] = RGBGetGValue(color_buf[3]);  //mode 3 green 4
-        usb_buf[0x4A] = RGBGetRValue(color_buf[4]);  //mode 3 red 5
-        usb_buf[0x4B] = RGBGetBValue(color_buf[4]);  //mode 3 blue 5
-        usb_buf[0x4C] = RGBGetGValue(color_buf[4]);  //mode 3 green 5
-        usb_buf[0x4D] = RGBGetRValue(color_buf[5]);  //mode 3 red 6
-        usb_buf[0x4E] = RGBGetBValue(color_buf[5]);  //mode 3 blue 6
-        usb_buf[0x4F] = RGBGetGValue(color_buf[5]);  //mode 3 green 6
-        usb_buf[0x50] = RGBGetRValue(color_buf[6]);  //mode 3 red 7
-        usb_buf[0x51] = RGBGetBValue(color_buf[6]);  //mode 3 blue 7
-        usb_buf[0x52] = RGBGetGValue(color_buf[6]);  //mode 3 green 7
+        for(unsigned int color_idx = 0; color_idx < 7; color_idx++)
+        {
+            SetPacketColor(usb_buf, 0x3E + (color_idx * 3), color_buf[color_idx]);
+        }
         break;
     case GLORIOUS_MODE_TAIL:
         usb_buf[0x53] = ((brightness & 0xF) << 4) | (speed & 0xF);
@@ -150,21 +195,15 @@ void SinowealthController::SetMode
         break;
     case GLORIOUS_MODE_RAVE:
         usb_buf[0x74] = ((brightness & 0xF) << 4) | (speed & 0xF);
-        usb_buf[0x75] = RGBGetRValue(color_buf[0]); //mode 7 red 1
-        usb_buf[0x76] = RGBGetBValue(color_buf[0]); //mode 7 blue 1
-        usb_buf[0x77] = RGBGetGValue(color_buf[0]); //mode 7 green 1
-        usb_buf[0x78] = RGBGetRValue(color_buf[1]); //mode 7 red 2
-        usb_buf[0x79] = RGBGetBValue(color_buf[1]); //mode 7 blue 2
-        usb_buf[0x7A] = RGBGetGValue(color_buf[1]); //mode 7 green 2
+        SetPacketColor(usb_buf, 0x75, color_buf[0]);
+        SetPacketColor(usb_buf, 0x78, color_buf[1]);
         break;
     case GLORIOUS_MODE_WAVE:
         usb_buf[0x7C] = ((brightness & 0xF) << 4) | (speed & 0xF);
         break;
     case GLORIOUS_MODE_BREATHING:
         usb_buf[0x7D] = ((brightness & 0xF) << 4) | (speed & 0xF);
-        usb_buf[0x7E] = RGBGetRValue(color_buf[0]); //mode 0a red
-        usb_buf[0x7F] = RGBGetBValue(color_buf[0]); //mode 0a blue
-        usb_buf[0x80] = RGBGetGValue(color_buf[0]); //mode 0a green
+        SetPacketColor(usb_buf, 0x7E, color_buf[0]);
     case GLORIOUS_MODE_OFF:
         usb_buf[0x81] = 0x00; //mode 0 either 0x00 or 0x03
         break;
@@ -172,7 +211,53 @@ void SinowealthController::SetMode
         break;
     }
 
-    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_REPORT_SIZE);
+    /*-----------------------------------------------------*\
+    | Carry the DPI stage colors in the same packet. Writing  |
+    | them separately means a second flash commit right       |
+    | behind this one, and the device does not take it.       |
+    \*-----------------------------------------------------*/
+    if((led_count > SINOWEALTH_LED_DPI) && dpi_color_staged)
+    {
+        for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
+        {
+            SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), dpi_color);
+        }
+    }
+
+    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_SIZE);
+}
+
+void SinowealthController::StageDPIColor(RGBColor color)
+{
+    dpi_color        = color;
+    dpi_color_staged = true;
+}
+
+void SinowealthController::SetDPIColor(RGBColor color)
+{
+    StageDPIColor(color);
+
+    if(GetProfile() < SINOWEALTH_CONFIG_SIZE_MIN)
+    {
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Everything the device was already doing is carried     |
+    | over, so the effect it is running survives             |
+    \*-----------------------------------------------------*/
+    unsigned char usb_buf[SINOWEALTH_CONFIG_SIZE];
+    memcpy(usb_buf, device_configuration, SINOWEALTH_CONFIG_SIZE);
+
+    usb_buf[0x03] = 0x7B;   //write to device
+    usb_buf[0x06] = 0x00;
+
+    for(unsigned int stage = 0; stage < SINOWEALTH_DPI_STAGES; stage++)
+    {
+        SetPacketColor(usb_buf, SINOWEALTH_DPI_COLOR_OFFSET + (stage * 3), color);
+    }
+
+    hid_send_feature_report(dev_data, usb_buf, SINOWEALTH_CONFIG_SIZE);
 }
 
 int SinowealthController::GetProfile()

@@ -31,6 +31,12 @@
 
 #define SINOWEALTH_VID                      0x258A
 
+/*---------------------------------------------------------*\
+| Trust rebrands the same Sinowealth controller under its    |
+| own vendor ID                                              |
+\*---------------------------------------------------------*/
+#define TRUST_VID                           0x145F
+
 #define Glorious_Model_O_PID                0x0036
 #define Glorious_Model_OW_PID1              0x2022 // wireless
 #define Glorious_Model_OW_PID2              0x2011 // when connected via cable
@@ -44,6 +50,7 @@
 #define GENESIS_THOR_300_PID                0x0090
 #define GENESIS_XENON_200_PID               0x1007
 #define RGB_KEYBOARD_010CPID                0x010C
+#define TRUST_GXT_970_PID                   0x02B9
 
 #define MAX_EXPECTED_REPORT_SIZE 2048
 
@@ -274,7 +281,7 @@ DetectedControllers DetectZetFuryPro(hid_device_info* info, const std::string& n
     return(detected_controllers);
 }
 
-DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::string& name)
+static DetectedControllers DetectSinowealthVariant(hid_device_info* info, const std::string& name, sinowealth_variant variant)
 {
     DetectedControllers detected_controllers;
 
@@ -288,7 +295,7 @@ DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::stri
 
         if(dev && dev_cmd)
         {
-            SinowealthController*     controller     = new SinowealthController(dev, dev_cmd, info->path, name);
+            SinowealthController*     controller     = new SinowealthController(dev, dev_cmd, info->path, name, variant);
             RGBController_Sinowealth* rgb_controller = new RGBController_Sinowealth(controller);
 
             detected_controllers.push_back(rgb_controller);
@@ -296,6 +303,16 @@ DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::stri
     }
 
     return(detected_controllers);
+}
+
+DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::string& name)
+{
+    return(DetectSinowealthVariant(info, name, SINOWEALTH_VARIANT_DEFAULT));
+}
+
+DetectedControllers DetectTrustGXT970(hid_device_info* info, const std::string& name)
+{
+    return(DetectSinowealthVariant(info, name, SINOWEALTH_VARIANT_TRUST_GXT970));
 }
 
 DetectedControllers DetectGMOW_Cable(hid_device_info* info, const std::string& name)
@@ -419,6 +436,7 @@ DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std
 REGISTER_HID_DETECTOR_P("Glorious Model O / O-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_O_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Glorious Model D / D-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_D_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Everest GT-100 RGB",               DetectSinowealthMouse,              SINOWEALTH_VID, Everest_GT100_PID,                      0xFF00          );
+REGISTER_HID_DETECTOR_P("Trust GXT 970",                    DetectTrustGXT970,                  TRUST_VID,      TRUST_GXT_970_PID,                      0xFF00          );
 REGISTER_HID_DETECTOR_IPU("ZET Fury Pro",                   DetectZetFuryPro,                   SINOWEALTH_VID, ZET_FURY_PRO_PID,                   1,  0xFF00, 1       );
 REGISTER_HID_DETECTOR_PU("Glorious Model O / O- Wireless",  DetectGMOW_Dongle,                  SINOWEALTH_VID, Glorious_Model_OW_PID1,                 0xFFFF, 1       );
 REGISTER_HID_DETECTOR_PU("Glorious Model O / O- Wireless",  DetectGMOW_Cable,                   SINOWEALTH_VID, Glorious_Model_OW_PID2,                 0xFFFF, 0x0000  );
