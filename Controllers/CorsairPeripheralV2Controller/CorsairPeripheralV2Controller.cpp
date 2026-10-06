@@ -87,6 +87,11 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
             \*---------------------------------------------------------*/
             not_found       = false;
             device_index    = i;
+
+            if(corsair_v2_device_list[i]->name != nullptr)
+            {
+                device_name = corsair_v2_device_list[i]->name;
+            }
             break;
         }
     }
@@ -111,7 +116,8 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     |   then use endpoint 1.                                    |
     |   NB: the K100 answers both endpoints, but its software   |
     |   direct lighting only renders through endpoint 2, so     |
-    |   it must stay on CORSAIR_V2_LIGHT_CTRL2.                 |
+    |   it must stay on CORSAIR_V2_LIGHT_CTRL2. The K70 Pro     |
+    |   Mini Wireless probes unreliably and also needs CTRL2.   |
     \*---------------------------------------------------------*/
     if(light_ctrl == CORSAIR_V2_LIGHT_CTRL2)
     {
@@ -120,7 +126,8 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
             case CORSAIR_K100_OPTICAL_V1_PID:
             case CORSAIR_K100_OPTICAL_V2_PID:
             case CORSAIR_K100_MXRED_PID:
-                LOG_DEBUG("[%s] Lighting Endpoint pinned to %02X for K100", device_name.c_str(), light_ctrl);
+            case CORSAIR_K70_RGB_PRO_MINI_WIRELESS_PID:
+                LOG_DEBUG("[%s] Lighting Endpoint pinned to %02X", device_name.c_str(), light_ctrl);
                 break;
 
             default:

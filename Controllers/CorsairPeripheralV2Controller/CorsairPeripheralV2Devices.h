@@ -38,12 +38,16 @@ enum corsair_v2_kb_layout
     CORSAIR_V2_KB_LAYOUT_JIS            = 0x04,     /* Japanese Layout                  */
 };
 
-typedef struct
+typedef struct corsair_v2_zone
 {
     std::string                         name;
     zone_type                           type;
     uint8_t                             rows;
     uint8_t                             cols;
+    uint8_t                             first_led = 0;  /* Linear zones: device index of */
+                                                        /*   the first LED, 0 appends    */
+                                                        /*   after the LEDs created so   */
+                                                        /*   far                         */
 }   corsair_v2_zone;
 
 typedef struct
@@ -55,7 +59,7 @@ typedef struct
     const char*                         name;
 }   corsair_v2_led;
 
-typedef struct
+typedef struct corsair_v2_device
 {
     uint16_t                            pid;
     device_type                         type;
@@ -63,6 +67,9 @@ typedef struct
     uint8_t                             cols;
     const corsair_v2_zone*              zones[CORSAIR_ZONES_MAX];
     keyboard_keymap_overlay_values*     layout_new;
+    const char*                         name = nullptr; /* Overrides the detector name  */
+                                                        /*   when behind a shared        */
+                                                        /*   wireless receiver           */
 }   corsair_v2_device;
 
 /*-----------------------------------------------------*\
@@ -80,6 +87,7 @@ typedef struct
 #define CORSAIR_K70_CORE_RGB_TKL_PID                0x2B01
 #define CORSAIR_K70_RGB_PRO_PID                     0x1BC4
 #define CORSAIR_K70_RGB_PRO_V2_PID                  0x1BB3
+#define CORSAIR_K70_RGB_PRO_MINI_WIRELESS_PID       0x1BB6
 #define CORSAIR_K70_RGB_TKL_PID                     0x1B73
 #define CORSAIR_K70_RGB_TKL_CS_PID                  0x1BB9
 #define CORSAIR_K95_PLATINUM_XT_PID                 0x1B89
