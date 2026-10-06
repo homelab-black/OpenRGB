@@ -31,17 +31,16 @@
 #define TOPC_RGB_LEDS_PER_REPORT        60                  /* LEDs filled in every report      */
 
 /*---------------------------------------------------------*\
-| TOPC_RGB_LED_COUNT is the number of LEDs actually wired to |
-| the header.  This is what OpenRGB exposes to the UI (the   |
-| zone size).  The reference code always fills 60 LED slots |
-| in the report regardless, so colours are padded up to      |
-| TOPC_RGB_LEDS_PER_REPORT when fewer are supplied.          |
+| TOPC_RGB_LED_COUNT is the default number of LEDs exposed   |
+| to OpenRGB (the initial zone size).  The zone is user      |
+| resizable in the UI between 1 and TOPC_RGB_LEDS_PER_REPORT |
+| (60), so this is only the value used on first creation.    |
 |                                                            |
-| Only 10 physical LEDs are connected in the reference       |
-| setup, so 10 is the default here.  If you wire a longer    |
-| strip, raise this value (up to TOPC_RGB_LEDS_PER_REPORT).  |
+| The reference code always fills 60 LED slots in the report |
+| regardless of the zone size, so colours are padded up to   |
+| TOPC_RGB_LEDS_PER_REPORT when fewer LEDs are configured.   |
 \*---------------------------------------------------------*/
-#define TOPC_RGB_LED_COUNT              10                  /* Physical LEDs exposed to OpenRGB */
+#define TOPC_RGB_LED_COUNT              60                  /* Default LEDs exposed to OpenRGB  */
 
 #define TOPC_RGB_REPORT_SIZE            256                 /* HID feature report size          */
 #define TOPC_RGB_COLOR_DEPTH            3                   /* Bytes per LED (R, G, B, no alpha)*/

@@ -16,10 +16,12 @@ effect engine and no dedicated brightness command.  Every dynamic effect is
 therefore rendered **host side** by a background thread in the controller and
 pushed to the device as raw per-LED RGB frames.
 
-The number of connected LEDs is fixed at compile time by
-`TOPC_RGB_LED_COUNT` (default **10**).  The protocol always fills 60 LED slots
-per report (matching the reference code); if fewer LEDs than that are present
-the remaining slots are padded with the last colour and simply drive nothing.
+The number of connected LEDs is **user configurable** in the OpenRGB UI
+(select the zone, then use the "Edit Zone" button) between **1 and 60** LEDs,
+and defaults to `TOPC_RGB_LED_COUNT` (**60**) on first creation.  The protocol
+always fills 60 LED slots per report (matching the reference code); if fewer
+LEDs are configured the remaining slots are padded with the last colour and
+simply drive nothing.
 
 ## Device identification
 
@@ -30,7 +32,7 @@ the remaining slots are padded with the last colour and simply drive nothing.
 | HID usage page    | `0xFF01` (vendor-defined)                          |
 | HID usage         | `0x0001`                                           |
 | Zones             | 1 (single addressable header)                      |
-| LEDs              | `TOPC_RGB_LED_COUNT` (default 10)                  |
+| LEDs              | user configurable, 1..60 (default 60)              |
 | Color format      | 8-bit RGB, 3 bytes per LED (no alpha/brightness)  |
 
 The usage page/usage pair comes from the Windows `HardwareID`
@@ -107,8 +109,13 @@ Controllers/TOPCRGBController/
 
 ### Controller layer (`RGBController_TOPCRGB`)
 
-* Creates one fixed-size `ZONE_TYPE_LINEAR` zone of `TOPC_RGB_LED_COUNT` LEDs
-  (not user configurable).
+* Creates one `ZONE_TYPE_LINEAR` zone that is **user resizable** in the UI
+  (select the zone and use the "Edit Zone" button;
+  `ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE` / `NAME` / `TYPE`), between 1 and 60
+  LEDs.  The default size on first creation is `TOPC_RGB_LED_COUNT` (60).
+* `DeviceConfigureZone()` rebuilds the LED/color arrays whenever the user
+  changes the zone size; the persisted count is preserved via
+  `ZONE_FLAG_MANUALLY_CONFIGURED_SIZE`.
 * Declares the modes listed above.
 * Owns a background thread that renders the non-Direct modes in software and
   pushes each frame through `SetLEDs()`.
@@ -117,7 +124,7 @@ Controllers/TOPCRGBController/
 
 | Macro                     | Meaning                                              |
 |---------------------------|------------------------------------------------------|
-| `TOPC_RGB_LED_COUNT`      | LEDs exposed to OpenRGB (default 10)                 |
+| `TOPC_RGB_LED_COUNT`      | Default LEDs exposed to OpenRGB (60)                 |
 | `TOPC_RGB_LEDS_PER_REPORT`| LED slots filled in every report (60, from reference)|
 | `TOPC_RGB_REPORT_ID_BASE` | First colour report ID (`0x10`)                      |
 | `TOPC_RGB_REPORT_ID_COUNT`| Number of colour reports (`4`)                       |

@@ -37,7 +37,8 @@ const char* TOPC_RGB_CONTROLLER_NAME = "RGBController_TOPCRGB";
         (plain 8-bit RGB, no brightness channel), so every dynamic
         effect is rendered host side by a background thread and
         pushed as raw per-LED frames, mirroring backend/effects/.
-        The number of connected LEDs is fixed by TOPC_RGB_LED_COUNT.
+        The number of connected LEDs is user configurable in the UI
+        (resizable zone, 1..60, default TOPC_RGB_LED_COUNT).
 \*-------------------------------------------------------------------*/
 
 RGBController_TOPCRGB::RGBController_TOPCRGB(TOPCRGBController* controller_ptr)
@@ -193,23 +194,72 @@ void RGBController_TOPCRGB::SetupZones()
     LOG_DEBUG("[%s] SetupZones called", TOPC_RGB_CONTROLLER_NAME);
 
     /*-----------------------------------------------------*\
+    | Only set the LED count on the first run.  On later     |
+    | calls (triggered by DeviceConfigureZone when the user  |
+    | resizes the zone) the persisted count is honoured.     |
+    \*-----------------------------------------------------*/
+    bool first_run = false;
+
+    if(zones.size() == 0)
+    {
+        first_run = true;
+    }
+
+    /*-----------------------------------------------------*\
     | Clear any existing color/LED configuration             |
     \*-----------------------------------------------------*/
     leds.clear();
     colors.clear();
 
     /*-----------------------------------------------------*\
-    | A single fixed-size addressable zone.  The size is     |
-    | not user configurable; it always matches the reference |
-    | implementation's 60 LEDs.                              |
+    | A single linear zone.  It is user resizable through    |
+    | the "Edit Zone" UI (the button becomes "Edit Zone"     |
+    | while this zone is selected), between 1 and            |
+    | TOPC_RGB_LEDS_PER_REPORT (60) LEDs, matching the       |
+    | largest count the firmware report can carry.  The      |
+    | default is TOPC_RGB_LED_COUNT (60).                    |
     \*-----------------------------------------------------*/
-    zones.resize(1);
+    if(first_run)
+    {
+        zone new_zone;
 
-    zones[0].name                   = "Addressable RGB Header";
-    zones[0].type                   = ZONE_TYPE_LINEAR;
-    zones[0].leds_min               = TOPC_RGB_LED_COUNT;
-    zones[0].leds_max               = TOPC_RGB_LED_COUNT;
-    zones[0].leds_count             = TOPC_RGB_LED_COUNT;
+        new_zone.flags = ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE
+                       | ZONE_FLAG_MANUALLY_CONFIGURABLE_NAME
+                       | ZONE_FLAG_MANUALLY_CONFIGURABLE_TYPE;
+
+        zones.push_back(new_zone);
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_NAME))
+    {
+        zones[0].name               = "Addressable RGB Header";
+    }
+
+    zones[0].leds_min               = 1;
+    zones[0].leds_max               = TOPC_RGB_LEDS_PER_REPORT;
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_SIZE))
+    {
+        zones[0].leds_count         = TOPC_RGB_LED_COUNT;
+    }
+
+    if(!(zones[0].flags & ZONE_FLAG_MANUALLY_CONFIGURED_TYPE))
+    {
+        zones[0].type               = ZONE_TYPE_LINEAR;
+    }
+
+    /*-----------------------------------------------------*\
+    | Clamp a stored size that is out of range               |
+    \*-----------------------------------------------------*/
+    if(zones[0].leds_count < zones[0].leds_min)
+    {
+        zones[0].leds_count         = zones[0].leds_min;
+    }
+
+    if(zones[0].leds_count > zones[0].leds_max)
+    {
+        zones[0].leds_count         = zones[0].leds_max;
+    }
 
     for(unsigned int led_idx = 0; led_idx < zones[0].leds_count; led_idx++)
     {
@@ -222,9 +272,33 @@ void RGBController_TOPCRGB::SetupZones()
         leds.push_back(new_led);
     }
 
-    LOG_DEBUG("[%s] SetupZones done: 1 zone, %u LEDs", TOPC_RGB_CONTROLLER_NAME, (unsigned int)leds.size());
+    LOG_DEBUG("[%s] SetupZones done: 1 zone, %u LEDs (min %u, max %u)",
+              TOPC_RGB_CONTROLLER_NAME,
+              (unsigned int)leds.size(),
+              zones[0].leds_min,
+              zones[0].leds_max);
 
     SetupColors();
+}
+
+/*---------------------------------------------------------*\
+| Called by the UI when the user changes the zone size.  Re- |
+| run SetupZones() so the leds/colors arrays are rebuilt for |
+| the new count.  The new count is already stored in the     |
+| zone (and flagged as manually configured) by the UI, so    |
+| SetupZones() will honour it.                               |
+\*---------------------------------------------------------*/
+void RGBController_TOPCRGB::DeviceConfigureZone(int zone_idx)
+{
+    LOG_DEBUG("[%s] DeviceConfigureZone(%d)", TOPC_RGB_CONTROLLER_NAME, zone_idx);
+
+    if((zone_idx >= 0) && ((std::size_t)zone_idx < zones.size()))
+    {
+        LOG_DEBUG("[%s]   new leds_count %u",
+                  TOPC_RGB_CONTROLLER_NAME, (unsigned int)zones[zone_idx].leds_count);
+    }
+
+    SetupZones();
 }
 
 void RGBController_TOPCRGB::DeviceUpdateLEDs()
