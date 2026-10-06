@@ -6,14 +6,20 @@ OpenRGB controller driver for the TOPC motherboard RGB / ARGB controller
 ## Overview
 
 This driver controls the single addressable 3-pin ARGB header found on
-certain TOPC motherboards.  The header is intended to drive a user supplied
-strip or fan chain, so the number of connected LEDs is **manually
-configurable** in the OpenRGB UI (per-zone sizing, 0-40 LEDs).
+certain TOPC motherboards.  The firmware is driven **exactly like the vendor
+reference implementation** (the original `backend/` Python code): the same
+colour buffer is mirrored to **four HID feature reports** (`0x10`..`0x13`),
+each followed by an apply report.
 
-The device only exposes **direct per-LED control**.  There is no on-device
-effect engine and no dedicated brightness command, so every dynamic effect is
-rendered host side by OpenRGB and pushed to the device as raw per-LED RGB
-values.
+The device exposes only **direct per-LED control**: there is no on-device
+effect engine and no dedicated brightness command.  Every dynamic effect is
+therefore rendered **host side** by a background thread in the controller and
+pushed to the device as raw per-LED RGB frames.
+
+The number of connected LEDs is fixed at compile time by
+`TOPC_RGB_LED_COUNT` (default **10**).  The protocol always fills 60 LED slots
+per report (matching the reference code); if fewer LEDs than that are present
+the remaining slots are padded with the last colour and simply drive nothing.
 
 ## Device identification
 
@@ -23,8 +29,8 @@ values.
 | Product ID        | `0x7A95`                                           |
 | HID usage page    | `0xFF01` (vendor-defined)                          |
 | HID usage         | `0x0001`                                           |
-| Channels          | 1                                                  |
-| Max LEDs / channel| 40                                                 |
+| Zones             | 1 (single addressable header)                      |
+| LEDs              | `TOPC_RGB_LED_COUNT` (default 10)                  |
 | Color format      | 8-bit RGB, 3 bytes per LED (no alpha/brightness)  |
 
 The usage page/usage pair comes from the Windows `HardwareID`
@@ -36,20 +42,20 @@ level collections.
 
 The device is driven through HID **feature reports**, each 256 bytes long.
 
-### Color report (one per channel)
+### Color report (mirrored to four report IDs)
 
 ```
-byte 0        report ID          0x10 + channel  (channel 0 -> 0x10)
+byte 0        report ID          0x10 .. 0x13
 byte 1        0x00
 byte 2        0x00
-byte 3..N     LED colors, 3 bytes each (R, G, B)
+byte 3..182   60 * (R, G, B)
 remaining     padding zeros
 ```
 
 ### Apply report
 
-After a color report has been written an apply report must be sent so the
-device latches the new colors:
+After each colour report an apply report must be sent so the device latches
+the new colours:
 
 ```
 byte 0        0x01
@@ -59,8 +65,28 @@ byte 3        0xFF
 remaining     padding zeros
 ```
 
-If fewer colors than the channel size are supplied, the last color is repeated
-to fill the channel.  Supplied colors beyond the channel maximum are ignored.
+The same colour buffer is written once for every report ID (`0x10`..`0x13`),
+applying after each, exactly like the reference code.  If fewer colours than
+60 are supplied, the last colour is repeated to fill the report; colours
+beyond 60 are ignored.
+
+## Modes
+
+All modes are rendered **host side** by a background thread
+(`EffectThreadFunction`) at ~30 fps.  Each frame is written straight to the
+hardware through the driver.  This mirrors what `backend/effects/*.py` does.
+
+| Mode         | Colours        | Parameters                  | Notes                             |
+|--------------|----------------|-----------------------------|-----------------------------------|
+| Direct       | per-LED        | -                           | UI drives each LED directly       |
+| Static       | mode specific  | brightness                  | Single fixed colour               |
+| Rainbow Wave | none           | speed, brightness, direction| Moving rainbow (flowing)          |
+| Breathing    | mode specific  | speed, brightness, random   | Fade in/out                       |
+| Meteor       | mode specific  | speed, brightness, random   | Comet / moving tail               |
+| Blink        | mode specific  | speed, brightness, random   | Alternate on/off                  |
+
+Selecting **Direct** stops the renderer so the UI's per-LED colours are sent
+verbatim; selecting any other mode enables the renderer.
 
 ## Source layout
 
@@ -69,34 +95,46 @@ Controllers/TOPCRGBController/
 ├── TOPCRGBController.h          Low level HID driver
 ├── TOPCRGBController.cpp        Protocol implementation
 ├── RGBController_TOPCRGB.h      RGBController wrapper
-├── RGBController_TOPCRGB.cpp    Zone / mode / update logic
-├── TOPCRGBControllerDetect.cpp  Detector and registration
-└── backend/                     Original Python reference implementation
+├── RGBController_TOPCRGB.cpp    Zone / mode / software effect renderer
+└── TOPCRGBControllerDetect.cpp  Detector and registration
 ```
 
 ### Driver layer (`TOPCRGBController`)
 
-* `SetChannelLEDs(channel, colors)` - builds and sends the color report for a
-  channel followed by the apply report.  Thread safe (guarded by a mutex).
-* `SetAllChannels(colors)` - calls `SetChannelLEDs()` for every channel.
+* `SetLEDs(colors, num_colors)` - builds the 256 byte colour report and sends
+  it for every report ID (`0x10`..`0x13`), applying after each.  Thread safe
+  (guarded by a mutex).
 
 ### Controller layer (`RGBController_TOPCRGB`)
 
-* Creates one `ZONE_TYPE_LINEAR` zone per channel, each marked with
-  `ZONE_FLAG_MANUALLY_CONFIGURABLE_SIZE` / `NAME` / `TYPE` / `MATRIX_MAP` /
-  `SEGMENTS` so the user can set the real LED count and layout in the UI.
-* Provides a single `Direct` mode (`MODE_FLAG_HAS_PER_LED_COLOR`,
-  `MODE_COLORS_PER_LED`).
-* `DeviceConfigureZone()` rebuilds the LED/color arrays whenever the user
-  changes a zone size.
+* Creates one fixed-size `ZONE_TYPE_LINEAR` zone of `TOPC_RGB_LED_COUNT` LEDs
+  (not user configurable).
+* Declares the modes listed above.
+* Owns a background thread that renders the non-Direct modes in software and
+  pushes each frame through `SetLEDs()`.
+
+### Driver constants (`TOPCRGBController.h`)
+
+| Macro                     | Meaning                                              |
+|---------------------------|------------------------------------------------------|
+| `TOPC_RGB_LED_COUNT`      | LEDs exposed to OpenRGB (default 10)                 |
+| `TOPC_RGB_LEDS_PER_REPORT`| LED slots filled in every report (60, from reference)|
+| `TOPC_RGB_REPORT_ID_BASE` | First colour report ID (`0x10`)                      |
+| `TOPC_RGB_REPORT_ID_COUNT`| Number of colour reports (`4`)                       |
+| `TOPC_RGB_REPORT_SIZE`    | HID feature report size (256)                        |
+| `TOPC_RGB_DEBUG_LOG`      | Set to 1 for verbose per-report debug logging        |
 
 ## Design references
 
-* `Controllers/CoolerMasterController/CMARGBController/` - direct-only ARGB
-  controller with manually configurable zones (structural template).
+* `Controllers/GoveeController/` - keepalive thread + software-rendered
+  effects on a direct-only strip.
+* `Controllers/MountainKeyboardController/` - controller-owned effect/update
+  thread pattern.
+* `Controllers/ElgatoLightStripController/` and `qt/hsv.h` - HSV handling used
+  by the Rainbow effect.
 * `Controllers/HYTEKeyboardController/` - `REGISTER_HID_DETECTOR_PU`
   usage/usage-page filtered detector.
-* `backend/effects/*.py` - reverse engineered protocol details.
+
 
 ## Building OpenRGB with this controller
 
