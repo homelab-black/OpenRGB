@@ -67,4 +67,6 @@ private:
     i2c_smbus_interface *   bus;
     galax_gpu_dev_id        dev;
     std::string             name;
+    unsigned char           mode_reg_1;
+    unsigned char           mode_reg_2;
 };
