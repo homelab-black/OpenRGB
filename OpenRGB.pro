@@ -203,6 +203,9 @@ HEADERS +=                                                                      
     RGBController/RGBController_Dummy.h                                                         \
     RGBController/RGBControllerKeyNames.h                                                       \
     RGBController/RGBController_Network.h                                                       \
+    RGBController/RGBController_Virtual.h                                                       \
+    RGBController/RGBController_Proxy.h                                                         \
+    RGBController/RGBController_MultichoiceProxy.h                                              \
     startup/startup.h                                                                           \
 
 SOURCES +=                                                                                      \
@@ -273,6 +276,8 @@ SOURCES +=                                                                      
     RGBController/RGBControllerKeyNames.cpp                                                     \
     RGBController/RGBController_Network.cpp                                                     \
     RGBController/RGBController_Virtual.cpp                                                     \
+    RGBController/RGBController_Proxy.cpp                                                       \
+    RGBController/RGBController_MultichoiceProxy.cpp                                            \
 
 PRECOMPILED_HEADER +=                                                                           \
     precompiled_header.h                                                                        \

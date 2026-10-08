@@ -8,7 +8,8 @@
 \*---------------------------------------------------------*/
 
 #include "DetectionManager.h"
-#include "RGBController_SinowealthKeyboard10c.h"
+#include "RGBController_MultichoiceProxy.h"
+
 #include "SinowealthController.h"
 #include "SinowealthController1007.h"
 #include "SinowealthKeyboard10cController.h"
@@ -18,17 +19,19 @@
 #include "SinowealthKeyboard90Controller.h"
 #include "SinowealthGMOWController.h"
 #include "GenesisXenon200Controller.cpp"
-#include "RGBController.h"
 #include "RGBController_Sinowealth.h"
 #include "RGBController_Sinowealth1007.h"
+#include "RGBController_SinowealthKeyboard10c.h"
 #include "RGBController_SinowealthKeyboard.h" // Disabled
 #include "RGBController_SinowealthKeyboard16.h" // Disabled
 #include "RGBController_SinowealthKeyboard90.h"
 #include "RGBController_SinowealthGMOW.h"
 #include "RGBController_GenesisXenon200.h"
+
+#include "LogManager.h"
+
 #include <hidapi.h>
 #include <set>
-#include "LogManager.h"
 
 #define SINOWEALTH_VID                      0x258A
 
@@ -90,7 +93,7 @@ static bool SinowealthUnclaimDevice(const std::string& device_id)
     return sinowealth_claimed_devices.erase(device_id);
 }
 
-static bool DetectUsages(hid_device_info* info, std::string name, unsigned int device_count_expected, expected_reports& reports)
+static bool DetectUsages(const hid_device_info* info, std::string name, unsigned int device_count_expected, expected_reports& reports)
 {
     std::lock_guard<std::recursive_mutex> lock(sinowealth_registry_mutex);
 
@@ -293,7 +296,7 @@ DetectedControllers DetectZetFuryPro(hid_device_info* info, const std::string& n
     return(detected_controllers);
 }
 
-DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::string& name)
+static DetectedControllers DetectSinowealthMouse(const hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
 
@@ -353,45 +356,125 @@ DetectedControllers DetectGMOW_Dongle(hid_device_info* info, const std::string& 
     return(detected_controllers);
 }
 
-// static void DetectSinowealthKeyboard16(hid_device_info* info, const std::string& name)
-// {
-//     unsigned char command[6] = {0x05, 0x83, 0x00, 0x00, 0x00, 0x00};
-//     expected_reports reports{expected_report(0x06, 1032, command, sizeof(command))};
-//     if(!DetectUsages(info, name, 3, reports))
-//     {
-//         return;
-//     }
-//     hid_device *dev = reports.at(0).device;
-//     hid_device *dev_cmd = reports.at(0).cmd_device;
-//     if(dev && dev_cmd)
-//     {
-//         SinowealthKeyboard16Controller*     controller     = new SinowealthKeyboard16Controller(dev_cmd, dev, info->path, name);
-//         RGBController_SinowealthKeyboard16* rgb_controller = new RGBController_SinowealthKeyboard16(controller, [dev_path = reports.at(0).dev_path, cmd_path = reports.at(0).cmd_path](){ SinowealthUnclaimDevice(dev_path); SinowealthUnclaimDevice(cmd_path); });
-//
-//         DetectionManager::get()->RegisterRGBController(rgb_controller);
-//     }
-// }
+/*---------------------------------------------------------*\
+| IMPORTANT: THIS CONTROLLER HAS POTENTIAL BRICKING RISK    |
+| DO NOT CALL THIS DETECTOR DIRECTLY!!!                     |
+\*---------------------------------------------------------*/
+static DetectedControllers DetectSinowealthKeyboard16_real(const hid_device_info* info, const std::string& name)
+{
+    DetectedControllers result;
+    unsigned char command[6] = {0x05, 0x83, 0x00, 0x00, 0x00, 0x00};
+    expected_reports reports{expected_report(0x06, 1032, command, sizeof(command))};
+    if(!DetectUsages(info, name, 3, reports))
+    {
+        return result;
+    }
+    hid_device *dev = reports.at(0).device;
+    hid_device *dev_cmd = reports.at(0).cmd_device;
+    if(dev && dev_cmd)
+    {
+        SinowealthKeyboard16Controller*     controller     = new SinowealthKeyboard16Controller(dev_cmd, dev, info->path, name);
+        RGBController_SinowealthKeyboard16* rgb_controller = new RGBController_SinowealthKeyboard16(controller, [dev_path = reports.at(0).dev_path, cmd_path = reports.at(0).cmd_path](){ SinowealthUnclaimDevice(dev_path); SinowealthUnclaimDevice(cmd_path); });
+        result.push_back(rgb_controller);
+    }
+    return result;
+}
 
-// static void DetectSinowealthKeyboard(hid_device_info* info, const std::string& name)
-// {
-//     unsigned char command[6] = {0x05, 0x83, 0xB6, 0x00, 0x00, 0x00};
-//     expected_reports reports{expected_report(0x06, 1032, command, sizeof(command))};
-//     if(!DetectUsages(info, name, 3, reports))
-//     {
-//         return;
-//     }
-//
-//     hid_device *dev      = reports.at(0).device;
-//     hid_device *dev_cmd  = reports.at(0).cmd_device;
-//
-//     if(dev && dev_cmd)
-//     {
-//         SinowealthKeyboardController*     controller     = new SinowealthKeyboardController(dev_cmd, dev, info->path, name);
-//         RGBController_SinowealthKeyboard* rgb_controller = new RGBController_SinowealthKeyboard(controller, [dev_path = reports.at(0).dev_path, cmd_path = reports.at(0).cmd_path](){ SinowealthUnclaimDevice(dev_path); SinowealthUnclaimDevice(cmd_path); });
-//
-//         DetectionManager::get()->RegisterRGBController(rgb_controller);
-//     }
-// }
+/*---------------------------------------------------------*\
+| IMPORTANT: THIS CONTROLLER HAS POTENTIAL BRICKING RISK    |
+| DO NOT CALL THIS DETECTOR DIRECTLY!!!                     |
+\*---------------------------------------------------------*/
+static DetectedControllers DetectSinowealthKeyboard_real(const hid_device_info* info, const std::string& name)
+{
+    DetectedControllers result;
+    unsigned char command[6] = {0x05, 0x83, 0xB6, 0x00, 0x00, 0x00};
+    expected_reports reports{expected_report(0x06, 1032, command, sizeof(command))};
+    if(!DetectUsages(info, name, 3, reports))
+    {
+        return result;
+    }
+
+    hid_device *dev      = reports.at(0).device;
+    hid_device *dev_cmd  = reports.at(0).cmd_device;
+
+    if(dev && dev_cmd)
+    {
+        SinowealthKeyboardController*     controller     = new SinowealthKeyboardController(dev_cmd, dev, info->path, name);
+        RGBController_SinowealthKeyboard* rgb_controller = new RGBController_SinowealthKeyboard(controller, [dev_path = reports.at(0).dev_path, cmd_path = reports.at(0).cmd_path](){ SinowealthUnclaimDevice(dev_path); SinowealthUnclaimDevice(cmd_path); });
+        result.push_back(rgb_controller);
+    }
+    return result;
+ }
+
+/*--------------------------------------------------------------*\
+| A class to use in Lambdas that holds data from hid_device_info |
+| Manages the lifetime of all preserved strings                  |
+\*--------------------------------------------------------------*/
+class HidInfoWrapper
+{
+    public:
+        HidInfoWrapper(hid_device_info* source)
+        {
+            path = source->path;
+            info.path = path.data();
+            info.vendor_id = source->vendor_id;
+            info.product_id = source->product_id;
+            serial_number = source->serial_number;
+            info.serial_number = serial_number.data();
+            info.release_number = source->release_number;
+            manufacturer_string = source->manufacturer_string;
+            info.manufacturer_string = manufacturer_string.data();
+            product_string = source->product_string;
+            info.product_string = product_string.data();
+            info.usage_page = source->usage_page;
+            info.usage = source->usage;
+            info.interface_number = source->interface_number;
+            info.next = nullptr;
+            info.bus_type = source->bus_type;
+        }
+
+        hid_device_info info;
+    private:
+        std::string path;
+        std::wstring serial_number;
+        std::wstring manufacturer_string;
+        std::wstring product_string;
+};
+
+static DetectedControllers DetectSinowealthKeyboard16(hid_device_info* info, const std::string& /*name*/)
+{
+    DetectedControllers result;
+    /*--------------------------------------------------------------*\
+    | Cache all this data so it's available in lambdas               |
+    | Use shared_ptr so it's not copied for every lambda             |
+    \*--------------------------------------------------------------*/
+    std::shared_ptr<HidInfoWrapper> info_wrapper = std::make_shared<HidInfoWrapper>(info);
+
+    RGBController_MultichoiceProxy* proxy  = new RGBController_MultichoiceProxy(DEVICE_TYPE_KEYBOARD, "Sinowealth Keyboard 0016 [disabled]",
+                                                                                {
+                                                                                    {"Sinowealth Keyboard", [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                });
+    result.push_back(proxy);
+    return result;
+}
+
+static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const std::string& /*name*/)
+{
+    DetectedControllers result;
+    /*--------------------------------------------------------------*\
+    | Cache all this data so it's available in lambdas               |
+    | Use shared_ptr so it's not copied for every lambda             |
+    \*--------------------------------------------------------------*/
+    std::shared_ptr<HidInfoWrapper> info_wrapper = std::make_shared<HidInfoWrapper>(info);
+
+    RGBController_MultichoiceProxy* proxy  = new RGBController_MultichoiceProxy(DEVICE_TYPE_KEYBOARD, "Sinowealth Keyboard 0049 [disabled]",
+                                                                                {
+                                                                                    {"FL ESPORTS F11", [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}},
+                                                                                    {"Redragon k621 [disabled]", [](const std::string&){return DetectedControllers();}}, // does nothing
+                                                                                });
+    result.push_back(proxy);
+    return result;
+}
 
 DetectedControllers DetectSinowealthGenesisKeyboard(hid_device_info* info, const std::string& name)
 {
@@ -442,6 +525,22 @@ DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std
     return(detected_controllers);
 }
 
+
+// This code is reserved for selecting between mouse models with different RGB order and LED count - to be implemented
+//static DetectedControllers DetectSinowealthMouseProxy(hid_device_info* info, const std::string& name)
+//{
+//    DetectedControllers result;
+//    HidInfoWrapper info_wrapper(info); // Cache all this data for later use
+//
+//    RGBController_MultichoiceProxy* proxy = new RGBController_MultichoiceProxy(DEVICE_TYPE_MOUSE, "Sinowealth Mouse [disabled]",
+//                                                                               {
+//                                                                                   {"Everest GT-100 RGB", [info_wrapper](){return DetectSinowealthMouse(&info_wrapper.info, "Everest GT-100 RGB");}},
+//                                                                                   {"Panteon PS150",      [info_wrapper](){return DetectSinowealthMouse(&info_wrapper.info, "Panteon PS150");}},
+//                                                                               });
+//    result.push_back(proxy);
+//    return result;
+//}
+
 REGISTER_HID_DETECTOR_P("Glorious Model O / O-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_O_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Glorious Model D / D-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_D_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Everest GT-100 RGB",               DetectSinowealthMouse,              SINOWEALTH_VID, Everest_GT100_PID,                      0xFF00          );
@@ -455,5 +554,5 @@ REGISTER_HID_DETECTOR_IPU("Genesis Thor 300",               DetectSinowealthGene
 REGISTER_HID_DETECTOR_IPU("Sinowealth Keyboard",            DetectSinowealthKeyboard10c,        SINOWEALTH_VID, RGB_KEYBOARD_010CPID,               1,  0xFF00, 1       );
 
 // Sinowealth keyboards are disabled due to VID/PID pairs being reused from Redragon keyboards, which ended up in bricking the latter
-//REGISTER_HID_DETECTOR_P("FL ESPORTS F11",                   DetectSinowealthKeyboard,   SINOWEALTH_VID, Fl_Esports_F11_PID,                             0xFF00          );
-//REGISTER_HID_DETECTOR_P("Sinowealth Keyboard",              DetectSinowealthKeyboard16, SINOWEALTH_VID, RGB_KEYBOARD_0016PID,                           0xFF00          );
+REGISTER_HID_DETECTOR_P("FL ESPORTS F11",                   DetectSinowealthKeyboard,   SINOWEALTH_VID, Fl_Esports_F11_PID,                             0xFF00          );
+REGISTER_HID_DETECTOR_P("Sinowealth Keyboard",              DetectSinowealthKeyboard16, SINOWEALTH_VID, RGB_KEYBOARD_0016PID,                           0xFF00          );
