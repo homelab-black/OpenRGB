@@ -46,9 +46,11 @@ private:
     DeviceGuardManager*                         guard_manager_ptr;
 
     std::vector<const CorsairICueLinkDevice *>  endpoints;
+    std::vector<CorsairICueLinkDevice *>        duo_endpoints;
 
     void                                        GetControllerFirmware();
     void                                        GetControllerDevices();
+    std::vector<unsigned short>                 GetControllerLedCounts();
     void                                        SetControllerSoftwareMode();
     void                                        SetControllerHardwareMode();
 
