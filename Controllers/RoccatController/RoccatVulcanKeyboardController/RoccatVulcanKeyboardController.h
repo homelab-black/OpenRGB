@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
@@ -75,7 +76,7 @@ struct led_color
 class RoccatVulcanKeyboardController
 {
 public:
-    RoccatVulcanKeyboardController(hid_device* dev_ctrl_handle, hid_device* dev_led_handle, char *path, uint16_t pid, std::string dev_name);
+    RoccatVulcanKeyboardController(hid_device* dev_ctrl_handle, hid_device* dev_led_handle, char *path, uint16_t pid, std::string dev_name, std::function<void()> release_paths_callback);
     ~RoccatVulcanKeyboardController();
 
     std::string     GetSerial();
@@ -100,6 +101,7 @@ private:
     device_info     dev_info;
     std::string     location;
     std::string     name;
+    std::function<void()> release_paths;
 
     bool            IsBigEndianDirectMode();
 };

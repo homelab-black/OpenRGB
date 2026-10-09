@@ -29,7 +29,9 @@
 #include "RGBController_RoccatVulcanKeyboard.h"
 #include "RGBController_RoccatKova.h"
 #include "RGBController_RoccatElo.h"
+#include <functional>
 #include <hidapi.h>
+#include <mutex>
 #include <unordered_set>
 
 #define ROCCAT_VID                  0x1E7D
@@ -89,18 +91,28 @@ DetectedControllers DetectRoccatMouseControllers(hid_device_info* info, const st
 | devices can be detected without all controlling the same device.                  |
 \*---------------------------------------------------------------------------------*/
 static std::unordered_set<std::string> used_paths;
+static std::mutex                       used_paths_mutex;
 
 /*--------------------------------------------------------------------------------*\
 | Removes all entries in used_paths so device discovery does not skip any of them. |
 \*--------------------------------------------------------------------------------*/
 void ResetRoccatVulcanKeyboardControllersPaths()
 {
+    std::lock_guard<std::mutex> lock(used_paths_mutex);
+
     used_paths.clear();
 }
 
 DetectedControllers DetectRoccatVulcanKeyboardControllers(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
+
+    /*---------------------------------------------------------*\
+    | A keyboard may trigger detection from either of its HID  |
+    | interfaces.  Keep pairing and path claims atomic so two  |
+    | hotplug callbacks cannot register it twice.              |
+    \*---------------------------------------------------------*/
+    std::lock_guard<std::mutex> lock(used_paths_mutex);
 
     /*-------------------------------------------------------------------------------------------------*\
     | Create a local copy of the HID enumerations for the Roccat Vulcan Keyboard VID/PID and iterate    |
@@ -183,7 +195,15 @@ DetectedControllers DetectRoccatVulcanKeyboardControllers(hid_device_info* info,
 
     if(dev_ctrl && dev_led)
     {
-        RoccatVulcanKeyboardController *     controller     = new RoccatVulcanKeyboardController(dev_ctrl, dev_led, info->path, info->product_id, name);
+        std::function<void()> release_paths = [dev_ctrl_path, dev_led_path]()
+        {
+            std::lock_guard<std::mutex> lock(used_paths_mutex);
+
+            used_paths.erase(dev_ctrl_path);
+            used_paths.erase(dev_led_path);
+        };
+
+        RoccatVulcanKeyboardController *     controller     = new RoccatVulcanKeyboardController(dev_ctrl, dev_led, info->path, info->product_id, name, release_paths);
         RGBController_RoccatVulcanKeyboard * rgb_controller = new RGBController_RoccatVulcanKeyboard(controller);
 
         detected_controllers.push_back(rgb_controller);
@@ -398,6 +418,7 @@ REGISTER_HID_DETECTOR_IP ("Roccat Vulcan Pro",                  DetectRoccatVulc
 REGISTER_HID_DETECTOR_IP ("Roccat Vulcan TKL Pro",              DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_VULCAN_TKL_PRO_PID,                  1,          0xFF01);
 REGISTER_HID_DETECTOR_IP ("Roccat Vulcan II",                   DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_VULCAN_II_PID,                       1,          0xFF01);
 REGISTER_HID_DETECTOR_IP ("Roccat Vulcan II Max",               DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_VULCAN_II_MAX_PID,                   1,          0xFF01);
+REGISTER_HID_DETECTOR_IP ("Roccat Vulcan II Max",               DetectRoccatVulcanKeyboardControllers,      ROCCAT_VID, ROCCAT_VULCAN_II_MAX_PID,                   3,          0xFF00);
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II",             DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_PID,           1,          0xFF01);
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II TKL",         DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_TKL_PID,       1,          11);
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II TKL Pro",     DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_TKL_PRO_PID,   1,          0x0001);
