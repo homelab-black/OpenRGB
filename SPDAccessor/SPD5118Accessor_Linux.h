@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include "SPDAccessor.h"
 
 class SPD5118Accessor : public DDR5Accessor
@@ -27,7 +28,8 @@ class SPD5118Accessor : public DDR5Accessor
     static const char *SPD_SPD5118_PATH;
 
     uint8_t dump[2048];
-    bool valid;
+    std::size_t bytes_read;
+    bool read_attempted;
 
     void readEEPROM();
 };
