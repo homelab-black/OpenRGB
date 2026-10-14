@@ -19,6 +19,7 @@
 #include "SinowealthKeyboard90Controller.h"
 #include "SinowealthGMOWController.h"
 #include "GenesisXenon200Controller.cpp"
+#include "MachinelikeK500Controller.h"
 #include "RGBController_Sinowealth.h"
 #include "RGBController_Sinowealth1007.h"
 #include "RGBController_SinowealthKeyboard10c.h"
@@ -27,6 +28,7 @@
 #include "RGBController_SinowealthKeyboard90.h"
 #include "RGBController_SinowealthGMOW.h"
 #include "RGBController_GenesisXenon200.h"
+#include "RGBController_MachinelikeK500.h"
 
 #include "LogManager.h"
 
@@ -406,6 +408,32 @@ static DetectedControllers DetectSinowealthKeyboard_real(const hid_device_info* 
     return result;
  }
 
+/*---------------------------------------------------------*\
+| IMPORTANT: THIS CONTROLLER HAS POTENTIAL BRICKING RISK    |
+| DO NOT CALL THIS DETECTOR DIRECTLY!!!                     |
+\*---------------------------------------------------------*/
+static DetectedControllers DetectMachinelikeK500Keyboard(const hid_device_info* info, const std::string& name)
+{
+    DetectedControllers result;
+    unsigned char command[6] = {0x05, 0x83, 0xB6, 0x00, 0x00, 0x00};
+    expected_reports reports{expected_report(0x06, 1032, command, sizeof(command))};
+    if(!DetectUsages(info, name, 3, reports))
+    {
+        return result;
+    }
+
+    hid_device *dev      = reports.at(0).device;
+    hid_device *dev_cmd  = reports.at(0).cmd_device;
+
+    if(dev && dev_cmd)
+    {
+        MachinelikeK500Controller*     controller     = new MachinelikeK500Controller(dev_cmd, dev, info->path, name);
+        RGBController_MachinelikeK500* rgb_controller = new RGBController_MachinelikeK500(controller, [dev_path = reports.at(0).dev_path, cmd_path = reports.at(0).cmd_path](){ SinowealthUnclaimDevice(dev_path); SinowealthUnclaimDevice(cmd_path); });
+        result.push_back(rgb_controller);
+    }
+    return result;
+}
+
 /*--------------------------------------------------------------*\
 | A class to use in Lambdas that holds data from hid_device_info |
 | Manages the lifetime of all preserved strings                  |
@@ -482,8 +510,8 @@ static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const
                                                                                 {
                                                                                     {"FL ESPORTS F11",           [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}},
                                                                                     {"Redragon K617 Fizz",       [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}}, // SEEMS TO WORK! https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/2172#note_827488695
+                                                                                    {"Machinelike K500",         [info_wrapper](const std::string& name){return DetectMachinelikeK500Keyboard(&(info_wrapper->info), name);}}, // https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/3365#note_3633350820
                                                                                 /* Known models that we DON'T KNOW THE PROTOCOL for - disabled for now */
-                                                                                    {"Machenike K500 [disabled]",               [](const std::string&){return DetectedControllers();}},
                                                                                     {"Hyrax HCK61 [disabled]",                  [](const std::string&){return DetectedControllers();}},
                                                                                     {"Deltaco Gaming PK95 [disabled]",          [](const std::string&){return DetectedControllers();}},
                                                                                     {"Zuoya x51 [disabled]",                    [](const std::string&){return DetectedControllers();}},

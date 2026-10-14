@@ -8,9 +8,11 @@
 |  Dmitri Kalinichenko (Dima-Kal) 23/06/2021 |
 \*-----------------------------------------=*/
 
-#include <cstring>
 #include "SinowealthKeyboardController.h"
+#include "SinowealthKeyboard_modes.h"
+
 #include "StringUtils.h"
+#include <cstring>
 
 static unsigned char send_per_key_part_of_command_packet[]  = { 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                                                 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00,
@@ -71,7 +73,7 @@ static unsigned int keys_tkl_keys_indices_static_command[]  = { 0x0022, 0x0024, 
                                                                 0x01E0, 0x01E2, 0x01E4, 0x01E6, 0x01E7, 0x01E8, 0x01E9, 0x01EA};
 
 
-SinowealthKeyboardController::SinowealthKeyboardController(hid_device* dev_cmd_handle, hid_device* dev_data_handle, char* path, std::string dev_name)
+SinowealthKeyboardController::SinowealthKeyboardController(hid_device* dev_cmd_handle, hid_device* dev_data_handle, const char *path, const std::string& dev_name)
 {
     dev_cmd         = dev_cmd_handle;
     dev_data        = dev_data_handle;

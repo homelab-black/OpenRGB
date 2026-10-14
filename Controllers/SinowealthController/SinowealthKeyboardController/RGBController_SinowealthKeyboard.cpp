@@ -1,15 +1,20 @@
-/*------------------------------------------*\
-|  RGBController_SinowealthKeyboard.cpp      |
-|                                            |
-|  Definitions and types for Sinowealth      |
-|  Keyboard, Hopefully generic, this was     |
-|  made spefically for FL eSports F11 KB     |
-|                                            |
-|  Dmitri Kalinichenko (Dima-Kal) 23/06/2021 |
-\*-----------------------------------------=*/
+/*---------------------------------------------------------*\
+|  RGBController_SinowealthKeyboard.cpp                     |
+|                                                           |
+|  Definitions and types for Sinowealth                     |
+|  Keyboard, Hopefully generic, this was                    |
+|  made spefically for FL eSports F11 KB                    |
+|                                                           |
+|  Dmitri Kalinichenko (Dima-Kal) 23/06/2021                |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #include "RGBControllerKeyNames.h"
 #include "RGBController_SinowealthKeyboard.h"
+
+#include "SinowealthKeyboard_modes.h"
 
 #define NA              0xFFFFFFFF
 
