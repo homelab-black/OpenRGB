@@ -452,7 +452,18 @@ static DetectedControllers DetectSinowealthKeyboard16(hid_device_info* info, con
 
     RGBController_MultichoiceProxy* proxy  = new RGBController_MultichoiceProxy(DEVICE_TYPE_KEYBOARD, "Sinowealth Keyboard 0016 [disabled]",
                                                                                 {
-                                                                                    {"Sinowealth Keyboard", [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                    {"Zuoya X51",                            [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                    {"Havit Gamenote KB473L",                [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                    {"Redragon K568 [disabled]",             [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K568-2 Dark Avenger",         [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                    {"REvoFox Katana Pro [disabled]",        [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Marvo KG965G [disabled]",              [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Marvo [KG934] Bigbang S1 [disabled]",  [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Millenium MT2 Mini [disabled]",        [](const std::string&){return DetectedControllers();}},
+                                                                                    {"G-LAB Keyz Rubidium [disabled]",       [](const std::string&){return DetectedControllers();}},
+                                                                                    {"G-LAB Keyz Rubidium Evolution 2",      [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
+                                                                                    {"Mars Gaming MKREVOPRO [disabled]",     [](const std::string&){return DetectedControllers();}},
+                                                                                    {"T-Dagger BORA",                        [info_wrapper](const std::string& name){return DetectSinowealthKeyboard16_real(&(info_wrapper->info), name);}},
                                                                                 });
     result.push_back(proxy);
     return result;
@@ -469,8 +480,30 @@ static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const
 
     RGBController_MultichoiceProxy* proxy  = new RGBController_MultichoiceProxy(DEVICE_TYPE_KEYBOARD, "Sinowealth Keyboard 0049 [disabled]",
                                                                                 {
-                                                                                    {"FL ESPORTS F11", [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}},
-                                                                                    {"Redragon k621 [disabled]", [](const std::string&){return DetectedControllers();}}, // does nothing
+                                                                                    {"FL ESPORTS F11",           [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}},
+                                                                                    {"Redragon K617 Fizz",       [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}}, // SEEMS TO WORK! https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/2172#note_827488695
+                                                                                /* Known models that we DON'T KNOW THE PROTOCOL for - disabled for now */
+                                                                                    {"Machenike K500 [disabled]",               [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Hyrax HCK61 [disabled]",                  [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Deltaco Gaming PK95 [disabled]",          [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Zuoya x51 [disabled]",                    [](const std::string&){return DetectedControllers();}},
+                                                                                    {"AULA F3261 [disabled]",                   [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Tecware Phantom+ Elite [disabled]",       [](const std::string&){return DetectedControllers();}},
+                                                                                    {"MAD Dog GK850W [disabled]",               [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Maroc4Gaming M68 [disabled]",             [](const std::string&){return DetectedControllers();}},
+                                                                                /* Disabled REDRAGON models - Lambdas do NOTHING; see https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/2679 for explanation */
+                                                                                    {"Redragon KS82-B [disabled]",              [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K614 Anivia [disabled]",         [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K618 [disabled]",                [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon k621 [disabled]",                [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K622 Horus [disabled]",          [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K628 Pro [disabled]",            [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K632 NOCTIS PRO [disabled]",     [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K636 Kitava [disabled]",         [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K642 [disabled]",                [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K649 Elf [disabled]",            [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K653 Sion Pro Wired [disabled]", [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K668 Trundle [disabled]",        [](const std::string&){return DetectedControllers();}},
                                                                                 });
     result.push_back(proxy);
     return result;
