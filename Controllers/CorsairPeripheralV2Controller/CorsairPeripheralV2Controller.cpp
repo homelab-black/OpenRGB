@@ -72,7 +72,11 @@ CorsairPeripheralV2Controller::CorsairPeripheralV2Controller(hid_device* dev_han
     {
         LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
     }
-    hid_read_timeout(dev, buffer, CORSAIR_V2_PACKET_SIZE, CORSAIR_V2_TIMEOUT);
+    r = hid_read_timeout(dev, buffer, CORSAIR_V2_PACKET_SIZE, CORSAIR_V2_TIMEOUT);
+    if (r < 0)
+    {
+        LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     /*---------------------------------------------------------*\
     | NB: If the device is not found in the device list         |
@@ -236,7 +240,11 @@ void CorsairPeripheralV2Controller::SetRenderMode(corsair_v2_device_mode mode)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        int r = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        if (r < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
     }
 }
 
@@ -264,7 +272,11 @@ void CorsairPeripheralV2Controller::LightingControl(uint8_t opt1)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        int r = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        if (r < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
     }
 }
 
@@ -318,7 +330,11 @@ unsigned int CorsairPeripheralV2Controller::GetAddress(uint8_t address)
     {
         LOG_ERROR("[%s] hid_write error: %ls", device_name.c_str(), hid_error(dev));
     }
-    hid_read_timeout(dev, read, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+    r = hid_read_timeout(dev, read, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+    if (r < 0)
+    {
+        LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+    }
 
     unsigned int temp = (unsigned int)(read[6] << 24 | read[5] << 16 | read[4] << 8 | read[3]);
     LOG_DEBUG("[%s] GetAddress %02X - %02X %02X - %02X %02X %02X %02X   %02X %02X %02X %02X", device_name.c_str(),
@@ -353,7 +369,11 @@ unsigned char CorsairPeripheralV2Controller::StartTransaction(uint8_t opt1)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        int r = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        if (r < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
     }
 
     return buffer[2];
@@ -378,7 +398,11 @@ void CorsairPeripheralV2Controller::StopTransaction(uint8_t opt1)
 
     if(!skip_reads)
     {
-        hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        int r = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT);
+        if (r < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
     }
 }
 
@@ -395,6 +419,10 @@ void CorsairPeripheralV2Controller::ClearPacketBuffer()
     do
     {
         result = hid_read_timeout(dev, buffer, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT_SHORT);
+        if (result < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
     }
     while(result > 0);
 }
@@ -445,7 +473,12 @@ void CorsairPeripheralV2Controller::SetLEDs(uint8_t *data, uint16_t data_size)
         | back to back.  Wait for the transaction response      |
         | before sending the next packet.                       |
         \*-----------------------------------------------------*/
-        if(hid_read_timeout(dev, response, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT_SHORT) <= 0)
+        int r = hid_read_timeout(dev, response, CORSAIR_V2_WRITE_SIZE, CORSAIR_V2_TIMEOUT_SHORT);
+        if (r < 0)
+        {
+            LOG_ERROR("[%s] hid_read_timeout error: %ls", device_name.c_str(), hid_error(dev));
+        }
+        if (r <= 0)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(CORSAIR_V2_WRITE_PACE));
         }
