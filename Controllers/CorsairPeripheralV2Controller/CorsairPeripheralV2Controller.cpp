@@ -389,7 +389,7 @@ void CorsairPeripheralV2Controller::ClearPacketBuffer()
         return;
     }
 
-    uint8_t result          = 0;
+    int result          = 0;
     uint8_t buffer[CORSAIR_V2_PACKET_SIZE];
 
     do
