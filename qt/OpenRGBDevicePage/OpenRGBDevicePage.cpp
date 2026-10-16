@@ -1710,11 +1710,14 @@ void OpenRGBDevicePage::UpdateModeUi()
 
     /*-----------------------------------------------------*\
     | Enable the Apply Colors button if a mode with colors  |
-    | is selected and automatic updates are not enabled     |
+    | is selected and automatic updates are not enabled.    |
+    | Per-LED colors only change the selected LEDs, so they |
+    | can also be applied to a selected zone or segment     |
+    | when the mode settings are locked to the device.      |
     \*-----------------------------------------------------*/
     if(supports_mode_specific || supports_per_led)
     {
-        ui->ApplyColorsButton->setEnabled(enable_controls && (!AutoUpdateEnabled()));
+        ui->ApplyColorsButton->setEnabled((enable_controls || per_led) && (!AutoUpdateEnabled()));
     }
     else
     {
@@ -2746,4 +2749,3 @@ void OpenRGBDevicePage::on_ZoneBox_currentIndexChanged(int /*index*/)
     \*-----------------------------------------------------*/
     UpdateLEDUi();
 }
-
