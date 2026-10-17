@@ -58,8 +58,12 @@ static int matches_response(const uint8_t *r, const match_spec *m)
     if (r[0] != 0xAAu) return 0;
     switch (m->kind) {
     case MATCH_CONFIG_READ:
-        /* Hardware reply starts AA 0A 0B: byte 2 is the 11-byte config length. */
-        return r[1] == 0x0Au && r[2] == (uint8_t)MK4100_CONFIG_BYTES;
+        /* The keyboard has been observed returning both AA 0A 0A and AA 0A 0B
+           for this read. Accept either header only when the payload at offset 5
+           looks like the known 11-byte config (mode 0..16, brightness 0..4). */
+        return r[1] == 0x0Au &&
+               (r[2] == 0x0Au || r[2] == MK4100_CONFIG_BYTES) &&
+               r[7] <= MK4100_CUSTOM_MODE && r[8] <= 4u;
     case MATCH_EFFECT_CONFIG_READ:
         return r[1] == 0x16u;
     case MATCH_CONFIG_WRITE:
@@ -182,6 +186,49 @@ static int write_rgb_chunk(mk4100_device *d, unsigned offset,
     char label[80];
     (void)snprintf(label, sizeof(label), "RGB write at offset %u", offset);
     if (transact(d, out, &spec, label, NULL) != 0) {
+        d->rgb_trusted = 0;
+        return -1;
+    }
+    memcpy(d->rgb + offset, payload, length);
+    return 0;
+}
+
+/* Live frame writes use 54 RGB bytes (18 whole keys). The report still has
+   room for 56 bytes after its protocol header, so duplicate the first two bytes
+   of the next target segment in that overlap. Live chunks are sent descending,
+   meaning these overlap bytes repeat values already written by the higher chunk
+   if the firmware copies all 56 bytes instead of respecting the declared length. */
+#define MK4100_RGB_LIVE_CHUNK_BYTES 54u
+
+static int write_rgb_live_chunk(mk4100_device *d, unsigned offset,
+                                const uint8_t *payload, size_t length,
+                                const uint8_t *whole_frame)
+{
+    if (offset >= MK4100_RGB_BYTES || offset % MK4100_RGB_LIVE_CHUNK_BYTES != 0u ||
+        offset % 3u != 0u ||
+        length != ((MK4100_RGB_BYTES - (size_t)offset < MK4100_RGB_LIVE_CHUNK_BYTES)
+                   ? MK4100_RGB_BYTES - (size_t)offset : MK4100_RGB_LIVE_CHUNK_BYTES) ||
+        length % 3u != 0u || !whole_frame)
+        return fail(d, "Invalid live RGB chunk: offset=%u length=%zu", offset, length);
+
+    uint8_t out[MK4100_REPORT_BYTES] = {0};
+    out[0] = 0x06u; out[1] = 0x12u; out[2] = (uint8_t)(length + 3u);
+    out[3] = (uint8_t)(offset & 0xFFu);
+    out[4] = (uint8_t)((offset >> 8) & 0xFFu);
+    memcpy(out + 8u, payload, length);
+
+    if(length == MK4100_RGB_LIVE_CHUNK_BYTES &&
+       (size_t)offset + length + 2u <= MK4100_RGB_BYTES)
+    {
+        out[8u + length] = whole_frame[offset + length];
+        out[8u + length + 1u] = whole_frame[offset + length + 1u];
+    }
+
+    const match_spec spec = { MATCH_RGB_WRITE, offset, payload, length };
+    char label[80];
+    (void)snprintf(label, sizeof(label), "live RGB write at offset %u", offset);
+    if(transact(d, out, &spec, label, NULL) != 0)
+    {
         d->rgb_trusted = 0;
         return -1;
     }
@@ -365,21 +412,69 @@ int mk4100_update_rgb_frame(mk4100_device *d,
     if (d->config[2] != MK4100_CUSTOM_MODE)
         return fail(d, "Custom/UserLight mode 16 must be active for live RGB frame updates");
 
+    /* These four mapped slots were observed to be corrupted when a live bulk
+       report touches their 54-byte chunk boundary, even if their requested color
+       is unchanged. Repair based on the reports actually sent, not on whether
+       the edge key itself changed in the requested frame. */
+    static const unsigned edge_slots[] = { 36u, 54u, 72u, 90u };
+    int repair_edge[sizeof(edge_slots) / sizeof(edge_slots[0])] = { 0 };
+
     const double start = monotonic_ms();
     unsigned chunks = 0u, bytes = 0u;
-    for (unsigned offset = 0u; offset < MK4100_RGB_BYTES;
-         offset += MK4100_RGB_CHUNK_BYTES) {
-        const size_t len = chunk_length(offset);
+
+    /* Descending 54-byte chunks align every payload boundary to a complete RGB
+       triplet. The 2-byte report overlap repeats the next segment's target data. */
+    for (unsigned offset = MK4100_RGB_BYTES; offset > 0u;)
+    {
+        offset -= MK4100_RGB_LIVE_CHUNK_BYTES;
+        const size_t remaining = MK4100_RGB_BYTES - (size_t)offset;
+        const size_t len = remaining < MK4100_RGB_LIVE_CHUNK_BYTES
+                         ? remaining : MK4100_RGB_LIVE_CHUNK_BYTES;
         if (memcmp(d->rgb + offset, rgb + offset, len) == 0) continue;
-        if (write_rgb_chunk(d, offset, rgb + offset, len) != 0) return -1;
+        if (write_rgb_live_chunk(d, offset, rgb + offset, len, rgb) != 0) return -1;
         ++chunks;
         bytes += (unsigned)len;
+
+        /* A live write may affect the 54 payload bytes plus the two overlap
+           bytes supplied for firmware that copies the full 56-byte data area.
+           A fragile edge slot must be repaired if any of its three RGB bytes
+           was included in a report, even if that slot was not selected/changed. */
+        size_t written_end = (size_t)offset + len;
+        if (len == MK4100_RGB_LIVE_CHUNK_BYTES &&
+            (size_t)offset + len + 2u <= MK4100_RGB_BYTES)
+        {
+            written_end += 2u;
+        }
+        for (size_t i = 0; i < sizeof(edge_slots) / sizeof(edge_slots[0]); ++i)
+        {
+            const size_t edge_begin = (size_t)edge_slots[i] * 3u;
+            const size_t edge_end = edge_begin + 3u;
+            if ((size_t)offset < edge_end && written_end > edge_begin)
+            {
+                repair_edge[i] = 1;
+            }
+        }
     }
 
-    if (verify_after_write) {
+    for (size_t i = 0; i < sizeof(edge_slots) / sizeof(edge_slots[0]); ++i)
+    {
+        if (!repair_edge[i]) continue;
+        const size_t p = (size_t)edge_slots[i] * 3u;
+        if (mk4100_set_key_rgb(d, edge_slots[i], rgb[p], rgb[p + 1u], rgb[p + 2u]) != 0)
+        {
+            char detail[sizeof(d->error)];
+            (void)snprintf(detail, sizeof(detail), "%s", mk4100_last_error(d));
+            return fail(d, "RGB boundary-key repair failed for slot %u: %s",
+                        edge_slots[i], detail);
+        }
+    }
+
+    if (verify_after_write)
+    {
         uint8_t verify[MK4100_RGB_BYTES];
         if (read_rgb_internal(d, verify) != 0) { d->rgb_trusted = 0; return -1; }
-        if (memcmp(verify, rgb, sizeof(verify)) != 0) {
+        if (memcmp(verify, rgb, sizeof(verify)) != 0)
+        {
             size_t i = 0u;
             while (i < sizeof(verify) && verify[i] == rgb[i]) ++i;
             d->rgb_trusted = 0;
@@ -387,10 +482,12 @@ int mk4100_update_rgb_frame(mk4100_device *d,
                         i, i < sizeof(verify) ? (unsigned)rgb[i] : 0u,
                         i < sizeof(verify) ? (unsigned)verify[i] : 0u);
         }
-        memcpy(d->rgb, verify, sizeof(verify)); d->rgb_trusted = 1;
+        memcpy(d->rgb, verify, sizeof(verify));
+        d->rgb_trusted = 1;
     }
 
-    if (stats) {
+    if (stats)
+    {
         stats->chunks_sent = chunks;
         stats->bytes_sent = bytes;
         stats->elapsed_ms = monotonic_ms() - start;

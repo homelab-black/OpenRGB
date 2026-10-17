@@ -6,14 +6,11 @@
 \*---------------------------------------------------------*/
 
 #include <algorithm>
-#include <atomic>
 #include <cstring>
-#include <cstdio>
 #include <limits>
 #include <mutex>
 #include "AntEsportsMK4100Controller.h"
 #include "StringUtils.h"
-#include "LogManager.h"
 
 AntEsportsMK4100Controller::AntEsportsMK4100Controller(hid_device* dev_handle,
                                                        const std::string& path,
@@ -68,17 +65,6 @@ int AntEsportsMK4100Controller::WriteReport(void* context, const uint8_t report[
     unsigned char output[MK4100_REPORT_BYTES + 1] = {0};
     std::memcpy(output + 1, report, MK4100_REPORT_BYTES);
     int written = hid_write(self->dev, output, sizeof(output));
-    static std::atomic<unsigned int> diagnostic_writes{0};
-    const unsigned int diagnostic_index = diagnostic_writes.fetch_add(1);
-    if(diagnostic_index < 80)
-    {
-        char prefix[64] = {0};
-        const int limit = std::min(written > 0 ? written : 0, 12);
-        int pos = 0;
-        for(int i = 0; i < limit && pos < static_cast<int>(sizeof(prefix)) - 4; ++i)
-            pos += std::snprintf(prefix + pos, sizeof(prefix) - static_cast<std::size_t>(pos), "%s%02X", i ? " " : "", output[i]);
-        LOG_WARNING("[Ant Esports MK4100 TXDIAG] result=%d requested=%zu prefix=[%s]", written, sizeof(output), prefix);
-    }
     return written == static_cast<int>(sizeof(output)) ? 0 : -1;
 }
 
@@ -92,44 +78,16 @@ int AntEsportsMK4100Controller::ReadReport(void* context,
     unsigned char input[MK4100_REPORT_BYTES + 1] = {0};
     const unsigned bounded_timeout = std::min(timeout_ms, static_cast<unsigned>(std::numeric_limits<int>::max()));
     int received = hid_read_timeout(self->dev, input, sizeof(input), static_cast<int>(bounded_timeout));
-    static std::atomic<unsigned int> diagnostic_reports{0};
-    const unsigned int diagnostic_index = diagnostic_reports.fetch_add(1);
-    if(received < 0)
-    {
-        if(diagnostic_index < 80)
-            LOG_WARNING("[Ant Esports MK4100 RXDIAG] hid_read_timeout returned error %d", received);
-        return -1;
-    }
-    if(received == 0)
-    {
-        if(diagnostic_index < 80 && bounded_timeout >= 400)
-            LOG_WARNING("[Ant Esports MK4100 RXDIAG] no report before timeout (wait=%u ms)", bounded_timeout);
-        return 0;
-    }
+    if(received < 0) return -1;
+    if(received == 0) return 0;
 
-    if(diagnostic_index < 80)
-    {
-        char prefix[64] = {0};
-        const int limit = std::min(received, 12);
-        int pos = 0;
-        for(int i = 0; i < limit && pos < static_cast<int>(sizeof(prefix)) - 4; ++i)
-            pos += std::snprintf(prefix + pos, sizeof(prefix) - static_cast<std::size_t>(pos), "%s%02X", i ? " " : "", input[i]);
-        LOG_WARNING("[Ant Esports MK4100 RXDIAG] len=%d prefix=[%s] wait=%u ms", received, prefix, bounded_timeout);
-    }
-
-    /* HIDAPI reports may include a leading Report ID, depending on backend
-       and descriptor. Log each received shape to determine why a response
-       is failing the existing parser; preserve current handling for diagnosis. */
+    /* HIDAPI normally includes report ID 0 as byte 0 for an unnumbered report.
+       Accept a 64-byte already-stripped report too for backend portability. */
     if(received == static_cast<int>(MK4100_REPORT_BYTES + 1))
     {
-        if(input[0] == 0)
-        {
-            std::memcpy(report, input + 1, MK4100_REPORT_BYTES);
-            return 1;
-        }
-        if(diagnostic_index < 80)
-            LOG_WARNING("[Ant Esports MK4100 RXDIAG] dropping 65-byte report with unexpected first byte 0x%02X", input[0]);
-        return 0;
+        if(input[0] != 0) return 0;
+        std::memcpy(report, input + 1, MK4100_REPORT_BYTES);
+        return 1;
     }
     if(received == static_cast<int>(MK4100_REPORT_BYTES))
     {
@@ -137,9 +95,6 @@ int AntEsportsMK4100Controller::ReadReport(void* context,
         return 1;
     }
 
-    if(diagnostic_index < 80)
-        LOG_WARNING("[Ant Esports MK4100 RXDIAG] ignoring unexpected report length %d (expected %u or %u)",
-                    received, MK4100_REPORT_BYTES, MK4100_REPORT_BYTES + 1);
     return 0;
 }
 

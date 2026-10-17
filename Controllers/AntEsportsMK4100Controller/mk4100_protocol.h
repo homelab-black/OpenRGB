@@ -81,11 +81,14 @@ int mk4100_set_key_rgb(mk4100_device *device, unsigned slot,
                         uint8_t red, uint8_t green, uint8_t blue);
 
 /*
- * Serial, acknowledged update using the proven vendor 56-byte frame format.
+ * Serial, acknowledged live RGB update using 54-byte RGB-aligned chunks.
  * Requires custom/UserLight mode to be active; never changes lighting config.
- * Unchanged 56-byte segments are skipped using the last acknowledged cache.
- * verify_after_write enables a full RGB readback (recommended for diagnostics,
- * normally disabled for regular OpenRGB frame updates).
+ * Chunks are sent descending with a two-byte overlap for firmware that may
+ * copy the full 56-byte data area. Known fragile boundary keys are repaired
+ * whenever a sent chunk touches their RGB triplet, even if their color was not
+ * part of the requested change.
+ * The 56-byte helper remains for reads and restore/static operations.
+ * verify_after_write enables a full RGB readback (normally disabled in OpenRGB).
  */
 int mk4100_update_rgb_frame(mk4100_device *device,
                             const uint8_t rgb[MK4100_RGB_BYTES],

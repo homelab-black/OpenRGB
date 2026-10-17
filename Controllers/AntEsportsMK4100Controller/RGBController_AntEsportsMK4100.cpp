@@ -13,14 +13,84 @@
 #include <vector>
 
 #include "LogManager.h"
+#include "RGBControllerKeyNames.h"
 #include "RGBController_AntEsportsMK4100.h"
 #include "mk4100_layout.h"
 
 namespace
 {
 constexpr unsigned int MATRIX_ROWS = 6;
-constexpr unsigned int MATRIX_COLUMNS = 46; /* half-key columns preserve the full-size layout */
+constexpr unsigned int MATRIX_COLUMNS = 23; /* one key-unit column; use OpenRGB's native wide-key rendering */
 constexpr unsigned int DIRECT_MODE_VALUE = MK4100_CUSTOM_MODE;
+
+const char* OpenRGBKeyName(const char* name)
+{
+    /* Use OpenRGB's standard keyboard identifiers so its keycap label lookup
+       displays familiar legends instead of treating the keys as generic LEDs. */
+    struct key_name_alias
+    {
+        const char* layout_name;
+        const char* openrgb_name;
+    };
+    static const key_name_alias aliases[] =
+    {
+        {"Esc", KEY_EN_ESCAPE}, {"F1", KEY_EN_F1}, {"F2", KEY_EN_F2},
+        {"F3", KEY_EN_F3}, {"F4", KEY_EN_F4}, {"F5", KEY_EN_F5},
+        {"F6", KEY_EN_F6}, {"F7", KEY_EN_F7}, {"F8", KEY_EN_F8},
+        {"F9", KEY_EN_F9}, {"F10", KEY_EN_F10}, {"F11", KEY_EN_F11},
+        {"F12", KEY_EN_F12}, {"Print", KEY_EN_PRINT_SCREEN},
+        {"ScrLock", KEY_EN_SCROLL_LOCK}, {"Pause", KEY_EN_PAUSE_BREAK},
+        {"~", KEY_EN_BACK_TICK}, {"1", KEY_EN_1}, {"2", KEY_EN_2},
+        {"3", KEY_EN_3}, {"4", KEY_EN_4}, {"5", KEY_EN_5},
+        {"6", KEY_EN_6}, {"7", KEY_EN_7}, {"8", KEY_EN_8},
+        {"9", KEY_EN_9}, {"0", KEY_EN_0}, {"-", KEY_EN_MINUS},
+        /* The main keycap is = with + as its shifted legend. */
+        {"+", KEY_EN_EQUALS}, {"Back", KEY_EN_BACKSPACE},
+        {"Insert", KEY_EN_INSERT}, {"Home", KEY_EN_HOME},
+        {"PgUp", KEY_EN_PAGE_UP}, {"NumLock", KEY_EN_NUMPAD_LOCK},
+        {"Num /", KEY_EN_NUMPAD_DIVIDE}, {"Num *", KEY_EN_NUMPAD_TIMES},
+        {"Num -", KEY_EN_NUMPAD_MINUS}, {"Tab", KEY_EN_TAB},
+        {"Q", KEY_EN_Q}, {"W", KEY_EN_W}, {"E", KEY_EN_E},
+        {"R", KEY_EN_R}, {"T", KEY_EN_T}, {"Y", KEY_EN_Y},
+        {"U", KEY_EN_U}, {"I", KEY_EN_I}, {"O", KEY_EN_O},
+        {"P", KEY_EN_P}, {"[", KEY_EN_LEFT_BRACKET},
+        {"]", KEY_EN_RIGHT_BRACKET}, {"\\", KEY_EN_ANSI_BACK_SLASH},
+        {"Delet", KEY_EN_DELETE}, {"End", KEY_EN_END},
+        {"PgDown", KEY_EN_PAGE_DOWN}, {"Num 7", KEY_EN_NUMPAD_7},
+        {"Num 8", KEY_EN_NUMPAD_8}, {"Num 9", KEY_EN_NUMPAD_9},
+        {"Caps", KEY_EN_CAPS_LOCK}, {"A", KEY_EN_A}, {"S", KEY_EN_S},
+        {"D", KEY_EN_D}, {"F", KEY_EN_F}, {"G", KEY_EN_G},
+        {"H", KEY_EN_H}, {"J", KEY_EN_J}, {"K", KEY_EN_K},
+        {"L", KEY_EN_L}, {";", KEY_EN_SEMICOLON}, {"'", KEY_EN_QUOTE},
+        {"Enter", KEY_EN_ANSI_ENTER}, {"Num 4", KEY_EN_NUMPAD_4},
+        {"Num 5", KEY_EN_NUMPAD_5}, {"Num 6", KEY_EN_NUMPAD_6},
+        {"Num +", KEY_EN_NUMPAD_PLUS}, {"Left Shift", KEY_EN_LEFT_SHIFT},
+        {"Z", KEY_EN_Z}, {"X", KEY_EN_X}, {"C", KEY_EN_C},
+        {"V", KEY_EN_V}, {"B", KEY_EN_B}, {"N", KEY_EN_N},
+        {"M", KEY_EN_M}, {"<", KEY_EN_COMMA}, {">", KEY_EN_PERIOD},
+        {"?", KEY_EN_FORWARD_SLASH}, {"Right Shift", KEY_EN_RIGHT_SHIFT},
+        {"Up", KEY_EN_UP_ARROW}, {"Num 1", KEY_EN_NUMPAD_1},
+        {"Num 2", KEY_EN_NUMPAD_2}, {"Num 3", KEY_EN_NUMPAD_3},
+        {"Num Enter", KEY_EN_NUMPAD_ENTER},
+        {"Left Ctrl", KEY_EN_LEFT_CONTROL}, {"Win", KEY_EN_LEFT_WINDOWS},
+        {"Left Alt", KEY_EN_LEFT_ALT}, {"Space", KEY_EN_SPACE},
+        {"Right Alt", KEY_EN_RIGHT_ALT}, {"Fn", KEY_EN_RIGHT_FUNCTION},
+        {"App", KEY_EN_MENU}, {"Right Ctrl", KEY_EN_RIGHT_CONTROL},
+        {"Left", KEY_EN_LEFT_ARROW}, {"Down", KEY_EN_DOWN_ARROW},
+        {"Right", KEY_EN_RIGHT_ARROW}, {"Num 0", KEY_EN_NUMPAD_0},
+        {"Num .", KEY_EN_NUMPAD_PERIOD}
+    };
+
+    for(const key_name_alias& alias : aliases)
+    {
+        if(std::strcmp(name, alias.layout_name) == 0)
+        {
+            return alias.openrgb_name;
+        }
+    }
+
+    return name;
+}
 
 void HSVBytesToRGB(uint8_t hue_byte, uint8_t saturation_byte, uint8_t value_byte,
                    uint8_t& red, uint8_t& green, uint8_t& blue)
@@ -211,8 +281,10 @@ void RGBController_AntEsportsMK4100::SetupZones()
     std::vector<unsigned int> matrix(MATRIX_ROWS * MATRIX_COLUMNS, std::numeric_limits<unsigned int>::max());
     for(std::size_t i = 0; i < key_count; ++i)
     {
-        const int col = static_cast<int>(std::lround((2.0f * keys[i].x) + keys[i].width));
-        const int row = static_cast<int>(std::lround(keys[i].y + ((keys[i].height - 1.0f) / 2.0f)));
+        /* Store each LED in its key-unit cell. Standardized key names let OpenRGB 1.0
+           expand wide keys in its native matrix-layout renderer. */
+        const int col = static_cast<int>(std::lround(keys[i].x));
+        const int row = static_cast<int>(std::lround(keys[i].y));
         if(row >= 0 && row < static_cast<int>(MATRIX_ROWS) && col >= 0 && col < static_cast<int>(MATRIX_COLUMNS))
         {
             matrix[static_cast<std::size_t>(row) * MATRIX_COLUMNS + static_cast<std::size_t>(col)] = static_cast<unsigned int>(i);
@@ -231,7 +303,7 @@ void RGBController_AntEsportsMK4100::SetupZones()
     for(std::size_t i = 0; i < key_count; ++i)
     {
         led new_led;
-        new_led.name = keys[i].name;
+        new_led.name = OpenRGBKeyName(keys[i].name);
         leds.push_back(new_led);
     }
 
@@ -287,7 +359,46 @@ void RGBController_AntEsportsMK4100::DeviceUpdateLEDs()
     }
 
     uint8_t frame[MK4100_RGB_BYTES];
+    uint8_t previous[MK4100_RGB_BYTES];
     if(!BuildFrame(frame)) return;
+    controller->CopyCurrentRGB(previous);
+
+    std::size_t key_count = 0;
+    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    if(key_count != colors.size()) return;
+
+    std::vector<std::size_t> changed_leds;
+    changed_leds.reserve(key_count);
+    for(std::size_t i = 0; i < key_count; ++i)
+    {
+        const std::size_t offset = static_cast<std::size_t>(keys[i].slot) * 3u;
+        if(std::memcmp(frame + offset, previous + offset, 3u) != 0)
+        {
+            changed_leds.push_back(i);
+        }
+    }
+
+    /* Small manual edits use the vendor's acknowledged per-key 0x14 path.
+       This avoids touching adjacent RGB slots at chunk boundaries. At six keys
+       the expected latency is still about the same as one full bulk frame. */
+    constexpr std::size_t SINGLE_KEY_UPDATE_LIMIT = 6u;
+    if(changed_leds.empty()) return;
+    if(changed_leds.size() <= SINGLE_KEY_UPDATE_LIMIT)
+    {
+        for(const std::size_t i : changed_leds)
+        {
+            const std::size_t offset = static_cast<std::size_t>(keys[i].slot) * 3u;
+            if(!controller->SetSingleKeyRGB(keys[i].slot, frame[offset], frame[offset + 1u], frame[offset + 2u]))
+            {
+                LOG_WARNING("[Ant Esports MK4100] Single-key update failed for %s: %s",
+                            keys[i].name, controller->GetErrorString().c_str());
+            }
+        }
+        return;
+    }
+
+    /* Larger edits and animations keep the bulk path, which uses 54-byte
+       RGB-aligned chunks plus the protocol's overlap/boundary workarounds. */
     if(!controller->ApplyDirectFrame(frame, false))
     {
         LOG_WARNING("[Ant Esports MK4100] Direct RGB update failed: %s", controller->GetErrorString().c_str());
