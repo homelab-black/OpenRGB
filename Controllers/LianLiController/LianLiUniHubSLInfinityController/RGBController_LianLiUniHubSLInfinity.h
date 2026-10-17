@@ -3,6 +3,7 @@
 |                                                           |
 |   RGBController for Lian Li SL Infinity Uni Hub           |
 |                                                           |
+|   Pau Verdeguer                               13 May 2026 |
 |   Simon McKenna                               21 Oct 2023 |
 |   Will Kennedy                                17 Jan 2023 |
 |   Oliver P                                    26 Apr 2022 |
@@ -14,8 +15,7 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
+#include <mutex>
 #include "LianLiUniHubSLInfinityController.h"
 #include "RGBController.h"
 
@@ -34,8 +34,32 @@ public:
     void DeviceUpdateSingleLED(int led);
 
     void DeviceUpdateMode();
+    void DeviceUpdateZoneMode(int zone);
 
 private:
+    const mode& GetEffectiveModeForZone(int zone_idx) const;
+    const mode* GetRingMode(unsigned int zone_idx);
+    const mode* GetMergedMode();
+    void        SendFanQuantities();
+    void        GetPortModes(unsigned int port, const mode** inner_mode, const mode** outer_mode, bool* outer_follows);
+    bool        UpdateRing(unsigned int zone_idx, const mode& ring_mode);
+    bool        UpdatePort(unsigned int port);
+    bool        NeedsFullUpdate();
+    void        UpdateAllPorts();
+    bool        UpdatePerLEDZone(unsigned int zone_idx);
+
     LianLiUniHubSLInfinityController* controller;
-    bool                    initializedMode;
+
+    /*-----------------------------------------------------*\
+    | Set until the first update, since the hub state is    |
+    | unknown, and after a zone is resized.                 |
+    \*-----------------------------------------------------*/
+    bool                    needs_full_update;
+
+    /*-----------------------------------------------------*\
+    | The zone functions are called from the caller's       |
+    | thread and the others from the device thread, so they |
+    | can run at the same time.                             |
+    \*-----------------------------------------------------*/
+    std::mutex              update_mutex;
 };
