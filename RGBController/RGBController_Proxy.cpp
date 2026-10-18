@@ -1075,7 +1075,6 @@ void RGBController_Proxy::ConfigureDevice(controller_flags new_flags, std::strin
 | These are usually called by RGBController's defined   |
 | methods that are all redefined in Proxy               |
 | These methods should not receive any calls            |
-| TODO: REMOVE when migrating to an interface           |
 \*-----------------------------------------------------*/
 void RGBController_Proxy::DeviceConfigureDevice()
 {

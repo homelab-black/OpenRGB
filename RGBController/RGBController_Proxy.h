@@ -14,7 +14,7 @@
 
 #include "RGBController.h"
 
-class RGBController_Proxy : public RGBController // TODO: replace with RGBControllerInterface when RM allows to register interface instead of actual controller
+class RGBController_Proxy : public RGBController
 {
 public:
     RGBController_Proxy(device_type placeholder_type, const std::string& placeholder_name = "", RGBController* target = nullptr);
