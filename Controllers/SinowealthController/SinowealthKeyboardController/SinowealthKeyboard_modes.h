@@ -1,6 +1,12 @@
-/*------------------------------------------*\
-|  SinowealthKeyboard_modes.h                |
-\*-----------------------------------------=*/
+/*---------------------------------------------------------*\
+| SinowealthKeyboard_modes.h                                |
+|                                                           |
+|   Shared values from Sinowealth Keyboard Controllers      |
+|   Moved out to avoid duplication and header conflicts     |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #pragma once
 

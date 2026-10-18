@@ -1,15 +1,15 @@
-/*------------------------------------------*\
-|  RGBController_SinowealthKeyboard16.h      |
-|                                            |
-|  Definitions and types for Sinowealth      |
-|  Keyboard with PID:0016,                   |
-|  Hopefully generic for this PID,           |
-|  this was made spefically for ZUOYA X51    |
-|                                            |
-|  Zagorodnikov Aleksey (glooom) 26.07.2021  |
-|  based on initial implementation from      |
-|  Dmitri Kalinichenko (Dima-Kal) 23/06/2021 |
-\*-----------------------------------------=*/
+/*---------------------------------------------------------*\
+| RGBController_SinowealthKeyboard16.h                      |
+|                                                           |
+|   Definitions and types for Sinowealth Keyboard with      |
+|   PID:0016 (made spefically for ZUOYA X51)                |
+|                                                           |
+|   Dmitri Kalinichenko (Dima-Kal)              23 Jun 2021 |
+|   Zagorodnikov Aleksey (glooom)               26 Jul 2023 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #pragma once
 

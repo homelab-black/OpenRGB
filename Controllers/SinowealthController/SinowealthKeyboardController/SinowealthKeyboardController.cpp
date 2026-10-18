@@ -1,12 +1,14 @@
-/*------------------------------------------*\
-|  SinowealthKeyboardController.cpp          |
-|                                            |
-|  Definitions and types for Sinowealth      |
-|  Keyboard, Hopefully generic, this was     |
-|  made spefically for FL eSports F11 KB     |
-|                                            |
-|  Dmitri Kalinichenko (Dima-Kal) 23/06/2021 |
-\*-----------------------------------------=*/
+/*---------------------------------------------------------*\
+| SinowealthKeyboardController.cpp                          |
+|                                                           |
+|   Definitions and types for Sinowealth Keyboard with      |
+|   PID:0049 (made spefically for FL ESPORTS F1)            |
+|                                                           |
+|   Dmitri Kalinichenko (Dima-Kal)              23 Jun 2021 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
 
 #include "SinowealthKeyboardController.h"
 #include "SinowealthKeyboard_modes.h"

@@ -1,7 +1,9 @@
 /*---------------------------------------------------------*\
 | SinowealthControllerDetect.cpp                            |
 |                                                           |
-|   Detector for Sinowealth, Genesis and Everest brand Mice |
+|   Detector for Sinowealth brand devices and clones        |
+|   Targets Mice and Keyboards under brands of:             |
+|   Sinowealth, Genesis, Everest, Redragon, FL, Marvo, etc. |
 |                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
