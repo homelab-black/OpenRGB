@@ -158,6 +158,7 @@
 /*---------------------------------------------------------*\
 | PCI Sub-Vendor IDs                                        |
 \*---------------------------------------------------------*/
+#define ACER_SUB_VEN                                            0x1025
 #define ASROCK_SUB_VEN                                          0x1849
 #define ASUS_SUB_VEN                                            0x1043
 #define COLORFUL_SUB_VEN                                        0x7377
@@ -173,6 +174,11 @@
 #define SAPPHIRE_SUB_VEN                                        0x1DA2
 #define SAPPHIRE_LEGACY_SUB_VEN                                 0x174B
 #define ZOTAC_SUB_VEN                                           0x19DA
+
+/*-----------------------------------------------------*\
+| Acer Sub-Device IDs                                   |
+\*-----------------------------------------------------*/
+#define ACER_BIFROST_RX9070XT_SUB_DEV                           0x187A
 
 /*-----------------------------------------------------*\
 | ASUS Sub-Device IDs                                   |
