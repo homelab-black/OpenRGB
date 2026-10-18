@@ -1,6 +1,12 @@
 /*---------------------------------------------------------*\
 | RGBController_MachinelikeK500.h                           |
 |                                                           |
+|   This is a version of SinowealthKeyboardController       |
+|   Modified to support Machinelike K500 keyboards          |
+|                                                           |
+|   Lizeth Villar (xllser)                      30 Mar 2025 |
+|   Dmitry Kychanov (k1-801)                    18 Oct 2026 |
+|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
@@ -17,11 +23,10 @@ public:
     ~RGBController_MachinelikeK500();
 
     void        SetupZones();
-    void        ResizeZone(int zone, int new_size);
 
     void        DeviceUpdateLEDs();
-    void        UpdateZoneLEDs(int zone);
-    void        UpdateSingleLED(int led);
+    void        DeviceUpdateZoneLEDs(int zone);
+    void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
 

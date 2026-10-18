@@ -1,6 +1,12 @@
 /*---------------------------------------------------------*\
 | RGBController_MachinelikeK500.cpp                         |
 |                                                           |
+|   This is a version of SinowealthKeyboardController       |
+|   Modified to support Machinelike K500 keyboards          |
+|                                                           |
+|   Lizeth Villar (xllser)                      30 Mar 2025 |
+|   Dmitry Kychanov (k1-801)                    18 Oct 2026 |
+|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
@@ -175,24 +181,17 @@ void RGBController_MachinelikeK500::SetupZones()
     SetupColors();
 }
 
-void RGBController_MachinelikeK500::ResizeZone(int /*zone*/, int /*new_size*/)
-{
-    /*---------------------------------------------------------*\
-    | This device does not support resizing zones               |
-    \*---------------------------------------------------------*/
-}
-
 void RGBController_MachinelikeK500::DeviceUpdateLEDs()
 {
     controller->SetLEDsDirect(colors);
 }
 
-void RGBController_MachinelikeK500::UpdateZoneLEDs(int /*zone*/)
+void RGBController_MachinelikeK500::DeviceUpdateZoneLEDs(int /*zone*/)
 {
     DeviceUpdateLEDs();
 }
 
-void RGBController_MachinelikeK500::UpdateSingleLED(int /*led*/)
+void RGBController_MachinelikeK500::DeviceUpdateSingleLED(int /*led*/)
 {
     DeviceUpdateLEDs();
 }

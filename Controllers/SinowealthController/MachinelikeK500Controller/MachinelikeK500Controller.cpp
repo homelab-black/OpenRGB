@@ -4,6 +4,9 @@
 |   This is a version of SinowealthKeyboardController       |
 |   Modified to support Machinelike K500 keyboards          |
 |                                                           |
+|   Lizeth Villar (xllser)                      30 Mar 2025 |
+|   Dmitry Kychanov (k1-801)                    18 Oct 2026 |
+|                                                           |
 |   This file is part of the OpenRGB project                |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
