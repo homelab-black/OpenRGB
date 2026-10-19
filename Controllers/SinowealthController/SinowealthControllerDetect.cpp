@@ -47,7 +47,7 @@
 #define Glorious_Model_DW_PID2              0x2012 // When connected via cable
 #define Everest_GT100_PID                   0x0029
 #define ZET_FURY_PRO_PID                    0x1007
-#define Fl_Esports_F11_PID                  0x0049
+#define RGB_KEYBOARD_0049PID                0x0049
 #define RGB_KEYBOARD_0016PID                0x0016
 #define GENESIS_THOR_300_PID                0x0090
 #define GENESIS_XENON_200_PID               0x1007
@@ -388,7 +388,7 @@ static DetectedControllers DetectSinowealthKeyboard16_real(const hid_device_info
 | IMPORTANT: THIS CONTROLLER HAS POTENTIAL BRICKING RISK    |
 | DO NOT CALL THIS DETECTOR DIRECTLY!!!                     |
 \*---------------------------------------------------------*/
-static DetectedControllers DetectSinowealthKeyboard_real(const hid_device_info* info, const std::string& name)
+static DetectedControllers DetectSinowealthKeyboard49_real(const hid_device_info* info, const std::string& name)
 {
     DetectedControllers result;
     unsigned char command[6] = {0x05, 0x83, 0xB6, 0x00, 0x00, 0x00};
@@ -499,7 +499,7 @@ static DetectedControllers DetectSinowealthKeyboard16(hid_device_info* info, con
     return result;
 }
 
-static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const std::string& /*name*/)
+static DetectedControllers DetectSinowealthKeyboard49(hid_device_info* info, const std::string& /*name*/)
 {
     DetectedControllers result;
     /*--------------------------------------------------------------*\
@@ -510,8 +510,8 @@ static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const
 
     RGBController_MultichoiceProxy* proxy  = new RGBController_MultichoiceProxy(DEVICE_TYPE_KEYBOARD, "Sinowealth Keyboard 0049 [disabled]",
                                                                                 {
-                                                                                    {"FL ESPORTS F11",           [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}},
-                                                                                    {"Redragon K617 Fizz",       [info_wrapper](const std::string& name){return DetectSinowealthKeyboard_real(&(info_wrapper->info), name);}}, // SEEMS TO WORK! https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/2172#note_827488695
+                                                                                    {"FL ESPORTS F11",           [info_wrapper](const std::string& name){return DetectSinowealthKeyboard49_real(&(info_wrapper->info), name);}},
+                                                                                    {"Redragon K617 Fizz",       [info_wrapper](const std::string& name){return DetectSinowealthKeyboard49_real(&(info_wrapper->info), name);}}, // SEEMS TO WORK! https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/2172#note_827488695
                                                                                     {"Machinelike K500",         [info_wrapper](const std::string& name){return DetectMachinelikeK500Keyboard(&(info_wrapper->info), name);}}, // https://gitlab.com/CalcProgrammer1/OpenRGB/-/work_items/3365#note_3633350820
                                                                                 /* Known models that we DON'T KNOW THE PROTOCOL for - disabled for now */
                                                                                     {"Hyrax HCK61 [disabled]",                  [](const std::string&){return DetectedControllers();}},
@@ -525,7 +525,7 @@ static DetectedControllers DetectSinowealthKeyboard(hid_device_info* info, const
                                                                                     {"Redragon KS82-B [disabled]",              [](const std::string&){return DetectedControllers();}},
                                                                                     {"Redragon K614 Anivia [disabled]",         [](const std::string&){return DetectedControllers();}},
                                                                                     {"Redragon K618 [disabled]",                [](const std::string&){return DetectedControllers();}},
-                                                                                    {"Redragon k621 [disabled]",                [](const std::string&){return DetectedControllers();}},
+                                                                                    {"Redragon K621 [disabled]",                [](const std::string&){return DetectedControllers();}},
                                                                                     {"Redragon K622 Horus [disabled]",          [](const std::string&){return DetectedControllers();}},
                                                                                     {"Redragon K628 Pro [disabled]",            [](const std::string&){return DetectedControllers();}},
                                                                                     {"Redragon K632 NOCTIS PRO [disabled]",     [](const std::string&){return DetectedControllers();}},
@@ -617,5 +617,5 @@ REGISTER_HID_DETECTOR_IPU("Genesis Thor 300",               DetectSinowealthGene
 REGISTER_HID_DETECTOR_IPU("Sinowealth Keyboard",            DetectSinowealthKeyboard10c,        SINOWEALTH_VID, RGB_KEYBOARD_010CPID,               1,  0xFF00, 1       );
 
 // Sinowealth keyboards are disabled due to VID/PID pairs being reused from Redragon keyboards, which ended up in bricking the latter
-REGISTER_HID_DETECTOR_P("FL ESPORTS F11",                   DetectSinowealthKeyboard,   SINOWEALTH_VID, Fl_Esports_F11_PID,                             0xFF00          );
-REGISTER_HID_DETECTOR_P("Sinowealth Keyboard",              DetectSinowealthKeyboard16, SINOWEALTH_VID, RGB_KEYBOARD_0016PID,                           0xFF00          );
+REGISTER_HID_DETECTOR_P("Sinowealth Keyboard 0049",         DetectSinowealthKeyboard49, SINOWEALTH_VID, RGB_KEYBOARD_0049PID,                           0xFF00          );
+REGISTER_HID_DETECTOR_P("Sinowealth Keyboard 0016",         DetectSinowealthKeyboard16, SINOWEALTH_VID, RGB_KEYBOARD_0016PID,                           0xFF00          );
