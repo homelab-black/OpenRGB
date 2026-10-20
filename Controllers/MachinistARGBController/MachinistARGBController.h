@@ -16,7 +16,6 @@
 #include <thread>
 #include <mutex>
 #include <hidapi.h>
-#include "hidapi_wrapper.h"
 #include "MachinistAudioCapture.h"
 
 #define MACHINIST_VID 0x0416
@@ -29,7 +28,7 @@
 class MachinistARGBController
 {
 public:
-    MachinistARGBController(hidapi_wrapper hid_wrapper, hid_device* dev_handle, const std::string& path);
+    MachinistARGBController(hid_device* dev_handle, const std::string& path);
     ~MachinistARGBController();
 
     std::string GetDeviceLocation();
@@ -51,7 +50,6 @@ private:
     void        SendMusicWithAudio(unsigned char channel, unsigned char* fft_bins);
     void        MusicUpdateThreadFunction();
 
-    hidapi_wrapper          wrapper;
     hid_device*             dev;
     std::string             location;
     std::string             serial;

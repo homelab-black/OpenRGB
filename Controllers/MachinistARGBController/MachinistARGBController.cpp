@@ -15,16 +15,15 @@
 #include "LogManager.h"
 #include "StringUtils.h"
 
-MachinistARGBController::MachinistARGBController(hidapi_wrapper hid_wrapper, hid_device* dev_handle, const std::string& path)
+MachinistARGBController::MachinistARGBController(hid_device* dev_handle, const std::string& path)
 {
-    wrapper             = hid_wrapper;
     dev                 = dev_handle;
     location            = path;
     audio_capture       = nullptr;
     music_mode_active   = false;
 
     wchar_t serial_string[256];
-    int ret = wrapper.hid_get_serial_number_string(dev, serial_string, 256);
+    int ret = hid_get_serial_number_string(dev, serial_string, 256);
     if(ret == 0)
     {
         serial = StringUtils::wstring_to_string(serial_string);
@@ -41,7 +40,7 @@ MachinistARGBController::~MachinistARGBController()
 
     if(dev)
     {
-        wrapper.hid_close(dev);
+        hid_close(dev);
     }
 }
 
@@ -78,7 +77,7 @@ void MachinistARGBController::SendAnimatedEffect(unsigned char effect_id, unsign
         buf[6] = brightness;
         buf[7] = inverted_speed;
 
-        int res = wrapper.hid_write(dev, buf, 64);
+        int res = hid_write(dev, buf, 64);
         if(res < 0)
         {
             LOG_DEBUG("[MachinistARGB] Failed to write animated effect packet");
@@ -112,7 +111,7 @@ void MachinistARGBController::SendColor(unsigned char red, unsigned char green, 
         buf[6] = brightness;
         buf[7] = 0xFF;
 
-        int res = wrapper.hid_write(dev, buf, 64);
+        int res = hid_write(dev, buf, 64);
         if(res < 0)
         {
             LOG_DEBUG("[MachinistARGB] Failed to write color packet");
@@ -271,7 +270,7 @@ void MachinistARGBController::SendMusicWithAudio(unsigned char channel, unsigned
     buf[6] = 0x01;
     buf[7] = 0x00;
 
-    int res = wrapper.hid_write(dev, buf, sizeof(buf));
+    int res = hid_write(dev, buf, sizeof(buf));
     if(res < 0)
     {
         LOG_DEBUG("[MachinistARGB] Failed to write music audio packet");
