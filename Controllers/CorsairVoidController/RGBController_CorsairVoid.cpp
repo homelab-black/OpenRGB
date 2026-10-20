@@ -54,17 +54,25 @@ RGBController_CorsairVoid::~RGBController_CorsairVoid()
 
 void RGBController_CorsairVoid::SetupZones()
 {
-    zone earcups;
-    earcups.name            = "Earcups";
-    earcups.type            = ZONE_TYPE_LINEAR;
-    earcups.leds_min        = 2;
-    earcups.leds_max        = 2;
-    earcups.leds_count      = 2;
-    zones.push_back(earcups);
+    zone left_earcup;
+    left_earcup.name        = "Left Earcup";
+    left_earcup.type        = ZONE_TYPE_SINGLE;
+    left_earcup.leds_min    = 1;
+    left_earcup.leds_max    = 1;
+    left_earcup.leds_count  = 1;
+    zones.push_back(left_earcup);
 
     led left_led;
     left_led.name           = "Left Earcup";
     leds.push_back(left_led);
+
+    zone right_earcup;
+    right_earcup.name       = "Right Earcup";
+    right_earcup.type       = ZONE_TYPE_SINGLE;
+    right_earcup.leds_min   = 1;
+    right_earcup.leds_max   = 1;
+    right_earcup.leds_count = 1;
+    zones.push_back(right_earcup);
 
     led right_led;
     right_led.name          = "Right Earcup";
