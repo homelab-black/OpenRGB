@@ -156,7 +156,7 @@ RGBColor RGBController_Proxy::GetZoneColor(unsigned int zone, unsigned int color
 {
     if(target_controller)
     {
-        return target_controller->GetZoneActiveMode(zone);
+        return target_controller->GetZoneColor(zone, color_index);
     }
     return 0; // Should not be reached bc zone count is 0
 }
