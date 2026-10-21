@@ -2229,35 +2229,32 @@ void OpenRGBDevicePage::on_EditButton_clicked()
 
     GetSelectedZone(&selected_all_zones, &selected_zone, &selected_segment);
 
-    switch(device->GetModeColorMode(device->GetActiveMode()))
+    /*-----------------------------------------*\
+    | If all zones or a segment are selected,   |
+    | the edit button should not be clickable,  |
+    | unless device-specific configuration is   |
+    | available                                 |
+    \*-----------------------------------------*/
+    if(selected_all_zones)
     {
-        case MODE_COLORS_PER_LED:
-            {
-                /*-----------------------------------------*\
-                | If all zones or a segment are selected,   |
-                | the edit button should not be clickable.  |
-                | If somehow this did get clicked, ignore.  |
-                \*-----------------------------------------*/
-                if(selected_all_zones)
-                {
-                    OpenRGBDeviceEditorDialog dlg(device);
-                    dlg.show();
-                }
-                else
-                {
-                    OpenRGBZoneEditorDialog dlg(device, selected_zone);
-                    dlg.show();
+        if(device->GetFlags() & (CONTROLLER_FLAG_MANUALLY_CONFIGURABLE_DEVICE_SPECIFIC | CONTROLLER_FLAG_MANUALLY_CONFIGURABLE_NAME))
+        {
+            OpenRGBDeviceEditorDialog dlg(device);
+            dlg.show();
+        }
+    }
+    else
+    {
+        OpenRGBZoneEditorDialog dlg(device, selected_zone);
+        dlg.show();
 
-                    /*-----------------------------------------*\
-                    | Update Zone list and then reset the       |
-                    | current index                             |
-                    \*-----------------------------------------*/
-                    selected_zone = ui->ZoneBox->currentIndex();
-                    UpdateZoneList();
-                    ui->ZoneBox->setCurrentIndex(selected_zone);
-                }
-            }
-            break;
+        /*-----------------------------------------*\
+        | Update Zone list and then reset the       |
+        | current index                             |
+        \*-----------------------------------------*/
+        selected_zone = ui->ZoneBox->currentIndex();
+        UpdateZoneList();
+        ui->ZoneBox->setCurrentIndex(selected_zone);
     }
 }
 
