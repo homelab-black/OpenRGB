@@ -24,6 +24,30 @@
 \*---------------------------------------------------------*/
 #define LENOVO_MB_PID                                  0xC955
 
+/*---------------------------------------------------------*\
+| Boards tested to lose their settings on a power cycle.    |
+| All boards share one USB ID, so the DMI board name is the |
+| only way to tell them apart.  Boards not listed here are  |
+| treated as saving every change to flash.                  |
+\*---------------------------------------------------------*/
+static const char* lenovo_mb_no_save_boards[] =
+{
+    "3787",                                     /* Legion T5 Gen 10 (30AGB10)   */
+};
+
+static bool LenovoMotherboardSavesToFlash(const std::string& board)
+{
+    for(const char* no_save_board : lenovo_mb_no_save_boards)
+    {
+        if(board == no_save_board)
+        {
+            return(false);
+        }
+    }
+
+    return(true);
+}
+
 DetectedControllers DetectLenovoMotherboardControllers(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -35,8 +59,9 @@ DetectedControllers DetectLenovoMotherboardControllers(hid_device_info* info, co
     {
         DMIInfo dmi;
 
-        LenovoMotherboardController*     controller         = new LenovoMotherboardController(dev, *info, name + " " + dmi.getMainboard());
-        RGBController_LenovoMotherboard* rgb_controller     = new RGBController_LenovoMotherboard(controller);
+        std::string                      board              = dmi.getMainboard();
+        LenovoMotherboardController*     controller         = new LenovoMotherboardController(dev, *info, name + " " + board);
+        RGBController_LenovoMotherboard* rgb_controller     = new RGBController_LenovoMotherboard(controller, LenovoMotherboardSavesToFlash(board));
 
         detected_controllers.push_back(rgb_controller);
     }

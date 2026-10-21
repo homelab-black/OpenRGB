@@ -17,7 +17,7 @@
 class RGBController_LenovoMotherboard : public RGBController
 {
 public:
-    RGBController_LenovoMotherboard(LenovoMotherboardController* controller_ptr);
+    RGBController_LenovoMotherboard(LenovoMotherboardController* controller_ptr, bool saves_to_flash);
     ~RGBController_LenovoMotherboard();
 
     void SetupZones();
