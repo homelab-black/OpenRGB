@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include <cstring>
+#include <stdexcept>
 #include "AsusAuraUSBController.h"
 #include "LogManager.h"
 #include "StringUtils.h"
@@ -19,6 +20,12 @@ AuraUSBController::AuraUSBController(hid_device* dev_handle, const char* path, s
     dev         = dev_handle;
     location    = path;
     name        = dev_name;
+
+    /*-----------------------------------------------------*\
+    | version is logged as a C string even when the firmware|
+    | version request fails, so it must start NUL terminated.|
+    \*-----------------------------------------------------*/
+    memset(version, 0x00, sizeof(version));
 
     GetFirmwareVersion();
     GetConfigTable();
@@ -86,7 +93,11 @@ void AuraUSBController::GetConfigTable()
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, usb_buf, 65);
-    hid_read(dev, usb_buf, 65);
+
+    if(hid_read_timeout(dev, usb_buf, 65, AURA_USB_READ_TIMEOUT) <= 0)
+    {
+        throw std::runtime_error("timed out waiting for the config table");
+    }
 
     /*-----------------------------------------------------*\
     | Copy the firmware string if the reply ID is correct   |
@@ -110,8 +121,13 @@ void AuraUSBController::GetConfigTable()
     }
     else
     {
-        LOG_INFO("[%s] Could not read config table, can not add device", version);
-        delete this;
+    /*-----------------------------------------------------*\
+    | Deleting a part-constructed object from inside its own|
+    | base constructor is undefined behaviour, and the caller|
+    | goes on to use the pointer new returned.  Throw instead;|
+    | the detectors already handle std::runtime_error.      |
+    \*-----------------------------------------------------*/
+        throw std::runtime_error("config table reply had an unexpected report ID");
     }
 }
 
@@ -134,7 +150,15 @@ void AuraUSBController::GetFirmwareVersion()
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, usb_buf, 65);
-    hid_read(dev, usb_buf, 65);
+
+    /*-----------------------------------------------------*\
+    | Leave the version empty if the device does not answer,|
+    | rather than blocking here forever.                    |
+    \*-----------------------------------------------------*/
+    if(hid_read_timeout(dev, usb_buf, 65, AURA_USB_READ_TIMEOUT) <= 0)
+    {
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | Copy the firmware string if the reply ID is correct   |

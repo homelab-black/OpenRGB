@@ -17,6 +17,14 @@
 #include "RGBController.h"
 #include "LogManager.h"
 
+/*---------------------------------------------------------*\
+| Timeout, in milliseconds, for reads from an Aura device.  |
+| A HID interface that does not implement the ASUS vendor   |
+| protocol never answers report 0xEC, so an unbounded read  |
+| against one blocks detection forever.                     |
+\*---------------------------------------------------------*/
+#define AURA_USB_READ_TIMEOUT               1000
+
 enum
 {
     AURA_MODE_OFF                       = 0,        /* OFF mode                             */

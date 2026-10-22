@@ -156,10 +156,18 @@ DetectedControllers DetectAsusAuraUSBTerminal(hid_device_info* info, const std::
 
     if(dev)
     {
-        AuraAddressableController* controller               = new AuraAddressableController(dev, info->path, name);
-        RGBController_AuraUSB*     rgb_controller           = new RGBController_AuraUSB(controller);
+        try
+        {
+            AuraAddressableController* controller               = new AuraAddressableController(dev, info->path, name);
+            RGBController_AuraUSB*     rgb_controller           = new RGBController_AuraUSB(controller);
 
-        detected_controllers.push_back(rgb_controller);
+            detected_controllers.push_back(rgb_controller);
+        }
+        catch(const std::runtime_error& ex)
+        {
+            LOG_ERROR("[AsusAuraUSB] Could not initialise device at %s: %s", info->path, ex.what());
+            hid_close(dev);
+        }
     }
 
     return(detected_controllers);
@@ -174,11 +182,19 @@ DetectedControllers DetectAsusAuraUSBAddressable(hid_device_info* info, const st
 
     if(dev)
     {
-        DMIInfo                    dmi;
-        AuraAddressableController* controller               = new AuraAddressableController(dev, info->path, "ASUS " + dmi.getMainboard() + " Addressable");
-        RGBController_AuraUSB*     rgb_controller           = new RGBController_AuraUSB(controller);
+        try
+        {
+            DMIInfo                    dmi;
+            AuraAddressableController* controller               = new AuraAddressableController(dev, info->path, "ASUS " + dmi.getMainboard() + " Addressable");
+            RGBController_AuraUSB*     rgb_controller           = new RGBController_AuraUSB(controller);
 
-        detected_controllers.push_back(rgb_controller);
+            detected_controllers.push_back(rgb_controller);
+        }
+        catch(const std::runtime_error& ex)
+        {
+            LOG_ERROR("[AsusAuraUSB] Could not initialise device at %s: %s", info->path, ex.what());
+            hid_close(dev);
+        }
     }
 
     return(detected_controllers);
@@ -203,8 +219,8 @@ DetectedControllers DetectAsusAuraUSBMotherboards(hid_device_info* info, const s
         }
         catch(const std::runtime_error& ex)
         {
-            // reading the config table failed
-            LOG_ERROR("[AsusAuraUSB] An error occured while reading the config table: %s", ex.what());
+            LOG_ERROR("[AsusAuraUSB] Could not initialise device at %s: %s", info->path, ex.what());
+            hid_close(dev);
         }
     }
 
@@ -306,10 +322,18 @@ DetectedControllers DetectAsusAuraUSBROGStrixLC(hid_device_info* info, const std
 
     if(dev)
     {
-        AsusROGStrixLCController*     controller     = new AsusROGStrixLCController(dev, info->path, name);
-        RGBController_AsusROGStrixLC* rgb_controller = new RGBController_AsusROGStrixLC(controller);
+        try
+        {
+            AsusROGStrixLCController*     controller     = new AsusROGStrixLCController(dev, info->path, name);
+            RGBController_AsusROGStrixLC* rgb_controller = new RGBController_AsusROGStrixLC(controller);
 
-        detected_controllers.push_back(rgb_controller);
+            detected_controllers.push_back(rgb_controller);
+        }
+        catch(const std::runtime_error& ex)
+        {
+            LOG_ERROR("[AsusAuraUSB] Could not initialise device at %s: %s", info->path, ex.what());
+            hid_close(dev);
+        }
     }
 
     return(detected_controllers);
@@ -324,10 +348,18 @@ DetectedControllers DetectAsusAuraUSBRyuoAIO(hid_device_info* info, const std::s
 
     if(dev)
     {
-        AsusAuraRyuoAIOController*     controller     = new AsusAuraRyuoAIOController(dev, info->path, name);
-        RGBController_AsusAuraRyuoAIO* rgb_controller = new RGBController_AsusAuraRyuoAIO(controller);
+        try
+        {
+            AsusAuraRyuoAIOController*     controller     = new AsusAuraRyuoAIOController(dev, info->path, name);
+            RGBController_AsusAuraRyuoAIO* rgb_controller = new RGBController_AsusAuraRyuoAIO(controller);
 
-        detected_controllers.push_back(rgb_controller);
+            detected_controllers.push_back(rgb_controller);
+        }
+        catch(const std::runtime_error& ex)
+        {
+            LOG_ERROR("[AsusAuraUSB] Could not initialise device at %s: %s", info->path, ex.what());
+            hid_close(dev);
+        }
     }
 
     return(detected_controllers);
