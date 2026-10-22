@@ -694,6 +694,10 @@ static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
 | enabled? Detectors are enabled unless Settings says       |
 | otherwise, which is also what DetectionManager            |
 | assumes for a detector it has not seen before.            |
+|                                                           |
+| Legacy stays the default owner only until the legacy      |
+| receiver and wireless detectors are retired; do not build |
+| on this ownership.                                        |
 \*---------------------------------------------------------*/
 static bool HIDPP20SlotOwnedByLegacy(uint16_t dev_pid, uint16_t receiver_pid, std::string& detector_name)
 {
@@ -1333,7 +1337,6 @@ static RGBController_LogitechHIDPP20* HIDPP20BuildController(const HIDPP20BuildT
     if(target.behind_receiver)
     {
         controller->SetPairingName(target.pairing_name);
-        HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
     }
 
     if(!controller->Probe())
@@ -1344,6 +1347,11 @@ static RGBController_LogitechHIDPP20* HIDPP20BuildController(const HIDPP20BuildT
         | 0x41 connection notification.                     |
         \*-------------------------------------------------*/
         delete controller;
+
+        if(target.behind_receiver)
+        {
+            HIDPP20EnsureWatcher(target.node_path, 0, 0, false);
+        }
 
         return(nullptr);
     }
