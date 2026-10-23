@@ -2,10 +2,13 @@
 | RGBController_AntEsportsMK4100.cpp                        |
 |                                                           |
 | OpenRGB RGB controller for Ant Esports MK4100             |
+|                                                           |
+| This file is part of the OpenRGB project                  |
 | SPDX-License-Identifier: GPL-2.0-or-later                 |
 \*---------------------------------------------------------*/
 
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -15,15 +18,137 @@
 #include "LogManager.h"
 #include "RGBControllerKeyNames.h"
 #include "RGBController_AntEsportsMK4100.h"
-#include "mk4100_layout.h"
 
-namespace
+
+struct AntEsportsMK4100KeyPosition
 {
-constexpr unsigned int MATRIX_ROWS = 6;
-constexpr unsigned int MATRIX_COLUMNS = 23; /* one key-unit column; use OpenRGB's native wide-key rendering */
-constexpr unsigned int DIRECT_MODE_VALUE = MK4100_CUSTOM_MODE;
+    const char* name;
+    unsigned slot;
+    float x;
+    float y;
+    float width;
+    float height;
+};
 
-const char* OpenRGBKeyName(const char* name)
+static const AntEsportsMK4100KeyPosition key_positions[] = {
+    {"Esc", 0u, 0.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F1", 1u, 2.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F2", 2u, 3.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F3", 3u, 4.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F4", 4u, 5.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F5", 5u, 6.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F6", 6u, 7.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F7", 7u, 8.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F8", 8u, 9.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F9", 9u, 11.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F10", 10u, 12.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F11", 11u, 13.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"F12", 12u, 14.0000f, 0.0000f, 1.0000f, 1.0000f},
+    {"Print", 13u, 15.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"ScrLock", 14u, 16.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"Pause", 15u, 17.5000f, 0.0000f, 1.0000f, 1.0000f},
+    {"~", 21u, 0.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"1", 22u, 1.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"2", 23u, 2.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"3", 24u, 3.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"4", 25u, 4.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"5", 26u, 5.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"6", 27u, 6.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"7", 28u, 7.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"8", 29u, 8.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"9", 30u, 9.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"0", 31u, 10.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"-", 32u, 11.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"+", 33u, 12.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Back", 34u, 13.0000f, 1.2500f, 2.0000f, 1.0000f},
+    {"Insert", 35u, 15.5000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Home", 36u, 16.5000f, 1.2500f, 1.0000f, 1.0000f},
+    {"PgUp", 37u, 17.5000f, 1.2500f, 1.0000f, 1.0000f},
+    {"NumLock", 38u, 19.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Num /", 39u, 20.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Num *", 40u, 21.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Num -", 41u, 22.0000f, 1.2500f, 1.0000f, 1.0000f},
+    {"Tab", 42u, 0.0000f, 2.2500f, 1.5000f, 1.0000f},
+    {"Q", 43u, 1.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"W", 44u, 2.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"E", 45u, 3.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"R", 46u, 4.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"T", 47u, 5.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"Y", 48u, 6.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"U", 49u, 7.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"I", 50u, 8.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"O", 51u, 9.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"P", 52u, 10.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"[", 53u, 11.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"]", 54u, 12.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"\\", 55u, 13.5000f, 2.2500f, 1.5000f, 1.0000f},
+    {"Delet", 56u, 15.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"End", 57u, 16.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"PgDown", 58u, 17.5000f, 2.2500f, 1.0000f, 1.0000f},
+    {"Num 7", 59u, 19.0000f, 2.2500f, 1.0000f, 1.0000f},
+    {"Num 8", 60u, 20.0000f, 2.2500f, 1.0000f, 1.0000f},
+    {"Num 9", 61u, 21.0000f, 2.2500f, 1.0000f, 1.0000f},
+    {"Caps", 63u, 0.0000f, 3.2500f, 1.7500f, 1.0000f},
+    {"A", 64u, 1.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"S", 65u, 2.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"D", 66u, 3.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"F", 67u, 4.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"G", 68u, 5.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"H", 69u, 6.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"J", 70u, 7.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"K", 71u, 8.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"L", 72u, 9.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {";", 73u, 10.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"'", 74u, 11.7500f, 3.2500f, 1.0000f, 1.0000f},
+    {"Enter", 76u, 12.7500f, 3.2500f, 2.2500f, 1.0000f},
+    {"Num 4", 80u, 19.0000f, 3.2500f, 1.0000f, 1.0000f},
+    {"Num 5", 81u, 20.0000f, 3.2500f, 1.0000f, 1.0000f},
+    {"Num 6", 82u, 21.0000f, 3.2500f, 1.0000f, 1.0000f},
+    {"Num +", 62u, 22.0000f, 2.2500f, 1.0000f, 2.0000f},
+    {"Left Shift", 84u, 0.0000f, 4.2500f, 2.2500f, 1.0000f},
+    {"Z", 86u, 2.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"X", 87u, 3.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"C", 88u, 4.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"V", 89u, 5.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"B", 90u, 6.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"N", 91u, 7.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"M", 92u, 8.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"<", 93u, 9.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {">", 94u, 10.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"?", 95u, 11.2500f, 4.2500f, 1.0000f, 1.0000f},
+    {"Right Shift", 97u, 12.2500f, 4.2500f, 2.7500f, 1.0000f},
+    {"Up", 99u, 16.5000f, 4.2500f, 1.0000f, 1.0000f},
+    {"Num 1", 101u, 19.0000f, 4.2500f, 1.0000f, 1.0000f},
+    {"Num 2", 102u, 20.0000f, 4.2500f, 1.0000f, 1.0000f},
+    {"Num 3", 103u, 21.0000f, 4.2500f, 1.0000f, 1.0000f},
+    {"Num Enter", 104u, 22.0000f, 4.2500f, 1.0000f, 2.0000f},
+    {"Left Ctrl", 105u, 0.0000f, 5.2500f, 1.2500f, 1.0000f},
+    {"Win", 106u, 1.2500f, 5.2500f, 1.2500f, 1.0000f},
+    {"Left Alt", 107u, 2.5000f, 5.2500f, 1.2500f, 1.0000f},
+    {"Space", 111u, 3.7500f, 5.2500f, 6.2500f, 1.0000f},
+    {"Right Alt", 115u, 10.0000f, 5.2500f, 1.5000f, 1.0000f},
+    {"Fn", 116u, 11.5000f, 5.2500f, 1.0000f, 1.0000f},
+    {"App", 117u, 12.5000f, 5.2500f, 1.0000f, 1.0000f},
+    {"Right Ctrl", 118u, 13.5000f, 5.2500f, 1.5000f, 1.0000f},
+    {"Left", 119u, 15.5000f, 5.2500f, 1.0000f, 1.0000f},
+    {"Down", 120u, 16.5000f, 5.2500f, 1.0000f, 1.0000f},
+    {"Right", 121u, 17.5000f, 5.2500f, 1.0000f, 1.0000f},
+    {"Num 0", 123u, 19.0000f, 5.2500f, 2.0000f, 1.0000f},
+    {"Num .", 124u, 21.0000f, 5.2500f, 1.0000f, 1.0000f},
+};
+
+static const AntEsportsMK4100KeyPosition* GetKeyPositions(size_t* count)
+{
+    if(count) *count = sizeof(key_positions) / sizeof(key_positions[0]);
+    return key_positions;
+}
+
+
+static constexpr unsigned int MATRIX_ROWS = 6;
+static constexpr unsigned int MATRIX_COLUMNS = 23; /* one key-unit column; use OpenRGB's native wide-key rendering */
+static constexpr unsigned int DIRECT_MODE_VALUE = MK4100_CUSTOM_MODE;
+
+static const char* OpenRGBKeyName(const char* name)
 {
     /* Use OpenRGB's standard keyboard identifiers so its keycap label lookup
        displays familiar legends instead of treating the keys as generic LEDs. */
@@ -81,18 +206,18 @@ const char* OpenRGBKeyName(const char* name)
         {"Num .", KEY_EN_NUMPAD_PERIOD}
     };
 
-    for(const key_name_alias& alias : aliases)
+    for(std::size_t i = 0; i < sizeof(aliases) / sizeof(aliases[0]); ++i)
     {
-        if(std::strcmp(name, alias.layout_name) == 0)
+        if(std::strcmp(name, aliases[i].layout_name) == 0)
         {
-            return alias.openrgb_name;
+            return aliases[i].openrgb_name;
         }
     }
 
     return name;
 }
 
-void HSVBytesToRGB(uint8_t hue_byte, uint8_t saturation_byte, uint8_t value_byte,
+static void HSVBytesToRGB(uint8_t hue_byte, uint8_t saturation_byte, uint8_t value_byte,
                    uint8_t& red, uint8_t& green, uint8_t& blue)
 {
     const double hue = (static_cast<double>(hue_byte) / 255.0) * 360.0;
@@ -116,7 +241,7 @@ void HSVBytesToRGB(uint8_t hue_byte, uint8_t saturation_byte, uint8_t value_byte
     blue  = static_cast<uint8_t>(std::lround((b + m) * 255.0));
 }
 
-void RGBToHSVBytes(RGBColor color, uint8_t& hue_byte, uint8_t& saturation_byte, uint8_t& value_byte)
+static void RGBToHSVBytes(RGBColor color, uint8_t& hue_byte, uint8_t& saturation_byte, uint8_t& value_byte)
 {
     const double r = static_cast<double>(RGBGetRValue(color)) / 255.0;
     const double g = static_cast<double>(RGBGetGValue(color)) / 255.0;
@@ -140,7 +265,7 @@ void RGBToHSVBytes(RGBColor color, uint8_t& hue_byte, uint8_t& saturation_byte, 
     value_byte = static_cast<uint8_t>(std::lround(maximum * 255.0));
 }
 
-void LoadModeValuesFromConfig(mode& target, const uint8_t config[MK4100_CONFIG_BYTES])
+static void LoadModeValuesFromConfig(mode& target, const uint8_t config[MK4100_CONFIG_BYTES])
 {
     if(target.flags & MODE_FLAG_HAS_BRIGHTNESS)
         target.brightness = std::min<unsigned int>(config[3], 4u);
@@ -161,11 +286,10 @@ void LoadModeValuesFromConfig(mode& target, const uint8_t config[MK4100_CONFIG_B
         target.color_mode = config[6] ? MODE_COLORS_MODE_SPECIFIC : MODE_COLORS_RANDOM;
     }
 }
-}
-
 RGBController_AntEsportsMK4100::RGBController_AntEsportsMK4100(AntEsportsMK4100Controller* controller_ptr)
-    : controller(controller_ptr), last_mode_index(-1)
 {
+    controller = controller_ptr;
+    last_mode_index = -1;
     name = "Ant Esports MK4100";
     vendor = "Ant Esports";
     type = DEVICE_TYPE_KEYBOARD;
@@ -276,7 +400,7 @@ void RGBController_AntEsportsMK4100::AddMode(const char* mode_name, int value,
 void RGBController_AntEsportsMK4100::SetupZones()
 {
     std::size_t key_count = 0;
-    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    const AntEsportsMK4100KeyPosition* keys = GetKeyPositions(&key_count);
 
     std::vector<unsigned int> matrix(MATRIX_ROWS * MATRIX_COLUMNS, std::numeric_limits<unsigned int>::max());
     for(std::size_t i = 0; i < key_count; ++i)
@@ -323,7 +447,7 @@ void RGBController_AntEsportsMK4100::LoadCurrentDeviceState()
     }
 
     std::size_t key_count = 0;
-    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    const AntEsportsMK4100KeyPosition* keys = GetKeyPositions(&key_count);
     const std::size_t limit = std::min(key_count, colors.size());
     for(std::size_t i = 0; i < limit; ++i)
     {
@@ -337,7 +461,7 @@ bool RGBController_AntEsportsMK4100::BuildFrame(uint8_t rgb[MK4100_RGB_BYTES]) c
     if(!rgb || colors.size() != leds.size()) return false;
     std::memset(rgb, 0, MK4100_RGB_BYTES);
     std::size_t key_count = 0;
-    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    const AntEsportsMK4100KeyPosition* keys = GetKeyPositions(&key_count);
     if(key_count != colors.size()) return false;
 
     for(std::size_t i = 0; i < key_count; ++i)
@@ -364,7 +488,7 @@ void RGBController_AntEsportsMK4100::DeviceUpdateLEDs()
     controller->CopyCurrentRGB(previous);
 
     std::size_t key_count = 0;
-    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    const AntEsportsMK4100KeyPosition* keys = GetKeyPositions(&key_count);
     if(key_count != colors.size()) return;
 
     std::vector<std::size_t> changed_leds;
@@ -385,8 +509,9 @@ void RGBController_AntEsportsMK4100::DeviceUpdateLEDs()
     if(changed_leds.empty()) return;
     if(changed_leds.size() <= SINGLE_KEY_UPDATE_LIMIT)
     {
-        for(const std::size_t i : changed_leds)
+        for(std::size_t changed_index = 0; changed_index < changed_leds.size(); ++changed_index)
         {
+            const std::size_t i = changed_leds[changed_index];
             const std::size_t offset = static_cast<std::size_t>(keys[i].slot) * 3u;
             if(!controller->SetSingleKeyRGB(keys[i].slot, frame[offset], frame[offset + 1u], frame[offset + 2u]))
             {
@@ -420,7 +545,7 @@ void RGBController_AntEsportsMK4100::DeviceUpdateSingleLED(int led_index)
     if(led_index < 0 || led_index >= static_cast<int>(leds.size())) return;
 
     std::size_t key_count = 0;
-    const mk4100_key_position* keys = mk4100_get_key_positions(&key_count);
+    const AntEsportsMK4100KeyPosition* keys = GetKeyPositions(&key_count);
     if(static_cast<std::size_t>(led_index) >= key_count) return;
     const RGBColor color = colors[static_cast<std::size_t>(led_index)];
 

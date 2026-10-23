@@ -2,6 +2,8 @@
 | RGBController_AntEsportsMK4100.h                          |
 |                                                           |
 | OpenRGB RGB controller for Ant Esports MK4100             |
+|                                                           |
+| This file is part of the OpenRGB project                  |
 | SPDX-License-Identifier: GPL-2.0-or-later                 |
 \*---------------------------------------------------------*/
 

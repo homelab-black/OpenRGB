@@ -207,8 +207,6 @@ HEADERS +=                                                                      
 SOURCES +=                                                                                      \
     $$GUI_CPP                                                                                   \
     $$CONTROLLER_CPP                                                                            \
-    Controllers/AntEsportsMK4100Controller/mk4100_protocol.c                                    \
-    Controllers/AntEsportsMK4100Controller/mk4100_layout.c                                      \
     dependencies/ColorWheel/ColorWheel.cpp                                                      \
     dependencies/hueplusplus-1.2.0/src/Action.cpp                                               \
     dependencies/hueplusplus-1.2.0/src/APICache.cpp                                             \
