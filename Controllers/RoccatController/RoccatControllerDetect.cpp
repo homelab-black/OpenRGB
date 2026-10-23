@@ -45,7 +45,6 @@
 |  MICE                                                             |
 \*-----------------------------------------------------------------*/
 #define ROCCAT_BURST_CORE_PID           0x2DE6
-#define ROCCAT_BURST_PRO_PID            0x2DE1
 #define ROCCAT_BURST_PRO_AIR_PID        0x2CA6
 #define ROCCAT_KONE_AIMO_PID            0x2E27
 #define ROCCAT_KONE_AIMO_16K_PID        0x2E2C
@@ -248,6 +247,7 @@ DetectedControllers DetectRoccatBurstProControllers(hid_device_info* info, const
     if(dev)
     {
         RoccatBurstController *     controller          = new RoccatBurstController(dev, *info, name);
+
         RGBController_RoccatBurst * rgb_controller      = new RGBController_RoccatBurst(controller, ROCCAT_BURST_PRO_NUMBER_OF_LEDS);
 
         detected_controllers.push_back(rgb_controller);
