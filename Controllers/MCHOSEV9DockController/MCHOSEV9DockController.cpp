@@ -61,8 +61,8 @@ void MCHOSEV9DockController::SendCommand(unsigned char cmd, unsigned char frame_
     unsigned char buf[MCHOSE_V9_DOCK_PACKET_SIZE];
 
     /*---------------------------------------------------------*\
-    | Packet layout (after report ID 0x00):                 |
-    |   AA <cmd> <type> <frame seq> <total frames> <len> ...|
+    | Packet layout (after report ID 0x00):                     |
+    |   AA <cmd> <type> <frame seq> <total frames> <len> ...    |
     \*---------------------------------------------------------*/
     memset(buf, 0x00, MCHOSE_V9_DOCK_PACKET_SIZE);
 
@@ -79,7 +79,10 @@ void MCHOSEV9DockController::SendCommand(unsigned char cmd, unsigned char frame_
         memcpy(&buf[MCHOSE_V9_DOCK_HEADER_SIZE], params, param_len);
     }
 
-    hid_write(dev, buf, MCHOSE_V9_DOCK_PACKET_SIZE);
+    if(hid_write(dev, buf, MCHOSE_V9_DOCK_PACKET_SIZE) < 0)
+    {
+        LOG_ERROR("[%s] Failed to send command 0x%02X: %ls", name.c_str(), cmd, hid_error(dev));
+    }
 }
 
 void MCHOSEV9DockController::ReadInfo()
@@ -89,8 +92,8 @@ void MCHOSEV9DockController::ReadInfo()
     SendCommand(MCHOSE_V9_DOCK_CMD_GET_INFO, 0, 0, NULL, 0);
 
     /*---------------------------------------------------------*\
-    | Wait for the reply to the info request, skipping any  |
-    | unrelated input reports                               |
+    | Wait for the reply to the info request, skipping any      |
+    | unrelated input reports                                   |
     \*---------------------------------------------------------*/
     for(int attempt = 0; attempt < 5; attempt++)
     {
@@ -98,7 +101,13 @@ void MCHOSEV9DockController::ReadInfo()
 
         int bytes_read = hid_read_timeout(dev, buf, MCHOSE_V9_DOCK_PACKET_SIZE, 500);
 
-        if(bytes_read <= 0)
+        if(bytes_read < 0)
+        {
+            LOG_ERROR("[%s] Failed to read info response: %ls", name.c_str(), hid_error(dev));
+            return;
+        }
+
+        if(bytes_read == 0)
         {
             break;
         }
@@ -116,8 +125,9 @@ void MCHOSEV9DockController::ReadInfo()
             snprintf(version, sizeof(version), "%d.%d.%d", data[13], data[12], data[11]);
             firmware_version = version;
 
-            LOG_DEBUG("[%s] On: %d Mode: %d Speed: %d Brightness: %d Sync: %d Color: %02X%02X%02X Firmware: %s",
-                      name.c_str(), data[0], data[1], data[3], data[4], data[5], data[6], data[7], data[8], firmware_version.c_str());
+            LOG_INFO("[%s] Firmware: %s", name.c_str(), firmware_version.c_str());
+            LOG_DEBUG("[%s] On: %d Mode: %d Speed: %d Brightness: %d Sync: %d Color: %02X%02X%02X",
+                      name.c_str(), data[0], data[1], data[3], data[4], data[5], data[6], data[7], data[8]);
             return;
         }
     }
@@ -130,10 +140,10 @@ void MCHOSEV9DockController::SetEffect(bool enable, unsigned char mode, unsigned
     unsigned char params[10];
 
     /*---------------------------------------------------------*\
-    | Parameters:                                           |
-    |   on, mode, mode count, speed, brightness, sync,      |
-    |   red, green, blue, direction                         |
-    | Sync must be enabled for per-LED colors to be accepted|
+    | Parameters:                                               |
+    |   on, mode, mode count, speed, brightness, sync,          |
+    |   red, green, blue, direction                             |
+    | Sync must be enabled for per-LED colors to be accepted    |
     \*---------------------------------------------------------*/
     params[0]           = enable ? 0x01 : 0x00;
     params[1]           = mode;
@@ -162,8 +172,8 @@ void MCHOSEV9DockController::SetLEDs(std::vector<RGBColor> colors)
     }
 
     /*---------------------------------------------------------*\
-    | Color data is split into frames of up to 57 bytes, the|
-    | total frames field holds the index of the last frame  |
+    | Color data is split into frames of up to 57 bytes, the    |
+    | total frames field holds the index of the last frame      |
     \*---------------------------------------------------------*/
     unsigned int  frame_count   = (data_len + MCHOSE_V9_DOCK_MAX_PARAM_LEN - 1) / MCHOSE_V9_DOCK_MAX_PARAM_LEN;
 
