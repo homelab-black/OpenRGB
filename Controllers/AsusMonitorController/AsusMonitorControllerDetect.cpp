@@ -55,6 +55,11 @@ REGISTER_HID_DETECTOR_IPU("Asus ROG SWIFT PG32UCDMR",   DetectAsusMonitorControl
 REGISTER_HID_DETECTOR_IPU("Asus ROG SWIFT PG32UCDP",    DetectAsusMonitorControllers, ASUS_VID, ASUS_ROG_SWIFT_PG32UCDP_PID,    1, 0xFF72, 0x00A1);
 /*---------------------------------------------------------*\
 | ALB01 exposes the Aura HID collection on interface 2.     |
+| Front white/CCT lamp is vendor EP0, not this HID report.  |
 \*---------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Asus ROG Aura Monitor Light Bar", DetectAsusMonitorControllers, ASUS_VID, ASUS_ROG_AURA_MONITOR_LIGHT_BAR_PID, 2, 0xFF72, 0x00A1);
+/*---------------------------------------------------------*\
+| Front white uses vendor EP0 on usbfs, not hidraw.         |
+\*---------------------------------------------------------*/
+REGISTER_CUSTOM_UDEV_RULE(asus_alb01_usbfs, "Asus ROG Aura Monitor Light Bar usbfs", "SUBSYSTEM==\"usb\", ATTR{idVendor}==\"0b05\", ATTR{idProduct}==\"1ac8\", TAG+=\"uaccess\", TAG+=\"Asus_ROG_Aura_Monitor_Light_Bar\"");
 

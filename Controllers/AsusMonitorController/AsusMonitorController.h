@@ -13,6 +13,7 @@
 
 #include <string>
 #include <hidapi.h>
+#include <libusb.h>
 #include "RGBController.h"
 
 #define ASUS_MONITOR_REPORT_SIZE 65
@@ -27,7 +28,9 @@ public:
     std::string                 GetNameString();
     std::string                 GetSerialString();
     unsigned int                GetNumberOfLEDs();
-    void                        SetDirect(std::vector<RGBColor> colors);    
+    bool                        HasFrontWhite();
+    void                        SetDirect(std::vector<RGBColor> colors);
+    void                        SetFrontWhite(RGBColor color);
     void                        SendInit();
 
 protected:
@@ -36,4 +39,6 @@ protected:
 private:
     std::string                 location;
     std::string                 name;
+    unsigned short              pid;
+    libusb_device_handle*       usb;
 };

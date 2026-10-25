@@ -19,7 +19,7 @@
     @direct :white_check_mark:
     @effects :x:
     @detectors DetectAsusMonitorControllers
-    @comment
+    @comment ALB01 front white lamp is a second zone. RGB maps to brightness (peak channel) and CCT (red=warm, blue=cool).
 \*-------------------------------------------------------------------*/
 
 RGBController_AsusMonitor::RGBController_AsusMonitor(AsusMonitorController* controller_ptr)
@@ -53,22 +53,42 @@ RGBController_AsusMonitor::~RGBController_AsusMonitor()
 
 void RGBController_AsusMonitor::SetupZones()
 {
-    zone new_zone;
+    zone rgb_zone;
 
-    new_zone.name       = "Monitor";
-    new_zone.type       = ZONE_TYPE_LINEAR;
+    rgb_zone.name       = controller->HasFrontWhite() ? "Rear RGB" : "Monitor";
+    rgb_zone.type       = ZONE_TYPE_LINEAR;
+    rgb_zone.leds_min   = number_of_leds;
+    rgb_zone.leds_max   = number_of_leds;
+    rgb_zone.leds_count = number_of_leds;
 
-    new_zone.leds_min   = number_of_leds;
-    new_zone.leds_max   = number_of_leds;
-    new_zone.leds_count = number_of_leds;
+    zones.emplace_back(rgb_zone);
 
-    zones.emplace_back(new_zone);
+    unsigned int total_leds = number_of_leds;
 
-    leds.resize(new_zone.leds_count);
+    if(controller->HasFrontWhite())
+    {
+        zone white_zone;
+
+        white_zone.name       = "Front Light";
+        white_zone.type       = ZONE_TYPE_SINGLE;
+        white_zone.leds_min   = 1;
+        white_zone.leds_max   = 1;
+        white_zone.leds_count = 1;
+
+        zones.emplace_back(white_zone);
+        total_leds += 1;
+    }
+
+    leds.resize(total_leds);
 
     for(unsigned int i = 0; i < number_of_leds; i++)
     {
         leds[i].name = "LED " + std::to_string(i);
+    }
+
+    if(controller->HasFrontWhite())
+    {
+        leds[number_of_leds].name = "Front";
     }
 
     SetupColors();
@@ -76,7 +96,22 @@ void RGBController_AsusMonitor::SetupZones()
 
 void RGBController_AsusMonitor::DeviceUpdateLEDs()
 {
-    controller->SetDirect(colors);
+    if(controller->HasFrontWhite() && colors.size() > number_of_leds)
+    {
+        std::vector<RGBColor> rgb_colors;
+
+        for(unsigned int i = 0; i < number_of_leds; i++)
+        {
+            rgb_colors.push_back(colors[i]);
+        }
+
+        controller->SetDirect(rgb_colors);
+        controller->SetFrontWhite(colors[number_of_leds]);
+    }
+    else
+    {
+        controller->SetDirect(colors);
+    }
 }
 
 void RGBController_AsusMonitor::DeviceUpdateZoneLEDs(int /*zone*/)
