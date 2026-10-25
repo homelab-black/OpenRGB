@@ -678,7 +678,6 @@ static const std::map<uint16_t, const char*> hidpp20_legacy_wireless_pids =
 {
     { 0x4053, "Logitech G900 Wireless Gaming Mouse"      },
     { 0x405D, "Logitech G403 Wireless Gaming Mouse"      },
-    { 0x405F, "Logitech Powerplay Mat"                   },
     { 0x4067, "Logitech G903 Wireless Gaming Mouse"      },
     { 0x4070, "Logitech G703 Wireless Gaming Mouse"      },
     { 0x4079, "Logitech G Pro Wireless Gaming Mouse"     },
@@ -1681,7 +1680,6 @@ DetectedControllers DetectLogitechLightspeedReceiver(hid_device_info* info, cons
 | Lightspeed Receivers (Windows Wireless)                                                                                                           |
 \*-------------------------------------------------------------------------------------------------------------------------------------------------*/
 REGISTER_HID_DETECTOR_IPU("Logitech Lightspeed Receiver",                        DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_RECEIVER_PID,   2, 0xFF00, 1);
-REGISTER_HID_DETECTOR_IPU("Logitech G Powerplay Mousepad",                       DetectLogitechLightspeedReceiver,   LOGITECH_VID, LOGITECH_G_LIGHTSPEED_POWERPLAY_PID,  2, 0xFF00, 1);
 
 #endif
 
