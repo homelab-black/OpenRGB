@@ -42,6 +42,8 @@ enum
 
 /*-----------------------------------------------------*\
 | ASRock GPU Modes                                      |
+| Names as in ASRock's Polychrome software, the mode    |
+| IDs are Polychrome V2's minus 0x10 (issue #5979)      |
 \*-----------------------------------------------------*/
 enum
 {
@@ -52,10 +54,14 @@ enum
     ASROCK_GPU_MODE_SPECTRUM_CYCLE      = 0x04,
     ASROCK_GPU_MODE_RANDOM              = 0x05,
     ASROCK_GPU_MODE_WAVE                = 0x07,
-    ASROCK_GPU_MODE_SPRING              = 0x09,
-    ASROCK_GPU_MODE_STACK               = 0x0B,
-    ASROCK_GPU_MODE_SCAN                = 0x0D,
+    ASROCK_GPU_MODE_SPRING              = 0x08,
+    ASROCK_GPU_MODE_STACK               = 0x09,
+    ASROCK_GPU_MODE_CRAM                = 0x0A,
+    ASROCK_GPU_MODE_SCAN                = 0x0B,
+    ASROCK_GPU_MODE_NEON                = 0x0C,
+    ASROCK_GPU_MODE_WATER               = 0x0D,
     ASROCK_GPU_MODE_RAINBOW             = 0x0E,
+    ASROCK_GPU_MODE_RAINBOW_WAVE        = 0x0F,
     ASROCK_GPU_MODE_DIRECT              = 0xE1,
 };
 

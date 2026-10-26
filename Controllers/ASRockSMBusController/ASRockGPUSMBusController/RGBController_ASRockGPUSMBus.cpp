@@ -117,41 +117,80 @@ RGBController_ASRockGPUSMBus::RGBController_ASRockGPUSMBus(ASRockGPUSMBusControl
     mode Spring;
     Spring.name                 = "Spring";
     Spring.value                = ASROCK_GPU_MODE_SPRING;
-    Spring.flags                = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
+    Spring.flags                = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
     Spring.speed_min            = ASROCK_GPU_SPEED_MIN;
     Spring.speed_max            = ASROCK_GPU_SPEED_MAX;
     Spring.speed                = ASROCK_GPU_SPEED_DEFAULT;
     Spring.brightness_min       = ASROCK_GPU_BRIGHTNESS_MIN;
     Spring.brightness_max       = ASROCK_GPU_BRIGHTNESS_MAX;
     Spring.brightness           = ASROCK_GPU_BRIGHTNESS_DEFAULT;
-    Spring.color_mode           = MODE_COLORS_NONE;
+    Spring.color_mode           = MODE_COLORS_PER_LED;
     modes.push_back(Spring);
 
     mode Stack;
     Stack.name                  = "Stack";
     Stack.value                 = ASROCK_GPU_MODE_STACK;
-    Stack.flags                 = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
+    Stack.flags                 = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
     Stack.speed_min             = ASROCK_GPU_SPEED_MIN;
     Stack.speed_max             = ASROCK_GPU_SPEED_MAX;
     Stack.speed                 = ASROCK_GPU_SPEED_DEFAULT;
     Stack.brightness_min        = ASROCK_GPU_BRIGHTNESS_MIN;
     Stack.brightness_max        = ASROCK_GPU_BRIGHTNESS_MAX;
     Stack.brightness            = ASROCK_GPU_BRIGHTNESS_DEFAULT;
-    Stack.color_mode            = MODE_COLORS_NONE;
+    Stack.color_mode            = MODE_COLORS_PER_LED;
     modes.push_back(Stack);
+
+    mode Cram;
+    Cram.name                   = "Cram";
+    Cram.value                  = ASROCK_GPU_MODE_CRAM;
+    Cram.flags                  = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
+    Cram.speed_min              = ASROCK_GPU_SPEED_MIN;
+    Cram.speed_max              = ASROCK_GPU_SPEED_MAX;
+    Cram.speed                  = ASROCK_GPU_SPEED_DEFAULT;
+    Cram.brightness_min         = ASROCK_GPU_BRIGHTNESS_MIN;
+    Cram.brightness_max         = ASROCK_GPU_BRIGHTNESS_MAX;
+    Cram.brightness             = ASROCK_GPU_BRIGHTNESS_DEFAULT;
+    Cram.color_mode             = MODE_COLORS_PER_LED;
+    modes.push_back(Cram);
 
     mode Scan;
     Scan.name                   = "Scan";
     Scan.value                  = ASROCK_GPU_MODE_SCAN;
-    Scan.flags                  = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
+    Scan.flags                  = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
     Scan.speed_min              = ASROCK_GPU_SPEED_MIN;
     Scan.speed_max              = ASROCK_GPU_SPEED_MAX;
     Scan.speed                  = ASROCK_GPU_SPEED_DEFAULT;
     Scan.brightness_min         = ASROCK_GPU_BRIGHTNESS_MIN;
     Scan.brightness_max         = ASROCK_GPU_BRIGHTNESS_MAX;
     Scan.brightness             = ASROCK_GPU_BRIGHTNESS_DEFAULT;
-    Scan.color_mode             = MODE_COLORS_NONE;
+    Scan.color_mode             = MODE_COLORS_PER_LED;
     modes.push_back(Scan);
+
+    mode Neon;
+    Neon.name                   = "Neon";
+    Neon.value                  = ASROCK_GPU_MODE_NEON;
+    Neon.flags                  = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE;
+    Neon.speed_min              = ASROCK_GPU_SPEED_MIN;
+    Neon.speed_max              = ASROCK_GPU_SPEED_MAX;
+    Neon.speed                  = ASROCK_GPU_SPEED_DEFAULT;
+    Neon.brightness_min         = ASROCK_GPU_BRIGHTNESS_MIN;
+    Neon.brightness_max         = ASROCK_GPU_BRIGHTNESS_MAX;
+    Neon.brightness             = ASROCK_GPU_BRIGHTNESS_DEFAULT;
+    Neon.color_mode             = MODE_COLORS_PER_LED;
+    modes.push_back(Neon);
+
+    mode Water;
+    Water.name                  = "Water";
+    Water.value                 = ASROCK_GPU_MODE_WATER;
+    Water.flags                 = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
+    Water.speed_min             = ASROCK_GPU_SPEED_MIN;
+    Water.speed_max             = ASROCK_GPU_SPEED_MAX;
+    Water.speed                 = ASROCK_GPU_SPEED_DEFAULT;
+    Water.brightness_min        = ASROCK_GPU_BRIGHTNESS_MIN;
+    Water.brightness_max        = ASROCK_GPU_BRIGHTNESS_MAX;
+    Water.brightness            = ASROCK_GPU_BRIGHTNESS_DEFAULT;
+    Water.color_mode            = MODE_COLORS_NONE;
+    modes.push_back(Water);
 
     mode Rainbow;
     Rainbow.name                = "Rainbow";
@@ -165,6 +204,19 @@ RGBController_ASRockGPUSMBus::RGBController_ASRockGPUSMBus(ASRockGPUSMBusControl
     Rainbow.brightness          = ASROCK_GPU_BRIGHTNESS_DEFAULT;
     Rainbow.color_mode          = MODE_COLORS_NONE;
     modes.push_back(Rainbow);
+
+    mode RainbowWave;
+    RainbowWave.name            = "Rainbow Wave";
+    RainbowWave.value           = ASROCK_GPU_MODE_RAINBOW_WAVE;
+    RainbowWave.flags           = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
+    RainbowWave.speed_min       = ASROCK_GPU_SPEED_MIN;
+    RainbowWave.speed_max       = ASROCK_GPU_SPEED_MAX;
+    RainbowWave.speed           = ASROCK_GPU_SPEED_DEFAULT;
+    RainbowWave.brightness_min  = ASROCK_GPU_BRIGHTNESS_MIN;
+    RainbowWave.brightness_max  = ASROCK_GPU_BRIGHTNESS_MAX;
+    RainbowWave.brightness      = ASROCK_GPU_BRIGHTNESS_DEFAULT;
+    RainbowWave.color_mode      = MODE_COLORS_NONE;
+    modes.push_back(RainbowWave);
 
     mode Off;
     Off.name                    = "Off";
