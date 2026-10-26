@@ -311,7 +311,7 @@ void RGBController_ASRockGPUSMBus::DeviceUpdateLEDs()
     }
 }
 
-void RGBController_ASRockGPUSMBus::UpdateZoneLEDs(int zone)
+void RGBController_ASRockGPUSMBus::DeviceUpdateZoneLEDs(int zone)
 {
     if(zone < 0 || (unsigned int)zone >= controller->num_channels)
     {
@@ -344,9 +344,9 @@ void RGBController_ASRockGPUSMBus::UpdateZoneLEDs(int zone)
     }
 }
 
-void RGBController_ASRockGPUSMBus::UpdateSingleLED(int led)
+void RGBController_ASRockGPUSMBus::DeviceUpdateSingleLED(int led)
 {
-    UpdateZoneLEDs(led);
+    DeviceUpdateZoneLEDs(led);
 }
 
 void RGBController_ASRockGPUSMBus::DeviceUpdateMode()
