@@ -28,8 +28,11 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone);
     void        DeviceSaveMode();
 
 private:
     ASRockGPUSMBusController* controller;
+
+    mode*       GetZoneMode(int zone);
 };

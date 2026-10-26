@@ -226,6 +226,21 @@ RGBController_ASRockGPUSMBus::RGBController_ASRockGPUSMBus(ASRockGPUSMBusControl
     modes.push_back(Off);
 
     SetupZones();
+
+    /*-----------------------------------------------------*\
+    | Each channel runs its own effect, so every mode       |
+    | except Direct is also available per zone              |
+    \*-----------------------------------------------------*/
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        for(std::size_t mode_idx = 0; mode_idx < modes.size(); mode_idx++)
+        {
+            if(modes[mode_idx].value != ASROCK_GPU_MODE_DIRECT)
+            {
+                zones[zone_idx].modes.push_back(modes[mode_idx]);
+            }
+        }
+    }
 }
 
 RGBController_ASRockGPUSMBus::~RGBController_ASRockGPUSMBus()
@@ -292,36 +307,60 @@ void RGBController_ASRockGPUSMBus::ResizeZone(int /*zone*/, int /*new_size*/)
 
 void RGBController_ASRockGPUSMBus::DeviceUpdateLEDs()
 {
-    if(modes[active_mode].value == ASROCK_GPU_MODE_DIRECT)
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
     {
-        for(unsigned int i = 0; i < controller->num_channels; i++)
-        {
-            uint8_t channel_idx = controller->enabled_channels[i];
-            RGBColor color      = colors[i];
-
-            controller->SetChannelColor(channel_idx,
-                                        RGBGetRValue(color),
-                                        RGBGetGValue(color),
-                                        RGBGetBValue(color));
-        }
-    }
-    else
-    {
-        DeviceUpdateMode();
+        DeviceUpdateZoneLEDs((int)zone_idx);
     }
 }
 
 void RGBController_ASRockGPUSMBus::DeviceUpdateZoneLEDs(int zone)
 {
-    if(zone < 0 || (unsigned int)zone >= controller->num_channels)
+    /*-----------------------------------------------------*\
+    | In Direct mode only the zones that follow the device  |
+    | mode stream colors, resending a zone's own effect     |
+    | would restart it                                      |
+    \*-----------------------------------------------------*/
+    if((modes[active_mode].value == ASROCK_GPU_MODE_DIRECT) && (GetZoneMode(zone) != &modes[active_mode]))
     {
         return;
     }
 
-    uint8_t channel_idx = controller->enabled_channels[zone];
-    RGBColor color      = colors[zone];
+    DeviceUpdateZoneMode(zone);
+}
 
-    if(modes[active_mode].value == ASROCK_GPU_MODE_DIRECT)
+void RGBController_ASRockGPUSMBus::DeviceUpdateSingleLED(int led)
+{
+    /*-----------------------------------------------------*\
+    | Each zone has exactly one LED                         |
+    \*-----------------------------------------------------*/
+    DeviceUpdateZoneLEDs(led);
+}
+
+void RGBController_ASRockGPUSMBus::DeviceUpdateMode()
+{
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        DeviceUpdateZoneMode((int)zone_idx);
+    }
+}
+
+void RGBController_ASRockGPUSMBus::DeviceUpdateZoneMode(int zone)
+{
+    if((zone < 0) || ((unsigned int)zone >= controller->num_channels))
+    {
+        return;
+    }
+
+    uint8_t     channel_idx = controller->enabled_channels[zone];
+    mode*       zone_mode   = GetZoneMode(zone);
+    RGBColor    color       = 0;
+
+    if(zone_mode->color_mode == MODE_COLORS_PER_LED)
+    {
+        color = colors[zone];
+    }
+
+    if(zone_mode->value == ASROCK_GPU_MODE_DIRECT)
     {
         controller->SetChannelColor(channel_idx,
                                     RGBGetRValue(color),
@@ -330,38 +369,11 @@ void RGBController_ASRockGPUSMBus::DeviceUpdateZoneLEDs(int zone)
     }
     else
     {
-        uint8_t mode_val   = modes[active_mode].value;
-        uint8_t speed      = (modes[active_mode].flags & MODE_FLAG_HAS_SPEED) ? modes[active_mode].speed : ASROCK_GPU_SPEED_DEFAULT;
-        uint8_t brightness = (modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS) ? modes[active_mode].brightness : ASROCK_GPU_BRIGHTNESS_DEFAULT;
+        uint8_t speed       = (zone_mode->flags & MODE_FLAG_HAS_SPEED) ? zone_mode->speed : ASROCK_GPU_SPEED_DEFAULT;
+        uint8_t brightness  = (zone_mode->flags & MODE_FLAG_HAS_BRIGHTNESS) ? zone_mode->brightness : ASROCK_GPU_BRIGHTNESS_DEFAULT;
 
         controller->SetChannelMode(channel_idx,
-                                   mode_val,
-                                   speed,
-                                   brightness,
-                                   RGBGetRValue(color),
-                                   RGBGetGValue(color),
-                                   RGBGetBValue(color));
-    }
-}
-
-void RGBController_ASRockGPUSMBus::DeviceUpdateSingleLED(int led)
-{
-    DeviceUpdateZoneLEDs(led);
-}
-
-void RGBController_ASRockGPUSMBus::DeviceUpdateMode()
-{
-    uint8_t mode_val   = modes[active_mode].value;
-    uint8_t speed      = (modes[active_mode].flags & MODE_FLAG_HAS_SPEED) ? modes[active_mode].speed : ASROCK_GPU_SPEED_DEFAULT;
-    uint8_t brightness = (modes[active_mode].flags & MODE_FLAG_HAS_BRIGHTNESS) ? modes[active_mode].brightness : ASROCK_GPU_BRIGHTNESS_DEFAULT;
-
-    for(unsigned int i = 0; i < controller->num_channels; i++)
-    {
-        uint8_t channel_idx = controller->enabled_channels[i];
-        RGBColor color      = (i < colors.size()) ? colors[i] : 0;
-
-        controller->SetChannelMode(channel_idx,
-                                   mode_val,
+                                   zone_mode->value,
                                    speed,
                                    brightness,
                                    RGBGetRValue(color),
@@ -374,4 +386,18 @@ void RGBController_ASRockGPUSMBus::DeviceSaveMode()
 {
     DeviceUpdateMode();
     controller->SaveConfig();
+}
+
+mode* RGBController_ASRockGPUSMBus::GetZoneMode(int zone)
+{
+    /*-----------------------------------------------------*\
+    | A zone uses its own mode if it has one selected,      |
+    | otherwise the device mode                             |
+    \*-----------------------------------------------------*/
+    if((zones[zone].active_mode >= 0) && (zones[zone].active_mode < (int)zones[zone].modes.size()))
+    {
+        return(&zones[zone].modes[zones[zone].active_mode]);
+    }
+
+    return(&modes[active_mode]);
 }
