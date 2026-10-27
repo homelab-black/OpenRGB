@@ -572,14 +572,16 @@ void RGBController_EVisionKeyboard::SetupZones()
 {
     std::vector<unsigned int> flat_matrix;
 
-    for(const auto& row : phantom104.matrix_map)
-    {
-        flat_matrix.insert(
-            flat_matrix.end(),
-            row.begin(),
-            row.end()
-        );
-    }
+for(unsigned int row_idx = 0;
+    row_idx < phantom104.matrix_map.size();
+    row_idx++)
+{
+    flat_matrix.insert(
+        flat_matrix.end(),
+        phantom104.matrix_map[row_idx].begin(),
+        phantom104.matrix_map[row_idx].end()
+    );
+}
 
     
     zone new_zone;
