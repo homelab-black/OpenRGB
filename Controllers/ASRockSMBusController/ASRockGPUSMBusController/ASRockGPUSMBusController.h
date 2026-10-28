@@ -51,7 +51,6 @@ enum
     ASROCK_GPU_MODE_STATIC              = 0x01,
     ASROCK_GPU_MODE_BREATHING           = 0x02,
     ASROCK_GPU_MODE_STROBE              = 0x03,
-    ASROCK_GPU_MODE_SPECTRUM_CYCLE      = 0x04,
     ASROCK_GPU_MODE_RANDOM              = 0x05,
     ASROCK_GPU_MODE_WAVE                = 0x07,
     ASROCK_GPU_MODE_SPRING              = 0x08,

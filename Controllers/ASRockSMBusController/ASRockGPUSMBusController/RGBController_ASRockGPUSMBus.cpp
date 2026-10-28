@@ -75,19 +75,6 @@ RGBController_ASRockGPUSMBus::RGBController_ASRockGPUSMBus(ASRockGPUSMBusControl
     Strobe.color_mode           = MODE_COLORS_PER_LED;
     modes.push_back(Strobe);
 
-    mode SpectrumCycle;
-    SpectrumCycle.name          = "Spectrum Cycle";
-    SpectrumCycle.value         = ASROCK_GPU_MODE_SPECTRUM_CYCLE;
-    SpectrumCycle.flags         = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
-    SpectrumCycle.speed_min     = ASROCK_GPU_SPEED_SLOWEST;
-    SpectrumCycle.speed_max     = ASROCK_GPU_SPEED_FASTEST;
-    SpectrumCycle.speed         = ASROCK_GPU_SPEED_DEFAULT;
-    SpectrumCycle.brightness_min= ASROCK_GPU_BRIGHTNESS_MIN;
-    SpectrumCycle.brightness_max= ASROCK_GPU_BRIGHTNESS_MAX;
-    SpectrumCycle.brightness    = ASROCK_GPU_BRIGHTNESS_DEFAULT;
-    SpectrumCycle.color_mode    = MODE_COLORS_NONE;
-    modes.push_back(SpectrumCycle);
-
     mode Random;
     Random.name                 = "Random";
     Random.value                = ASROCK_GPU_MODE_RANDOM;
