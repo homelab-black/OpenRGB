@@ -22,8 +22,8 @@ typedef uint8_t asrock_gpu_dev_id;
 /*-----------------------------------------------------*\
 | ASRock GPU Speed and Brightness Constants             |
 \*-----------------------------------------------------*/
-#define ASROCK_GPU_SPEED_MIN            0x00
-#define ASROCK_GPU_SPEED_MAX            0xFF
+#define ASROCK_GPU_SPEED_SLOWEST        0xFF
+#define ASROCK_GPU_SPEED_FASTEST        0x00
 #define ASROCK_GPU_SPEED_DEFAULT        0x80
 
 #define ASROCK_GPU_BRIGHTNESS_MIN       0x00
