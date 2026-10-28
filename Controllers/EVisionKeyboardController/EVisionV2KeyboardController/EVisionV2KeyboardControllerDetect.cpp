@@ -30,6 +30,8 @@
 \*---------------------------------------------------------*/
 #define ENDORFY_OMNIS_PID                           0x0012
 #define BYGG_CSB_ICL01_PID                          0x5041
+#define SPCGEAR_GK630K_PID                          0x4E65
+#define SPCGEAR_GK630K_ALT_PID                      0x4E5B
 
 DetectedControllers DetectEVisionV2Keyboards(hid_device_info* info, const std::string& name)
 {
@@ -67,12 +69,18 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 
     if(dev)
     {
-        EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, ENDORFY_KEYBOARD_LAYOUT, name);
+        EVisionV2KeyboardLayout kb_layout = ENDORFY_KEYBOARD_LAYOUT;
+        if(info->product_id == SPCGEAR_GK630K_PID || info->product_id == SPCGEAR_GK630K_ALT_PID)
+        {
+            kb_layout = SPCGEAR_GK630K_LAYOUT;
+        }
+
+        EVisionV2KeyboardController*     controller     = new EVisionV2KeyboardController(dev, info->path, kb_layout, name);
         RGBController_EVisionV2Keyboard* rgb_controller = new RGBController_EVisionV2Keyboard(controller, EVISION_V2_KEYBOARD_PART_KEYBOARD);
 
         detected_controllers.push_back(rgb_controller);
 
-        if(!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true)
+        if((info->product_id == ENDORFY_OMNIS_PID) && (!settings.contains("AdditionalZones") || settings["AdditionalZones"] == true))
         {
             rgb_controller                              = new RGBController_EVisionV2Keyboard(controller, ENDORFY_KEYBOARD_PART_EDGE);
 
@@ -86,5 +94,7 @@ DetectedControllers DetectEndorfyKeyboards(hid_device_info* info, const std::str
 /*---------------------------------------------------------*\
 | Keyboards                                                 |
 \*---------------------------------------------------------*/
-REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5041",  DetectEVisionV2Keyboards,   EVISION_VID,    BYGG_CSB_ICL01_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
-REGISTER_HID_DETECTOR_IP("Endorfy Omnis",               DetectEndorfyKeyboards,     SPCGEAR_VID,    ENDORFY_OMNIS_PID,  1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("EVision Keyboard 320F:5041",  DetectEVisionV2Keyboards,   EVISION_VID,    BYGG_CSB_ICL01_PID,     1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("Endorfy Omnis",               DetectEndorfyKeyboards,     SPCGEAR_VID,    ENDORFY_OMNIS_PID,      1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("SPC Gear GK630K",            DetectEndorfyKeyboards,     SPCGEAR_VID,    SPCGEAR_GK630K_PID,     1, EVISION_KEYBOARD_USAGE_PAGE);
+REGISTER_HID_DETECTOR_IP("SPC Gear GK630K (Alt)",      DetectEndorfyKeyboards,     SPCGEAR_VID,    SPCGEAR_GK630K_ALT_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);

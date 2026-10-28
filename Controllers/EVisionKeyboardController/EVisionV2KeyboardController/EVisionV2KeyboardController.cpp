@@ -14,7 +14,6 @@
 #include "EVisionV2KeyboardController.h"
 #include "StringUtils.h"
 
-#define BLANK_SPACE 6
 #define query_check_buffer(c) \
     do                        \
     {                         \
@@ -48,40 +47,69 @@ static uint8_t endorfy_map[EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT] =
     105, 106, 107,                111,                115, 116, 117, 118, 119, 120, 121, 123,      124,
 };
 
+static uint8_t gk630k_map[] =
+{
+ /* Row 0: Esc, F1..F12, PrtSc, ScrLk, Pause */
+      0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  14,  15,  16,
+ /* Row 1: `~, 1..0, -, =, Backspace, Ins, Home, PgUp */
+     21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,
+ /* Row 2: Tab, Q..P, [, ], \, Del, End, PgDn */
+     42,  43,  44,  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,
+ /* Row 3: Caps, A..L, ;, ', Enter */
+     63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  76,
+ /* Row 4: LShift, Z..M, ,, ., /, RShift, Up */
+     84,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,  97,  99,
+ /* Row 5: LCtrl, LWin, LAlt, Space, RAlt, Fn, Menu, RCtrl, Left, Down, Right */
+    105, 106, 107, 108, 109, 110, 111, 113, 119, 120, 121,
+};
+
 EVisionV2KeyboardController::EVisionV2KeyboardController(hid_device* dev_handle, const char* path, EVisionV2KeyboardLayout dev_layout, std::string dev_name)
 {
     dev                 = dev_handle;
     location            = path;
     name                = dev_name;
     layout              = dev_layout;
-
-    /*---------------------------------------------------------*\
-    | Get capabilities and layout                               |
-    \*---------------------------------------------------------*/
-    uint8_t buffer[7];
-    if(Read(EVISION_V2_CMD_READ_CAPABILITIES, 0, sizeof(buffer), buffer) < 0)
-    {
-        return;
-    }
-    if(buffer[0] != 0xAA && buffer[1] != 0x55)
-    {
-        return;
-    }
-
-    map_size    = buffer[5];
-    macros_size = buffer[6] * 0x80;
+    map_size            = EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT;
+    macros_size         = 0;
+    keyvalue_map        = nullptr;
+    led_count           = 0;
+    blank_space         = 6;
 
     switch(layout)
     {
         case EVISION_V2_KEYBOARD_LAYOUT:
             keyvalue_map = evisionv2_map;
-            led_count = 106;
+            led_count    = 106;
+            blank_space  = 6;
             break;
 
         case ENDORFY_KEYBOARD_LAYOUT:
             keyvalue_map = endorfy_map;
-            led_count = 104;
+            led_count    = 104;
+            blank_space  = 1;
             break;
+
+        case SPCGEAR_GK630K_LAYOUT:
+            keyvalue_map = gk630k_map;
+            led_count    = 87;
+            blank_space  = 13;
+            break;
+    }
+
+    /*---------------------------------------------------------*\
+    | Get capabilities and layout                               |
+    \*---------------------------------------------------------*/
+    uint8_t buffer[7];
+    if(Read(EVISION_V2_CMD_READ_CAPABILITIES, 0, sizeof(buffer), buffer) >= 0)
+    {
+        if(buffer[0] == 0xAA && buffer[1] == 0x55)
+        {
+            if(buffer[5] > 0)
+            {
+                map_size = std::max<size_t>(buffer[5], EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT);
+            }
+            macros_size = buffer[6] * 0x80;
+        }
     }
 }
 
@@ -157,7 +185,11 @@ int EVisionV2KeyboardController::Query(uint8_t cmd, uint16_t offset, const uint8
     query_check_buffer(buffer[5] == (offset & 0xff));
     query_check_buffer(buffer[6] == ((offset >> 8) & 0xff));
 
-    if(buffer[7] != 0)
+    /*---------------------------------------------------------*\
+    | Status byte: 0 is standard ACK; SPC Gear and some OEM     |
+    | firmwares return 1 on success. Treat both as success.     |
+    \*---------------------------------------------------------*/
+    if(buffer[7] != 0 && buffer[7] != 1)
     {
         return -buffer[7];
     }
@@ -370,26 +402,40 @@ void EVisionV2KeyboardController::SetMode(EVisionV2KeyboardPart part, const Evis
 
 void EVisionV2KeyboardController::SetLedsDirect(const std::vector<RGBColor>& colours)
 {
-    const size_t colours_num = std::min(colours.size(), led_count);
+    if(!keyvalue_map)
+    {
+        return;
+    }
 
-    uint8_t* buffer = new uint8_t[3 * map_size];
-    memset(buffer, 0, 3 * map_size);
+    const size_t colours_num = std::min(colours.size(), led_count);
+    const size_t alloc_map   = std::max<size_t>(map_size, EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT);
+
+    uint8_t* buffer = new uint8_t[3 * alloc_map];
+    memset(buffer, 0, 3 * alloc_map);
 
     for(size_t i = 0; i < colours_num; i++)
     {
         size_t j = (size_t)keyvalue_map[i] * 3;
-        buffer[j + 0] = RGBGetRValue(colours[i]);
-        buffer[j + 1] = RGBGetGValue(colours[i]);
-        buffer[j + 2] = RGBGetBValue(colours[i]);
+        if(j + 2 < 3 * alloc_map)
+        {
+            buffer[j + 0] = RGBGetRValue(colours[i]);
+            buffer[j + 1] = RGBGetGValue(colours[i]);
+            buffer[j + 2] = RGBGetBValue(colours[i]);
+        }
     }
 
-    Write(EVISION_V2_CMD_SEND_DYNAMIC_COLORS, 0, buffer, (uint16_t)(3 * map_size));
+    Write(EVISION_V2_CMD_SEND_DYNAMIC_COLORS, 0, buffer, (uint16_t)(3 * alloc_map));
 
     delete[] buffer;
 }
 
 void EVisionV2KeyboardController::SetLedDirect(int led, RGBColor colour)
 {
+    if(!keyvalue_map || (size_t)led >= led_count)
+    {
+        return;
+    }
+
     uint8_t buffer[3];
     buffer[0] = RGBGetRValue(colour);
     buffer[1] = RGBGetGValue(colour);
@@ -401,7 +447,7 @@ void EVisionV2KeyboardController::SetLedDirect(int led, RGBColor colour)
 void EVisionV2KeyboardController::RefreshLedDirect()
 {
     // Write one zero byte in the first blank space
-    Query(EVISION_V2_CMD_SEND_DYNAMIC_COLORS, BLANK_SPACE * 3, nullptr, 1, nullptr);
+    Query(EVISION_V2_CMD_SEND_DYNAMIC_COLORS, blank_space * 3, nullptr, 1, nullptr);
 }
 
 void EVisionV2KeyboardController::EndLedsDirect()
@@ -411,26 +457,31 @@ void EVisionV2KeyboardController::EndLedsDirect()
 
 int EVisionV2KeyboardController::GetLedsCustom(uint8_t colorset, std::vector<RGBColor>& colours)
 {
-    if(colorset > 9)
+    if(colorset > 9 || !keyvalue_map)
     {
         return -256;
     }
 
     const size_t colours_num = std::min(colours.size(), led_count);
+    const size_t alloc_map   = std::max<size_t>(map_size, EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT);
 
-    uint8_t* buffer = new uint8_t[3 * map_size];
-    memset(buffer, 0, 3 * map_size);
+    uint8_t* buffer = new uint8_t[3 * alloc_map];
+    memset(buffer, 0, 3 * alloc_map);
 
-    int ret = Read(EVISION_V2_CMD_READ_CUSTOM_COLORS, 512 * colorset, (uint16_t)(3 * map_size), buffer);
+    int ret = Read(EVISION_V2_CMD_READ_CUSTOM_COLORS, 512 * colorset, (uint16_t)(3 * alloc_map), buffer);
     if(ret < 0)
     {
+        delete[] buffer;
         return ret;
     }
 
     for(size_t i = 0; i < colours_num; i++)
     {
         size_t j = (size_t)keyvalue_map[i] * 3;
-        colours[i] = ToRGBColor(buffer[j + 0], buffer[j + 1], buffer[j + 2]);
+        if(j + 2 < 3 * alloc_map)
+        {
+            colours[i] = ToRGBColor(buffer[j + 0], buffer[j + 1], buffer[j + 2]);
+        }
     }
 
     delete[] buffer;
@@ -439,26 +490,30 @@ int EVisionV2KeyboardController::GetLedsCustom(uint8_t colorset, std::vector<RGB
 
 void EVisionV2KeyboardController::SetLedsCustom(uint8_t colorset, const std::vector<RGBColor>& colours)
 {
-    if(colorset > 9)
+    if(colorset > 9 || !keyvalue_map)
     {
         return;
     }
 
     const size_t colours_num = std::min(colours.size(), led_count);
+    const size_t alloc_map   = std::max<size_t>(map_size, EVISION_V2_MATRIX_WIDTH * EVISION_V2_MATRIX_HEIGHT);
 
-    uint8_t* buffer = new uint8_t[3 * map_size];
-    memset(buffer, 0, 3 * map_size);
+    uint8_t* buffer = new uint8_t[3 * alloc_map];
+    memset(buffer, 0, 3 * alloc_map);
 
     for(size_t i = 0; i < colours_num; i++)
     {
         size_t j = (size_t)keyvalue_map[i] * 3;
-        buffer[j + 0] = RGBGetRValue(colours[i]);
-        buffer[j + 1] = RGBGetGValue(colours[i]);
-        buffer[j + 2] = RGBGetBValue(colours[i]);
+        if(j + 2 < 3 * alloc_map)
+        {
+            buffer[j + 0] = RGBGetRValue(colours[i]);
+            buffer[j + 1] = RGBGetGValue(colours[i]);
+            buffer[j + 2] = RGBGetBValue(colours[i]);
+        }
     }
 
     BeginConfigure();
-    Write(EVISION_V2_CMD_WRITE_CUSTOM_COLORS, 512 * colorset, buffer, (uint16_t)(3 * map_size));
+    Write(EVISION_V2_CMD_WRITE_CUSTOM_COLORS, 512 * colorset, buffer, (uint16_t)(3 * alloc_map));
     EndConfigure();
 
     delete[] buffer;
