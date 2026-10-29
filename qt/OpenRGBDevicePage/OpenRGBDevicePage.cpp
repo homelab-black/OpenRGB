@@ -8,6 +8,7 @@
 \*---------------------------------------------------------*/
 
 #include <QTimer>
+#include <QMessageBox>
 
 #include "OpenRGBDevicePage.h"
 #include "OpenRGBDeviceEditorDialog.h"
@@ -522,22 +523,6 @@ void OpenRGBDevicePage::UpdateLEDList()
                     ui->LEDBox->addItem(device->GetLEDDisplayName((unsigned int)i).c_str());
                 }
 
-                /*-----------------------------------------*\
-                | Enable editing if controller has any      |
-                | MANUALLY_CONFIGURABLE flag                |
-                \*-----------------------------------------*/
-                bool is_editable = false;
-
-                controller_flags flags = device->GetFlags();
-
-                if((flags & CONTROLLER_FLAGS_MANUALLY_CONFIGURABLE) > 0)
-                {
-                    is_editable = true;
-                }
-
-                ui->EditButton->setEnabled(is_editable);
-                ui->EditButton->setText(tr("Edit Device"));
-
                 if(!ui->ZoneBox->signalsBlocked())
                 {
                     ui->DeviceViewBox->blockSignals(true);
@@ -577,22 +562,6 @@ void OpenRGBDevicePage::UpdateLEDList()
                 {
                     ui->LEDBox->addItem(device->GetLEDName(device->GetZoneStartIndex(selected_zone) + (unsigned int)led_idx).c_str());
                 }
-
-                /*-----------------------------------------*\
-                | Enable editing if zone has any            |
-                | MANUALLY_CONFIGURABLE flag                |
-                \*-----------------------------------------*/
-                bool zone_is_editable = false;
-
-                zone_flags flags = device->GetZoneFlags(selected_zone);
-
-                if((flags & ZONE_FLAGS_MANUALLY_CONFIGURABLE) > 0)
-                {
-                    zone_is_editable = true;
-                }
-
-                ui->EditButton->setEnabled(zone_is_editable);
-                ui->EditButton->setText(tr("Edit Zone"));
 
                 if(!ui->ZoneBox->signalsBlocked())
                 {
@@ -737,6 +706,52 @@ void OpenRGBDevicePage::UpdateLEDList()
                 ui->LEDBox->blockSignals(false);
             }
             break;
+    }
+}
+
+void OpenRGBDevicePage::UpdateEditButton()
+{
+    bool            selected_all_zones;
+    int             selected_zone;
+    int             selected_segment;
+
+    GetSelectedZone(&selected_all_zones, &selected_zone, &selected_segment);
+
+    if(selected_all_zones)
+    {
+        /*-----------------------------------------*\
+        | Enable editing if controller has any      |
+        | MANUALLY_CONFIGURABLE flag                |
+        \*-----------------------------------------*/
+        bool is_editable = false;
+
+        controller_flags flags = device->GetFlags();
+
+        if((flags & CONTROLLER_FLAGS_MANUALLY_CONFIGURABLE) > 0)
+        {
+            is_editable = true;
+        }
+
+        ui->EditButton->setEnabled(is_editable);
+        ui->EditButton->setText(tr("Edit Device"));
+    }
+    else
+    {
+        /*-----------------------------------------*\
+        | Enable editing if zone has any            |
+        | MANUALLY_CONFIGURABLE flag                |
+        \*-----------------------------------------*/
+        bool zone_is_editable = false;
+
+        zone_flags flags = device->GetZoneFlags(selected_zone);
+
+        if((flags & ZONE_FLAGS_MANUALLY_CONFIGURABLE) > 0)
+        {
+            zone_is_editable = true;
+        }
+
+        ui->EditButton->setEnabled(zone_is_editable);
+        ui->EditButton->setText(tr("Edit Zone"));
     }
 }
 
@@ -1772,6 +1787,8 @@ void OpenRGBDevicePage::UpdateZoneList()
     ui->ZoneBox->setCurrentIndex(0);
     ui->ZoneBox->blockSignals(false);
     ui->ApplyColorsButton->setEnabled(true);
+
+    UpdateEditButton();
 }
 
 /*---------------------------------------------------------*\
@@ -2241,6 +2258,17 @@ void OpenRGBDevicePage::on_EditButton_clicked()
         {
             OpenRGBDeviceEditorDialog dlg(device);
             dlg.show();
+        }
+        else
+        {
+            /*-----------------------------------------*\
+            | Should not be reachable, but just in case |
+            | Prevents a scenario with                  |
+            | clickable but unresponsive button         |
+            \*-----------------------------------------*/
+            QMessageBox box;
+            box.setText(tr("This device has no device-specific configuration options. To set zone size, select a zone first."));
+            box.exec();
         }
     }
     else
@@ -2749,5 +2777,10 @@ void OpenRGBDevicePage::on_ZoneBox_currentIndexChanged(int /*index*/)
     | Update LED UI                                         |
     \*-----------------------------------------------------*/
     UpdateLEDUi();
+
+    /*-----------------------------------------------------*\
+    | Update Edit Device/Edit Zone button                   |
+    \*-----------------------------------------------------*/
+    UpdateEditButton();
 }
 
