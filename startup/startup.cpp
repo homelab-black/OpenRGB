@@ -22,18 +22,32 @@
 
 #ifdef __linux__
 #include <csignal>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <QSocketNotifier>
 #endif
 
 /******************************************************************************************\
 *                                                                                          *
 *   Linux signal handler                                                                   *
 *                                                                                          *
+*       Only async-signal-safe calls are allowed here, so the signal is passed to the      *
+*       event loop through a socket pair and the application quits from there              *
+*                                                                                          *
 \******************************************************************************************/
 #ifdef __linux__
+static int signal_sockets[2];
+
 void sigHandler(int s)
 {
+    char signal_number = (char)s;
+
     std::signal(s, SIG_DFL);
-    qApp->quit();
+
+    if(write(signal_sockets[1], &signal_number, sizeof(signal_number)) != sizeof(signal_number))
+    {
+        _exit(EXIT_FAILURE);
+    }
 }
 #endif
 
@@ -132,8 +146,31 @@ int startup(int argc, char* argv[], unsigned int ret_flags)
         LOG_TRACE("[main] Ready to exec() the dialog");
 
 #ifdef __linux__
-        std::signal(SIGINT,  sigHandler);
-        std::signal(SIGTERM, sigHandler);
+        if(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, signal_sockets) == 0)
+        {
+            QSocketNotifier* signal_notifier = new QSocketNotifier(signal_sockets[0], QSocketNotifier::Read, &a);
+
+            QObject::connect(signal_notifier, &QSocketNotifier::activated, [signal_notifier]()
+            {
+                char signal_number;
+
+                signal_notifier->setEnabled(false);
+
+                if(read(signal_sockets[0], &signal_number, sizeof(signal_number)) == sizeof(signal_number))
+                {
+                    LOG_INFO("[startup] Received signal %d, exiting", signal_number);
+                }
+
+                qApp->quit();
+            });
+
+            std::signal(SIGINT,  sigHandler);
+            std::signal(SIGTERM, sigHandler);
+        }
+        else
+        {
+            LOG_WARNING("[startup] Could not create signal socket pair, SIGINT and SIGTERM will exit without cleanup");
+        }
 #endif
 
         exitval = a.exec();
