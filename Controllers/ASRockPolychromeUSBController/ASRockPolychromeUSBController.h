@@ -19,8 +19,6 @@
 /*----------------------------------------------------------------------------------------------*\
 | Definitions for Polychrome USB                                                                 |
 \*----------------------------------------------------------------------------------------------*/
-#define POLYCHROME_USB_NUM_MODES            16          /* Number of Polychrome USB modes       */
-
 enum
 {
     POLYCHROME_USB_MODE_OFF                 = 0x00,     /* OFF mode                             */
@@ -51,7 +49,6 @@ enum
 enum
 {
     POLYCHROME_USB_ZONE_MAX_NUM             = 0x08,     /* Total Max number of zones            */
-    POLYCHROME_USB_ZONE_ADDRESSABLE_MAX     = 0x64,     /* Maxinum number of ARGB LEDs          */
 };
 
 enum
@@ -91,7 +88,6 @@ struct PolychromeZoneInfo
 
 struct PolychromeDeviceInfo
 {
-    unsigned char           effect_channel;
     unsigned char           num_leds;
 	unsigned char			zone_type;
     bool        			rgswap;
@@ -101,8 +97,6 @@ struct PolychromeDeviceInfo
 class PolychromeUSBController
 {
 public:
-    unsigned char   zone_led_count[8];
-
     PolychromeUSBController(hid_device* dev_handle, const char* path);
     ~PolychromeUSBController();
 
@@ -162,5 +156,4 @@ private:
 
     void SetDeviceInfo();
     void ReadConfigTables();
-    void Commit();
 };

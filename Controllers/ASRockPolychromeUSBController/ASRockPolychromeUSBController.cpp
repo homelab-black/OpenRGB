@@ -24,8 +24,6 @@
 #define POLYCHROME_USB_SET_ZONE         0x10
 #define POLYCHROME_USB_INITIAL_CHUNK    0xE3
 #define POLYCHROME_USB_SEND_CHUNK       0xE4
-#define POLYCHROME_USB_INIT             0xA4
-#define POLYCHROME_USB_COMMIT           0x12
 
 const char* polychrome_USB_zone_names[] =
 {
@@ -557,30 +555,6 @@ void PolychromeUSBController::ReadConfigTables()
     configtable[9]=header1;
     return;
 }
-
-void PolychromeUSBController::Commit()
-{
-    /*-----------------------------------------------------*\
-    | Saves all Writes in Device -  Will keep after powerup |
-    \*-----------------------------------------------------*/
-    unsigned char usb_buf[65];
-
-    /*-----------------------------------------------------*\
-    | Zero out buffer                                       |
-    \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-
-    /*-----------------------------------------------------*\
-    | Set up message packet with leading 00                  |
-    \*-----------------------------------------------------*/
-	usb_buf[0x01] = POLYCHROME_USB_COMMIT;
-
-    /*-----------------------------------------------------*\
-    | Send packet                                           |
-    \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-    hid_read(dev, usb_buf, 64);
-};
 
 const std::vector<PolychromeDeviceInfo>& PolychromeUSBController::GetPolychromeDevices() const
 {

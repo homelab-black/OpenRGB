@@ -385,16 +385,6 @@ void RGBController_PolychromeUSB::DeviceUpdateSingleLED(int led)
     controller->WriteZone((unsigned char)channel, set_mode, zones_info[channel].speed, zones[channel].colors[0], false);
 }
 
-unsigned char RGBController_PolychromeUSB::GetDeviceMode(unsigned char zone)
-{
-    int dev_mode;
-
-    dev_mode    = controller->GetZoneConfig(zone).mode;
-    active_mode = dev_mode;
-
-    return(active_mode);
-}
-
 void RGBController_PolychromeUSB::DeviceUpdateMode()
 {
     /*-----------------------------------------------------------------*\
