@@ -23,6 +23,7 @@ KingstonFuryDRAMController::KingstonFuryDRAMController(i2c_smbus_interface* bus,
     this->slots     = slots;
     this->name      = dev_name;
 
+    read_unsupported = false;
     reg_cache.resize(slots.size());
 }
 
@@ -64,14 +65,14 @@ unsigned int KingstonFuryDRAMController::GetSlotCount()
 
 unsigned char KingstonFuryDRAMController::GetMode()
 {
-    unsigned char mode = 0;
+    unsigned char mode = FURY_MODE_UNKNOWN;
     CachedRead(0, FURY_REG_MODE, &mode);
     return mode;
 }
 
 bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsigned char *val)
 {
-    if(val == NULL)
+    if(val == NULL || read_unsupported)
     {
         return false;
     }
@@ -82,7 +83,7 @@ bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsi
     for(int retries = 1; retries <= 5; retries++)
     {
         res = bus->i2c_smbus_read_word_data(device_addr, reg);
-        if(res >= 0)
+        if((res >= 0) && (res != 0xFFFF))
         {
             *val = (res >> 8) & 0xFF;
             LOG_DEBUG("[%s] %02X reading register &%02X=%02X; res=%02X",
@@ -94,6 +95,15 @@ bool KingstonFuryDRAMController::SmbusRead(int slot_idx, unsigned char reg, unsi
             std::this_thread::sleep_for(3 * retries * FURY_DELAY);
         }
     }
+
+    /*-----------------------------------------------------*\
+    | Some DIMM SMBus adapters only implement byte writes.  |
+    | Disable reads for this controller and continue in     |
+    | write-only mode instead of retrying on every update.  |
+    \*-----------------------------------------------------*/
+    read_unsupported = true;
+    LOG_DEBUG("[%s] %02X register reads unsupported, using write-only mode",
+              FURY_CONTROLLER_NAME, device_addr);
     return false;
 }
 
@@ -128,16 +138,17 @@ bool KingstonFuryDRAMController::CachedRead(int slot_idx, unsigned char reg, uns
         return false;
     }
 
-    unsigned char device_addr = base_addr + slots[slot_idx];
     if(reg_cache[slot_idx].find(reg) == reg_cache[slot_idx].end())
     {
+        if(read_unsupported)
+        {
+            return false;
+        }
         if(SmbusRead(slot_idx, reg, val))
         {
             reg_cache[slot_idx][reg] = *val;
             return true;
         }
-        LOG_ERROR("[%s] %02X failed to get register &%02X",
-                  FURY_CONTROLLER_NAME, device_addr, reg);
         return false;
     }
     else
