@@ -23,7 +23,6 @@ class DDR4DirectAccessor : public DDR4Accessor
     virtual uint8_t         at(uint16_t addr);
 
   private:
-    uint8_t                 current_page                = 0xFF;
     static const uint16_t   SPD_DDR4_EEPROM_LENGTH      = 512;
     static const uint8_t    SPD_DDR4_EEPROM_PAGE_SHIFT  = 8;
     static const uint8_t    SPD_DDR4_EEPROM_PAGE_MASK   = 0xFF;
