@@ -53,6 +53,7 @@ enum
 
 enum
 {
+    POLYCHROME_USB_HEADER1_CFG              = 0x01,     // Config for zone availability
     POLYCHROME_USB_LEDCOUNT_CFG             = 0x02,     // Config for LED Count
     POLYCHROME_USB_RGSWAP_CFG               = 0x03,     // Config for RGSWAP
     POLYCHROME_USB_ZONE_UNAVAILABLE         = 0x1E,     // Value from LEDCOUNT CFG if zone not present
@@ -156,4 +157,7 @@ private:
 
     void SetDeviceInfo();
     void ReadConfigTables();
+    bool ReadHeader(unsigned char cfg, unsigned char* usb_buf);
+    bool SendRequest(unsigned char* usb_buf);
+    void FlushInputBuffer();
 };
