@@ -78,6 +78,7 @@ public:
     \*-----------------------------------------------------*/
     std::vector<NetworkClient*>&        GetClients();
     filesystem::path                    GetConfigurationDirectory();
+    bool                                IsDefaultConfigurationDirectory();
     std::string                         GetDefaultServerHost();
     unsigned short                      GetDefaultServerPort();
     LogManager*                         GetLogManager();
@@ -268,4 +269,5 @@ private:
     | OpenRGB configuration directory path                  |
     \*-----------------------------------------------------*/
     filesystem::path                            config_dir;
+    bool                                        config_dir_is_default;
 };

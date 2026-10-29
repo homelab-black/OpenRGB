@@ -99,6 +99,12 @@ private:
     bool                            plugins_loaded      = false;
 
     /*-----------------------------------------------------*\
+    | AutoStart settings as last read                       |
+    \*-----------------------------------------------------*/
+    bool                            autostart_settings_read = false;
+    std::string                     last_autostart_settings;
+
+    /*-----------------------------------------------------*\
     | Hidden pages                                          |
     \*-----------------------------------------------------*/
     std::vector<OpenRGBDevicePage *>
@@ -147,6 +153,7 @@ private:
     void closeEvent(QCloseEvent *event) override;
     bool SelectConfigProfile(const std::string name);
     void MigrateLegacySettings();
+    void ApplyAutoStartSettings();
 
     void SetDetectionViewState(bool detection_showing);
     void SaveProfile();
