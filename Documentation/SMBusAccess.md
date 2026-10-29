@@ -21,6 +21,12 @@ SMBus is generally not meant to be accessed by user applications, but RGB softwa
   3. Load the i2c driver for your chipset:
       * Intel
         * `sudo modprobe i2c-i801`
+        * On X299 / Skylake-X and Cascade Lake-X, DIMM SPD and RGB controllers are behind the CPU's integrated memory controller rather than the PCH SMBus.  Install the [i2c-imc-sklx DKMS driver](https://github.com/a13ssandr0/i2c-imc-sklx) to expose them as standard I2C adapters.  The driver creates two adapters, "engine A" and "engine B", one for each group of memory channels; a DIMM is only reachable through the engine that owns its channel, so OpenRGB will show one DRAM controller per engine.  Verify with `i2cdetect -l` and `i2cdump -y <bus> 0x50 b`.  The adapters only support SMBus quick, byte, and byte-data transactions; word and block transactions are not available.
+          1. `sudo dkms add .`
+          2. `sudo dkms build i2c-imc-sklx/0.1`
+          3. `sudo dkms install i2c-imc-sklx/0.1`
+          4. `sudo cp i2c-imc-sklx-modules-load.conf /etc/modules-load.d/i2c-imc-sklx.conf`
+          5. `sudo modprobe i2c-imc-sklx`
       * AMD
         * `sudo modprobe i2c-piix4`
       * Nuvoton
