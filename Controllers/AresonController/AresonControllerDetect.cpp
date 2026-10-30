@@ -54,5 +54,5 @@ REGISTER_HID_DETECTOR_IPU("ZET GAMING Edge Air Elit (Wireless)",    DetectAreson
 REGISTER_HID_DETECTOR_IPU("ZET GAMING Edge Air Elit",               DetectAresonControllers, ARESON_VID, ZET_GAMING_EDGE_AIR_ELIT_PID,              1, 0xFF02, 2);
 REGISTER_HID_DETECTOR_IPU("Redragon M914 NIX (Wireless)",           DetectAresonControllers, ARESON_VID, REDRAGON_M914_WIRELESS_PID,                1, 0xFF02, 2);
 REGISTER_HID_DETECTOR_IPU("Redragon M914 NIX",                      DetectAresonControllers, ARESON_VID, REDRAGON_M914_PID,                         1, 0xFF02, 2);
-REGISTER_HID_DETECTOR_IPU("Redragon M901P-KS (Wireless)",           DetectAresonControllers, ARESON_VID, REDRAGON_M901P_KS_WIRELESS_PID             1, 0xFF02, 2);
-REGISTER_HID_DETECTOR_IPU("Redragon M901P-KS",                      DetectAresonControllers, ARESON_VID, REDRAGON_M901P_KS_PID                      1, 0xFF02, 2);
+REGISTER_HID_DETECTOR_IPU("Redragon M901P-KS",                      DetectAresonControllers, ARESON_VID, REDRAGON_M901P_KS_PID,                     1, 0xFF02, 2);
+REGISTER_HID_DETECTOR_IPU("Redragon M901P-KS (Wireless)",           DetectAresonControllers, ARESON_VID, REDRAGON_M901P_KS_WIRELESS_PID,            1, 0xFF02, 2);
