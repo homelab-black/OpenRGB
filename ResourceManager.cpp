@@ -401,6 +401,11 @@ filesystem::path ResourceManager::GetConfigurationDirectory()
     return(config_dir);
 }
 
+bool ResourceManager::IsDefaultConfigurationDirectory()
+{
+    return(config_dir_is_default);
+}
+
 std::string ResourceManager::GetDefaultServerHost()
 {
     return(default_server_host);
@@ -597,7 +602,8 @@ SettingsManager* ResourceManager::GetSettingsManager()
 
 void ResourceManager::SetConfigurationDirectory(const filesystem::path &directory)
 {
-    config_dir = directory;
+    config_dir              = directory;
+    config_dir_is_default   = false;
     settings_manager->LoadSettings(directory / "OpenRGB.json");
     LogManager::get()->Configure(settings_manager->GetSettings("LogManager"), GetConfigurationDirectory());
     SaveDefaultServerSettings(settings_manager);
@@ -1109,6 +1115,7 @@ void ResourceManager::SignalResourceManagerUpdate(unsigned int update_reason)
 void ResourceManager::SetupConfigurationDirectory()
 {
     config_dir.clear();
+    config_dir_is_default = true;
 #ifdef _WIN32
     const wchar_t* appdata = _wgetenv(L"APPDATA");
     if(appdata != NULL)

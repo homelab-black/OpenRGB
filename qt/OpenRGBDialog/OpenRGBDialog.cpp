@@ -1922,10 +1922,44 @@ void OpenRGBDialog::onSettingsUpdated()
         RemoveConsolePage();
     }
 
+    ApplyAutoStartSettings();
+}
+
+void OpenRGBDialog::ApplyAutoStartSettings()
+{
     /*-----------------------------------------------------*\
     | Read AutoStart settings                               |
     \*-----------------------------------------------------*/
-    json            autostart_settings      = settings_manager->GetSettings("AutoStart");
+    json            autostart_settings      = ResourceManager::get()->GetSettingsManager()->GetSettings("AutoStart");
+    std::string     autostart_dump          = autostart_settings.dump();
+
+    /*-----------------------------------------------------*\
+    | Every instance shares the autostart entry.  Refresh   |
+    | it on startup only from the default configuration,    |
+    | which keeps it pointing at a moved or updated         |
+    | AppImage, and otherwise only when these settings      |
+    | change, so that an instance using another --config    |
+    | does not replace or delete it.                        |
+    \*-----------------------------------------------------*/
+    bool            update_entry;
+
+    if(autostart_settings_read)
+    {
+        update_entry                        = (autostart_dump != last_autostart_settings);
+    }
+    else
+    {
+        update_entry                        = ResourceManager::get()->IsDefaultConfigurationDirectory();
+    }
+
+    autostart_settings_read                 = true;
+    last_autostart_settings                 = autostart_dump;
+
+    if(!update_entry)
+    {
+        return;
+    }
+
     std::string     autostart_arguments     = JsonUtils::JsonGetString(autostart_settings, "custom_arguments");
     bool            autostart_enabled       = JsonUtils::JsonGetBool(autostart_settings, "enabled");
     bool            autostart_minimized     = JsonUtils::JsonGetBool(autostart_settings, "start_minimized");
