@@ -187,14 +187,6 @@ AlienwareController::AlienwareController(hid_device* dev_handle, const hid_devic
     direct_mode         = (platform_id == 0x0811);
 
     /*-----------------------------------------------------*\
-    | The detector name is shared by all PID 0x0550 devices |
-    \*-----------------------------------------------------*/
-    if(direct_mode)
-    {
-        device_name     = "Alienware Aurora ACT1250";
-    }
-
-    /*-----------------------------------------------------*\
     | Check if the device reports the wrong number of zones |
     \*-----------------------------------------------------*/
     unsigned number_of_zones = zone_quirks_table.count(platform_id) ? zone_quirks_table.at(platform_id) : report.data[6];

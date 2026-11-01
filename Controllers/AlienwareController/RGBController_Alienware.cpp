@@ -61,7 +61,7 @@ static unsigned int act1250_stadium_map[30][4] =
     @save :x:
     @direct :x:
     @effects :white_check_mark:
-    @detectors DetectAlienwareControllers
+    @detectors DetectAlienwareControllers,DetectAlienwareACT1250Controllers
     @comment Alienware Aurora ACT1250 also has Direct mode and a mode
     for each chassis zone.
 \*-------------------------------------------------------------------*/
