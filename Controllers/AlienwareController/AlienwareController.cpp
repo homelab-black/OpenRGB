@@ -172,8 +172,15 @@ AlienwareController::AlienwareController(hid_device* dev_handle, const hid_devic
     \*-----------------------------------------------------*/
     if(report.data[1] != 0x03)
     {
+        LOG_INFO("[%s] No feature report reply, using output and input reports", ALIENWARE_CONTROLLER_NAME);
+
         output_reports  = true;
         report          = Report(ALIENWARE_COMMAND_REPORT_CONFIG);
+
+        if(report.data[1] != 0x03)
+        {
+            LOG_ERROR("[%s] No reply to the config request", ALIENWARE_CONTROLLER_NAME);
+        }
     }
 
     alienware_platform_id platform_id = report.data[4] << 8 | report.data[5];
@@ -1077,8 +1084,10 @@ void AlienwareController::UpdateMode()
         {
             dirty = false;
         }
-
-        LOG_DEBUG("[%s] Animation update: mode %d, %s", ALIENWARE_CONTROLLER_NAME, zones.size() ? zones[0].mode : -1, dirty ? "failed" : "done");
+        else
+        {
+            LOG_ERROR("[%s] Animation update failed", ALIENWARE_CONTROLLER_NAME);
+        }
 
         return;
     }
@@ -1214,6 +1223,10 @@ void AlienwareController::SaveController()
         && UserAnimation(ALIENWARE_COMMAND_USER_ANIM_FINISH_SAVE, ALIENWARE_ANIM_DEFAULT, 0))
         {
             UserAnimation(ALIENWARE_COMMAND_USER_ANIM_DEFAULT, ALIENWARE_ANIM_DEFAULT, 0);
+        }
+        else
+        {
+            LOG_ERROR("[%s] Animation save failed", ALIENWARE_CONTROLLER_NAME);
         }
 
         return;
