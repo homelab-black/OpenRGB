@@ -28,9 +28,13 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone);
     void        DeviceSaveMode();
 
 private:
+    void        UpdateChassisMode();
+    void        SetLEDMode(unsigned int led_idx, const mode& led_mode);
+
     AlienwareController*                    controller;
     std::chrono::steady_clock::time_point   last_packet_ts;
 };

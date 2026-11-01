@@ -16,6 +16,7 @@
 #include <chrono>
 #include <algorithm>
 #include <sstream>
+#include <tuple>
 #include "RGBController.h"
 #include "AlienwareController.h"
 #include "LogManager.h"
@@ -33,8 +34,21 @@ static const std::map<alienware_platform_id, uint8_t> zone_quirks_table =
     { 0x0A01,  16 },    // Dell G7 15 7500
     { 0x0E03,   4 },    // Dell G15   5511
     { 0x0E07,   4 },    // Dell G15   5520
-    { 0x0E0A,   4 }     // Dell G15   5530
+    { 0x0E0A,   4 },    // Dell G15   5530
+    { 0x0811,  65 }     // Alienware Aurora ACT1250
 
+};
+
+/*---------------------------------------------------------*\
+| Rainbow wave step of each Aurora ACT1250 LED, from top to |
+| bottom of the chassis                                     |
+\*---------------------------------------------------------*/
+static const uint8_t act1250_wave_columns[65] =
+{
+    8, 8, 8, 9, 9, 9, 6, 6, 6, 7, 7, 7, 9, 9, 9, 8, 8, 8, 4, 4,
+    4, 5, 5, 5, 7, 7, 7, 6, 6, 6, 2, 2, 2, 3, 3, 3, 5, 5, 5, 4,
+    4, 4, 0, 0, 0, 1, 1, 1, 3, 3, 3, 2, 2, 2, 1, 1, 1, 0, 0, 0,
+    0, 0, 0, 1, 2
 };
 
 /*---------------------------------------------------------*\
@@ -51,7 +65,24 @@ static const std::map<alienware_platform_id, std::vector<const char*>> zone_name
                   "Light Bar 10",   "Light Bar 11", "Light Bar 12"              } },
     { 0x0E03,   { "Left",           "Middle",       "Right",        "Numpad"    } },
     { 0x0E07,   { "Left",           "Middle",       "Right",        "Numpad"    } },
-    { 0x0E0A,   { "Left",           "Middle",       "Right",        "Numpad"    } }
+    { 0x0E0A,   { "Left",           "Middle",       "Right",        "Numpad"    } },
+    { 0x0811,   { "Stadium Light 1", "Stadium Light 2", "Stadium Light 3", "Stadium Light 4",
+                  "Stadium Light 5", "Stadium Light 6", "Stadium Light 7", "Stadium Light 8",
+                  "Stadium Light 9", "Stadium Light 10", "Stadium Light 11", "Stadium Light 12",
+                  "Stadium Light 13", "Stadium Light 14", "Stadium Light 15", "Stadium Light 16",
+                  "Stadium Light 17", "Stadium Light 18", "Stadium Light 19", "Stadium Light 20",
+                  "Stadium Light 21", "Stadium Light 22", "Stadium Light 23", "Stadium Light 24",
+                  "Stadium Light 25", "Stadium Light 26", "Stadium Light 27", "Stadium Light 28",
+                  "Stadium Light 29", "Stadium Light 30", "Stadium Light 31", "Stadium Light 32",
+                  "Stadium Light 33", "Stadium Light 34", "Stadium Light 35", "Stadium Light 36",
+                  "Stadium Light 37", "Stadium Light 38", "Stadium Light 39", "Stadium Light 40",
+                  "Stadium Light 41", "Stadium Light 42", "Stadium Light 43", "Stadium Light 44",
+                  "Stadium Light 45", "Stadium Light 46", "Stadium Light 47", "Stadium Light 48",
+                  "Stadium Light 49", "Stadium Light 50", "Stadium Light 51", "Stadium Light 52",
+                  "Stadium Light 53", "Stadium Light 54", "Stadium Light 55", "Stadium Light 56",
+                  "Stadium Light 57", "Stadium Light 58", "Stadium Light 59", "Stadium Light 60",
+                  "Power LED A", "Power LED B", "Power LED C", "RGB System Fan",
+                  "Liquid Cooling" } }
 };
 
 /*---------------------------------------------------------*\
@@ -62,14 +93,36 @@ static const std::map<alienware_platform_id, std::vector<uint8_t>> zone_ids_tabl
     { 0x0C01,   { 0x00, 0x01, 0x02, 0x03 } }, // Dell G5 SE 5505
     { 0x0E03,   { 0x00, 0x01, 0x02, 0x03 } }, // Dell G15   5511
     { 0x0E07,   { 0x10, 0x11, 0x12, 0x13 } }, // Dell G15   5520
-    { 0x0E0A,   { 0x10, 0x11, 0x12, 0x13 } }  // Dell G15   5530
+    { 0x0E0A,   { 0x10, 0x11, 0x12, 0x13 } }, // Dell G15   5530
+    { 0x0811,   { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                  0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13,
+                  0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+                  0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+                  0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31,
+                  0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B,
+                  0x3F, 0x40, 0x41, 0x44, 0x45 } } // Alienware Aurora ACT1250
 };
 
-static void SendHIDReport(hid_device *dev, const unsigned char* usb_buf, size_t usb_buf_size)
+void AlienwareController::WriteHIDReport(const unsigned char* usb_buf, size_t usb_buf_size)
+{
+    /*-----------------------------------------------------*\
+    | Some controllers have no feature reports              |
+    \*-----------------------------------------------------*/
+    if(output_reports)
+    {
+        hid_write(dev, usb_buf, usb_buf_size);
+    }
+    else
+    {
+        hid_send_feature_report(dev, usb_buf, usb_buf_size);
+    }
+}
+
+void AlienwareController::SendHIDReport(const unsigned char* usb_buf, size_t usb_buf_size)
 {
     using namespace std::chrono_literals;
 
-    hid_send_feature_report(dev, usb_buf, usb_buf_size);
+    WriteHIDReport(usb_buf, usb_buf_size);
 
     /*-----------------------------------------------------*\
     | The controller really doesn't like really spammed by  |
@@ -84,11 +137,11 @@ static void SendHIDReport(hid_device *dev, const unsigned char* usb_buf, size_t 
      && ( ( subcommand == ALIENWARE_COMMAND_USER_ANIM_FINISH_PLAY )
        || ( subcommand == ALIENWARE_COMMAND_USER_ANIM_FINISH_SAVE ) ) )
     {
-        std::this_thread::sleep_for(1s);
+        std::this_thread::sleep_for(output_reports ? 100ms : 1000ms);
     }
     else
     {
-        std::this_thread::sleep_for(60ms);
+        std::this_thread::sleep_for(output_reports ? 15ms : 60ms);
     }
 }
 
@@ -97,6 +150,8 @@ AlienwareController::AlienwareController(hid_device* dev_handle, const hid_devic
     HidapiAlienwareReport report;
 
     dev                 = dev_handle;
+    output_reports      = false;
+    direct_active       = false;
     device_name         = name;
     location            = info.path;
 
@@ -110,7 +165,27 @@ AlienwareController::AlienwareController(hid_device* dev_handle, const hid_devic
     | configuration                                         |
     \*-----------------------------------------------------*/
     report              = Report(ALIENWARE_COMMAND_REPORT_CONFIG);
+
+    /*-----------------------------------------------------*\
+    | Controllers without feature reports reply nothing     |
+    | here, they use output and input reports instead       |
+    \*-----------------------------------------------------*/
+    if(report.data[1] != 0x03)
+    {
+        output_reports  = true;
+        report          = Report(ALIENWARE_COMMAND_REPORT_CONFIG);
+    }
+
     alienware_platform_id platform_id = report.data[4] << 8 | report.data[5];
+    direct_mode         = (platform_id == 0x0811);
+
+    /*-----------------------------------------------------*\
+    | The detector name is shared by all PID 0x0550 devices |
+    \*-----------------------------------------------------*/
+    if(direct_mode)
+    {
+        device_name     = "Alienware Aurora ACT1250";
+    }
 
     /*-----------------------------------------------------*\
     | Check if the device reports the wrong number of zones |
@@ -223,6 +298,11 @@ std::string AlienwareController::GetSerialString()
     return(serial_number);
 }
 
+bool AlienwareController::HasDirectMode()
+{
+    return(direct_mode);
+}
+
 std::string AlienwareController::GetFirmwareVersion()
 {
     return(version);
@@ -241,9 +321,62 @@ AlienwareController::HidapiAlienwareReport AlienwareController::GetResponse()
     memset(result.data, 0x00, sizeof(result.data));
 
 
-    hid_get_feature_report(dev, result.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+    if(output_reports)
+    {
+        hid_get_input_report(dev, result.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+    }
+    else
+    {
+        hid_get_feature_report(dev, result.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+    }
 
     return(result);
+}
+
+bool AlienwareController::ResponseValid(const unsigned char* usb_buf, const HidapiAlienwareReport& response)
+{
+    using namespace std::chrono_literals;
+
+    if(!output_reports)
+    {
+        return((response.data[1] == 0x03) && memcmp(usb_buf, response.data, HIDAPI_ALIENWARE_REPORT_SIZE));
+    }
+
+    /*-----------------------------------------------------*\
+    | With input reports the reply is a copy of the command |
+    | until the controller processes it, then the result    |
+    | replaces it.  The previous command can still be in    |
+    | progress, so wait for the reply to this command       |
+    \*-----------------------------------------------------*/
+    unsigned char command    = usb_buf[2];
+    int           status_pos = 0;
+
+    if((command == ALIENWARE_COMMAND_USER_ANIM) || (command == ALIENWARE_COMMAND_POWER_ANIM))
+    {
+        status_pos = 7;
+    }
+    else if((command == ALIENWARE_COMMAND_SELECT_ZONES) || (command == ALIENWARE_COMMAND_ADD_ACTION))
+    {
+        status_pos = 3;
+    }
+
+    HidapiAlienwareReport reply = response;
+
+    for(int attempt = 0; attempt < 20; attempt++)
+    {
+        if((reply.data[1] == 0x03) && (reply.data[2] == command) && ((status_pos == 0) || (reply.data[status_pos] == 0)))
+        {
+            return(true);
+        }
+
+        std::this_thread::sleep_for(10ms);
+        reply = GetResponse();
+    }
+
+    LOG_DEBUG("[%s] No reply for command %02X: %02X %02X %02X %02X %02X %02X %02X %02X", ALIENWARE_CONTROLLER_NAME, command,
+              reply.data[0], reply.data[1], reply.data[2], reply.data[3], reply.data[4], reply.data[5], reply.data[6], reply.data[7]);
+
+    return(false);
 }
 
 AlienwareController::HidapiAlienwareReport AlienwareController::Report(uint8_t subcommand)
@@ -266,7 +399,7 @@ AlienwareController::HidapiAlienwareReport AlienwareController::Report(uint8_t s
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+    SendHIDReport(usb_buf, sizeof(usb_buf));
 
     return(GetResponse());
 }
@@ -330,7 +463,7 @@ bool AlienwareController::Dim(std::vector<uint8_t> zones, double percent)
         /*-------------------------------------------------*\
         | Send packet                                       |
         \*-------------------------------------------------*/
-        SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+        SendHIDReport(usb_buf, sizeof(usb_buf));
 
         HidapiAlienwareReport response = GetResponse();
 
@@ -338,7 +471,7 @@ bool AlienwareController::Dim(std::vector<uint8_t> zones, double percent)
         | For this command, error is if the output equals   |
         | the input                                         |
         \*-------------------------------------------------*/
-        result &= (response.data[1] == 0x03) && memcmp(usb_buf, response.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+        result &= ResponseValid(usb_buf, response);
     }
 
     return(result);
@@ -369,7 +502,7 @@ bool AlienwareController::UserAnimation(uint16_t subcommand, uint16_t animation,
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+    SendHIDReport(usb_buf, sizeof(usb_buf));
 
     /*-----------------------------------------------------*\
     | Every subcommand appears to report its result on a    |
@@ -384,6 +517,11 @@ bool AlienwareController::UserAnimation(uint16_t subcommand, uint16_t animation,
     if(response.data[1] == 0)
     {
         return(false);
+    }
+
+    if(output_reports)
+    {
+        return(ResponseValid(usb_buf, response));
     }
 
     switch(subcommand)
@@ -434,7 +572,7 @@ bool AlienwareController::SelectZones(const std::vector<uint8_t>& zones)
         usb_buf[0x01]       = 0x03;
         usb_buf[0x02]       = ALIENWARE_COMMAND_SELECT_ZONES;
         usb_buf[0x03]       = 1; // loop?
-        usb_buf[0x04]       = num_zones >> 8;
+        usb_buf[0x04]       = direct_mode ? (uint8_t)(offset / ALIENWARE_MAX_ZONES_PER_PACKET) : (num_zones >> 8);
         usb_buf[0x05]       = num_zones & 0xFF;
 
         for(size_t i = 0; i < num_zones; i++)
@@ -445,7 +583,7 @@ bool AlienwareController::SelectZones(const std::vector<uint8_t>& zones)
         /*-------------------------------------------------*\
         | Send packet                                       |
         \*-------------------------------------------------*/
-        SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+        SendHIDReport(usb_buf, sizeof(usb_buf));
 
         HidapiAlienwareReport response = GetResponse();
 
@@ -453,7 +591,7 @@ bool AlienwareController::SelectZones(const std::vector<uint8_t>& zones)
         | For this command, error is if the output equals   |
         | the input                                         |
         \*-------------------------------------------------*/
-        result &= (response.data[1] == 0x03) && memcmp(usb_buf, response.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+        result &= ResponseValid(usb_buf, response);
     }
 
     return(result);
@@ -511,7 +649,7 @@ bool AlienwareController::ModeAction
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+    SendHIDReport(usb_buf, sizeof(usb_buf));
 
     HidapiAlienwareReport response = GetResponse();
 
@@ -519,7 +657,7 @@ bool AlienwareController::ModeAction
     | For this command, error is if the output equals the   |
     | input                                                 |
     \*-----------------------------------------------------*/
-    return((response.data[1] == 0x03) && memcmp(usb_buf, response.data, HIDAPI_ALIENWARE_REPORT_SIZE));
+    return(ResponseValid(usb_buf, response));
 }
 
 bool AlienwareController::MultiModeAction
@@ -597,7 +735,7 @@ bool AlienwareController::SetColorDirect(RGBColor color, std::vector<uint8_t> zo
         /*-------------------------------------------------*\
         | Send packet                                       |
         \*-------------------------------------------------*/
-        SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+        SendHIDReport(usb_buf, sizeof(usb_buf));
 
         HidapiAlienwareReport response = GetResponse();
 
@@ -605,7 +743,7 @@ bool AlienwareController::SetColorDirect(RGBColor color, std::vector<uint8_t> zo
         | For this command, error is if the output equals   |
         | the input                                         |
         \*-------------------------------------------------*/
-        result &= (response.data[1] == 0x03) && memcmp(usb_buf, response.data, HIDAPI_ALIENWARE_REPORT_SIZE);
+        result &= ResponseValid(usb_buf, response);
     }
 
     return(result);
@@ -638,7 +776,7 @@ bool AlienwareController::Reset()
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    SendHIDReport(dev, usb_buf, sizeof(usb_buf));
+    SendHIDReport(usb_buf, sizeof(usb_buf));
 
     HidapiAlienwareReport response = GetResponse();
 
@@ -744,6 +882,64 @@ void AlienwareController::UpdateDim()
     dirty_dim = false;
 }
 
+void AlienwareController::SetDirectColors(const std::vector<RGBColor>& colors)
+{
+    /*-----------------------------------------------------*\
+    | Replace the running animation with an empty one, it   |
+    | overwrites the direct colors otherwise                |
+    \*-----------------------------------------------------*/
+    if(!direct_active)
+    {
+        UserAnimation(ALIENWARE_COMMAND_USER_ANIM_REMOVE, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0);
+        UserAnimation(ALIENWARE_COMMAND_USER_ANIM_NEW, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0);
+        UserAnimation(ALIENWARE_COMMAND_USER_ANIM_FINISH_PLAY, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0);
+        direct_active = true;
+    }
+
+    /*-----------------------------------------------------*\
+    | Collect all zones that share color, and update them   |
+    | together.  This is called for each frame, so there is |
+    | no delay and no read of the response                  |
+    \*-----------------------------------------------------*/
+    std::map<RGBColor, std::vector<uint8_t>> color_zone_map;
+
+    for(size_t i = 0; i < colors.size() && i < zone_ids.size(); i++)
+    {
+        color_zone_map[colors[i]].emplace_back(zone_ids[i]);
+    }
+
+    for(std::pair<const RGBColor, std::vector<uint8_t>> &pair : color_zone_map)
+    {
+        for(size_t offset = 0; offset < pair.second.size(); offset += ALIENWARE_MAX_ZONES_PER_PACKET)
+        {
+            unsigned char usb_buf[HIDAPI_ALIENWARE_REPORT_SIZE];
+            size_t        num_zones = std::min<size_t>(ALIENWARE_MAX_ZONES_PER_PACKET, pair.second.size() - offset);
+
+            memset(usb_buf, 0x00, sizeof(usb_buf));
+
+            usb_buf[0x01]       = 0x03;
+            usb_buf[0x02]       = ALIENWARE_COMMAND_SET_COLOR;
+            usb_buf[0x03]       = RGBGetRValue(pair.first);
+            usb_buf[0x04]       = RGBGetGValue(pair.first);
+            usb_buf[0x05]       = RGBGetBValue(pair.first);
+            usb_buf[0x07]       = (unsigned char)num_zones;
+
+            memcpy(&usb_buf[0x08], &pair.second[offset], num_zones);
+
+            WriteHIDReport(usb_buf, sizeof(usb_buf));
+        }
+    }
+}
+
+void AlienwareController::LeaveDirectMode()
+{
+    if(direct_active)
+    {
+        direct_active   = false;
+        dirty           = true;
+    }
+}
+
 bool AlienwareController::UpdateDirect()
 {
     /*-----------------------------------------------------*\
@@ -779,6 +975,88 @@ static const RGBColor rainbow_colors[4][7] =
     { 0x00BFFF, 0x0000FF, 0x800080, 0xFF0000, 0xFFA500, 0xFFFF00, 0x008000 }
 };
 
+bool AlienwareController::SendGroupedActions()
+{
+    /*-----------------------------------------------------*\
+    | The controller has no space for one series per light, |
+    | so lights with the same settings share one series     |
+    \*-----------------------------------------------------*/
+    typedef std::tuple<uint8_t, uint16_t, uint16_t, RGBColor, RGBColor, unsigned int> group_key;
+
+    std::map<group_key, std::vector<uint8_t>> groups;
+
+    for(std::size_t zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        const alienware_zone& zone = zones[zone_idx];
+        unsigned int          wave = 0;
+
+        if(zone.mode == ALIENWARE_MODE_RAINBOW)
+        {
+            wave = act1250_wave_columns[zone_idx];
+            wave = (zone.direction == MODE_DIRECTION_LEFT) ? (9 - wave) : wave;
+        }
+
+        groups[group_key(zone.mode, zone.period, zone.tempo, zone.color[0], zone.color[1], wave)].emplace_back(zone_ids[zone_idx]);
+    }
+
+    for(std::pair<const group_key, std::vector<uint8_t>> &group : groups)
+    {
+        uint8_t               mode   = std::get<0>(group.first);
+        uint16_t              period = std::get<1>(group.first);
+        uint16_t              tempo  = std::get<2>(group.first);
+        RGBColor              color1 = std::get<3>(group.first);
+        RGBColor              color2 = std::get<4>(group.first);
+        unsigned int          wave   = std::get<5>(group.first);
+        uint8_t               action = ALIENWARE_MODE_MORPH;
+        std::vector<RGBColor> colors;
+
+        switch(mode)
+        {
+            case ALIENWARE_MODE_COLOR:
+                action = mode;
+                period = 2000;
+                tempo  = ALIENWARE_TEMPO_MAX;
+                colors = { color1 };
+                break;
+
+            case ALIENWARE_MODE_PULSE:
+                action = mode;
+                colors = { color1 };
+                break;
+
+            case ALIENWARE_MODE_MORPH:
+                colors = { color1, color2 };
+                break;
+
+            case ALIENWARE_MODE_BREATHING:
+                colors = { color1, 0x0 };
+                break;
+
+            case ALIENWARE_MODE_SPECTRUM:
+            case ALIENWARE_MODE_RAINBOW:
+                for(unsigned int color_idx = 0; color_idx < 7; color_idx++)
+                {
+                    colors.push_back(rainbow_colors[0][(color_idx + (wave * 7 / 10)) % 7]);
+                }
+                break;
+
+            default:
+                return(false);
+        }
+
+        std::vector<uint8_t>  modes(colors.size(), action);
+        std::vector<uint16_t> periods(colors.size(), period);
+        std::vector<uint16_t> tempos(colors.size(), tempo);
+
+        if(!SelectZones(group.second) || !MultiModeAction(modes.data(), periods.data(), tempos.data(), colors.data(), (unsigned int)colors.size()))
+        {
+            return(false);
+        }
+    }
+
+    return(true);
+}
+
 void AlienwareController::UpdateMode()
 {
     /*-----------------------------------------------------*\
@@ -786,6 +1064,22 @@ void AlienwareController::UpdateMode()
     \*-----------------------------------------------------*/
     if(!dirty)
     {
+        return;
+    }
+
+    if(direct_mode)
+    {
+        UserAnimation(ALIENWARE_COMMAND_USER_ANIM_REMOVE, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0);
+
+        if(UserAnimation(ALIENWARE_COMMAND_USER_ANIM_NEW, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0)
+        && SendGroupedActions()
+        && UserAnimation(ALIENWARE_COMMAND_USER_ANIM_FINISH_PLAY, ALIENWARE_COMMAND_USER_ANIM_KEYBOARD, 0))
+        {
+            dirty = false;
+        }
+
+        LOG_DEBUG("[%s] Animation update: mode %d, %s", ALIENWARE_CONTROLLER_NAME, zones.size() ? zones[0].mode : -1, dirty ? "failed" : "done");
+
         return;
     }
 
@@ -912,6 +1206,19 @@ void AlienwareController::SaveController()
     | Save current mode configuration to EEPROM slot 0x0061 |
     \*-----------------------------------------------------*/
     UserAnimation(ALIENWARE_COMMAND_USER_ANIM_REMOVE, ALIENWARE_ANIM_DEFAULT, 0);
+
+    if(direct_mode)
+    {
+        if(UserAnimation(ALIENWARE_COMMAND_USER_ANIM_NEW, ALIENWARE_ANIM_DEFAULT, 0)
+        && SendGroupedActions()
+        && UserAnimation(ALIENWARE_COMMAND_USER_ANIM_FINISH_SAVE, ALIENWARE_ANIM_DEFAULT, 0))
+        {
+            UserAnimation(ALIENWARE_COMMAND_USER_ANIM_DEFAULT, ALIENWARE_ANIM_DEFAULT, 0);
+        }
+
+        return;
+    }
+
     bool result = UserAnimation(ALIENWARE_COMMAND_USER_ANIM_NEW, ALIENWARE_ANIM_DEFAULT, 0);
 
     if(!result)
