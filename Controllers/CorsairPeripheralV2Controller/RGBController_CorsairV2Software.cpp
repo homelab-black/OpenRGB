@@ -163,12 +163,18 @@ void RGBController_CorsairV2SW::SetupZones()
 
                     new_led.name                = new_zone.name + " ";
                     new_led.name.append(std::to_string( led_idx ));
-                    new_led.value               = (unsigned int)leds.size();
+                    if(corsair->zones[i]->first_led != 0)
+                    {
+                        new_led.value           = corsair->zones[i]->first_led + (unsigned int)led_idx;
+                    }
+                    else
+                    {
+                        new_led.value           = (unsigned int)leds.size();
+                    }
+                    max_led_value               = std::max(max_led_value, new_led.value + 1);
 
                     leds.push_back(new_led);
                 }
-
-                max_led_value                   = std::max(max_led_value, (unsigned int)leds.size());
             }
 
             /*---------------------------------------------------------*\

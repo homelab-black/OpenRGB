@@ -45,6 +45,20 @@ std::vector<unsigned int> corsair_full_size_values =
        105,  108,  107,               44,              111,  122,  101,  109,               80,   81,   79,   98,         99,
 };
 
+std::vector<unsigned int> corsair_sixty_values =
+{
+    /* ESC     1     2     3     4     5     6     7     8     9     0     -     =   BSPC                    */
+        41,   30,   31,   32,   33,   34,   35,   36,   37,   38,   39,   45,   46,   42,
+    /* TAB     Q     W     E     R     T     Y     U     I     O     P     [     ]     \                    */
+        43,   20,   26,    8,   21,   23,   28,   24,   12,   18,   19,   47,   48,   49,
+    /* CPLK    A     S     D     F     G     H     J     K     L     ;     "     #   ENTR                    */
+        57,    4,   22,    7,    9,   10,   11,   13,   14,   15,   51,   52,   50,   40,
+    /* LSFT  ISO\    Z     X     C     V     B     N     M     ,     .     /   RSFT                          */
+       106,  100,   29,   27,    6,   25,    5,   17,   16,   54,   55,   56,  110,
+    /* LCTL  LWIN  LALT               SPC              RALT  RFNC  RMNU  RCTL                                */
+       105,  108,  107,               44,              111,  122,  101,  109,
+};
+
 /*-------------------------------------------------------------------------*\
 |  KEYMAPS                                                                  |
 \*-------------------------------------------------------------------------*/
@@ -87,6 +101,26 @@ keyboard_keymap_overlay_values corsair_K60_layout
         | Edit Keys                                                                                                                             |
         |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode                              |
         \*-------------------------------------------------------------------------------------------------------------------------------------*/
+    }
+};
+
+keyboard_keymap_overlay_values corsair_K70_pro_mini_layout
+{
+    KEYBOARD_SIZE::KEYBOARD_SIZE_SIXTY,
+    {
+        corsair_sixty_values,
+        {
+            /* Add more regional layout fixes here */
+        }
+    },
+    {
+        /*-------------------------------------------------------------------------------------------------------------------------------------*\
+        | Edit Keys                                                                                                                             |
+        |   Zone,   Row,    Column,     Value,      Name,                       Alternate Name,             OpCode                              |
+        \*-------------------------------------------------------------------------------------------------------------------------------------*/
+        {   0,      0,      0,          41,         KEY_EN_ESCAPE,              KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // 60% swaps in Escape with no value
+        {   0,      4,      5,          0,          "Key: Space Left",          KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },  // Spacebar has 3 LEDs
+        {   0,      4,      7,          1,          "Key: Space Right",         KEY_EN_UNUSED,              KEYBOARD_OPCODE_SWAP_ONLY,          },
     }
 };
 
@@ -1219,6 +1253,53 @@ static const corsair_v2_device k70_rgb_pro_v2_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Corsair K70 RGB Pro Mini Wireless 1B1C:1BB6                  |
+|                                                               |
+|  Zone "Keyboard"                                              |
+|       Matrix                                                  |
+|       5 Rows, 14 Columns                                      |
+|                                                               |
+|  Zone "Light Edge"                                            |
+|       Linear                                                  |
+|       28 LEDs, clockwise from just right of the back left     |
+|       corner, ending on that corner                           |
+\*-------------------------------------------------------------*/
+static const corsair_v2_zone k70_rgb_pro_mini_zone =
+{
+    ZONE_EN_KEYBOARD,
+    ZONE_TYPE_MATRIX,
+    5,
+    14
+};
+
+static const corsair_v2_zone k70_rgb_pro_mini_edge_zone =
+{
+    "Light Edge",
+    ZONE_TYPE_LINEAR,
+    1,
+    28,
+    58
+};
+
+static const corsair_v2_device k70_rgb_pro_mini_wireless_device =
+{
+    CORSAIR_K70_RGB_PRO_MINI_WIRELESS_PID,
+    DEVICE_TYPE_KEYBOARD,
+    5,
+    14,
+    {
+        &k70_rgb_pro_mini_zone,
+        &k70_rgb_pro_mini_edge_zone,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    },
+    &corsair_K70_pro_mini_layout,
+    "Corsair K70 RGB Pro Mini Wireless"
+};
+
+/*-------------------------------------------------------------*\
 |   Corsair K95 RGB PLATINUM XT 1B1C:1B89                       |
 |                                                               |
 |   Zone "Keyboard"                                             |
@@ -1733,6 +1814,7 @@ const corsair_v2_device* corsair_v2_device_list_data[] =
     &k70_core_rgb_tkl_device,
     &k70_rgb_pro_device,
     &k70_rgb_pro_v2_device,
+    &k70_rgb_pro_mini_wireless_device,
     &k70_rgb_tkl_device,
     &k70_rgb_tkl_cs_device,
     &k95_platinum_xt_device,
