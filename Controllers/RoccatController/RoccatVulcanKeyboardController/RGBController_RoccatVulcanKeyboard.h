@@ -11,6 +11,11 @@
 
 #pragma once
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <vector>
 #include "RGBController.h"
 #include "RoccatVulcanKeyboardController.h"
 
@@ -31,4 +36,19 @@ public:
 private:
     RoccatVulcanKeyboardController* controller;
     uint16_t                    pid;
+
+    static RGBColor Scale5009(RGBColor color, unsigned int brightness);
+    static RGBColor Hue5009(double hue);
+    void EffectLoop();
+    std::thread effect_thread;
+    std::atomic<bool> effect_stop{false};
+    std::atomic<unsigned int> effect_mode{0};
+    std::atomic<unsigned int> effect_speed{ROCCAT_VULCAN_SPEED_DEFAULT};
+    std::atomic<unsigned int> effect_brightness{ROCCAT_VULCAN_BRIGHTNESS_DEFAULT};
+    std::mutex effect_io_mutex;
+    std::mutex effect_data_mutex;
+    std::mutex effect_wait_mutex;
+    std::condition_variable effect_cv;
+    std::vector<led_color> effect_base_colors;
+    std::vector<unsigned int> effect_led_ids;
 };
