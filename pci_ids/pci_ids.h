@@ -60,6 +60,7 @@
 #define INTEL_ALDER_LAKE_SMBUS_DEV                              0x7AA3
 #define INTEL_RAPTOR_LAKE_SMBUS_DEV                             0x7A23
 #define INTEL_ARROW_LAKE_SMBUS_DEV                              0x7F23
+#define INTEL_B580_DEV                                          0xE20B
 
 /*-----------------------------------------------------*\
 | Nvidia Device IDs                                     |
