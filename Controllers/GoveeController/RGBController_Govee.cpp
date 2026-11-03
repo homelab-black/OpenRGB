@@ -269,11 +269,11 @@ void RGBController_Govee::DeviceConfigureZone(int zone_idx)
         }
 
         SetupColors();      /* re-sync color buffers with LED count */
-        DeviceUpdateLEDs(); /* push an updated frame */
+        DeviceUpdateLEDs(colors); /* push an updated frame */
     }
 }
 
-void RGBController_Govee::DeviceUpdateLEDs()
+void RGBController_Govee::DeviceUpdateLEDs(std::vector<RGBColor>& update_colors)
 {
     if(colors.empty())
     {
@@ -314,12 +314,12 @@ void RGBController_Govee::DeviceUpdateLEDs()
 
 void RGBController_Govee::DeviceUpdateZoneLEDs(int /*zone*/)
 {
-    DeviceUpdateLEDs();
+    DeviceUpdateLEDs(colors);
 }
 
 void RGBController_Govee::DeviceUpdateSingleLED(int /*led*/)
 {
-    DeviceUpdateLEDs();
+    DeviceUpdateLEDs(colors);
 }
 
 void RGBController_Govee::DeviceUpdateMode()
@@ -336,7 +336,7 @@ void RGBController_Govee::DeviceUpdateMode()
         }
 
         last_update_time = std::chrono::steady_clock::now();
-        DeviceUpdateLEDs();
+        DeviceUpdateLEDs(colors);
     }
 }
 
@@ -390,7 +390,7 @@ void RGBController_Govee::KeepaliveThread()
                     controller->SendRazerEnable();
                 }
 
-                DeviceUpdateLEDs();
+                DeviceUpdateLEDs(colors);
             }
         }
 
