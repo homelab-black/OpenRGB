@@ -67,6 +67,9 @@ private:
     std::vector<uint8_t>  chassis_held;
     bool use_frame_colors;
     bool preserve_key_lamps;
+    /* GET_PROFILE captured before the first Direct save. Restored on exit while Direct is still active. */
+    std::vector<uint8_t> direct_profile;
+    bool direct_profile_restore;
     std::vector<led_group> GetLedGroups();
     void ReadDeviceSettings();
     void BuildStripGroups();

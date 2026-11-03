@@ -11,6 +11,7 @@
 #include <sstream>
 #include "LenovoDevices.h"
 #include "LenovoUSBController_Gen7_8.h"
+#include "Legion9ProfileGuard.h"
 #include "StringUtils.h"
 
 using namespace std;
@@ -71,6 +72,23 @@ void LenovoGen7And8USBController::setLedsByGroup(uint8_t profile_id, vector<led_
     | Send as many groups as fit in one report, then continue   |
     | in additional reports.                                    |
     \*---------------------------------------------------------*/
+    /* shortcut: one 960-byte report holds about 45 one-LED color groups.
+       A second Legion 9 report omits earlier keys and turns them blue.
+       More colors need a per-LED encoding this firmware applies one-to-one. */
+    if(pid == LEGION_9GEN10)
+    {
+        size_t used = 7;
+
+        for(size_t group_index = 0; group_index < led_groups.size(); group_index++)
+        {
+            if(!Legion9GroupFits(PACKET_SIZE, used, led_groups[group_index].colors.size(), led_groups[group_index].leds.size(), &used))
+            {
+                LOG_WARNING("[Lenovo Legion 9] %u color groups do not fit in one profile report. About 45 one-key groups fit. A partial save turns the other keys blue, so nothing was written.", (unsigned int)led_groups.size());
+                return;
+            }
+        }
+    }
+
     size_t group = 0;
     while(group < led_groups.size())
     {
@@ -86,8 +104,18 @@ void LenovoGen7And8USBController::setLedsByGroup(uint8_t profile_id, vector<led_
         buffer[i++] = 0x01;
         buffer[i++] = 0x01;
 
-        for(; group < led_groups.size() && i < PACKET_SIZE - 21; group++)
+        for(; group < led_groups.size() && (pid == LEGION_9GEN10 || i < PACKET_SIZE - 21); group++)
         {
+            /* The fit check above uses the same group size. Refuse again here so a mismatch cannot write past the report. */
+            if(pid == LEGION_9GEN10 &&
+               (led_groups[group].colors.size() > 255 ||
+                led_groups[group].leds.size() > 255 ||
+                i + 16 + led_groups[group].colors.size() * 3 + led_groups[group].leds.size() * 2 > PACKET_SIZE))
+            {
+                LOG_WARNING("[Lenovo Legion 9] profile group does not fit in one report. Nothing was written.");
+                return;
+            }
+
             buffer[i++] = (uint8_t)group + 1;  //Group index
             buffer[i++] = 0x06;
             buffer[i++] = 0x01;
@@ -112,11 +140,27 @@ void LenovoGen7And8USBController::setLedsByGroup(uint8_t profile_id, vector<led_
             }
 
             vector<uint16_t> leds = led_groups[group].leds;
-            size_t led_count = min(leds.size(), (PACKET_SIZE - i)/2);
+            size_t led_count;
+
+            if(pid == LEGION_9GEN10)
+            {
+                led_count = leds.size();
+            }
+            else
+            {
+                led_count = min(leds.size(), (PACKET_SIZE - i)/2);
+            }
+
             buffer[i++] = (uint8_t)led_count;
             uint8_t* byte_ptr = reinterpret_cast<uint8_t*>(leds.data());
             std::copy(byte_ptr, byte_ptr + led_count * sizeof(uint16_t), buffer + i);
             i+= led_count * sizeof(uint16_t);
+        }
+
+        if(pid == LEGION_9GEN10 && group < led_groups.size())
+        {
+            LOG_WARNING("[Lenovo Legion 9] profile does not fit in one report. Nothing was written.");
+            return;
         }
 
         if(UsesGen10PacketFormat(pid))
@@ -293,12 +337,41 @@ void LenovoGen7And8USBController::switchProfileTo(uint8_t profile_id)
     sendFeatureReport(buffer, PACKET_SIZE);
 }
 
-std::vector<led_group> LenovoGen7And8USBController::getProfileSettings(uint8_t profile_id)
+std::vector<uint8_t> LenovoGen7And8USBController::getProfileReport(uint8_t profile_id)
 {
     uint8_t buffer[PACKET_SIZE] = {REPORT_ID, GET_PROFILE, 0xC0, 0x03, profile_id};
 
     SetGen10PayloadLength(pid, buffer, PACKET_SIZE - 4);
-    vector<uint8_t> response = getFeatureReport(buffer, PACKET_SIZE);
+    return getFeatureReport(buffer, PACKET_SIZE);
+}
+
+void LenovoGen7And8USBController::restoreProfileReport(const std::vector<uint8_t>& report)
+{
+    uint8_t buffer[PACKET_SIZE];
+    size_t count;
+
+    /* The captured GET is sent back as a SAVE. Only the opcode byte changes. */
+    if(report.size() < 5 || report[0] != REPORT_ID || report[1] != GET_PROFILE)
+    {
+        return;
+    }
+
+    memset(buffer, 0x00, PACKET_SIZE);
+    count = report.size();
+
+    if(count > PACKET_SIZE)
+    {
+        count = PACKET_SIZE;
+    }
+
+    std::copy(report.begin(), report.begin() + count, buffer);
+    buffer[1] = SAVE_PROFILE;
+    sendFeatureReport(buffer, PACKET_SIZE);
+}
+
+std::vector<led_group> LenovoGen7And8USBController::getProfileSettings(uint8_t profile_id)
+{
+    vector<uint8_t> response = getProfileReport(profile_id);
 
     vector<led_group> groups;
 

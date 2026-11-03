@@ -45,7 +45,7 @@ DetectedControllers DetectHIDLampArrayControllers(hid_device_info* info, const s
         \*-------------------------------------------------*/
         if(controller->GetLampCount() > 0)
         {
-            RGBController_HIDLampArray* rgb_controller = new RGBController_HIDLampArray(controller, info->vendor_id, info->product_id);
+            RGBController_HIDLampArray* rgb_controller = new RGBController_HIDLampArray(controller);
 
             detected_controllers.push_back(rgb_controller);
         }

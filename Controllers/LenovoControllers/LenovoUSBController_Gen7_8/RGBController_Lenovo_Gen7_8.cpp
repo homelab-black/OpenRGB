@@ -12,6 +12,7 @@
 #include <hidapi.h>
 #include "RGBController_Lenovo_Gen7_8.h"
 #include "LenovoDevices.h"
+#include "Legion9ProfileGuard.h"
 #include "HIDLampArrayController.h"
 #include "RGBController_HIDLampArray.h"
 
@@ -172,10 +173,11 @@ static const RGBColor legion_5gen10_zone_visualization_colors[24] =
 
 LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBController* controller_ptr)
 {
-    controller          = controller_ptr;
-    light_strip         = nullptr;
-    use_frame_colors    = false;
-    preserve_key_lamps  = false;
+    controller              = controller_ptr;
+    light_strip             = nullptr;
+    use_frame_colors        = false;
+    preserve_key_lamps      = false;
+    direct_profile_restore  = false;
 
     mode Screw;
     Screw.name = "Screw Rainbow";
@@ -496,6 +498,17 @@ LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 {
     Shutdown();
 
+    /* Direct overwrites the saved effect. Put that effect back if the user did not choose Static. */
+    if(direct_profile_restore &&
+       active_mode >= 0 &&
+       active_mode < (int)modes.size() &&
+       modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
+    {
+        controller->restoreProfileReport(direct_profile);
+        /* A profile write can leave brightness at 0. Put back the level already selected. */
+        controller->setBrightness(brightness);
+    }
+
     if(light_strip != nullptr)
     {
         /* Give the chassis effect back to the firmware. */
@@ -621,6 +634,8 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
         ReadDeviceSettings();
         last_mode = active_mode;
         direct_enabled = false;
+        direct_profile_restore = false;
+        direct_profile.clear();
     }
 
     if(brightness != modes[active_mode].brightness)
@@ -635,6 +650,14 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
 
     if(last_mode != active_mode)
     {
+        /* Static is an intentional save. Do not restore the pre-Direct profile over it. */
+        if(DirectUsesStaticProfile(controller->getPid()) &&
+           modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_STATIC)
+        {
+            direct_profile_restore = false;
+            direct_profile.clear();
+        }
+
         if(modes[last_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
         {
             controller->setLedsDirectOff(profile_id);
@@ -716,7 +739,8 @@ void LenovoRGBController_Gen7_8::PrepareFrameColors()
     preserve_key_lamps = false;
     use_frame_colors = false;
 
-    if(light_strip == nullptr || !HostPerLedColorMode())
+    /* The strip device is not required. c909 still has to fill untouched keys. */
+    if(!DirectUsesStaticProfile(controller->getPid()) || !HostPerLedColorMode())
     {
         return;
     }
@@ -744,12 +768,7 @@ void LenovoRGBController_Gen7_8::PrepareFrameColors()
         }
     }
 
-    std::unordered_map<uint16_t, RGBColor> hardware;
-
-    if(!any_edit || light_strip != nullptr)
-    {
-        hardware = controller->getLiveLedColors();
-    }
+    std::unordered_map<uint16_t, RGBColor> hardware = controller->getLiveLedColors();
 
     /*-----------------------------------------------------*\
     | The UI buffer starts black. A strip edit used to save |
@@ -758,7 +777,7 @@ void LenovoRGBController_Gen7_8::PrepareFrameColors()
     | keys from the live colors, and keep untouched strip   |
     | squares on the color they already have.               |
     \*-----------------------------------------------------*/
-    if(hardware.empty() && !any_edit)
+    if(!Legion9HaveKeyColors(hardware.empty() ? 1 : 0, any_edit ? 1 : 0))
     {
         return;
     }
@@ -840,7 +859,7 @@ void LenovoRGBController_Gen7_8::DeviceUpdateLEDs()
     | Saving the black UI buffer is what turns the keyboard |
     | blue, so leave the keyboard profile alone.            |
     \*------------------------------------------------------*/
-    if(light_strip != nullptr && HostPerLedColorMode() && !use_frame_colors)
+    if(DirectUsesStaticProfile(controller->getPid()) && HostPerLedColorMode() && !use_frame_colors)
     {
         bool any_edit = false;
 
@@ -862,6 +881,22 @@ void LenovoRGBController_Gen7_8::DeviceUpdateLEDs()
         {
             if(DirectUsesStaticProfile(controller->getPid()))
             {
+                /* Snapshot once, before the first Direct save, so quit can put the previous effect back. */
+                if(!direct_profile_restore)
+                {
+                    direct_profile = controller->getProfileReport(profile_id);
+
+                    if(direct_profile.size() >= 5 && direct_profile[0] == REPORT_ID && direct_profile[1] == GET_PROFILE)
+                    {
+                        direct_profile_restore = true;
+                    }
+                    else
+                    {
+                        direct_profile.clear();
+                        LOG_WARNING("[Lenovo Legion 9] could not read the profile before Direct. Quit will leave the static colors.");
+                    }
+                }
+
                 controller->setLedsByGroup(profile_id, GetLedGroups());
             }
             else if(UsesGen10PacketFormat(controller->getPid()))
@@ -988,7 +1023,7 @@ void LenovoRGBController_Gen7_8::BuildStripGroups()
     });
 
     /* Back half, then the half toward the front edge. An odd count keeps the extra lamp on the front half. */
-    size_t left_mid = (left.size() + 1) / 2;
+    size_t left_mid = left.size() / 2;
     size_t right_mid = (right.size() + 1) / 2;
     strip_groups[0x01F5] = LampIdsInRange(left, 0, left_mid);
     strip_groups[0x01F6] = LampIdsInRange(left, left_mid, left.size());
@@ -1033,6 +1068,12 @@ void LenovoRGBController_Gen7_8::UpdateLightStrip()
     if(!per_led)
     {
         light_strip->SetLampArrayControlReport(1);
+        return;
+    }
+
+    /* No key colors yet. Taking the lamp array over now drops the key lamps back to blue. */
+    if(!Legion9SeizeLampArray(preserve_key_lamps ? 1 : 0))
+    {
         return;
     }
 
@@ -1302,7 +1343,10 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
         | Dropping black keys makes this firmware paint    |
         | them its default blue. Keep them on Legion 9.    |
         \*-------------------------------------------------*/
-        if(pair.first == 0x00 && led_map.size() != 1 && !(light_strip != nullptr && HostPerLedColorMode()))
+        if(!Legion9KeepColorGroup(DirectUsesStaticProfile(controller->getPid()) ? 1 : 0,
+                                  HostPerLedColorMode() ? 1 : 0,
+                                  led_map.size() == 1 ? 1 : 0,
+                                  pair.first))
         {
             continue;
         }
