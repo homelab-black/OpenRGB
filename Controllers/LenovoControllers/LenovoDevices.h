@@ -2161,10 +2161,9 @@ static lenovo_zone legion9_gen10_kbd =
 };
 
 /*--------------------------------------------------------*\
-| Same keyboard with the chassis strip in the side and     |
-| front cells. The top lens row is omitted: those          |
-| addresses never light. Each strip cell drives a run of   |
-| LEDs on the separate LampArray controller.               |
+| Keyboard without the top lens row. Those addresses       |
+| never light. The chassis strip is its own zone so it     |
+| can be colored without the keys.                         |
 \*--------------------------------------------------------*/
 
 static const unsigned int legion9_gen10_kbd_with_strip_map[] =
@@ -2173,10 +2172,9 @@ static const unsigned int legion9_gen10_kbd_with_strip_map[] =
      NA,  20,  21,  22,  23,  24,  25,  26,  NA,  27,  28,  29,  30,  31,  32,  33,  33,  34,  35,  36,  37,  NA,
      NA,  38,  39,  NA,  40,  41,  42,  43,  44,  45,  46,  47,  48,  NA,  49,  50,  51,  52,  53,  54,  55,  NA,
      NA,  56,  56,  57,  58,  59,  60,  61,  62,  NA,  63,  64,  65,  66,  67,  68,  68,  69,  70,  71,  55,  NA,
-     72,  73,  73,  74,  75,  NA,  76,  77,  78,  79,  80,  81,  82,  NA,  83,  84,  84,  85,  86,  87,  88,  89,
-     72,  90,  91,  92,  93,  94,  94,  94,  94,  94,  94,  95,  96,  NA,  NA,  97,  NA,  98,  98,  99,  88,  89,
-    100,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA, 101, 102,  NA, 103,  NA,  NA,  NA, 104,
-    100, 105, 105, 105, 105, 106, 106, 106, 107, 107, 107, 108, 108, 108, 109, 109, 109, 110, 110, 110, 110, 104,
+     NA,  72,  72,  73,  74,  NA,  75,  76,  77,  78,  79,  80,  81,  NA,  82,  83,  83,  84,  85,  86,  87,  NA,
+     NA,  88,  89,  90,  91,  92,  92,  92,  92,  92,  92,  93,  94,  NA,  NA,  95,  NA,  96,  96,  97,  87,  NA,
+     NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  98,  99,  NA, 100,  NA,  NA,  NA,  NA,
 };
 
 const lenovo_led legion9_gen10_kbd_with_strip_leds[] =
@@ -2253,7 +2251,6 @@ const lenovo_led legion9_gen10_kbd_with_strip_leds[] =
     {0x0079, KEY_EN_NUMPAD_4},
     {0x007B, KEY_EN_NUMPAD_5},
     {0x007C, KEY_EN_NUMPAD_6},
-    {0x01F5, "Light strip left"},
     {0x006A, KEY_EN_LEFT_SHIFT},
     {0x0082, KEY_EN_Z},
     {0x0083, KEY_EN_X},
@@ -2270,7 +2267,6 @@ const lenovo_led legion9_gen10_kbd_with_strip_leds[] =
     {0x0090, KEY_EN_NUMPAD_2},
     {0x0092, KEY_EN_NUMPAD_3},
     {0x00A7, KEY_EN_NUMPAD_ENTER},
-    {0x01FE, "Light strip right"},
     {0x007F, KEY_EN_LEFT_CONTROL},
     {0x0080, KEY_EN_LEFT_FUNCTION},
     {0x0096, KEY_EN_LEFT_WINDOWS},
@@ -2281,17 +2277,36 @@ const lenovo_led legion9_gen10_kbd_with_strip_leds[] =
     {0x009D, KEY_EN_UP_ARROW},
     {0x00A3, KEY_EN_NUMPAD_0},
     {0x00A5, KEY_EN_NUMPAD_PERIOD},
-    {0x01F6, "Light strip lower left"},
     {0x009C, KEY_EN_LEFT_ARROW},
     {0x009F, KEY_EN_DOWN_ARROW},
     {0x00A1, KEY_EN_RIGHT_ARROW},
-    {0x01FD, "Light strip lower right"},
+};
+
+static const lenovo_led legion9_gen10_light_strip_leds[] =
+{
+    {0x01F5, "Light strip left"},
+    {0x01F6, "Light strip lower left"},
     {0x01F7, "Light strip front 1"},
     {0x01F8, "Light strip front 2"},
     {0x01F9, "Light strip front 3"},
     {0x01FA, "Light strip front 4"},
     {0x01FB, "Light strip front 5"},
     {0x01FC, "Light strip front 6"},
+    {0x01FD, "Light strip lower right"},
+    {0x01FE, "Light strip right"},
+};
+
+static lenovo_zone legion9_gen10_light_strip =
+{
+    "Light strip",
+    ZONE_TYPE_LINEAR,
+    0,
+    1,
+    10,
+    NULL,
+    legion9_gen10_light_strip_leds,
+    0,
+    9,
 };
 
 static lenovo_zone legion9_gen10_kbd_with_strip =
@@ -2299,11 +2314,11 @@ static lenovo_zone legion9_gen10_kbd_with_strip =
     "Keyboard",
     ZONE_TYPE_MATRIX,
     0,
-    8,
+    7,
     22,
     legion9_gen10_kbd_with_strip_map,
     legion9_gen10_kbd_with_strip_leds,
     0,
-    110,
+    100,
 };
 

@@ -545,6 +545,7 @@ void LenovoRGBController_Gen7_8::SetupZones()
         if(light_strip != nullptr)
         {
             lenovo_zones.push_back(legion9_gen10_kbd_with_strip);
+            lenovo_zones.push_back(legion9_gen10_light_strip);
         }
         else
         {
