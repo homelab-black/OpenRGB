@@ -10,9 +10,6 @@
 \*---------------------------------------------------------*/
 
 #include <vector>
-#include <algorithm>
-#include <cmath>
-#include <chrono>
 #include "RGBControllerKeyNames.h"
 #include "RGBController_RoccatVulcanKeyboard.h"
 
@@ -53,7 +50,7 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Direct.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
     Direct.color_mode           = MODE_COLORS_PER_LED;
 
-    if(pid != ROCCAT_VULCAN_120_AIMO_PID && pid != ROCCAT_VULCAN_100_AIMO_PID)
+    if(pid != ROCCAT_VULCAN_120_AIMO_PID && pid != ROCCAT_VULCAN_100_AIMO_PID && pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
     {
         Direct.flags           |= MODE_FLAG_HAS_BRIGHTNESS;
         Direct.brightness_min   = ROCCAT_VULCAN_BRIGHTNESS_MIN;
@@ -67,16 +64,14 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Static.name                 = "Static";
     Static.value                = ROCCAT_VULCAN_MODE_STATIC;
     Static.flags                = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
-    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
-    {
-        // Direct streaming is not stored in keyboard onboard memory.
-        Static.flags &= ~MODE_FLAG_AUTOMATIC_SAVE;
-    }
     Static.brightness_min       = ROCCAT_VULCAN_BRIGHTNESS_MIN;
     Static.brightness_max       = ROCCAT_VULCAN_BRIGHTNESS_MAX;
     Static.brightness           = ROCCAT_VULCAN_BRIGHTNESS_DEFAULT;
     Static.color_mode           = MODE_COLORS_PER_LED;
-    modes.push_back(Static);
+    if(pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        modes.push_back(Static);
+    }
 
     mode Wave;
     Wave.name                   = "Rainbow Wave";
@@ -107,58 +102,12 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
         modes.push_back(Default);
     }
 
-    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
-    {
-        // Software effects: the 5009 firmware's native mode commands are not verified.
-        mode Cycle;
-        Cycle.name = "Color Cycle (Software)";
-        Cycle.value = 0x80;
-        Cycle.flags = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_BRIGHTNESS;
-        Cycle.color_mode = MODE_COLORS_NONE;
-        Cycle.speed_min = ROCCAT_VULCAN_SPEED_MIN;
-        Cycle.speed_max = ROCCAT_VULCAN_SPEED_MAX;
-        Cycle.speed = ROCCAT_VULCAN_SPEED_DEFAULT;
-        Cycle.brightness_min = ROCCAT_VULCAN_BRIGHTNESS_MIN;
-        Cycle.brightness_max = ROCCAT_VULCAN_BRIGHTNESS_MAX;
-        Cycle.brightness = ROCCAT_VULCAN_BRIGHTNESS_DEFAULT;
-        modes.push_back(Cycle);
-
-        mode Rainbow = Cycle;
-        Rainbow.name = "Rainbow (Software)";
-        Rainbow.value = 0x81;
-        modes.push_back(Rainbow);
-
-        mode RainbowWave = Cycle;
-        RainbowWave.name = "Rainbow Wave (Software)";
-        RainbowWave.value = 0x82;
-        modes.push_back(RainbowWave);
-
-        mode Breathing = Cycle;
-        Breathing.name = "Breathing (Software)";
-        Breathing.value = 0x83;
-        Breathing.color_mode = MODE_COLORS_PER_LED;
-        Breathing.flags |= MODE_FLAG_HAS_PER_LED_COLOR;
-        modes.push_back(Breathing);
-    }
-
     SetupZones();
-    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
-    {
-        effect_led_ids.reserve(leds.size());
-        for(const led &key : leds)
-        {
-            effect_led_ids.push_back(key.value);
-        }
-        effect_thread = std::thread(&RGBController_RoccatVulcanKeyboard::EffectLoop, this);
-    }
 }
 
 RGBController_RoccatVulcanKeyboard::~RGBController_RoccatVulcanKeyboard()
 {
     Shutdown();
-    effect_stop.store(true);
-    effect_cv.notify_all();
-    if(effect_thread.joinable()) effect_thread.join();
     if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
     {
         controller->EnableDirect(false);
@@ -347,32 +296,16 @@ else
 
 void RGBController_RoccatVulcanKeyboard::DeviceUpdateLEDs()
 {
-if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
     {
-        const mode &selected = modes[active_mode];
-        if(selected.value >= 0x80 && selected.value <= 0x83)
-        {
-            // Snapshot UI-owned mode state; worker never accesses modes/colors.
-            effect_speed.store(selected.speed);
-            effect_brightness.store(selected.brightness);
-            if(selected.value == 0x83)
-            {
-                std::lock_guard<std::mutex> lock(effect_data_mutex);
-                effect_base_colors.clear();
-                for(unsigned int i = 0; i < colors.size() && i < leds.size(); ++i)
-                    effect_base_colors.push_back({leds[i].value, colors[i]});
-            }
-            effect_mode.store(selected.value);
-            effect_cv.notify_all();
-            return;
-        }
-        effect_mode.store(0);
-        effect_cv.notify_all();
         std::vector<led_color> frame_colors;
         frame_colors.reserve(colors.size());
+
         for(unsigned int i = 0; i < colors.size() && i < leds.size(); ++i)
-            frame_colors.push_back({leds[i].value, Scale5009(colors[i], selected.brightness)});
-        std::lock_guard<std::mutex> io_lock(effect_io_mutex);
+        {
+            frame_colors.push_back({leds[i].value, colors[i]});
+        }
+
         controller->SendColors(frame_colors);
         return;
     }
@@ -408,7 +341,7 @@ void RGBController_RoccatVulcanKeyboard::DeviceUpdateMode()
 {
 if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
     {
-        // Software effects use the same verified direct RGB protocol.
+        // PID 5009 uses the verified direct RGB protocol.
         DeviceUpdateLEDs();
         return;
     }
@@ -428,95 +361,4 @@ if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
 
     controller->EnableDirect(modes[active_mode].value == ROCCAT_VULCAN_MODE_DIRECT);
     controller->WaitUntilReady();
-}
-
-// Only used by 10F5:5009. The old Roccat controller path is unchanged.
-RGBColor RGBController_RoccatVulcanKeyboard::Scale5009(RGBColor color, unsigned int brightness)
-{
-    const unsigned int lo = ROCCAT_VULCAN_BRIGHTNESS_MIN;
-    const unsigned int hi = ROCCAT_VULCAN_BRIGHTNESS_MAX;
-    const unsigned int b = std::max(lo, std::min(brightness, hi)) - lo;
-    const unsigned int span = hi - lo;
-    return ToRGBColor((RGBGetRValue(color) * b + span / 2) / span,
-                      (RGBGetGValue(color) * b + span / 2) / span,
-                      (RGBGetBValue(color) * b + span / 2) / span);
-}
-
-RGBColor RGBController_RoccatVulcanKeyboard::Hue5009(double hue)
-{
-    hue -= std::floor(hue);
-    const double h = hue * 6.0;
-    const double x = 1.0 - std::abs(std::fmod(h, 2.0) - 1.0);
-    double r = 0, g = 0, b = 0;
-    if(h < 1)      { r = 1; g = x; }
-    else if(h < 2) { r = x; g = 1; }
-    else if(h < 3) { g = 1; b = x; }
-    else if(h < 4) { g = x; b = 1; }
-    else if(h < 5) { r = x; b = 1; }
-    else           { r = 1; b = x; }
-    return ToRGBColor(static_cast<unsigned int>(r * 255 + .5),
-                      static_cast<unsigned int>(g * 255 + .5),
-                      static_cast<unsigned int>(b * 255 + .5));
-}
-
-void RGBController_RoccatVulcanKeyboard::EffectLoop()
-{
-    using clock = std::chrono::steady_clock;
-    const auto origin = clock::now();
-    while(!effect_stop.load())
-    {
-        const unsigned int kind = effect_mode.load();
-        if(kind < 0x80 || kind > 0x83)
-        {
-            std::unique_lock<std::mutex> lock(effect_wait_mutex);
-            effect_cv.wait_for(lock, std::chrono::milliseconds(250), [this] {
-                return effect_stop.load() || (effect_mode.load() >= 0x80 && effect_mode.load() <= 0x83);
-            });
-            continue;
-        }
-
-        const unsigned int speed = std::max(1u, std::min(effect_speed.load(), 11u));
-        const unsigned int brightness = effect_brightness.load();
-        const double t = std::chrono::duration<double>(clock::now() - origin).count();
-        const double phase = t * (0.035 + speed * 0.025);
-        std::vector<led_color> frame;
-        if(kind == 0x83)
-        {
-            std::lock_guard<std::mutex> lock(effect_data_mutex);
-            frame = effect_base_colors;
-        }
-        else
-        {
-            frame.reserve(effect_led_ids.size());
-            for(unsigned int led_id : effect_led_ids)
-            {
-                frame.push_back({led_id, 0});
-            }
-        }
-
-        const double breath = 0.5 - 0.5 * std::cos(phase * 6.283185307179586);
-        for(unsigned int i = 0; i < frame.size(); ++i)
-        {
-            RGBColor c = frame[i].color;
-            if(kind == 0x80) c = Hue5009(phase);
-            if(kind == 0x81) c = Hue5009(phase + frame[i].value / 91.0);
-            if(kind == 0x82) c = Hue5009(phase + frame[i].value / 28.0);
-            if(kind == 0x83)
-                c = ToRGBColor(static_cast<unsigned int>(RGBGetRValue(c) * breath),
-                               static_cast<unsigned int>(RGBGetGValue(c) * breath),
-                               static_cast<unsigned int>(RGBGetBValue(c) * breath));
-            frame[i].color = Scale5009(c, brightness);
-        }
-
-        {
-            std::lock_guard<std::mutex> io_lock(effect_io_mutex);
-            if(!effect_stop.load() && effect_mode.load() == kind)
-                controller->SendColors(frame);
-        }
-        // Wait between frames to avoid busy-looping; USB writes are synchronous.
-        std::unique_lock<std::mutex> wait_lock(effect_wait_mutex);
-        effect_cv.wait_for(wait_lock, std::chrono::milliseconds(8), [this, kind] {
-            return effect_stop.load() || effect_mode.load() != kind;
-        });
-    }
 }
