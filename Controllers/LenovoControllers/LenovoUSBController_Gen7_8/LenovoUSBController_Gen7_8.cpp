@@ -353,6 +353,7 @@ void LenovoGen7And8USBController::restoreProfileReport(const std::vector<uint8_t
     /* The captured GET is sent back as a SAVE. Only the opcode byte changes. */
     if(report.size() < 5 || report[0] != REPORT_ID || report[1] != GET_PROFILE)
     {
+        LOG_ERROR("[Lenovo Legion 9] saved profile could not be restored.");
         return;
     }
 

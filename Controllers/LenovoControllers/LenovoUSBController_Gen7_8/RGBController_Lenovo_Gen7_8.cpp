@@ -18,6 +18,17 @@
 
 using namespace std;
 
+/**------------------------------------------------------------------*\
+    @name Lenovo Legion Gen 7-10
+    @category Keyboard
+    @type USB
+    @save :robot:
+    @direct :white_check_mark:
+    @effects :white_check_mark:
+    @detectors DetectLenovoLegionUSBControllersGen7And8
+    @comment Legion 9 18IAX10 is 048D:C909. Direct on that keyboard is a per-key static profile. The chassis strip is 048D:C903 and shares this device view. Tested on Nobara Linux 44.
+\*-------------------------------------------------------------------*/
+
 static bool UsesGen10PacketFormat(uint16_t pid)
 {
     return pid == LEGION_7GEN10 || pid == LEGION_5GEN10 || pid == LEGION_9GEN10;
@@ -99,6 +110,16 @@ static HIDLampArrayController* OpenLegion9LightStrip()
     }
 
     hid_free_enumeration(infos);
+
+    if(strip == nullptr)
+    {
+        LOG_WARNING("[Lenovo Legion 9] light strip 048D:C903 did not open. Using the keyboard-only map.");
+    }
+    else
+    {
+        LOG_INFO("[Lenovo Legion 9] light strip 048D:C903 opened with %u lamps.", strip->GetLampCount());
+    }
+
     return(strip);
 }
 
@@ -466,6 +487,7 @@ LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBControll
     if(controller->getPid() == LEGION_9GEN10)
     {
         light_strip = OpenLegion9LightStrip();
+        LOG_INFO("[Lenovo Legion 9] 18IAX10 keyboard 048D:C909 profile %u brightness %u.", profile_id, brightness);
     }
     for(mode &m : modes)
     {
