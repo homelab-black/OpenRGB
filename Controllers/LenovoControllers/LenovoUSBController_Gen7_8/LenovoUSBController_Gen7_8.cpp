@@ -345,31 +345,6 @@ std::vector<uint8_t> LenovoGen7And8USBController::getProfileReport(uint8_t profi
     return getFeatureReport(buffer, PACKET_SIZE);
 }
 
-void LenovoGen7And8USBController::restoreProfileReport(const std::vector<uint8_t>& report)
-{
-    uint8_t buffer[PACKET_SIZE];
-    size_t count;
-
-    /* The captured GET is sent back as a SAVE. Only the opcode byte changes. */
-    if(report.size() < 5 || report[0] != REPORT_ID || report[1] != GET_PROFILE)
-    {
-        LOG_ERROR("[Lenovo Legion 9] saved profile could not be restored.");
-        return;
-    }
-
-    memset(buffer, 0x00, PACKET_SIZE);
-    count = report.size();
-
-    if(count > PACKET_SIZE)
-    {
-        count = PACKET_SIZE;
-    }
-
-    std::copy(report.begin(), report.begin() + count, buffer);
-    buffer[1] = SAVE_PROFILE;
-    sendFeatureReport(buffer, PACKET_SIZE);
-}
-
 std::vector<led_group> LenovoGen7And8USBController::getProfileSettings(uint8_t profile_id)
 {
     vector<uint8_t> response = getProfileReport(profile_id);

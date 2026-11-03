@@ -198,7 +198,6 @@ LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBControll
     light_strip             = nullptr;
     use_frame_colors        = false;
     preserve_key_lamps      = false;
-    direct_profile_restore  = false;
 
     mode Screw;
     Screw.name = "Screw Rainbow";
@@ -520,17 +519,6 @@ LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 {
     Shutdown();
 
-    /* Direct overwrites the saved effect. Put that effect back if the user did not choose Static. */
-    if(direct_profile_restore &&
-       active_mode >= 0 &&
-       active_mode < (int)modes.size() &&
-       modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
-    {
-        controller->restoreProfileReport(direct_profile);
-        /* A profile write can leave brightness at 0. Put back the level already selected. */
-        controller->setBrightness(brightness);
-    }
-
     if(light_strip != nullptr)
     {
         /* Give the chassis effect back to the firmware. */
@@ -656,8 +644,6 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
         ReadDeviceSettings();
         last_mode = active_mode;
         direct_enabled = false;
-        direct_profile_restore = false;
-        direct_profile.clear();
     }
 
     if(brightness != modes[active_mode].brightness)
@@ -672,14 +658,6 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
 
     if(last_mode != active_mode)
     {
-        /* Static is an intentional save. Do not restore the pre-Direct profile over it. */
-        if(DirectUsesStaticProfile(controller->getPid()) &&
-           modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_STATIC)
-        {
-            direct_profile_restore = false;
-            direct_profile.clear();
-        }
-
         if(modes[last_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
         {
             controller->setLedsDirectOff(profile_id);
@@ -903,22 +881,6 @@ void LenovoRGBController_Gen7_8::DeviceUpdateLEDs()
         {
             if(DirectUsesStaticProfile(controller->getPid()))
             {
-                /* Snapshot once, before the first Direct save, so quit can put the previous effect back. */
-                if(!direct_profile_restore)
-                {
-                    direct_profile = controller->getProfileReport(profile_id);
-
-                    if(direct_profile.size() >= 5 && direct_profile[0] == REPORT_ID && direct_profile[1] == GET_PROFILE)
-                    {
-                        direct_profile_restore = true;
-                    }
-                    else
-                    {
-                        direct_profile.clear();
-                        LOG_WARNING("[Lenovo Legion 9] could not read the profile before Direct. Quit will leave the static colors.");
-                    }
-                }
-
                 controller->setLedsByGroup(profile_id, GetLedGroups());
             }
             else if(UsesGen10PacketFormat(controller->getPid()))

@@ -73,9 +73,7 @@ class LenovoGen7And8USBController
     void setBrightness(uint8_t brightness);
     uint8_t getKeyboardId();
     void switchProfileTo(uint8_t profile_id);
-    /* Raw GET_PROFILE response. restore writes it back with the opcode set to SAVE. */
     std::vector<uint8_t> getProfileReport(uint8_t profile_id);
-    void restoreProfileReport(const std::vector<uint8_t>& report);
     std::vector<led_group> getProfileSettings(uint8_t profile_id);
 
 
