@@ -12,22 +12,283 @@
 
 #include "RGBController_EVisionKeyboard.h"
 
-//0xFFFFFFFF indicates an unused entry in matrix
-#define NA  0xFFFFFFFF
+typedef struct
+{
+    const unsigned int width;
+    const unsigned int height;
 
-static unsigned int matrix_map[6][23] =
-    { {   0,  NA,  1,    2,   3,   4,  NA,   5,   6,   7,   8,  NA,   9,  10,  11,  12,  14,  15,  16,  NA,  NA,  NA,  NA },
-      {  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  NA,  32,  33,  34,  NA,  35,  36,  37,  38,  39,  40,  41 },
-      {  42,  NA,  43,  44,  45,  46,  NA,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62 },
-      {  63,  NA,  64,  65,  66,  67,  NA,  68,  69,  70,  71,  72,  73,  74,  76,  NA,  NA,  NA,  NA,  80,  81,  82,  NA },
-      {  84,  NA,  86,  87,  88,  89,  NA,  90,  NA,  91,  92,  93,  94,  95,  97,  NA,  NA,  99,  NA, 101, 102, 103, 104 },
-      { 105, 106, 107,  NA,  NA,  NA,  NA, 108,  NA,  NA,  NA,  NA, 109, 110, 111, 113, 119, 120, 121, 123,  NA, 124,  NA } };
+    std::vector<std::vector<unsigned int>> matrix_map;
+
+    std::vector<std::string> led_names;
+
+    std::vector<unsigned int> led_sequence_positions;
+} evision_keyboard;
+
+#define NA  0xFFFFFFFF
+// Tecware Phantom 104 logical keys
+static evision_keyboard phantom104 =
+{
+    25,
+    6,
+
+    {
+        { 
+            0, NA, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, NA, 13, 14, 15, NA, NA, NA, NA, NA, NA, NA
+        },
+        {   
+            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, NA, 30, 31, 32, NA, 33, 34, 35, 36, NA, NA
+        },
+        {   
+            37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, NA, 51, 52, 53, NA, 54, 55, 56, 57, NA, NA
+        },
+        {   
+            58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, NA, NA, NA, NA, NA, NA, 71, 72, 73, NA, NA, NA
+        },
+        {   
+            74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, NA, NA, NA, 86, NA, NA, NA, 87, 88, 89, 90, NA, NA,
+        },
+        {
+            91, 92, 93, NA, NA, 94, NA, NA, 95, 96, 97, 98, NA, NA, 99, 100, 101, NA, NA, 102, 103, NA, NA, NA, NA
+        },
+    },
+{
+    "Esc",          //0
+
+    "F1",           //1
+    "F2",           //2
+    "F3",           //3
+    "F4",           //4
+
+    "F5",           //5
+    "F6",           //6
+    "F7",           //7
+    "F8",           //8
+
+    "F9",           //9
+    "F10",          //10
+    "F11",          //11
+    "F12",          //12
+
+    "PrtSc",        //13
+    "Scroll Lock",  //14
+    "Pause",        //15
+
+    "`",            //16
+
+    "1",            //17
+    "2",            //18
+    "3",            //19
+    "4",            //20
+    "5",            //21
+    "6",            //22
+    "7",            //23
+    "8",            //24
+    "9",            //25
+    "0",            //26
+
+    "-",            //27
+    "=",            //28
+    "Backspace",    //29
+    "Insert",       //30
+    "Home",         //31
+    "Page Up",      //32
+    "Num Lock",     //33
+    "Num /",        //34
+    "Num *",        //35
+    "Num -",        //36
+
+    "Tab",          //37
+
+    "Q",            //38
+    "W",            //39
+    "E",            //40
+    "R",            //41
+    "T",            //42
+    "Y",            //43
+    "U",            //44
+    "I",            //45
+    "O",            //46
+    "P",            //47
+    "[{",           //48
+    "}]",           //49    
+    "\\",           //50
+    
+    "Delete",       //51
+    "End",          //52
+    "Page Down",    //53
+    
+    "Num 7",        //54
+    "Num 8",        //55
+    "Num 9",        //56
+    "Num +",        //57
+
+    "Caps Lock",    //58
+    "A",            //59
+    "S",            //60
+    "D",            //61
+    "F",            //62
+    "G",            //63
+    "H",            //64
+    "J",            //65
+    "K",            //66
+    "L",            //67
+    ";:",           //68
+    "'",            //69
+    "Enter",        //70
+
+    "Num 4",        //71
+    "Num 5",        //72
+    "Num 6",        //73
+
+    "Left Shift",   //74
+    "Z",            //75
+    "X",            //76
+    "C",            //77
+    "V",            //78
+    "B",            //79
+    "N",            //80
+    "M",            //81
+    ",<",           //82
+    ".>",           //83
+    "//?",          //84
+    "Right Shift",  //85
+    
+    "Up Arrow",     //86
+
+    "Num 1",        //87
+    "Num 2",        //88
+    "Num 3",        //89
+    "Num Enter",    //90
+
+    "Left Control", //91
+    "Windows Key",  //92
+    "Left Alt",     //93
+    "Space",        //94
+    "Menu",         //95
+    "Fn",           //96
+    "Right Alt",    //97
+    "Right Control",//98
+
+    "Left Arrow",   //99
+    "Down Arrow",   //100
+    "Right Arrow",  //101
+
+    "Num 0",        //102
+    "Num ."         //103
+},
+    {
+        1, //KEY_EN_ESCAPE,              //0
+        2, //KEY_EN_F1,                  //1
+        3, //KEY_EN_F2,                  //2
+        4, //KEY_EN_F3,                  //3
+        5, //KEY_EN_F4,                  //4
+        6, //KEY_EN_F5,                  //5
+        7, //KEY_EN_F6,                  //6
+        8, //KEY_EN_F7,                  //7
+        9, //KEY_EN_F8,                  //8
+        10, //KEY_EN_F9,                 //9
+        11, //KEY_EN_F10,                 //10
+        12, //KEY_EN_F11,                 //11
+        13, //KEY_EN_F12,                 //12
+        106,//KEY_EN_PRINT_SCREEN,        //13
+        107,//KEY_EN_SCROLL_LOCK,         //14
+        108,//KEY_EN_PAUSE,               //15
+        18, //KEY_EN_BACK_TICK,           //16
+        19, //KEY_EN_1,                   //17
+        20, //KEY_EN_2,                   //18
+        21, //KEY_EN_3,                   //19
+        22, //KEY_EN_4,                   //20
+        23, //KEY_EN_5,                   //21
+        24, //KEY_EN_6,                   //22
+        25, //KEY_EN_7,                   //23
+        26, //KEY_EN_8,                   //24
+        27, //KEY_EN_9,                   //25
+        28, //KEY_EN_0,                   //26
+        29, //KEY_EN_MINUS,               //27
+        30, //KEY_EN_EQUAL,               //28
+        98, //KEY_EN_BACKSPACE,           //29
+        110,//KEY_EN_INSERT,              //30
+        111,//KEY_EN_HOME,                //31
+        112,//KEY_EN_PAGE_UP,             //32
+        31, //KEY_EN_NUMLOCK,             //33
+        32, //KEY_EN_NUMPAD_SLASH,        //34
+        33, //KEY_EN_NUMPAD_ASTERISK,     //35
+        116,//KEY_EN_NUMPAD_MINUS,        //36
+        35, //KEY_EN_TAB,                 //37
+        36, //KEY_EN_Q,                   //38
+        37, //KEY_EN_W,                   //39
+        38, //KEY_EN_E,                   //40
+        39, //KEY_EN_R,                   //41
+        40, //KEY_EN_T,                   //42
+        41, //KEY_EN_Y,                   //43
+        42, //KEY_EN_U,                   //44
+        43, //KEY_EN_I,                   //45
+        44, //KEY_EN_O,                   //46
+        45, //KEY_EN_P,                   //47
+        46, //KEY_EN_LEFT_BRACKET,        //48
+        47, //KEY_EN_RIGHT_BRACKET,       //49
+        64, //KEY_ANSI_BACK_SLASH,        //50
+        113,//KEY_EN_DELETE,              //51
+        114,//KEY_EN_END,                 //52
+        115,//KEY_EN_PAGE_DOWN,           //53
+        48, //KEY_EN_NUMPAD_7,            //54
+        49, //KEY_EN_NUMPAD_8,            //55
+        50, //KEY_EN_NUMPAD_9,            //56
+        52, //KEY_EN_CAPS,                //57
+        53, //KEY_EN_A,                   //58
+        54, //KEY_EN_S,                   //59
+        55, //KEY_EN_D,                   //60
+        56, //KEY_EN_F,                   //61
+        57, //KEY_EN_G,                   //62
+        58, //KEY_EN_H,                   //63
+        59, //KEY_EN_J,                   //64
+        60, //KEY_EN_K,                   //65
+        61, //KEY_EN_L,                   //66
+        62, //KEY_EN_SEMI_COLON,          //67
+        63, //KEY_EN_QUOTE,               //68
+        81, //KEY_EN_ANSI_ENTER,          //69
+        65, //KEY_EN_NUMPAD_4,            //70
+        66, //KEY_EN_NUMPAD_5,            //71
+        67, //KEY_EN_NUMPAD_6,            //72
+        117,//KEY_EN_NUMPAD_PLUS,         //73
+        69, //KEY_ANSI_LEFT_SHIFT,        //74
+        70, //KEY_EN_Z,                   //75
+        71, //KEY_EN_X,                   //76
+        72, //KEY_EN_C,                   //77
+        73, //KEY_EN_V,                   //78
+        74, //KEY_EN_B,                   //79
+        75, //KEY_EN_N,                   //80
+        76, //KEY_EN_M,                   //81
+        77, //KEY_EN_COMMA,               //82
+        78, //KEY_EN_PERIOD,              //83
+        79, //KEY_EN_FORWARD_SLASH,       //84
+        80, //KEY_EN_RIGHT_SHIFT,         //85
+        96, //KEY_EN_UP_ARROW,            //86
+        82, //KEY_EN_NUMPAD_1,            //87
+        83, //KEY_EN_NUMPAD_2,            //88
+        84, //KEY_EN_NUMPAD_3,            //89
+        101,//KEY_EN_NUMPAD_ENTER,        //90
+        86, //KEY_EN_LEFT_CONTROL,        //91
+        87, //KEY_EN_LEFT_WINDOWS,        //92
+        88, //KEY_EN_LEFT_ALT,            //93
+        89, //KEY_EN_SPACE,               //94
+        90, //KEY_EN_APPS,                //95
+        91, //KEY_EN_FN,                  //96
+        92, //KEY_EN_RIGHT_ALT,           //97
+        93, //KEY_EN_RIGHT_CONTROL,       //98
+        94, //KEY_EN_LEFT_ARROW,          //99
+        95, //KEY_EN_DOWN_ARROW,          //100
+        97, //KEY_EN_RIGHT_ARROW,         //101
+        99, //KEY_EN_NUMPAD_0,            //102
+        100,//KEY_EN_NUMPAD_PERIOD,       //103
+    }
+};
 
 /**------------------------------------------------------------------*\
     @name EVision Keyboard
     @category Keyboard
     @type USB
-    @save :robot:
+    @save :robot:m
     @direct :x:
     @effects :white_check_mark:
     @detectors DetectEVisionKeyboards
@@ -309,24 +570,41 @@ RGBController_EVisionKeyboard::~RGBController_EVisionKeyboard()
 
 void RGBController_EVisionKeyboard::SetupZones()
 {
+    std::vector<unsigned int> flat_matrix;
+
+for(unsigned int row_idx = 0;
+    row_idx < phantom104.matrix_map.size();
+    row_idx++)
+{
+    flat_matrix.insert(
+        flat_matrix.end(),
+        phantom104.matrix_map[row_idx].begin(),
+        phantom104.matrix_map[row_idx].end()
+    );
+}
+
+    
     zone new_zone;
 
-    new_zone.name               = "Keyboard";
-    new_zone.type               = ZONE_TYPE_MATRIX;
-    new_zone.leds_min           = 126;
-    new_zone.leds_max           = 126;
-    new_zone.leds_count         = 126;
-    new_zone.matrix_map.Set(6, 23, (unsigned int *)&matrix_map);
+    new_zone.name       = "Keyboard";
+    new_zone.type       = ZONE_TYPE_MATRIX;
+
+    new_zone.leds_min   = (unsigned int)phantom104.led_names.size();
+    new_zone.leds_max   = (unsigned int)phantom104.led_names.size();
+    new_zone.leds_count = (unsigned int)phantom104.led_names.size();
+
+    new_zone.matrix_map.Set(
+        phantom104.height,
+        phantom104.width,
+        flat_matrix.data()
+    );
 
     zones.push_back(new_zone);
 
-    for(int led_idx = 0; led_idx < 126; led_idx++)
+    for(size_t led_idx = 0; led_idx < phantom104.led_names.size(); led_idx++)
     {
         led new_led;
-
-        new_led.name = "Keyboard LED ";
-        new_led.name.append(std::to_string(led_idx));
-
+        new_led.name = phantom104.led_names[led_idx];
         leds.push_back(new_led);
     }
 
@@ -335,20 +613,33 @@ void RGBController_EVisionKeyboard::SetupZones()
 
 void RGBController_EVisionKeyboard::DeviceUpdateLEDs()
 {
-    unsigned char color_data[7*0x36];
+    unsigned char color_data[7 * 0x36] = { 0 };
 
-    for(int led_idx = 0; led_idx < 126; led_idx++)
+    for(size_t logical_idx = 0;
+        logical_idx < phantom104.led_sequence_positions.size();
+        logical_idx++)
     {
-        color_data[(3 * led_idx) + 0] = RGBGetRValue(colors[led_idx]);
-        color_data[(3 * led_idx) + 1] = RGBGetGValue(colors[led_idx]);
-        color_data[(3 * led_idx) + 2] = RGBGetBValue(colors[led_idx]);
+        unsigned int hw_led = phantom104.led_sequence_positions[logical_idx];
+
+        if(hw_led == 0)
+        {
+            continue;
+        }
+
+        color_data[(3 * hw_led) + 0] =
+            RGBGetRValue(colors[logical_idx]);
+
+        color_data[(3 * hw_led) + 1] =
+            RGBGetGValue(colors[logical_idx]);
+
+        color_data[(3 * hw_led) + 2] =
+            RGBGetBValue(colors[logical_idx]);
     }
 
-    controller->SetKeyboardColors
-                    (
-                    color_data,
-                    0x36 * 7
-                    );
+    controller->SetKeyboardColors(
+        color_data,
+        0x36 * 7
+    );
 }
 
 void RGBController_EVisionKeyboard::DeviceUpdateZoneLEDs(int /*zone*/)
