@@ -521,7 +521,7 @@ LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 
     if(light_strip != nullptr)
     {
-        /* Give the chassis effect back to the firmware. */
+        /* The strip and logo colors are in the keyboard profile. Firmware shows that once host control ends. */
         light_strip->SetLampArrayControlReport(1);
         delete light_strip;
         light_strip = nullptr;
@@ -1271,7 +1271,9 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
     | Legion 9 Direct is sent as per-key static, so it     |
     | has to be grouped by color like Static. Other Direct |
     | modes keep the single uncolored group used with A1.  |
-    | Strip and logo addresses are not keyboard keys.      |
+    | The strip and logo are in this save. LampArray is    |
+    | only the live update, and a zone left out turns off  |
+    | when OpenRGB exits.                                  |
     \*-----------------------------------------------------*/
     if(modes[active_mode].color_mode == MODE_COLORS_PER_LED &&
             (modes[active_mode].value != LENOVO_LEGION_GEN7_8_MODE_DIRECT ||
@@ -1279,11 +1281,6 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
     {
         for(size_t i = 0; i < leds.size() && i < active_colors.size(); i++)
         {
-            if(IsChassisLed(leds[i].value))
-            {
-                continue;
-            }
-
             led_map[active_colors[i]].push_back(leds[i].value);
         }
     }
