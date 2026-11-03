@@ -19,6 +19,17 @@
 DetectedControllers DetectHIDLampArrayControllers(hid_device_info* info, const std::string& /*name*/)
 {
     DetectedControllers detected_controllers;
+
+    /*-----------------------------------------------------*\
+    | Legion 9 18IAX10 chassis lighting is drawn on the     |
+    | keyboard device. A second sidebar entry would be the  |
+    | same strip and logo again.                            |
+    \*-----------------------------------------------------*/
+    if(info->vendor_id == 0x048D && info->product_id == 0xC903)
+    {
+        return(detected_controllers);
+    }
+
     hid_device*         dev;
 
     dev = hid_open_path(info->path);
@@ -34,7 +45,7 @@ DetectedControllers DetectHIDLampArrayControllers(hid_device_info* info, const s
         \*-------------------------------------------------*/
         if(controller->GetLampCount() > 0)
         {
-            RGBController_HIDLampArray* rgb_controller = new RGBController_HIDLampArray(controller);
+            RGBController_HIDLampArray* rgb_controller = new RGBController_HIDLampArray(controller, info->vendor_id, info->product_id);
 
             detected_controllers.push_back(rgb_controller);
         }

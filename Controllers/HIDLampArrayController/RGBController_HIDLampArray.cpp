@@ -21,15 +21,35 @@
     @detectors DetectHIDLampArrayControllers
 \*-------------------------------------------------------------------*/
 
-RGBController_HIDLampArray::RGBController_HIDLampArray(HIDLampArrayController* controller_ptr)
+#define HID_LAMPARRAY_PURPOSE_CONTROL   0x01
+#define HID_LAMPARRAY_PURPOSE_ACCENT    0x02
+#define HID_LAMPARRAY_PURPOSE_BRANDING  0x04
+
+/*---------------------------------------------------------*\
+| Legion 9 18IAX10 chassis lighting. The keyboard keys are  |
+| also advertised here, and the Spectrum controller already |
+| owns those. This device is the perimeter strip and logo.  |
+\*---------------------------------------------------------*/
+#define LENOVO_LEGION9_LIGHTING_VID 0x048D
+#define LENOVO_LEGION9_LIGHTING_PID 0xC903
+
+RGBController_HIDLampArray::RGBController_HIDLampArray(HIDLampArrayController* controller_ptr, unsigned short in_vid, unsigned short in_pid)
 {
     controller          = controller_ptr;
+    vid                 = in_vid;
+    pid                 = in_pid;
 
     name                = controller->GetDeviceName();
     description         = "HID LampArray Device";
     location            = controller->GetDeviceLocation();
     serial              = controller->GetDeviceSerial();
     vendor              = controller->GetDeviceVendor();
+
+    if(vid == LENOVO_LEGION9_LIGHTING_VID && pid == LENOVO_LEGION9_LIGHTING_PID)
+    {
+        name            = "Lenovo Legion 9 Gen 10 Light Strip";
+        description     = "Lenovo Legion 9 18IAX10";
+    }
 
     /*-----------------------------------------------------*\
     | Determine device type from LampArray kind             |
@@ -76,6 +96,15 @@ RGBController_HIDLampArray::RGBController_HIDLampArray(HIDLampArrayController* c
             break;
     }
 
+    /*-----------------------------------------------------*\
+    | This report's kind is Keyboard because it also lists  |
+    | the keys. The keys stay on the Spectrum device.       |
+    \*-----------------------------------------------------*/
+    if(vid == LENOVO_LEGION9_LIGHTING_VID && pid == LENOVO_LEGION9_LIGHTING_PID)
+    {
+        type            = DEVICE_TYPE_LEDSTRIP;
+    }
+
     mode Direct;
     Direct.name         = "Direct";
     Direct.value        = 0;
@@ -89,6 +118,16 @@ RGBController_HIDLampArray::RGBController_HIDLampArray(HIDLampArrayController* c
     Autonomous.flags        = 0;
     Autonomous.color_mode   = MODE_COLORS_NONE;
     modes.push_back(Autonomous);
+
+    /*-----------------------------------------------------*\
+    | Leave the firmware effect in charge until Direct is   |
+    | selected. Active mode 0 would show Direct before any  |
+    | write and look like OpenRGB had taken the strip.      |
+    \*-----------------------------------------------------*/
+    if(vid == LENOVO_LEGION9_LIGHTING_VID && pid == LENOVO_LEGION9_LIGHTING_PID)
+    {
+        active_mode     = 1;
+    }
 
     SetupZones();
 }
@@ -341,8 +380,84 @@ static const char *HIDUsageIDsToKeyNames[HID_KEYBOARD_USAGE_IDS_COUNT] =
     KEY_EN_RIGHT_WINDOWS,       // Keyboard Right GUI
 };
 
+const char* HIDLampArrayKeyName(unsigned char hid_usage)
+{
+    if(hid_usage >= HID_KEYBOARD_USAGE_IDS_COUNT)
+    {
+        return(nullptr);
+    }
+
+    const char* name = HIDUsageIDsToKeyNames[hid_usage];
+
+    if(name == nullptr || name == KEY_EN_UNUSED)
+    {
+        return(nullptr);
+    }
+
+    return(name);
+}
+
+void RGBController_HIDLampArray::AddLinearZone(const std::string& zone_name, const std::vector<size_t>& lamp_indexes, const std::vector<LampAttributes>& lamps)
+{
+    if(lamp_indexes.empty())
+    {
+        return;
+    }
+
+    zone new_zone;
+    new_zone.name       = zone_name;
+    new_zone.type       = ZONE_TYPE_LINEAR;
+    new_zone.leds_min   = (unsigned int)lamp_indexes.size();
+    new_zone.leds_max   = new_zone.leds_min;
+    new_zone.leds_count = new_zone.leds_min;
+    zones.push_back(new_zone);
+
+    for(size_t index = 0; index < lamp_indexes.size(); index++)
+    {
+        led new_led;
+        new_led.name    = zone_name + " " + std::to_string(index + 1);
+        new_led.value   = lamps[lamp_indexes[index]].LampId;
+        leds.push_back(new_led);
+    }
+}
+
 void RGBController_HIDLampArray::SetupZones()
 {
+    std::vector<LampAttributes> lamps = controller->GetLamps();
+
+    /*-----------------------------------------------------*\
+    | Legion 9 publishes the keyboard on this same report.  |
+    | Keep the accent strip and the logo.                   |
+    \*-----------------------------------------------------*/
+    if(vid == LENOVO_LEGION9_LIGHTING_VID && pid == LENOVO_LEGION9_LIGHTING_PID)
+    {
+        std::vector<size_t> strip;
+        std::vector<size_t> logo;
+
+        for(size_t lamp_idx = 0; lamp_idx < lamps.size(); lamp_idx++)
+        {
+            unsigned int purpose = lamps[lamp_idx].LampPurposes;
+
+            if(purpose & HID_LAMPARRAY_PURPOSE_ACCENT)
+            {
+                strip.push_back(lamp_idx);
+            }
+            else if(purpose & HID_LAMPARRAY_PURPOSE_BRANDING)
+            {
+                logo.push_back(lamp_idx);
+            }
+            else if((purpose & HID_LAMPARRAY_PURPOSE_CONTROL) == 0)
+            {
+                strip.push_back(lamp_idx);
+            }
+        }
+
+        AddLinearZone("Light strip", strip, lamps);
+        AddLinearZone("Logo", logo, lamps);
+        SetupColors();
+        return;
+    }
+
     zone new_zone;
     new_zone.name       = RGBController::DeviceTypeToString(type);
     new_zone.type       = ZONE_TYPE_MATRIX;
@@ -391,6 +506,7 @@ void RGBController_HIDLampArray::SetupZones()
         {
             new_led.name = "Lamp " + std::to_string(lamp_idx);
         }
+        new_led.value = controller->GetLamps()[lamp_idx].LampId;
         leds.push_back(new_led);
     }
 
@@ -399,6 +515,16 @@ void RGBController_HIDLampArray::SetupZones()
 
 void RGBController_HIDLampArray::DeviceUpdateLEDs()
 {
+    /*-----------------------------------------------------*\
+    | The strip ignores color reports while the firmware    |
+    | effect is still in autonomous mode.                   |
+    \*-----------------------------------------------------*/
+    if(vid == LENOVO_LEGION9_LIGHTING_VID && pid == LENOVO_LEGION9_LIGHTING_PID
+       && modes[active_mode].value == 0)
+    {
+        controller->SetLampArrayControlReport(false);
+    }
+
     unsigned int leds_to_go = (unsigned int)leds.size();
 
     while(leds_to_go > 0)
@@ -416,7 +542,7 @@ void RGBController_HIDLampArray::DeviceUpdateLEDs()
         for(unsigned int led_frame_idx = 0; led_frame_idx < leds_this_frame; led_frame_idx++)
         {
             unsigned short led_idx = (unsigned short)((leds.size() - leds_to_go) + led_frame_idx);
-            LampIds[led_frame_idx] = led_idx;
+            LampIds[led_frame_idx] = (unsigned short)leds[led_idx].value;
             UpdateColors[led_frame_idx].RedChannel = RGBGetRValue(colors[led_idx]);
             UpdateColors[led_frame_idx].GreenChannel = RGBGetGValue(colors[led_idx]);
             UpdateColors[led_frame_idx].BlueChannel = RGBGetBValue(colors[led_idx]);

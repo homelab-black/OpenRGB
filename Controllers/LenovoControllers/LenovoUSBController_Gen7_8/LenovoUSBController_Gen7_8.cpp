@@ -17,7 +17,7 @@ using namespace std;
 
 static void SetGen10PayloadLength(uint16_t pid, uint8_t* buffer, uint16_t payload_length)
 {
-    if(pid != LEGION_7GEN10 && pid != LEGION_5GEN10)
+    if(pid != LEGION_7GEN10 && pid != LEGION_5GEN10 && pid != LEGION_9GEN10)
     {
         return;
     }
@@ -28,7 +28,7 @@ static void SetGen10PayloadLength(uint16_t pid, uint8_t* buffer, uint16_t payloa
 
 static bool UsesGen10PacketFormat(uint16_t pid)
 {
-    return pid == LEGION_7GEN10 || pid == LEGION_5GEN10;
+    return pid == LEGION_7GEN10 || pid == LEGION_5GEN10 || pid == LEGION_9GEN10;
 }
 
 LenovoGen7And8USBController::LenovoGen7And8USBController(hid_device* dev_handle, const char* path, uint16_t in_pid, std::string dev_name)
@@ -245,6 +245,35 @@ uint8_t LenovoGen7And8USBController::getCurrentBrightness()
     vector<uint8_t> response = getFeatureReport(buffer, PACKET_SIZE);
 
     return response.size()>4?response[4]:0x00;
+}
+
+std::unordered_map<uint16_t, RGBColor> LenovoGen7And8USBController::getLiveLedColors()
+{
+    std::unordered_map<uint16_t, RGBColor> colors;
+    uint8_t buffer[PACKET_SIZE];
+
+    /*-----------------------------------------------------*\
+    | A bare get, with no set before it, is the live LED    |
+    | state. Records are key id, R, G, B from byte 4.       |
+    \*-----------------------------------------------------*/
+    memset(buffer, 0x00, sizeof(buffer));
+    buffer[0] = REPORT_ID;
+
+    int num_bytes = hid_get_feature_report(dev, buffer, sizeof(buffer));
+
+    for(int index = 4; num_bytes >= 0 && index + 5 <= num_bytes; index += 5)
+    {
+        uint16_t led_id = buffer[index] | (buffer[index + 1] << 8);
+
+        if(led_id == 0x0000)
+        {
+            break;
+        }
+
+        colors[led_id] = ToRGBColor(buffer[index + 2], buffer[index + 3], buffer[index + 4]);
+    }
+
+    return(colors);
 }
 
 
