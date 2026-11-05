@@ -33,6 +33,7 @@
 #include <QTabBar>
 #include <QMessageBox>
 #include <QCloseEvent>
+#include <QEventLoop>
 #include <QStyleFactory>
 #include <QKeyEvent>
 #include <QCheckBox>
@@ -597,8 +598,6 @@ void OpenRGBDialog::changeEvent(QEvent *event)
 
 void OpenRGBDialog::closeEvent(QCloseEvent *event)
 {
-    ResourceManager::get()->WaitForDetection();
-
     if (IsMinimizeOnClose() && !this->isHidden() && event->spontaneous())
     {
 #ifdef __APPLE__
@@ -609,6 +608,23 @@ void OpenRGBDialog::closeEvent(QCloseEvent *event)
     }
     else
     {
+        /*-------------------------------------------------*\
+        | Keep events flowing while detection finishes.     |
+        | The detection thread reports new devices through  |
+        | a blocking queued call into this thread, so       |
+        | waiting here directly deadlocks when exiting      |
+        | during detection.                                 |
+        \*-------------------------------------------------*/
+        QEventLoop  detection_wait_loop;
+        std::thread detection_wait_thread([&detection_wait_loop]()
+        {
+            ResourceManager::get()->WaitForDetection();
+            QMetaObject::invokeMethod(&detection_wait_loop, "quit", Qt::QueuedConnection);
+        });
+
+        detection_wait_loop.exec(QEventLoop::ExcludeUserInputEvents);
+        detection_wait_thread.join();
+
         /*-------------------------------------------------*\
         | Stop receiving resource manager callbacks before  |
         | the event loop dies: plugin teardown signals from |
