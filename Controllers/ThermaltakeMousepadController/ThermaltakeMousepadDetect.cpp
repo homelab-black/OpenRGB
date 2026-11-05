@@ -4,37 +4,47 @@
 |                                                           |
 |   Detector for Thermaltake Argent MP1 Mousepad            |
 |                                                           |
-|   John Scripter                               26 Oct 2026 |
+|   John Scripter                                4 Nov 2026 |
 |                                                           |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <hidapi.h>
 #include "DetectionManager.h"
 #include "RGBController.h"
 #include "RGBController_ThermaltakeArgentMP1.h"
 #include "ThermaltakeArgentMP1Controller.h"
 
-std::vector<RGBController*> DetectThermaltakeArgentMP1(hid_device_info* info, const std::string& args)
+/*---------------------------------------------------------*\
+|  Vendor and Product Constants                             |
+\*---------------------------------------------------------*/
+#define THERMALTAKE_VID                 0x264A
+#define THERMALTAKE_ARGENT_MP1_PID      0x9011
+#define THERMALTAKE_MP1_USAGE_PAGE      0xFF00
+#define THERMALTAKE_MP1_USAGE           0x0001
+
+
+DetectedControllers DetectThermaltakeArgentMP1(hid_device_info* info, const std::string&)
 {
-    (void)args;
-    std::vector<RGBController*> controllers;
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
 
-    // The device exposes 4 endpoints; ensure we target the correct interface matching Endpoint 4
-    // Usually, specific endpoints map to a distinct interface number (e.g., interface 1 or 2)
-    if(info->interface_number == 1 || info->interface_number == -1)
+    dev = hid_open_path(info->path);
+
+    if(dev)
     {
-        hid_device* dev = hid_open_path(info->path);
+        ThermaltakeArgentMP1Controller*     controller     = new ThermaltakeArgentMP1Controller(dev, *info);
+        RGBController_ThermaltakeArgentMP1* rgb_controller = new RGBController_ThermaltakeArgentMP1(controller);
 
-        if(dev)
-        {
-            ThermaltakeArgentMP1Controller*     controller     = new ThermaltakeArgentMP1Controller(dev, *info);
-            RGBController_ThermaltakeArgentMP1* rgb_controller = new RGBController_ThermaltakeArgentMP1(controller);
-
-            controllers.push_back(rgb_controller);
-        }
+        detected_controllers.push_back(rgb_controller);
     }
 
-    return controllers;
+    return(detected_controllers);
 }
 
-REGISTER_HID_DETECTOR("Thermaltake Argent MP1", DetectThermaltakeArgentMP1, 0x264A, 0x9011);
+/*---------------------------------------------------------*\
+| Device Registration                                       |
+\*---------------------------------------------------------*/
+
+REGISTER_HID_DETECTOR_IPU("Thermaltake Argent MP1", DetectThermaltakeArgentMP1, THERMALTAKE_VID, THERMALTAKE_ARGENT_MP1_PID, 1, THERMALTAKE_MP1_USAGE_PAGE, THERMALTAKE_MP1_USAGE);
+
