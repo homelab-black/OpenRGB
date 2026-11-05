@@ -129,6 +129,7 @@ ENESMBusController::ENESMBusController(ENESMBusInterface* interface, ene_dev_id 
         direct_reg  = ENE_REG_COLORS_DIRECT_V2;
         effect_reg  = ENE_REG_COLORS_EFFECT_V2;
         channel_cfg = ENE_CONFIG_CHANNEL_V1;
+        led_count   = config_table[ENE_CONFIG_LED_COUNT_0107];
 
         /*-------------------------------------------------*\
         | Check for Mode 14 support, only known to exist on |
