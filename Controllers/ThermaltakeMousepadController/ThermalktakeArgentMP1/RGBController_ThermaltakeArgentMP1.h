@@ -4,7 +4,7 @@
 |                                                           |
 |   OpenRGB UI Wrapper for Thermaltake Argent MP1 Mousepad  |
 |                                                           |
-|   John Scripter                                1 Nov 2026 |
+|   John Scripter                                4 Nov 2026 |
 |                                                           |
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
