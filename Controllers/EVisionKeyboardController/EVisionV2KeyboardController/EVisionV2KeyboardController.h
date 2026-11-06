@@ -133,6 +133,7 @@ enum EVisionV2KeyboardLayout
 {
     EVISION_V2_KEYBOARD_LAYOUT,
     ENDORFY_KEYBOARD_LAYOUT,
+    SPCGEAR_GK630K_LAYOUT,
 };
 
 enum EVisionV2KeyboardPart
@@ -192,6 +193,7 @@ private:
 
     uint8_t *   keyvalue_map;
     size_t      led_count;
+    uint8_t     blank_space;
 
     std::mutex  query_mutex;
 };
