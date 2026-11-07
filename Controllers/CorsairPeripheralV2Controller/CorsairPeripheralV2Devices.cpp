@@ -1437,7 +1437,7 @@ static const corsair_v2_device k100_rgb_opt_v1_device =
     },
     &corsair_k100_layout,
     0x5F,
-    65
+    1025
 };
 
 /*-------------------------------------------------------------*\
