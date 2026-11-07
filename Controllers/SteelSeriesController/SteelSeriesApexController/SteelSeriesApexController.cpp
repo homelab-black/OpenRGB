@@ -37,11 +37,24 @@ static unsigned int keys[] =
 };
 
 /*---------------------------------------------------------*\
-| Models whose direct lighting feature report is shorter    |
-| than APEX_PACKET_LENGTH.  Sending the wrong report size   |
-| makes the keyboard stall the control transfer, so any     |
-| model listed here would silently ignore lighting updates  |
-| if the default length were used.                          |
+| Apex Pro Mini wired lighting report constants and order   |
+\*---------------------------------------------------------*/
+#define APEX_PRO_MINI_PACKET_LENGTH       513
+#define APEX_PRO_MINI_PACKET_ID_DIRECT    0x40
+#define APEX_PRO_MINI_PACKET_ID_ONBOARD   0x41
+
+static const unsigned char apex_pro_mini_hid_codes[] =
+{
+     41,  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  45,
+     46, 137,  43,  20,  26,   8,  21,  23,  28,  24,  12,  18,
+     19,  47,  48,  49,  57,   4,  22,   7,   9,  10,  11,  13,
+     14,  15,  51,  52,  50,  40, 225, 100,  29,  27,   6,  25,
+      5,  17,  16,  54,  55,  56, 135, 229, 224, 227, 226, 139,
+     44, 138, 136, 230, 231, 240, 228,  42
+};
+
+/*---------------------------------------------------------*\
+| Models with a nonstandard direct-lighting report length   |
 \*---------------------------------------------------------*/
 inline static const std::map<unsigned short, unsigned int> direct_packet_length_map =
 {
@@ -53,6 +66,7 @@ inline static const std::map<unsigned short, protocol_quirk> protocol_map =
 {
     {STEELSERIES_APEX_9_TKL_PID,             APEX_GEN2},
     {STEELSERIES_APEX_9_MINI_PID,            APEX_GEN2},
+    {STEELSERIES_APEX_PRO_MINI_PID,          APEX_GEN2},
     {STEELSERIES_APEX_PRO_TKL_2023_PID,      APEX_GEN2},
     {STEELSERIES_APEX_PRO_TKL_2023_WL_PID_1, APEX_GEN3},
     {STEELSERIES_APEX_PRO_TKL_2023_WL_PID_2, APEX_GEN3},
@@ -75,7 +89,10 @@ SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, ste
     {
         direct_packet_length = direct_packet_length_map.at(device_pid);
     }
-    SendInitialization();
+    if(device_pid != STEELSERIES_APEX_PRO_MINI_PID)
+    {
+        SendInitialization();
+    }
 
     /*-----------------------------------------------------*\
     | Illumination brightness is offered only when the      |
@@ -84,13 +101,21 @@ SteelSeriesApexController::SteelSeriesApexController(hid_device* dev_handle, ste
     | initialization, so the keyboard is in a known state   |
     \*-----------------------------------------------------*/
     current_brightness   = APEX_BRIGHTNESS_MAX;
-    brightness_supported = ReadBrightness(current_brightness);
+    brightness_supported = device_pid != STEELSERIES_APEX_PRO_MINI_PID && ReadBrightness(current_brightness);
 }
 
 SteelSeriesApexController::~SteelSeriesApexController()
 {
-    SendDeinitialization();
+    if(device_pid != STEELSERIES_APEX_PRO_MINI_PID)
+    {
+        SendDeinitialization();
+    }
     hid_close(dev);
+}
+
+bool SteelSeriesApexController::IsApexProMini() const
+{
+    return device_pid == STEELSERIES_APEX_PRO_MINI_PID;
 }
 
 /*---------------------------------------------------*\
@@ -113,13 +138,31 @@ void SteelSeriesApexController::SetMode(unsigned char mode, std::vector<RGBColor
 {
     if(active_mode != mode)
     {
-        if(active_mode == APEX_MODE_ONBOARD && kbd_quirk != APEX_GEN1)
+        if(device_pid == STEELSERIES_APEX_PRO_MINI_PID)
         {
-            SendInitialization();
+            /*-------------------------------------------------*\
+            | Mini Onboard mode uses a 65-byte output report.   |
+            \*-------------------------------------------------*/
+            if(mode == APEX_MODE_ONBOARD)
+            {
+                unsigned char report[STEELSERIES_PACKET_OUT_SIZE] = {};
+                report[1] = APEX_PRO_MINI_PACKET_ID_ONBOARD;
+                if(hid_write(dev, report, sizeof(report)) < 0)
+                {
+                    LOG_DEBUG("[%s] Apex Pro Mini onboard release failed", name.c_str());
+                }
+            }
         }
-        if(mode == APEX_MODE_ONBOARD)
+        else
         {
-            SendDeinitialization();
+            if(active_mode == APEX_MODE_ONBOARD && kbd_quirk != APEX_GEN1)
+            {
+                SendInitialization();
+            }
+            if(mode == APEX_MODE_ONBOARD)
+            {
+                SendDeinitialization();
+            }
         }
     }
     active_mode = mode;
@@ -127,6 +170,40 @@ void SteelSeriesApexController::SetMode(unsigned char mode, std::vector<RGBColor
 
 void SteelSeriesApexController::SetLEDsDirect(std::vector<RGBColor> colors)
 {
+    if(device_pid == STEELSERIES_APEX_PRO_MINI_PID)
+    {
+        /*-----------------------------------------------------*\
+        | Do not send direct colors after firmware handoff.     |
+        \*-----------------------------------------------------*/
+        if(active_mode == APEX_MODE_ONBOARD)
+        {
+            return;
+        }
+
+        unsigned char report[APEX_PRO_MINI_PACKET_LENGTH] = {};
+        report[1] = APEX_PRO_MINI_PACKET_ID_DIRECT;
+        unsigned int count = 0;
+        for(unsigned int led_idx = 0; led_idx < sizeof(apex_pro_mini_hid_codes); ++led_idx)
+        {
+            if(count >= colors.size())
+            {
+                break;
+            }
+            const unsigned int offset = 3 + count * 4;
+            report[offset] = apex_pro_mini_hid_codes[led_idx];
+            report[offset + 1] = RGBGetRValue(colors[count]);
+            report[offset + 2] = RGBGetGValue(colors[count]);
+            report[offset + 3] = RGBGetBValue(colors[count]);
+            ++count;
+        }
+        report[2] = (unsigned char)count;
+        if(hid_send_feature_report(dev, report, sizeof(report)) < 0)
+        {
+            LOG_DEBUG("[%s] Apex Pro Mini direct lighting update failed", name.c_str());
+        }
+        return;
+    }
+
     unsigned char buf[APEX_PACKET_LENGTH];
     int num_keys = sizeof(keys) / sizeof(*keys);
     unsigned char packet_id = APEX_GEN1_PACKET_ID_DIRECT;
