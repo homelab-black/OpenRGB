@@ -13,12 +13,21 @@
 #include "AsusAuraCoreController.h"
 #include "DetectionManager.h"
 #include "RGBController_AsusAuraCore.h"
+#include "dmiinfo.h"
 
 #define AURA_CORE_VID                   0x0B05
 
 DetectedControllers DetectAsusAuraCoreControllers(hid_device_info* info, const std::string& /*name*/)
 {
     DetectedControllers detected_controllers;
+
+    DMIInfo dmi;
+
+    if(dmi.getMainboard() == "G731GW")
+    {
+        return detected_controllers;
+    }
+
     hid_device*         dev;
 
     dev = hid_open_path(info->path);
