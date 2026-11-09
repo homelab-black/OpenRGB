@@ -32,6 +32,19 @@ DetectedControllers DetectASRockGPUSMBusControllers(i2c_smbus_interface* bus, ui
         return(detected_controllers);
     }
 
+    /*-----------------------------------------------------*\
+    | Intel discrete GPUs register several i2c adapters     |
+    | under the same PCI device: gmbus and DisplayPort AUX  |
+    | for the outputs, plus the internal DesignWare bus the |
+    | RGB controller lives on.  All of them carry the       |
+    | card's PCI IDs, so without this the probe packet      |
+    | would also be written to the monitors' DDC buses.     |
+    \*-----------------------------------------------------*/
+    if(bus->info.pci_vendor == INTEL_VEN && !is_intel_gpu_i2c_bus(bus))
+    {
+        return(detected_controllers);
+    }
+
     LOG_DEBUG("[ASRock GPU] Checking GPU I2C bus for RGB controller at 0x%02X", address);
 
     ASRockGPUSMBusController* controller = new ASRockGPUSMBusController(bus, address, name);
