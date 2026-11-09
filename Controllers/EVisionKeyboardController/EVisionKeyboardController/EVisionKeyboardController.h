@@ -17,11 +17,14 @@
 #include "RGBController.h"
 
 #define EVISION_KB_MAX_PACKET_SIZE                  ( 0x36 )/* max packet size for color*/
+#define EVISION_KB_PROFILE_PARAMETER_SIZE           ( 0x2A )/* parameter block/profile  */
+#define EVISION_KB_PROFILE_COLOR_SIZE               ( 0x200)/* color block per profile  */
                                                             /* update packets           */
 enum
 {
     EVISION_KB_COMMAND_BEGIN                        = 0x01, /* Begin packet command     */
     EVISION_KB_COMMAND_END                          = 0x02, /* End packet command       */
+    EVISION_KB_COMMAND_READ_CONFIG                  = 0x03, /* Read config block        */
     EVISION_KB_COMMAND_SET_PARAMETER                = 0x06, /* Set parameter command    */
     EVISION_KB_COMMAND_READ_CUSTOM_COLOR_DATA       = 0x10, /* Read custom color data   */
     EVISION_KB_COMMAND_WRITE_CUSTOM_COLOR_DATA      = 0x11, /* Write custom color data  */
@@ -135,10 +138,28 @@ public:
 
     void        SendKeyboardEnd();
 
+    /*-----------------------------------------------------*\
+    | Onboard profiles: effect parameters live at           |
+    | profile * 0x2A and per-key colors at profile * 0x200. |
+    | The active profile is byte 10 of the config block.    |
+    | Default profile 0 keeps the original behavior.        |
+    \*-----------------------------------------------------*/
+    int         ReadActiveProfile();
+    void        SetProfile(unsigned char profile_index);
+
+    /*-----------------------------------------------------*\
+    | Check each reply and retry unacknowledged packets     |
+    \*-----------------------------------------------------*/
+    void        SetVerifyReplies(bool verify);
+
 private:
     hid_device*             dev;
     std::string             location;
     std::string             name;
+    unsigned char           profile             = 0;
+    bool                    verify_replies      = false;
+
+    void        Transfer(unsigned char* usb_buf);
 
     void        ComputeChecksum
                     (

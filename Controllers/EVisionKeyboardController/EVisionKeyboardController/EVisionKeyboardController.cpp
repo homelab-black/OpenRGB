@@ -10,8 +10,11 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 #include "EVisionKeyboardController.h"
+#include "LogManager.h"
 #include "StringUtils.h"
 
 EVisionKeyboardController::EVisionKeyboardController(hid_device* dev_handle, const char* path, std::string dev_name)
@@ -73,7 +76,7 @@ void EVisionKeyboardController::SetKeyboardColors
             (
             &color_data[packet_offset],
             packet_size,
-            packet_offset
+            (profile * EVISION_KB_PROFILE_COLOR_SIZE) + packet_offset
             );
 
         size           -= packet_size;
@@ -86,7 +89,95 @@ void EVisionKeyboardController::SendKeyboardMode
     unsigned char       mode
     )
 {
-    SendKeyboardParameter(EVISION_KB_PARAMETER_MODE, 1, &mode);
+    SendKeyboardParameter((profile * EVISION_KB_PROFILE_PARAMETER_SIZE) + EVISION_KB_PARAMETER_MODE, 1, &mode);
+}
+
+int EVisionKeyboardController::ReadActiveProfile()
+{
+    unsigned char usb_buf[64];
+
+    memset(usb_buf, 0x00, sizeof(usb_buf));
+
+    /*-----------------------------------------------------*\
+    | Read Config (0x03) packet, 0x2C bytes from offset 0   |
+    \*-----------------------------------------------------*/
+    usb_buf[0x00]           = 0x04;
+    usb_buf[0x03]           = EVISION_KB_COMMAND_READ_CONFIG;
+    usb_buf[0x04]           = 0x2C;
+
+    ComputeChecksum((char *)usb_buf);
+
+    hid_write(dev, usb_buf, 64);
+
+    /*-----------------------------------------------------*\
+    | Reply echoes the command at byte 3; byte 7 is the     |
+    | status (0x01 = OK) and data starts at byte 8          |
+    \*-----------------------------------------------------*/
+    if(hid_read_timeout(dev, usb_buf, 64, 1000) != 64
+    || usb_buf[0x03] != EVISION_KB_COMMAND_READ_CONFIG
+    || usb_buf[0x07] != 0x01)
+    {
+        return(-1);
+    }
+
+    return(usb_buf[0x08 + 10]);
+}
+
+void EVisionKeyboardController::SetProfile(unsigned char profile_index)
+{
+    profile = profile_index;
+}
+
+void EVisionKeyboardController::SetVerifyReplies(bool verify)
+{
+    verify_replies = verify;
+}
+
+void EVisionKeyboardController::Transfer(unsigned char* usb_buf)
+{
+    if(!verify_replies)
+    {
+        hid_write(dev, usb_buf, 64);
+        hid_read(dev, usb_buf, 64);
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Like the vendor software: the reply must echo the     |
+    | command (byte 3) and must not report busy/error in    |
+    | byte 7 (0xFF/0xFE), otherwise retry up to 3 times     |
+    \*-----------------------------------------------------*/
+    unsigned char reply[64];
+
+    if(usb_buf[0x03] == EVISION_KB_COMMAND_END)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    for(unsigned int attempt = 0; attempt < 3; attempt++)
+    {
+        /*-------------------------------------------------*\
+        | Drop stale input reports first: replies to other  |
+        | applications that have the device open are also   |
+        | delivered to this handle                          |
+        \*-------------------------------------------------*/
+        while(hid_read_timeout(dev, reply, 64, 0) > 0)
+        {
+        }
+
+        hid_write(dev, usb_buf, 64);
+
+        int bytes_read = hid_read_timeout(dev, reply, 64, 1000);
+
+        if(bytes_read == 64 && reply[0x03] == usb_buf[0x03] && reply[0x07] != 0xFF && reply[0x07] != 0xFE)
+        {
+            return;
+        }
+
+        LOG_DEBUG("[%s] Command 0x%02X at offset 0x%02X%02X not acknowledged (read %d, status 0x%02X), retrying", name.c_str(), usb_buf[0x03], usb_buf[0x06], usb_buf[0x05], bytes_read, reply[0x07]);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 }
 
 void EVisionKeyboardController::SendKeyboardModeEx
@@ -112,7 +203,7 @@ void EVisionKeyboardController::SendKeyboardModeEx
     parameter_data[6]   = green;
     parameter_data[7]   = blue;
 
-    SendKeyboardParameter(0, 8, parameter_data);
+    SendKeyboardParameter(profile * EVISION_KB_PROFILE_PARAMETER_SIZE, 8, parameter_data);
 }
 
 /*-------------------------------------------------------------------------------------------------*\
@@ -157,8 +248,7 @@ void EVisionKeyboardController::SendKeyboardBegin()
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    Transfer((unsigned char *)usb_buf);
 }
 
 void EVisionKeyboardController::SendKeyboardEnd()
@@ -183,8 +273,7 @@ void EVisionKeyboardController::SendKeyboardEnd()
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    Transfer((unsigned char *)usb_buf);
 }
 
 void EVisionKeyboardController::SendKeyboardData
@@ -224,8 +313,7 @@ void EVisionKeyboardController::SendKeyboardData
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    Transfer((unsigned char *)usb_buf);
 }
 
 void EVisionKeyboardController::SendKeyboardParameter
@@ -263,6 +351,5 @@ void EVisionKeyboardController::SendKeyboardParameter
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    Transfer((unsigned char *)usb_buf);
 }
