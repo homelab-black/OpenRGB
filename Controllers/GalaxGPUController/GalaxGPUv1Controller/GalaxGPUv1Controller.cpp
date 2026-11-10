@@ -54,47 +54,44 @@ unsigned char GalaxGPUv1Controller::GetLEDBlue()
     return(GalaxGPURegisterRead(GALAX_V1_BLUE_REGISTER));
 }
 
-void GalaxGPUv1Controller::SetLEDColorsDirect(unsigned char red, unsigned char green, unsigned char blue)                  // Direct Mode is just Static Mode without applying color changes
+bool GalaxGPUv1Controller::SetMode(unsigned char mode, unsigned char red, unsigned char green, unsigned char blue)
 {
-    GalaxGPURegisterWrite(GALAX_V1_RED_REGISTER, red);
-    GalaxGPURegisterWrite(GALAX_V1_GREEN_REGISTER, green);
-    GalaxGPURegisterWrite(GALAX_V1_BLUE_REGISTER, blue);
-}
-
-void GalaxGPUv1Controller::SetLEDColorsEffect(unsigned char red, unsigned char green, unsigned char blue)
-{
-    GalaxGPURegisterWrite(GALAX_V1_RED_REGISTER, red);
-    GalaxGPURegisterWrite(GALAX_V1_GREEN_REGISTER, green);
-    GalaxGPURegisterWrite(GALAX_V1_BLUE_REGISTER, blue);
-}
-
-void GalaxGPUv1Controller::SetMode(unsigned char mode)
-{
+    unsigned char mode_reg_1;
+    unsigned char mode_reg_2;
     switch(mode)
     {
     case 1:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_STATIC_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_STATIC_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_STATIC_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_STATIC_VALUE_2;
         break;
 
     case 2:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_BREATHING_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_BREATHING_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_BREATHING_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_BREATHING_VALUE_2;
         break;
 
     case 3:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_RAINBOW_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_RAINBOW_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_RAINBOW_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_RAINBOW_VALUE_2;
         break;
 
     case 4:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_CYCLE_BREATHING_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_CYCLE_BREATHING_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_CYCLE_BREATHING_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_CYCLE_BREATHING_VALUE_2;
         break;
 
     default:
-        break;
+        return(false);
     }
+
+    /*-----------------------------------------------------*\
+    | Apply the mode after each colour update.              |
+    \*-----------------------------------------------------*/
+    return(bus->i2c_smbus_write_byte_data(dev, GALAX_V1_RED_REGISTER, red) == 0
+        && bus->i2c_smbus_write_byte_data(dev, GALAX_V1_GREEN_REGISTER, green) == 0
+        && bus->i2c_smbus_write_byte_data(dev, GALAX_V1_BLUE_REGISTER, blue) == 0
+        && bus->i2c_smbus_write_byte_data(dev, GALAX_V1_MODE_REGISTER_1, mode_reg_1) == 0
+        && bus->i2c_smbus_write_byte_data(dev, GALAX_V1_MODE_REGISTER_2, mode_reg_2) == 0);
 }
 
 unsigned char GalaxGPUv1Controller::GalaxGPURegisterRead(unsigned char reg)

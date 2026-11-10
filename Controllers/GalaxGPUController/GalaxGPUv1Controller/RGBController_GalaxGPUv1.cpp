@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "RGBController_GalaxGPUv1.h"
+#include "LogManager.h"
 
 int RGBController_GalaxGPUv1::GetDeviceMode()
 {
@@ -18,25 +19,25 @@ int RGBController_GalaxGPUv1::GetDeviceMode()
 
     if(modereg1 == GALAX_V1_MODE_STATIC_VALUE_1 && modereg2 == GALAX_V1_MODE_STATIC_VALUE_2)
     {
-        active_mode = 1;
+        active_mode = 0;
         modes[active_mode].color_mode = MODE_COLORS_PER_LED;
     }
 
     if(modereg1 == GALAX_V1_MODE_BREATHING_VALUE_1 && modereg2 == GALAX_V1_MODE_BREATHING_VALUE_2)
     {
-        active_mode = 2;
+        active_mode = 1;
         modes[active_mode].color_mode = MODE_COLORS_PER_LED;
     }
 
     if(modereg1 == GALAX_V1_MODE_RAINBOW_VALUE_1 && modereg2 == GALAX_V1_MODE_RAINBOW_VALUE_2)
     {
-        active_mode = 3;
+        active_mode = 2;
         modes[active_mode].color_mode = MODE_COLORS_NONE;
     }
 
     if(modereg1 == GALAX_V1_MODE_CYCLE_BREATHING_VALUE_1 && modereg2 == GALAX_V1_MODE_CYCLE_BREATHING_VALUE_2)
     {
-        active_mode = 4;
+        active_mode = 3;
         modes[active_mode].color_mode = MODE_COLORS_NONE;
     }
 
@@ -50,7 +51,7 @@ int RGBController_GalaxGPUv1::GetDeviceMode()
     @save :x:
     @direct :white_check_mark:
     @effects :white_check_mark:
-    @detectors DetectGalaxGPUv1Controllers
+    @detectors DetectGalaxGPUControllers
     @comment
 \*-------------------------------------------------------------------*/
 
@@ -93,7 +94,6 @@ RGBController_GalaxGPUv1::RGBController_GalaxGPUv1(GalaxGPUv1Controller* control
     modes.push_back(Cycle_Breathing);
 
     SetupZones();
-
     active_mode = GetDeviceMode();
 }
 
@@ -138,21 +138,16 @@ void RGBController_GalaxGPUv1::SetupZones()
 
 void RGBController_GalaxGPUv1::DeviceUpdateLEDs()
 {
-    for(std::size_t led = 0; led < colors.size(); led++)
+    if(colors.empty())
     {
-        unsigned char red = RGBGetRValue(colors[led]);
-        unsigned char grn = RGBGetGValue(colors[led]);
-        unsigned char blu = RGBGetBValue(colors[led]);
-
-        if(modes[active_mode].value == 1)
-        {
-            controller->SetLEDColorsDirect(red, grn, blu);
-        }
-        else
-        {
-            controller->SetLEDColorsEffect(red, grn, blu);
-        }
+        return;
     }
+    bool success = controller->SetMode(modes[active_mode].value, RGBGetRValue(colors[0]), RGBGetGValue(colors[0]), RGBGetBValue(colors[0]));
+    if(!success && !write_failed)
+    {
+        LOG_WARNING("[%s] Lighting update failed", name.c_str());
+    }
+    write_failed = !success;
 }
 
 void RGBController_GalaxGPUv1::DeviceUpdateZoneLEDs(int /*zone*/)
@@ -167,5 +162,5 @@ void RGBController_GalaxGPUv1::DeviceUpdateSingleLED(int /*led*/)
 
 void RGBController_GalaxGPUv1::DeviceUpdateMode()
 {
-    controller->SetMode(modes[active_mode].value);
+    DeviceUpdateLEDs();
 }

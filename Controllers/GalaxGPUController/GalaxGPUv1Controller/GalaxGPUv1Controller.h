@@ -54,14 +54,10 @@ public:
     unsigned char GetLEDRed();
     unsigned char GetLEDGreen();
     unsigned char GetLEDBlue();
-    void          SetLEDColorsDirect(unsigned char red, unsigned char green, unsigned char blue);
-    void          SetLEDColorsEffect(unsigned char red, unsigned char green, unsigned char blue);
-    void          SetMode(unsigned char mode);
+    bool          SetMode(unsigned char mode, unsigned char red, unsigned char green, unsigned char blue);
 
     unsigned char GalaxGPURegisterRead(unsigned char reg);
     void          GalaxGPURegisterWrite(unsigned char reg, unsigned char val);
-
-    bool          direct = false;                                                // Temporary solution to check if we are in "Direct" mode
 
 private:
     i2c_smbus_interface *   bus;
