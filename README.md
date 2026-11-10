@@ -128,6 +128,7 @@ This project interacts directly with hardware using reverse engineered protocols
   * [OpenRGB Razer Extras Plugin](https://gitlab.com/OpenRGBDevelopers/OpenRGBRazerExtrasPlugin) (by morg)
   * [OpenRGB Fan Hardware Sync Plugin](https://gitlab.com/OpenRGBDevelopers/OpenRGBFanSyncPlugin) (by Shady)
   * [OpenRGB Ambient Plugin](https://github.com/krojew/OpenRGB-Ambient) (by krojew)
+  * [OpenRGB Wallpaper Engine Plugin](https://gitlab.com/OpenRGBDevelopers/OpenRGBWallpaperEnginePlugin) (by qiangqiang101)
 
 ## Projects Used
 
