@@ -771,7 +771,7 @@ keyboard_keymap_overlay_values g731gw_keyboard_layout
     },
     {
         /*---------------------------------------------------------------------*\
-        |  Row, Column, LED value and logical key mapping                      |
+        |  Row, Column, LED value and logical key mapping                       |
         \*---------------------------------------------------------------------*/
         { 0,  0,  2,   2, KEY_EN_MEDIA_VOLUME_DOWN    , KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
         { 0,  0,  3,   3, KEY_EN_MEDIA_VOLUME_UP      , KEY_EN_UNUSED, KEYBOARD_OPCODE_INSERT_SHIFT_RIGHT },
@@ -1184,7 +1184,7 @@ static const aura_core_laptop_device gu603vv_device =
 /*-------------------------------------------------------------*\
 |  ASUS ROG Strix G17 (G731GW)                                  |
 |                                                               |
-|  Zones: Keyboard, ROG Logo and six Lightbar segments.          |
+|  Zones: Keyboard, ROG Logo and six Lightbar segments.         |
 \*-------------------------------------------------------------*/
 static const aura_core_laptop_zone g731gw_keyboard_zone =
 {
