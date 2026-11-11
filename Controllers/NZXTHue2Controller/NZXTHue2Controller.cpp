@@ -270,6 +270,10 @@ void NZXTHue2Controller::UpdateDeviceList()
                 num_leds_in_device = 24;
                 break;
 
+            case 0x27: // N9 onboard LEDs
+                num_leds_in_device = 49;
+                break;
+
             default:
                 break;
             }
@@ -367,6 +371,27 @@ void NZXTHue2Controller::SetChannelLEDs
     unsigned int    num_colors
     )
 {
+    if(num_colors <= 40)
+    {
+        SetChannelLEDs64(channel, colors, num_colors);
+    }
+    else
+    {
+        SetChannelLEDs512(channel, colors, num_colors);
+    }
+}
+
+/*-------------------------------------------------------------------------------------------------*\
+| Private packet sending functions.                                                                 |
+\*-------------------------------------------------------------------------------------------------*/
+
+void NZXTHue2Controller::SetChannelLEDs64
+    (
+        unsigned char   channel,
+        RGBColor *      colors,
+        unsigned int    num_colors
+        )
+{
     unsigned char color_data[120];
 
     /*-----------------------------------------------------*\
@@ -401,14 +426,60 @@ void NZXTHue2Controller::SetChannelLEDs
     SendApply(channel);
 }
 
-/*-------------------------------------------------------------------------------------------------*\
-| Private packet sending functions.                                                                 |
-\*-------------------------------------------------------------------------------------------------*/
+void NZXTHue2Controller::SetChannelLEDs512
+    (
+        unsigned char   channel,
+        RGBColor *      colors,
+        unsigned int    num_colors
+        )
+{
+    unsigned char usb_buf[512];
+
+    /*-----------------------------------------------------*\
+    | Zero out buffer                                       |
+    \*-----------------------------------------------------*/
+    memset(usb_buf, 0x00, sizeof(usb_buf));
+
+    /*-----------------------------------------------------*\
+    | Set up Direct packet                                  |
+    \*-----------------------------------------------------*/
+    usb_buf[0x00]   = 0x26;
+    usb_buf[0x01]   = 0x04;
+    usb_buf[0x02]   = (unsigned char)(1 << channel);
+    usb_buf[0x03]   = 0x00;
+
+    std::vector<unsigned char> color_data;
+
+    /*-----------------------------------------------------*\
+    | Fill in color data                                    |
+    \*-----------------------------------------------------*/
+    for (std::size_t idx = 0; idx < num_colors; idx++)
+    {
+        color_data.push_back(RGBGetGValue(colors[idx]));
+        color_data.push_back(RGBGetRValue(colors[idx]));
+        color_data.push_back(RGBGetBValue(colors[idx]));
+    }
+
+    /*-----------------------------------------------------*\
+    | Copy in color data bytes                              |
+    \*-----------------------------------------------------*/
+    memcpy(&usb_buf[0x04], &color_data[0], num_colors * 3);
+
+    /*-----------------------------------------------------*\
+    | Send packet                                           |
+    \*-----------------------------------------------------*/
+    hid_write(dev, usb_buf, 512);
+
+    /*-----------------------------------------------------*\
+    | Send apply packet                                     |
+    \*-----------------------------------------------------*/
+    SendApply512(channel);
+}
 
 void NZXTHue2Controller::SendApply
     (
-    unsigned char   channel
-    )
+        unsigned char   channel
+        )
 {
     unsigned char   usb_buf[64];
 
@@ -434,6 +505,36 @@ void NZXTHue2Controller::SendApply
     \*-----------------------------------------------------*/
     hid_write(dev, usb_buf, 64);
     //hid_read(dev, usb_buf, 64);
+}
+
+void NZXTHue2Controller::SendApply512
+    (
+    unsigned char   channel
+    )
+{
+    unsigned char   usb_buf[512];
+
+    /*-----------------------------------------------------*\
+    | Zero out buffer                                       |
+    \*-----------------------------------------------------*/
+    memset(usb_buf, 0x00, sizeof(usb_buf));
+
+    /*-----------------------------------------------------*\
+    | Set up Apply packet                                   |
+    \*-----------------------------------------------------*/
+    usb_buf[0x00]   = 0x26;
+    usb_buf[0x01]   = 0x06;
+    usb_buf[0x02]   = (unsigned char)(1 << channel);
+    usb_buf[0x04]   = 0x01;
+    usb_buf[0x07]   = 0x31;
+    usb_buf[0x0A]   = 0x80;
+    usb_buf[0x0C]   = 0x32;
+    usb_buf[0x0F]   = 0x01;
+
+    /*-----------------------------------------------------*\
+    | Send packet                                           |
+    \*-----------------------------------------------------*/
+    hid_write(dev, usb_buf, 512);
 }
 
 void NZXTHue2Controller::SendDirect

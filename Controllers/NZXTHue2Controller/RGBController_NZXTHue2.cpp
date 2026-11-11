@@ -462,6 +462,10 @@ void RGBController_NZXTHue2::SetupZones()
                 device_name = "F420 Core fan case version";
                 break;
 
+            case 0x27: // N9 Onboard LEDs
+                device_name = "Onboard LEDs";
+                break;
+
             default:
                 break;
             }

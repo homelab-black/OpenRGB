@@ -159,6 +159,25 @@ private:
                         unsigned char   channel
                         );
 
+    void            SendApply512
+                        (
+                        unsigned char   channel
+                        );
+
+    void            SetChannelLEDs64
+                        (
+                        unsigned char   channel,
+                        RGBColor *      colors,
+                        unsigned int    num_colors
+                        );
+
+    void            SetChannelLEDs512
+                        (
+                        unsigned char   channel,
+                        RGBColor *      colors,
+                        unsigned int    num_colors
+                        );
+
     void            SendDirect
                         (
                         unsigned char   channel,
