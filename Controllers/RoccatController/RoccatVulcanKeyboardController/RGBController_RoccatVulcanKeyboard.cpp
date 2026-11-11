@@ -50,7 +50,7 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Direct.flags                = MODE_FLAG_HAS_PER_LED_COLOR;
     Direct.color_mode           = MODE_COLORS_PER_LED;
 
-    if(pid != ROCCAT_VULCAN_120_AIMO_PID && pid != ROCCAT_VULCAN_100_AIMO_PID)
+    if(pid != ROCCAT_VULCAN_120_AIMO_PID && pid != ROCCAT_VULCAN_100_AIMO_PID && pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
     {
         Direct.flags           |= MODE_FLAG_HAS_BRIGHTNESS;
         Direct.brightness_min   = ROCCAT_VULCAN_BRIGHTNESS_MIN;
@@ -68,7 +68,10 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Static.brightness_max       = ROCCAT_VULCAN_BRIGHTNESS_MAX;
     Static.brightness           = ROCCAT_VULCAN_BRIGHTNESS_DEFAULT;
     Static.color_mode           = MODE_COLORS_PER_LED;
-    modes.push_back(Static);
+    if(pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        modes.push_back(Static);
+    }
 
     mode Wave;
     Wave.name                   = "Rainbow Wave";
@@ -81,7 +84,10 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Wave.brightness_max         = ROCCAT_VULCAN_BRIGHTNESS_MAX;
     Wave.brightness             = ROCCAT_VULCAN_BRIGHTNESS_DEFAULT;
     Wave.color_mode             = MODE_COLORS_NONE;
-    modes.push_back(Wave);
+    if(pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        modes.push_back(Wave);
+    }
 
     mode Default;
     Default.name                = "Default";
@@ -91,7 +97,10 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
     Default.brightness_max      = ROCCAT_VULCAN_BRIGHTNESS_MAX;
     Default.brightness          = ROCCAT_VULCAN_BRIGHTNESS_DEFAULT;
     Default.color_mode          = MODE_COLORS_NONE;
-    modes.push_back(Default);
+    if(pid != TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        modes.push_back(Default);
+    }
 
     SetupZones();
 }
@@ -99,6 +108,10 @@ RGBController_RoccatVulcanKeyboard::RGBController_RoccatVulcanKeyboard(RoccatVul
 RGBController_RoccatVulcanKeyboard::~RGBController_RoccatVulcanKeyboard()
 {
     Shutdown();
+    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        controller->EnableDirect(false);
+    }
 
     delete controller;
 }
@@ -120,6 +133,9 @@ void RGBController_RoccatVulcanKeyboard::SetupZones()
             break;
         case TURTLE_BEACH_VULCAN_II_TKL_PRO_PID:
             keyboard_ptr = &TurtleBeachVulcanIITKLProLayouts;
+            break;
+        case TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID:
+            keyboard_ptr = &TurtleBeachVulcanIITKLPro5009Layouts;
             break;
         case ROCCAT_VULCAN_PRO_PID:
         case ROCCAT_PYRO_PID:
@@ -161,7 +177,12 @@ void RGBController_RoccatVulcanKeyboard::SetupZones()
         default:
             layout = ROCCAT_VULCAN_LAYOUT_US;
     }
-
+    /* Use the verified LED matrix for the Turtle Beach 5009. */
+    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID &&
+       keyboard.find(layout) == keyboard.end())
+    {
+        layout = ROCCAT_VULCAN_LAYOUT_UK;
+    }
 
     /*---------------------------------------------------------*\
     | Determine zone sizes                                      |
@@ -258,17 +279,37 @@ void RGBController_RoccatVulcanKeyboard::SetupZones()
         leds.push_back(new_led);
     }
 
-    SetupColors();
+ SetupColors();
 
-    /*---------------------------------------------------------*\
-    | sends the init packet for the default mode (direct)       |
-    \*---------------------------------------------------------*/
+// PID 5009: enable direct mode without sending the older model's SendMode.
+if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+{
+    controller->EnableDirect(true);
+    DeviceUpdateLEDs();
+}
+else
+{
     DeviceUpdateMode();
     DeviceUpdateLEDs();
+}
 }
 
 void RGBController_RoccatVulcanKeyboard::DeviceUpdateLEDs()
 {
+    if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        std::vector<led_color> frame_colors;
+        frame_colors.reserve(colors.size());
+
+        for(unsigned int i = 0; i < colors.size() && i < leds.size(); ++i)
+        {
+            frame_colors.push_back({leds[i].value, colors[i]});
+        }
+
+        controller->SendColors(frame_colors);
+        return;
+    }
+
     if(modes[active_mode].value == ROCCAT_VULCAN_MODE_DIRECT)
     {
         std::vector<led_color> led_color_list = {};
@@ -298,6 +339,13 @@ void RGBController_RoccatVulcanKeyboard::DeviceUpdateSingleLED(int /*led_idx*/)
 
 void RGBController_RoccatVulcanKeyboard::DeviceUpdateMode()
 {
+if(pid == TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID)
+    {
+        // PID 5009 uses the verified direct RGB protocol.
+        DeviceUpdateLEDs();
+        return;
+    }
+
     std::vector<led_color> led_color_list = {};
 
     if(modes[active_mode].value == ROCCAT_VULCAN_MODE_STATIC)

@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <vector>
 #include "RGBController.h"
 #include "RoccatVulcanKeyboardController.h"
 
@@ -31,4 +32,6 @@ public:
 private:
     RoccatVulcanKeyboardController* controller;
     uint16_t                    pid;
+
+
 };

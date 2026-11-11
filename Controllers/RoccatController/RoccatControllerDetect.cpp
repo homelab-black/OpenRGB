@@ -139,6 +139,7 @@ DetectedControllers DetectRoccatVulcanKeyboardControllers(hid_device_info* info,
             dev_ctrl_iface  = 1;
             break;
         case TURTLE_BEACH_VULCAN_II_TKL_PRO_PID:
+        case TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID:
             dev_led_page   = 0xFF00;
             dev_ctrl_page  = 0x0001;
             dev_led_iface   = 4;
@@ -403,6 +404,7 @@ REGISTER_HID_DETECTOR_IP ("Roccat Vulcan II Mini",              DetectRoccatVulc
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II",             DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_PID,           1,          0xFF01);
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II TKL",         DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_TKL_PID,       1,          11);
 REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II TKL Pro",     DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_TKL_PRO_PID,   1,          0x0001);
+REGISTER_HID_DETECTOR_IP ("Turtle Beach Vulcan II TKL Pro (5009)",     DetectRoccatVulcanKeyboardControllers,      TURTLE_BEACH_VID, TURTLE_BEACH_VULCAN_II_TKL_PRO_REV2_PID,   1,          0x0001);
 
 /*-----------------------------------------------------------------*\
 |  MICE                                                             |
