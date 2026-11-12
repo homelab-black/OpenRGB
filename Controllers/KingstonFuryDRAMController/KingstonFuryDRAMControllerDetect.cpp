@@ -245,3 +245,9 @@ REGISTER_I2C_DRAM_DETECTOR("Kingston Fury DDR4 DRAM",   DetectKingstonFuryDDR4Co
 REGISTER_I2C_DRAM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON,     SPD_DDR5_SDRAM);
 REGISTER_I2C_DRAM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON_2,   SPD_DDR5_SDRAM);
 REGISTER_I2C_DRAM_DETECTOR("Kingston Fury DDR5 DRAM",   DetectKingstonFuryDDR5Controllers,  JEDEC_KINGSTON_3,   SPD_DDR5_SDRAM);
+
+// Linux spd5118 sysfs may not expose the DDR5 manufacturer fields. In that
+// case, unreadable SPD bytes can produce JEDEC ID 0xFF7E. The detector then
+// uses the Kingston Fury RGB signature and model checks when SPD identification
+// is unavailable.
+REGISTER_I2C_DRAM_DETECTOR("Kingston Fury DDR5 DRAM", DetectKingstonFuryDDR5Controllers, 0xFF7E, SPD_DDR5_SDRAM);
