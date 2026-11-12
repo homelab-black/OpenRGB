@@ -10,9 +10,11 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <chrono>
 #include <cstring>
 #include "ASRockPolychromeUSBController.h"
 #include "dmiinfo.h"
+#include "LogManager.h"
 #include "ResourceManager.h"
 #include "RGBController.h"
 #include "SettingsManager.h"
@@ -24,8 +26,11 @@
 #define POLYCHROME_USB_SET_ZONE         0x10
 #define POLYCHROME_USB_INITIAL_CHUNK    0xE3
 #define POLYCHROME_USB_SEND_CHUNK       0xE4
-#define POLYCHROME_USB_INIT             0xA4
-#define POLYCHROME_USB_COMMIT           0x12
+
+/*---------------------------------------------------------*\
+| Replies arrive about 2 ms after the request               |
+\*---------------------------------------------------------*/
+#define POLYCHROME_USB_REPLY_TIMEOUT_MS 250
 
 const char* polychrome_USB_zone_names[] =
 {
@@ -437,16 +442,10 @@ PolychromeZoneInfo PolychromeUSBController::GetZoneConfig(unsigned char zone)
     usb_buf[0x01]   = POLYCHROME_USB_READ_ZONE_CONFIG;
     usb_buf[0x03]   = device_info.zone_type;
 
-    /*-----------------------------------------------------*\
-    | Send packet                                           |
-    \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-
-    /*-----------------------------------------------------*\
-    | Read response                                         |
-    \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-    hid_read(dev, usb_buf, 64);
+    if(!SendRequest(usb_buf))
+    {
+        LOG_WARNING("[%s] No reply to configuration request for zone %d", device_name.c_str(), device_info.zone_type);
+    }
 
     r   = usb_buf[0x05];
     g   = usb_buf[0x06];
@@ -470,117 +469,105 @@ PolychromeZoneInfo PolychromeUSBController::GetZoneConfig(unsigned char zone)
         zoneinfo.color  = ToRGBColor(g,r,b);
     }
     zoneinfo.speed  = usb_buf[0x08];
-    zoneinfo.zone   = usb_buf[0x03];
+    zoneinfo.zone   = device_info.zone_type;
 
     return(zoneinfo);
 }
 
 void PolychromeUSBController::ReadConfigTables()
 {
-    unsigned char usb_buf[65];
-    unsigned char maxzoneleds[8];
-    unsigned char rgswap;
-    unsigned char header1;
+    unsigned char ledcount_buf[65];
+    unsigned char rgswap_buf[65];
+    unsigned char header1_buf[65];
 
     /*-----------------------------------------------------*\
-    | Zero out buffer                                       |
+    | An all-zero table leaves every zone unavailable       |
     \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
+    memset(configtable, 0x00, sizeof(configtable));
 
-    /*-----------------------------------------------------*\
-    | Set up max led config table request packet            |
-    \*-----------------------------------------------------*/
-    usb_buf[0x01]   = POLYCHROME_USB_READ_HEADER;
-    usb_buf[0x03]   = POLYCHROME_USB_LEDCOUNT_CFG;
-
-    /*-----------------------------------------------------*\
-    | Send packet                                           |
-    \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-
-    /*-----------------------------------------------------*\
-    | Read response                                         |
-    \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-    hid_read(dev, usb_buf, 64);
+    if(!ReadHeader(POLYCHROME_USB_LEDCOUNT_CFG, ledcount_buf)
+    || !ReadHeader(POLYCHROME_USB_RGSWAP_CFG,   rgswap_buf)
+    || !ReadHeader(POLYCHROME_USB_HEADER1_CFG,  header1_buf))
+    {
+        LOG_WARNING("[%s] No reply to configuration table request, no zones will be available", device_name.c_str());
+        return;
+    }
 
     /*-----------------------------------------------------*\
     | Reads in format: RGB1, RGB2, ARGB1, ARGB2, PCH, IO,   |
     | PCB, AUDIO/ARGB3                                      |
     \*-----------------------------------------------------*/
-    memcpy(&maxzoneleds,&usb_buf[0x04],8);
+    memcpy(configtable, &ledcount_buf[0x04], 8);
 
     /*-----------------------------------------------------*\
-    | Zero out buffer                                       |
+    | Both read bitwise in format: AUDIO/ARGB3, PCB, IO,    |
+    | PCH, ARGB2, ARGB1, RGB2, RGB1 if available            |
     \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-
-    /*-----------------------------------------------------*\
-    | Set up RGB Swap table request packet                  |
-    \*-----------------------------------------------------*/
-    usb_buf[0x01]   = POLYCHROME_USB_READ_HEADER;
-    usb_buf[0x03]   = POLYCHROME_USB_RGSWAP_CFG;
-
-    hid_write(dev, usb_buf, 65);
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-    hid_read(dev, usb_buf, 64);
-
-    /*-----------------------------------------------------*\
-    | Reads bitwise in format: AUDIO/ARGB3, PCB, IO, PCH,   |
-    | ARGB2,ARGB1, RGB2, RGB1 if available                  |
-    \*-----------------------------------------------------*/
-    rgswap=usb_buf[4];
-
-    /*-----------------------------------------------------*\
-    | Zero out buffer                                       |
-    \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-
-    /*-----------------------------------------------------*\
-    | Set up Header1 config table request packet            |
-    \*-----------------------------------------------------*/
-    usb_buf[0x01]   = POLYCHROME_USB_READ_HEADER;
-    usb_buf[0x03]   = 0x01;
-
-    hid_write(dev, usb_buf, 64);
-    memset(usb_buf, 0x00, sizeof(usb_buf));
-    hid_read(dev, usb_buf, 64);
-
-    /*-----------------------------------------------------*\
-    | Reads bitwise in format: AUDIO/ARGB3, PCB, IO, PCH,   |
-    | ARGB2,ARGB1, RGB2, RGB1 if available                  |
-    \*-----------------------------------------------------*/
-    header1=usb_buf[4];
-
-    memcpy(configtable,&maxzoneleds,8);
-    configtable[8]=rgswap;
-    configtable[9]=header1;
-    return;
+    configtable[8] = rgswap_buf[0x04];
+    configtable[9] = header1_buf[0x04];
 }
 
-void PolychromeUSBController::Commit()
+bool PolychromeUSBController::ReadHeader(unsigned char cfg, unsigned char* usb_buf)
 {
-    /*-----------------------------------------------------*\
-    | Saves all Writes in Device -  Will keep after powerup |
-    \*-----------------------------------------------------*/
-    unsigned char usb_buf[65];
+    memset(usb_buf, 0x00, 65);
 
-    /*-----------------------------------------------------*\
-    | Zero out buffer                                       |
-    \*-----------------------------------------------------*/
-    memset(usb_buf, 0x00, sizeof(usb_buf));
+    usb_buf[0x01]   = POLYCHROME_USB_READ_HEADER;
+    usb_buf[0x03]   = cfg;
 
-    /*-----------------------------------------------------*\
-    | Set up message packet with leading 00                  |
-    \*-----------------------------------------------------*/
-	usb_buf[0x01] = POLYCHROME_USB_COMMIT;
+    return(SendRequest(usb_buf));
+}
 
-    /*-----------------------------------------------------*\
-    | Send packet                                           |
-    \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, 65);
-    hid_read(dev, usb_buf, 64);
-};
+/*---------------------------------------------------------*\
+| hidraw hands every input report to all open handles, so   |
+| replies to another program talking to this controller are |
+| queued here too.  The controller echoes byte 3 of the     |
+| request but not the command, so drop what is queued       |
+| before sending and skip replies with a different echo.    |
+|                                                           |
+| usb_buf holds the 65 byte request and receives the 64     |
+| byte reply, or zeroes if no matching reply arrived.       |
+\*---------------------------------------------------------*/
+bool PolychromeUSBController::SendRequest(unsigned char* usb_buf)
+{
+    unsigned char                           reply[64];
+    unsigned char                           echo        = usb_buf[0x03];
+    std::chrono::steady_clock::time_point   deadline    = std::chrono::steady_clock::now() + std::chrono::milliseconds(POLYCHROME_USB_REPLY_TIMEOUT_MS);
+
+    FlushInputBuffer();
+
+    if(hid_write(dev, usb_buf, 65) >= 0)
+    {
+        while(std::chrono::steady_clock::now() < deadline)
+        {
+            int remaining_ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
+            int bytes_read   = hid_read_timeout(dev, reply, sizeof(reply), remaining_ms);
+
+            if(bytes_read < 0)
+            {
+                break;
+            }
+
+            if(bytes_read > 0x03 && reply[0x03] == echo)
+            {
+                memcpy(usb_buf, reply, sizeof(reply));
+                return(true);
+            }
+        }
+    }
+
+    memset(usb_buf, 0x00, 65);
+    return(false);
+}
+
+void PolychromeUSBController::FlushInputBuffer()
+{
+    unsigned char discard[64];
+
+    while(hid_read_timeout(dev, discard, sizeof(discard), 0) > 0)
+    {
+        continue;
+    }
+}
 
 const std::vector<PolychromeDeviceInfo>& PolychromeUSBController::GetPolychromeDevices() const
 {

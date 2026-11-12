@@ -327,6 +327,15 @@ void RGBController_PolychromeUSB::DeviceConfigureZone(int zone_idx)
 
 void RGBController_PolychromeUSB::DeviceUpdateLEDs()
 {
+    /*-----------------------------------------------------*\
+    | No zones if the configuration tables could not be     |
+    | read during detection                                 |
+    \*-----------------------------------------------------*/
+    if(zones_info.empty())
+    {
+        return;
+    }
+
     if(POLYCHROME_USB_MODE_DIRECT == zones_info[0].mode )
     {
         controller->WriteAllZones(zones_info,zones);
@@ -383,16 +392,6 @@ void RGBController_PolychromeUSB::DeviceUpdateSingleLED(int led)
     }
 
     controller->WriteZone((unsigned char)channel, set_mode, zones_info[channel].speed, zones[channel].colors[0], false);
-}
-
-unsigned char RGBController_PolychromeUSB::GetDeviceMode(unsigned char zone)
-{
-    int dev_mode;
-
-    dev_mode    = controller->GetZoneConfig(zone).mode;
-    active_mode = dev_mode;
-
-    return(active_mode);
 }
 
 void RGBController_PolychromeUSB::DeviceUpdateMode()
