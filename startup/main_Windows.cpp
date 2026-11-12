@@ -23,6 +23,7 @@
 #include "startup.h"
 #include "LogManager.h"
 #include "NetworkServer.h"
+#include "ProfileManager.h"
 #include "DetectionManager.h"
 #include "ResourceManager.h"
 #include "StringUtils.h"
@@ -42,6 +43,7 @@ static SERVICE_STATUS        service_status;
 
 static bool                  started_as_service;
 static volatile bool         service_stop_requested;
+static volatile bool         service_resume_requested;
 static std::mutex            service_stop_mutex;
 static std::condition_variable service_stop_cv;
 static bool                  have_console;
@@ -173,7 +175,7 @@ static void ReportServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWO
         case SERVICE_STOPPED:
             service_status.dwCheckPoint = 0;
             service_status.dwControlsAccepted =
-                // SERVICE_ACCEPT_POWEREVENT   |
+                SERVICE_ACCEPT_POWEREVENT   |
                 SERVICE_ACCEPT_STOP         |
                 SERVICE_ACCEPT_PRESHUTDOWN;
             break;
@@ -213,11 +215,19 @@ static DWORD WINAPI ServiceControlHandler(DWORD dwControl, DWORD dwEventType, LP
 
     switch(dwControl)
     {
-        /*-------------------------------------------------*\
-        | TODO either this or                               |
-        | RegisterSuspendResumeNotification somewhere       |
-        \*-------------------------------------------------*/
-        // case SERVICE_CONTROL_POWEREVENT:
+        case SERVICE_CONTROL_POWEREVENT:
+            /*---------------------------------------------*\
+            | Device firmware drops out of direct mode      |
+            | during sleep. Reapply on the main loop, not   |
+            | this handler thread.                          |
+            \*---------------------------------------------*/
+            if(dwEventType == PBT_APMRESUMEAUTOMATIC)
+            {
+                service_resume_requested = true;
+                service_stop_cv.notify_one();
+            }
+            break;
+
         case SERVICE_CONTROL_INTERROGATE:
             /*---------------------------------------------*\
             | Should do nothing but return NO_ERROR         |
@@ -516,6 +526,35 @@ void InitializeTimerResolutionThreadFunction()
 }
 
 /*---------------------------------------------------------*\
+| ReapplyAfterResume                                        |
+|                                                           |
+|   Load the resume profile if one is enabled, otherwise    |
+|   resend the current mode and colors to every controller  |
+\*---------------------------------------------------------*/
+static void ReapplyAfterResume()
+{
+    /*-----------------------------------------------------*\
+    | Give USB devices a moment to come back after wake     |
+    \*-----------------------------------------------------*/
+    std::this_thread::sleep_for(2s);
+
+    LOG_INFO("[Service] Resumed from sleep, reapplying lighting");
+
+    if(ResourceManager::get()->GetProfileManager()->LoadAutoProfileResume())
+    {
+        return;
+    }
+
+    std::vector<RGBController*> controllers = ResourceManager::get()->GetRGBControllers();
+
+    for(std::size_t controller_idx = 0; controller_idx < controllers.size(); controller_idx++)
+    {
+        controllers[controller_idx]->UpdateMode();
+        controllers[controller_idx]->UpdateLEDs();
+    }
+}
+
+/*---------------------------------------------------------*\
 | WaitWhileServerOnline                                     |
 |                                                           |
 |   Wait while NetworkServer is online and return only when |
@@ -530,6 +569,15 @@ static void WaitWhileServerOnline(NetworkServer* srv)
         {
             srv->StopServer();
             break;
+        }
+
+        if(service_resume_requested)
+        {
+            service_resume_requested = false;
+            lock.unlock();
+            ReapplyAfterResume();
+            lock.lock();
+            continue;
         }
         service_stop_cv.wait_for(lock, 1s);
     };
