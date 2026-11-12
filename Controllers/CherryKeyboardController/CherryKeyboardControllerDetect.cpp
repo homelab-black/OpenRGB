@@ -20,12 +20,102 @@
 #define CHERRY_KEYBOARD_VID                     0x046A
 #define CHERRY_KEYBOARD_USAGE_PAGE              0xFF1C
 
+/*---------------------------------------------------------*\
+| On Windows the vendor interface is split into two         |
+| collections with the same usage page and usage: one with  |
+| 64-byte reports (the lighting interface) and one with     |
+| 9-byte reports. Only accept a device whose report         |
+| descriptor has an output report large enough for a        |
+| lighting packet. If the descriptor cannot be read, accept |
+| the device as before.                                     |
+\*---------------------------------------------------------*/
+static bool CherryKeyboardHasLightingReport(hid_device* dev)
+{
+    unsigned char   descriptor[HID_API_MAX_REPORT_DESCRIPTOR_SIZE];
+    int             descriptor_size;
+    int             idx                 = 0;
+    unsigned int    report_size         = 0;
+    unsigned int    report_count        = 0;
+    unsigned int    max_output_bytes    = 0;
+
+    descriptor_size = hid_get_report_descriptor(dev, descriptor, sizeof(descriptor));
+
+    if(descriptor_size <= 0)
+    {
+        return(true);
+    }
+
+    while(idx < descriptor_size)
+    {
+        unsigned char   prefix      = descriptor[idx];
+        unsigned int    data_size   = prefix & 0x03;
+        unsigned int    value       = 0;
+
+        if(data_size == 3)
+        {
+            data_size = 4;
+        }
+
+        if(prefix == 0xFE)
+        {
+            /*---------------------------------------------*\
+            | Long item: skip it                            |
+            \*---------------------------------------------*/
+            if(idx + 1 >= descriptor_size)
+            {
+                break;
+            }
+
+            idx += 3 + descriptor[idx + 1];
+            continue;
+        }
+
+        if(idx + 1 + (int)data_size > descriptor_size)
+        {
+            break;
+        }
+
+        for(unsigned int byte_idx = 0; byte_idx < data_size; byte_idx++)
+        {
+            value |= descriptor[idx + 1 + byte_idx] << (8 * byte_idx);
+        }
+
+        switch(prefix & 0xFC)
+        {
+            case 0x74:  /* Report Size  */
+                report_size = value;
+                break;
+
+            case 0x94:  /* Report Count */
+                report_count = value;
+                break;
+
+            case 0x90:  /* Output       */
+                if((report_size * report_count) / 8 > max_output_bytes)
+                {
+                    max_output_bytes = (report_size * report_count) / 8;
+                }
+                break;
+        }
+
+        idx += 1 + data_size;
+    }
+
+    return(max_output_bytes >= (CHERRY_KB_PACKET_SIZE - 1));
+}
+
 DetectedControllers DetectCherryKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
     hid_device*         dev;
 
     dev = hid_open_path(info->path);
+
+    if(dev && !CherryKeyboardHasLightingReport(dev))
+    {
+        hid_close(dev);
+        dev = NULL;
+    }
 
     if(dev)
     {
