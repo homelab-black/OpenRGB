@@ -30,6 +30,7 @@ public:
     std::string GetUniqueID();
 
     bool        GetMusicMode();
+    bool        HasFailed();
 
     void SetMusicMode();
     void SetPower();
@@ -43,4 +44,7 @@ private:
     unsigned int        music_mode_port;
     net_port            music_mode_server;
     SOCKET *            music_mode_sock;
+    std::atomic<bool>   music_mode_server_connected;
+    std::atomic<bool>   music_mode_server_connection_failure;
+
 };

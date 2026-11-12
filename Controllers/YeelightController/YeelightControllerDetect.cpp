@@ -50,6 +50,12 @@ DetectedControllers DetectYeelightControllers()
                 }
 
                 YeelightController*     controller     = new YeelightController(yeelight_ip, yeelight_host_ip, music_mode);
+
+                if(controller->HasFailed()){
+                    delete controller;
+                    return;
+                }
+
                 RGBController_Yeelight* rgb_controller = new RGBController_Yeelight(controller);
 
                 detected_controllers.push_back(rgb_controller);
