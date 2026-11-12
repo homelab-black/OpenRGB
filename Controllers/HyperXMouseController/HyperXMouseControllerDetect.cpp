@@ -15,6 +15,7 @@
 #include "HyperXPulsefireRaidController.h"
 #include "RGBController_HyperXPulsefireFPSPro.h"
 #include "RGBController_HyperXPulsefireHaste.h"
+#include "RGBController_HyperXPulsefireHaste2.h"
 #include "RGBController_HyperXPulsefireSurge.h"
 #include "RGBController_HyperXPulsefireDart.h"
 #include "RGBController_HyperXPulsefireRaid.h"
@@ -36,6 +37,7 @@
 #define HYPERX_PULSEFIRE_RAID_PID               0x16E4
 #define HYPERX_PULSEFIRE_HASTE_PID              0x1727
 #define HYPERX_PULSEFIRE_HASTE_PID_2            0x0F8F
+#define HYPERX_PULSEFIRE_HASTE_2_WIRELESS_PID   0x0F98
 
 DetectedControllers DetectHyperXPulsefireSurgeControllers(hid_device_info* info, const std::string& name)
 {
@@ -84,6 +86,24 @@ DetectedControllers DetectHyperXPulsefireHasteControllers(hid_device_info* info,
     {
         HyperXPulsefireHasteController*     controller     = new HyperXPulsefireHasteController(dev, info->path, name);
         RGBController_HyperXPulsefireHaste* rgb_controller = new RGBController_HyperXPulsefireHaste(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return(detected_controllers);
+}
+
+DetectedControllers DetectHyperXPulsefireHaste2Controllers(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
+
+    dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        HyperXPulsefireHaste2Controller*     controller     = new HyperXPulsefireHaste2Controller(dev, info->path, name);
+        RGBController_HyperXPulsefireHaste2* rgb_controller = new RGBController_HyperXPulsefireHaste2(controller);
 
         detected_controllers.push_back(rgb_controller);
     }
@@ -140,6 +160,8 @@ REGISTER_HID_DETECTOR_IP("HyperX Pulsefire Dart (Wired)",       DetectHyperXPuls
 REGISTER_HID_DETECTOR_IPU("HyperX Pulsefire Raid",              DetectHyperXPulsefireRaidControllers,   HYPERX_VID,     HYPERX_PULSEFIRE_RAID_PID,              1,      0xFF01,     0x01);
 
 REGISTER_HID_DETECTOR_IP("HyperX Pulsefire Haste",              DetectHyperXPulsefireHasteControllers,  HYPERX_VID_2,   HYPERX_PULSEFIRE_HASTE_PID_2,           3,      0xFF90);
+
+REGISTER_HID_DETECTOR_IPU("HyperX Pulsefire Haste 2 Wireless",  DetectHyperXPulsefireHaste2Controllers, HYPERX_VID_2,   HYPERX_PULSEFIRE_HASTE_2_WIRELESS_PID,  2,      0xFF00,     0x01);
 
 #ifdef _WIN32
 REGISTER_HID_DETECTOR_IP("HyperX Pulsefire Haste",              DetectHyperXPulsefireHasteControllers,  HYPERX_VID,     HYPERX_PULSEFIRE_HASTE_PID,             3,      0xFF90);
