@@ -17,6 +17,13 @@ GalaxGPUv1Controller::GalaxGPUv1Controller(i2c_smbus_interface* bus, galax_gpu_d
     this->bus   = bus;
     this->dev   = dev;
     this->name  = dev_name;
+
+    /*-----------------------------------------------------*\
+    | Remember the current mode registers so colour updates |
+    | can re-apply them (see SetLEDColorsDirect)            |
+    \*-----------------------------------------------------*/
+    mode_reg_1  = GalaxGPURegisterRead(GALAX_V1_MODE_REGISTER_1);
+    mode_reg_2  = GalaxGPURegisterRead(GALAX_V1_MODE_REGISTER_2);
 }
 
 GalaxGPUv1Controller::~GalaxGPUv1Controller()
@@ -59,6 +66,15 @@ void GalaxGPUv1Controller::SetLEDColorsDirect(unsigned char red, unsigned char g
     GalaxGPURegisterWrite(GALAX_V1_RED_REGISTER, red);
     GalaxGPURegisterWrite(GALAX_V1_GREEN_REGISTER, green);
     GalaxGPURegisterWrite(GALAX_V1_BLUE_REGISTER, blue);
+
+    /*-----------------------------------------------------*\
+    | At least the RTX 3070 1-Click OC LHR (signature 0x11) |
+    | only pushes the colour registers to the LED when a    |
+    | mode register is written, so re-write the current     |
+    | mode after every colour update                        |
+    \*-----------------------------------------------------*/
+    GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+    GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
 }
 
 void GalaxGPUv1Controller::SetLEDColorsEffect(unsigned char red, unsigned char green, unsigned char blue)
@@ -66,6 +82,8 @@ void GalaxGPUv1Controller::SetLEDColorsEffect(unsigned char red, unsigned char g
     GalaxGPURegisterWrite(GALAX_V1_RED_REGISTER, red);
     GalaxGPURegisterWrite(GALAX_V1_GREEN_REGISTER, green);
     GalaxGPURegisterWrite(GALAX_V1_BLUE_REGISTER, blue);
+    GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+    GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
 }
 
 void GalaxGPUv1Controller::SetMode(unsigned char mode)
@@ -73,23 +91,31 @@ void GalaxGPUv1Controller::SetMode(unsigned char mode)
     switch(mode)
     {
     case 1:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_STATIC_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_STATIC_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_STATIC_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_STATIC_VALUE_2;
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
         break;
 
     case 2:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_BREATHING_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_BREATHING_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_BREATHING_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_BREATHING_VALUE_2;
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
         break;
 
     case 3:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_RAINBOW_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_RAINBOW_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_RAINBOW_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_RAINBOW_VALUE_2;
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
         break;
 
     case 4:
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, GALAX_V1_MODE_CYCLE_BREATHING_VALUE_1);
-        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, GALAX_V1_MODE_CYCLE_BREATHING_VALUE_2);
+        mode_reg_1 = GALAX_V1_MODE_CYCLE_BREATHING_VALUE_1;
+        mode_reg_2 = GALAX_V1_MODE_CYCLE_BREATHING_VALUE_2;
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_1, mode_reg_1);
+        GalaxGPURegisterWrite(GALAX_V1_MODE_REGISTER_2, mode_reg_2);
         break;
 
     default:
