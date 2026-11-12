@@ -82,6 +82,7 @@ enum
     ALIENWARE_MODE_SPECTRUM,                            /* Abitrary code for spectrum mode      */
     ALIENWARE_MODE_RAINBOW,                             /* Arbitrary code for rainbow wave mode */
     ALIENWARE_MODE_BREATHING,                           /* Arbitrary code for rainbow wave mode */
+    ALIENWARE_MODE_DIRECT,                              /* Arbitrary code for direct mode       */
 };
 
 enum
@@ -116,6 +117,7 @@ public:
     std::string                 GetFirmwareVersion();
     unsigned                    GetZoneCount();
     std::vector<const char*>    GetZoneNames();
+    bool                        HasDirectMode();
 
     void                        SetColor(uint8_t zone, RGBColor color);
     void                        SetColor(uint8_t zone, RGBColor color1, RGBColor color2);
@@ -129,6 +131,8 @@ public:
     void                        UpdateDim();
     void                        UpdateMode();
     void                        UpdateController();
+    void                        SetDirectColors(const std::vector<RGBColor>& colors);
+    void                        LeaveDirectMode();
     void                        SaveController();
 
 protected:
@@ -159,8 +163,14 @@ private:
     std::vector<uint8_t>        zone_ids;
     bool                        dirty;
     bool                        dirty_dim;
+    bool                        output_reports;
+    bool                        direct_mode;
+    bool                        direct_active;
 
+    void                        WriteHIDReport(const unsigned char* usb_buf, size_t usb_buf_size);
+    void                        SendHIDReport(const unsigned char* usb_buf, size_t usb_buf_size);
     HidapiAlienwareReport       GetResponse();
+    bool                        ResponseValid(const unsigned char* usb_buf, const HidapiAlienwareReport& response);
     HidapiAlienwareReport       Report(uint8_t subcommand);
 
     bool                        Dim(std::vector<uint8_t> zones, double percent);
@@ -172,4 +182,5 @@ private:
     bool                        SetColorDirect(RGBColor color, std::vector<uint8_t> zones);
     bool                        UpdateDirect();
     bool                        Reset();
+    bool                        SendGroupedActions();
 };

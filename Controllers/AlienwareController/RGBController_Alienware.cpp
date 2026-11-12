@@ -13,6 +13,47 @@
 #include <chrono>
 #include "RGBController_Alienware.h"
 
+/*---------------------------------------------------------*\
+| Aurora ACT1250 stadium is a vertical ring.  Each side has |
+| five blocks of six LEDs, numbered down inside a block     |
+| and up from block to block                                |
+\*---------------------------------------------------------*/
+#define NA  0xFFFFFFFF
+
+static unsigned int act1250_stadium_map[30][4] =
+{
+    { NA, 59, 42, NA },
+    { 58, NA, NA, 43 },
+    { 57, NA, NA, 44 },
+    { 56, NA, NA, 45 },
+    { 55, NA, NA, 46 },
+    { 54, NA, NA, 47 },
+    { 53, NA, NA, 30 },
+    { 52, NA, NA, 31 },
+    { 51, NA, NA, 32 },
+    { 50, NA, NA, 33 },
+    { 49, NA, NA, 34 },
+    { 48, NA, NA, 35 },
+    { 41, NA, NA, 18 },
+    { 40, NA, NA, 19 },
+    { 39, NA, NA, 20 },
+    { 38, NA, NA, 21 },
+    { 37, NA, NA, 22 },
+    { 36, NA, NA, 23 },
+    { 29, NA, NA,  6 },
+    { 28, NA, NA,  7 },
+    { 27, NA, NA,  8 },
+    { 26, NA, NA,  9 },
+    { 25, NA, NA, 10 },
+    { 24, NA, NA, 11 },
+    { 17, NA, NA,  0 },
+    { 16, NA, NA,  1 },
+    { 15, NA, NA,  2 },
+    { 14, NA, NA,  3 },
+    { 13, NA, NA,  4 },
+    { NA, 12,  5, NA }
+};
+
 /**------------------------------------------------------------------*\
     @name Alienware
     @category Keyboard
@@ -20,8 +61,9 @@
     @save :x:
     @direct :x:
     @effects :white_check_mark:
-    @detectors DetectAlienwareControllers
-    @comment
+    @detectors DetectAlienwareControllers,DetectAlienwareACT1250Controllers
+    @comment Alienware Aurora ACT1250 also has Direct mode and a mode
+    for each chassis zone.
 \*-------------------------------------------------------------------*/
 
 RGBController_Alienware::RGBController_Alienware(AlienwareController* controller_ptr)
@@ -30,7 +72,7 @@ RGBController_Alienware::RGBController_Alienware(AlienwareController* controller
 
     name                        = controller->GetDeviceName();
     vendor                      = "Alienware";
-    type                        = DEVICE_TYPE_KEYBOARD;
+    type                        = controller->HasDirectMode() ? DEVICE_TYPE_CASE : DEVICE_TYPE_KEYBOARD;
     description                 = "Alienware USB Device";
     location                    = controller->GetDeviceLocation();
     serial                      = controller->GetSerialString();
@@ -123,7 +165,35 @@ RGBController_Alienware::RGBController_Alienware(AlienwareController* controller
     Breathing.brightness       = 0;
     modes.push_back(Breathing);
 
+    if(controller->HasDirectMode())
+    {
+        mode Direct;
+        Direct.name            = "Direct";
+        Direct.value           = ALIENWARE_MODE_DIRECT;
+        Direct.flags           = MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_REQUIRES_ENTIRE_DEVICE;
+        Direct.color_mode      = MODE_COLORS_PER_LED;
+        modes.push_back(Direct);
+    }
+
     SetupZones();
+
+    /*-----------------------------------------------------*\
+    | Series are independent, so each chassis zone can play |
+    | its own mode, except for direct mode                  |
+    \*-----------------------------------------------------*/
+    if(controller->HasDirectMode())
+    {
+        for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+        {
+            for(unsigned int mode_idx = 0; mode_idx < modes.size(); mode_idx++)
+            {
+                if(modes[mode_idx].value != ALIENWARE_MODE_DIRECT)
+                {
+                    zones[zone_idx].modes.push_back(modes[mode_idx]);
+                }
+            }
+        }
+    }
 
     controller->UpdateDim();
 }
@@ -142,26 +212,62 @@ void RGBController_Alienware::SetupZones()
     \*-------------------------------------------------*/
     std::vector<const char*> zone_names = controller->GetZoneNames();
 
-    for(unsigned int zone_idx = 0; zone_idx < controller->GetZoneCount(); zone_idx++)
+    if(controller->HasDirectMode())
     {
-        zone new_zone;
+        const char*  chassis_names[]  = { "Stadium", "Power Button", "RGB System Fan", "Liquid Cooling" };
+        unsigned int chassis_counts[] = { 60, 3, 1, 1 };
 
-        new_zone.name       = zone_names[zone_idx];
-        new_zone.type       = ZONE_TYPE_SINGLE;
-        new_zone.leds_min   = 1;
-        new_zone.leds_max   = 1;
-        new_zone.leds_count = 1;
+        for(unsigned int zone_idx = 0; zone_idx < 4; zone_idx++)
+        {
+            zone new_zone;
 
-        zones.emplace_back(new_zone);
+            new_zone.name       = chassis_names[zone_idx];
+            new_zone.type       = (chassis_counts[zone_idx] > 1) ? ZONE_TYPE_LINEAR : ZONE_TYPE_SINGLE;
+            new_zone.leds_min   = chassis_counts[zone_idx];
+            new_zone.leds_max   = chassis_counts[zone_idx];
+            new_zone.leds_count = chassis_counts[zone_idx];
+
+            if(zone_idx == 0)
+            {
+                new_zone.type   = ZONE_TYPE_MATRIX;
+                new_zone.matrix_map.Set(30, 4, (unsigned int *)act1250_stadium_map);
+            }
+
+            zones.emplace_back(new_zone);
+        }
+
+        for(unsigned int led_idx = 0; led_idx < controller->GetZoneCount(); led_idx++)
+        {
+            led new_led;
+
+            new_led.name    = zone_names[led_idx];
+
+            leds.emplace_back(new_led);
+        }
     }
-
-    for(unsigned int led_idx = 0; led_idx < zones.size(); led_idx++)
+    else
     {
-        led new_led;
+        for(unsigned int zone_idx = 0; zone_idx < controller->GetZoneCount(); zone_idx++)
+        {
+            zone new_zone;
 
-        new_led.name        = zones[led_idx].name + std::string(" LED");
+            new_zone.name       = zone_names[zone_idx];
+            new_zone.type       = ZONE_TYPE_SINGLE;
+            new_zone.leds_min   = 1;
+            new_zone.leds_max   = 1;
+            new_zone.leds_count = 1;
 
-        leds.emplace_back(new_led);
+            zones.emplace_back(new_zone);
+        }
+
+        for(unsigned int led_idx = 0; led_idx < zones.size(); led_idx++)
+        {
+            led new_led;
+
+            new_led.name        = zones[led_idx].name + std::string(" LED");
+
+            leds.emplace_back(new_led);
+        }
     }
 
     SetupColors();
@@ -200,8 +306,97 @@ static bool modes_eq(const mode& mode1, const mode& mode2)
          && ( mode1.brightness_max == mode2.brightness_max ) );
 }
 
+void RGBController_Alienware::SetLEDMode(unsigned int led_idx, const mode& led_mode)
+{
+    /*-----------------------------------------------------*\
+    | The same settings as in DeviceUpdateMode, for one LED |
+    \*-----------------------------------------------------*/
+    uint8_t  led      = (uint8_t)led_idx;
+    uint16_t period   = 0x07D0;
+
+    controller->SetMode(led, led_mode.value);
+    controller->SetDirection(led, led_mode.direction);
+    controller->SetDim(led, led_mode.brightness);
+
+    switch(led_mode.value)
+    {
+        case ALIENWARE_MODE_COLOR:
+            controller->SetPeriod(led, period);
+            controller->SetColor(led, colors[led_idx]);
+            controller->SetTempo(led, ALIENWARE_TEMPO_MAX);
+            break;
+
+        case ALIENWARE_MODE_PULSE:
+            period = std::max<uint16_t>(500, (uint16_t)(led_mode.speed * 10));
+            controller->SetPeriod(led, period);
+            controller->SetColor(led, colors[led_idx]);
+            controller->SetTempo(led, led_mode.speed);
+            break;
+
+        case ALIENWARE_MODE_MORPH:
+            period = std::max<uint16_t>(400, (uint16_t)(led_mode.speed * 10));
+            controller->SetPeriod(led, period);
+            controller->SetColor(led, (led_mode.colors.size() >= 1) ? led_mode.colors[0] : 0x0000FF,
+                                      (led_mode.colors.size() >= 2) ? led_mode.colors[1] : 0xFF0000);
+            controller->SetTempo(led, led_mode.speed);
+            break;
+
+        case ALIENWARE_MODE_SPECTRUM:
+        case ALIENWARE_MODE_RAINBOW:
+            controller->SetPeriod(led, ALIENWARE_DURATION_SPECTRUM);
+            controller->SetTempo(led, led_mode.speed);
+            break;
+
+        case ALIENWARE_MODE_BREATHING:
+            period = std::max<uint16_t>(500, (uint16_t)(led_mode.speed * 10));
+            controller->SetPeriod(led, period);
+            controller->SetColor(led, colors[led_idx], 0x0);
+            controller->SetTempo(led, led_mode.speed);
+            break;
+    }
+}
+
+void RGBController_Alienware::UpdateChassisMode()
+{
+    if(modes[active_mode].value == ALIENWARE_MODE_DIRECT)
+    {
+        controller->SetDirectColors(colors);
+        return;
+    }
+
+    controller->LeaveDirectMode();
+
+    /*-----------------------------------------------------*\
+    | A zone with no own mode follows the device mode.  The |
+    | controller keeps one animation, so it is sent whole   |
+    \*-----------------------------------------------------*/
+    for(unsigned int zone_idx = 0; zone_idx < zones.size(); zone_idx++)
+    {
+        bool        own_mode  = (zones[zone_idx].active_mode >= 0) && (zones[zone_idx].active_mode < (int)zones[zone_idx].modes.size());
+        const mode& zone_mode = own_mode ? zones[zone_idx].modes[zones[zone_idx].active_mode] : modes[active_mode];
+
+        for(unsigned int led_idx = zones[zone_idx].start_idx; led_idx < zones[zone_idx].start_idx + zones[zone_idx].leds_count; led_idx++)
+        {
+            SetLEDMode(led_idx, zone_mode);
+        }
+    }
+
+    controller->UpdateController();
+}
+
+void RGBController_Alienware::DeviceUpdateZoneMode(int /*zone*/)
+{
+    UpdateChassisMode();
+}
+
 void RGBController_Alienware::DeviceUpdateMode()
 {
+    if(controller->HasDirectMode())
+    {
+        UpdateChassisMode();
+        return;
+    }
+
     /*---------------------------------------------------------*\
     | Copy mode to get the current state-- this is racy, as the |
     | UI thread can be actively modifying this variable         |
