@@ -82,13 +82,12 @@ uint8_t DDR4DirectAccessor::at(uint16_t addr)
 void DDR4DirectAccessor::set_page(uint8_t page)
 {
     /*-----------------------------------------------------*\
-    | Switch page if not already active                     |
+    | Always switch page.  The page selector is shared by   |
+    | all DDR4 SPD devices on the bus, so another accessor  |
+    | or detection probe may have changed it since the last |
+    | access through this object.                           |
     \*-----------------------------------------------------*/
-    if(current_page != page)
-    {
-        bus->i2c_smbus_write_byte_data(0x36 + page, 0x00, 0xFF);
-        current_page = page;
+    bus->i2c_smbus_write_byte_data(0x36 + page, 0x00, 0xFF);
 
-        std::this_thread::sleep_for(SPD_IO_DELAY);
-    }
+    std::this_thread::sleep_for(SPD_IO_DELAY);
 }

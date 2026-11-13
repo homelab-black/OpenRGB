@@ -113,6 +113,7 @@ enum
     FURY_MODE_DIRECT                  =  0x10,
     FURY_MODE_PRISM                   =  0x11,
     FURY_MODE_BREATH_DIRECT           =  0x13,
+    FURY_MODE_UNKNOWN                 =  0xFF,
 };
 
 enum
@@ -155,5 +156,6 @@ private:
     std::vector<int>        slots;
     unsigned char           base_addr;
     std::string             name;
+    bool                    read_unsupported;
     std::vector<std::map<unsigned char, unsigned char>> reg_cache;
 };

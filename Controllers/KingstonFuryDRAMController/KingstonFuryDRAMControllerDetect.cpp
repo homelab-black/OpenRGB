@@ -21,9 +21,11 @@
 using namespace std::chrono_literals;
 
 /*---------------------------------------------------------*\
-| DDR5 manufacturer data starts at SPD offset 0x22B.        |
-| Kingston identifies the RGB family at 0x243 and 0x244.    |
+| DDR4 and DDR5 manufacturer data start at SPD offsets     |
+| 0x161 and 0x22B respectively.  Kingston identifies the   |
+| RGB family using the model byte inside that data.        |
 \*---------------------------------------------------------*/
+#define FURY_DDR4_SPD_MODEL_OFFSET    0x07
 #define FURY_DDR5_SPD_VARIANT_OFFSET  0x18
 #define FURY_DDR5_SPD_MODEL_OFFSET    0x19
 
@@ -46,6 +48,18 @@ bool TestDDR5Models(char code)
             code == FURY_MODEL_BEAST2_DDR5 ||
             code == FURY_MODEL_RENEGADE_DDR5 ||
             code == FURY_MODEL_BEAST_RGB_WHITE_DDR5);
+}
+
+bool TestDDR4SPD(unsigned char model)
+{
+    /*-----------------------------------------------------*\
+    | The model byte is mirrored in Kingston's DDR4 SPD     |
+    | manufacturer data.  It identifies the RGB controller  |
+    | family without relying on the FURY signature, which   |
+    | is not readable through some DIMM SMBus adapters.     |
+    \*-----------------------------------------------------*/
+    return(model == FURY_MODEL_BEAST_WHITE_DDR4 ||
+           model == FURY_MODEL_BEAST_DDR4);
 }
 
 bool TestDDR5SPD(unsigned char variant, unsigned char model)
@@ -176,6 +190,14 @@ void DetectKingstonFuryDRAMControllers(i2c_smbus_interface* bus, std::vector<SPD
 
             LOG_DEBUG("[%s] Slot %d DDR5 SPD variant=%02X model=%02X, supported=%d",
                       FURY_CONTROLLER_NAME, slot->index(), variant, model, spd_identified);
+        }
+        else if(fury_base_addr == FURY_BASE_ADDR_DDR4)
+        {
+            unsigned char model = slot->manufacturer_data(FURY_DDR4_SPD_MODEL_OFFSET);
+            spd_identified = TestDDR4SPD(model);
+
+            LOG_DEBUG("[%s] Slot %d DDR4 SPD model=%02X, supported=%d",
+                      FURY_CONTROLLER_NAME, slot->index(), model, spd_identified);
         }
 
         result = RESULT_ERROR;
