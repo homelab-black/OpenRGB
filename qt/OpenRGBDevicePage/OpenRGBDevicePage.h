@@ -81,6 +81,7 @@ private:
     void UpdateModeList();
     void UpdateModeUi();
     void UpdateZoneList();
+    void UpdateEditButton();
 
     /*-----------------------------------------------------*\
     | Helper functions                                      |
