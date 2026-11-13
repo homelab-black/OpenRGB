@@ -90,7 +90,7 @@ static bool SinowealthUnclaimDevice(const std::string& device_id)
     return sinowealth_claimed_devices.erase(device_id);
 }
 
-static bool DetectUsages(hid_device_info* info, std::string name, unsigned int device_count_expected, expected_reports& reports)
+static bool DetectUsages(const hid_device_info* info, const std::string& name, unsigned int device_count_expected, expected_reports& reports)
 {
     std::lock_guard<std::recursive_mutex> lock(sinowealth_registry_mutex);
 
@@ -293,7 +293,7 @@ DetectedControllers DetectZetFuryPro(hid_device_info* info, const std::string& n
     return(detected_controllers);
 }
 
-DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::string& name)
+static DetectedControllers DetectSinowealthMouse(const hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
 
@@ -444,7 +444,7 @@ DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std
 
 REGISTER_HID_DETECTOR_P("Glorious Model O / O-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_O_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Glorious Model D / D-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_D_PID,                   0xFF00          );
-REGISTER_HID_DETECTOR_P("Everest GT-100 RGB",               DetectSinowealthMouse,              SINOWEALTH_VID, Everest_GT100_PID,                      0xFF00          );
+REGISTER_HID_DETECTOR_P("Sinowealth OEM Mouse",             DetectSinowealthMouse,              SINOWEALTH_VID, Everest_GT100_PID,                      0xFF00          ); // Note: targeting the wrong endpoint to avoid multiple hits; will re-enumerate later in detetion!
 REGISTER_HID_DETECTOR_IPU("ZET Fury Pro",                   DetectZetFuryPro,                   SINOWEALTH_VID, ZET_FURY_PRO_PID,                   1,  0xFF00, 1       );
 REGISTER_HID_DETECTOR_PU("Glorious Model O / O- Wireless",  DetectGMOW_Dongle,                  SINOWEALTH_VID, Glorious_Model_OW_PID1,                 0xFFFF, 1       );
 REGISTER_HID_DETECTOR_PU("Glorious Model O / O- Wireless",  DetectGMOW_Cable,                   SINOWEALTH_VID, Glorious_Model_OW_PID2,                 0xFFFF, 0x0000  );

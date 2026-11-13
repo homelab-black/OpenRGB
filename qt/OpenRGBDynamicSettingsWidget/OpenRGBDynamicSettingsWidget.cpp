@@ -86,80 +86,89 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
         /*-------------------------------------------------*\
         | If type is object, create a nested group          |
         \*-------------------------------------------------*/
-        if(type == "object" && schema.contains("properties"))
+        if(type == "object")
         {
-            /*---------------------------------------------*\
-            | Create the groupbox and layout                |
-            \*---------------------------------------------*/
-            left_widget                                         = (QGroupBox*)new QGroupBox(QString::fromStdString(title));
-            QVBoxLayout*                    groupbox_layout     = new QVBoxLayout();
-            nlohmann::json&                 properties_json     = schema["properties"];
-            std::vector<ordered_settings_t> setting_entries;
-            nlohmann::json&                 settings_json       = settings[key];
-
-            ((QGroupBox*)left_widget)->setLayout(groupbox_layout);
-
-            /*---------------------------------------------*\
-            | Loop through the schema and build a vector    |
-            | containing the entries in desired order.      |
-            | Entries with negative order (default -1) are  |
-            | put at the end of the list.                   |
-            \*---------------------------------------------*/
-            for(nlohmann::json::iterator json_iterator = properties_json.begin(); json_iterator != properties_json.end(); json_iterator++)
+            if(schema.contains("properties"))
             {
-                int                         order               = -1;
+                /*---------------------------------------------*\
+                | Create the groupbox and layout                |
+                \*---------------------------------------------*/
+                left_widget                                         = (QGroupBox*)new QGroupBox(QString::fromStdString(title));
+                QVBoxLayout*                    groupbox_layout     = new QVBoxLayout();
+                nlohmann::json&                 properties_json     = schema["properties"];
+                std::vector<ordered_settings_t> setting_entries;
+                nlohmann::json&                 settings_json       = settings[key];
 
-                if(json_iterator.value().contains("order"))
+                ((QGroupBox*)left_widget)->setLayout(groupbox_layout);
+
+                /*---------------------------------------------*\
+                | Loop through the schema and build a vector    |
+                | containing the entries in desired order.      |
+                | Entries with negative order (default -1) are  |
+                | put at the end of the list.                   |
+                \*---------------------------------------------*/
+                for(nlohmann::json::iterator json_iterator = properties_json.begin(); json_iterator != properties_json.end(); json_iterator++)
                 {
-                    order                                       = json_iterator.value()["order"];
-                }
+                    int                         order               = -1;
 
-                ordered_settings_t          setting             = {order, json_iterator.key(), json_iterator.value()};
-
-                if((order < 0) || (setting_entries.size() == 0))
-                {
-                    setting_entries.push_back(setting);
-                }
-                else
-                {
-                    bool                    added               = false;
-
-                    for(std::size_t setting_idx = 0; setting_idx < setting_entries.size(); setting_idx++)
+                    if(json_iterator.value().contains("order"))
                     {
-                        if((setting_entries[setting_idx].order > order) || (setting_entries[setting_idx].order < 0))
-                        {
-                            setting_entries.insert(setting_entries.begin() + setting_idx, setting);
-                            added = true;
-                            break;
-                        }
+                        order                                       = json_iterator.value()["order"];
                     }
 
-                    if(!added)
+                    ordered_settings_t          setting             = {order, json_iterator.key(), json_iterator.value()};
+
+                    if((order < 0) || (setting_entries.size() == 0))
                     {
                         setting_entries.push_back(setting);
                     }
-                }
-            }
+                    else
+                    {
+                        bool                    added               = false;
 
-            /*---------------------------------------------*\
-            | Create UI elements for each setting           |
-            \*---------------------------------------------*/
-            for(std::size_t setting_idx = 0; setting_idx < setting_entries.size(); setting_idx++)
-            {
-                if(JsonUtils::JsonGetBool(setting_entries[setting_idx].value, "visible", true) == false)
+                        for(std::size_t setting_idx = 0; setting_idx < setting_entries.size(); setting_idx++)
+                        {
+                            if((setting_entries[setting_idx].order > order) || (setting_entries[setting_idx].order < 0))
+                            {
+                                setting_entries.insert(setting_entries.begin() + setting_idx, setting);
+                                added = true;
+                                break;
+                            }
+                        }
+
+                        if(!added)
+                        {
+                            setting_entries.push_back(setting);
+                        }
+                    }
+                }
+
+                /*---------------------------------------------*\
+                | Create UI elements for each setting           |
+                \*---------------------------------------------*/
+                for(std::size_t setting_idx = 0; setting_idx < setting_entries.size(); setting_idx++)
                 {
-                    continue;
+                    if(JsonUtils::JsonGetBool(setting_entries[setting_idx].value, "visible", true) == false)
+                    {
+                        continue;
+                    }
+
+                    OpenRGBDynamicSettingsWidget*   item_widget = new OpenRGBDynamicSettingsWidget(setting_entries[setting_idx].key, setting_entries[setting_idx].value, settings_json);
+
+                    item_widget->SetCallback(&OpenRGBDynamicSettingsWidget::NestedCallback, this);
+                    groupbox_layout->addWidget(item_widget);
                 }
 
-                OpenRGBDynamicSettingsWidget*   item_widget = new OpenRGBDynamicSettingsWidget(setting_entries[setting_idx].key, setting_entries[setting_idx].value, settings_json);
+                layout->addWidget((QGroupBox*)left_widget);
 
-                item_widget->SetCallback(&OpenRGBDynamicSettingsWidget::NestedCallback, this);
-                groupbox_layout->addWidget(item_widget);
+                UpdateLabels();
             }
-
-            layout->addWidget((QGroupBox*)left_widget);
-
-            UpdateLabels();
+            else
+            {
+                QLabel* fault_label = new QLabel("Object schema with no properties!");
+                fault_label->setStyleSheet("QLabel { color: red; }"); // optionally set color to red
+                right_widget = fault_label;
+            }
         }
         /*-------------------------------------------------*\
         | Otherwise, create a single settings entry         |
@@ -287,7 +296,8 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
                         value                               = JsonUtils::JsonGetInt(settings, key);
                     }
 
-                    right_widget                            = (QWidget*)new QComboBox();
+                    QComboBox* combobox = new QComboBox();
+                    right_widget = combobox;
 
                     for(std::size_t enum_idx = 0; enum_idx < schema["enum"].size(); enum_idx++)
                     {
@@ -299,16 +309,16 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
                             label                           = schema["enumNames"][enum_idx];
                         }
 
-                        ((QComboBox*)right_widget)->addItem(QString::fromStdString(label), enum_int);
+                        combobox->addItem(QString::fromStdString(label), enum_int);
                     }
 
-                    int index = ((QComboBox*)right_widget)->findData(value);
+                    int index = combobox->findData(value);
                     if(index != -1)
                     {
-                        ((QComboBox*)right_widget)->setCurrentIndex(index);
+                        combobox->setCurrentIndex(index);
                     }
 
-                    QObject::connect((QComboBox*)right_widget, qOverload<int>(&QComboBox::currentIndexChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
+                    QObject::connect(combobox, qOverload<int>(&QComboBox::currentIndexChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
                 }
                 /*-----------------------------------------*\
                 | Add a CheckBox for bool settings          |
@@ -327,21 +337,22 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
                     ((QCheckBox*)right_widget)->setChecked(value);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-                QObject::connect((QCheckBox*)right_widget, &QCheckBox::checkStateChanged, this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
+                    QObject::connect((QCheckBox*)right_widget, &QCheckBox::checkStateChanged, this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
 #else
-                QObject::connect((QCheckBox*)right_widget, qOverload<int>(&QCheckBox::stateChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
+                    QObject::connect((QCheckBox*)right_widget, qOverload<int>(&QCheckBox::stateChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
 #endif
                 }
                 else if(type == "language")
                 {
-                    std::string     value                   = JsonUtils::JsonGetString(schema, "default");
+                    std::string value = JsonUtils::JsonGetString(schema, "default");
 
                     if(settings.contains(key))
                     {
-                        value                               = JsonUtils::JsonGetString(settings, key);
+                        value         = JsonUtils::JsonGetString(settings, key);
                     }
 
-                    right_widget                            = (QWidget*)new QComboBox();
+                    QComboBox* box    = new QComboBox();
+                    right_widget      = box;
 
                     /*-------------------------------------*\
                     | Load available languages              |
@@ -363,24 +374,31 @@ OpenRGBDynamicSettingsWidget::OpenRGBDynamicSettingsWidget(std::string key, nloh
                         }
                     }
 
-                    ((QComboBox*)right_widget)->addItem(tr("System Default"), "default");
+                    box->addItem(tr("System Default"), "default");
 
                     QMapIterator<QString, QString> language_map_iterator(language_map);
 
                     while(language_map_iterator.hasNext())
                     {
                         language_map_iterator.next();
-                        ((QComboBox*)right_widget)->addItem(language_map_iterator.key(), language_map_iterator.value());
+                        box->addItem(language_map_iterator.key(), language_map_iterator.value());
                     }
 
-                    int index = ((QComboBox*)right_widget)->findData(QVariant::fromValue(QString::fromStdString(value)));
+                    int index = box->findData(QVariant::fromValue(QString::fromStdString(value)));
                     if(index != -1)
                     {
-                        ((QComboBox*)right_widget)->setCurrentIndex(index);
+                        box->setCurrentIndex(index);
                     }
 
-                    QObject::connect((QComboBox*)right_widget, qOverload<int>(&QComboBox::currentIndexChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
+                    QObject::connect(box, qOverload<int>(&QComboBox::currentIndexChanged), this, &OpenRGBDynamicSettingsWidget::OnSettingChanged);
                 }
+            }
+
+            if(!right_widget)
+            {
+                QLabel* fault_label = new QLabel("Malformed schema!");
+                fault_label->setStyleSheet("QLabel { color: red; }"); // optionally set color to red
+                right_widget = fault_label;
             }
 
             layout->addWidget(left_widget, 1);
@@ -484,30 +502,23 @@ void OpenRGBDynamicSettingsWidget::UpdateLabels()
 {
     QApplication* app = static_cast<QApplication *>(QApplication::instance());
 
-    if(type == "profile")
+    if(left_widget)
     {
-        if(left_widget)
+        QCheckBox* checkbox = qobject_cast<QCheckBox*>(left_widget);
+        QGroupBox* groupbox = qobject_cast<QGroupBox*>(left_widget);
+        QLabel*    label    = qobject_cast<QLabel*>(left_widget);
+        if(checkbox)
         {
-            ((QCheckBox*)left_widget)->setText(app->translate("Settings", title.c_str()) + ":");
+            checkbox->setText(app->translate("Settings", title.c_str()) + ":");
         }
-        setToolTip(app->translate("Settings", description.c_str()));
-    }
-    else if(type != "object")
-    {
-        if(left_widget)
+        if(groupbox)
         {
-            ((QLabel*)left_widget)->setText(app->translate("Settings", title.c_str()) + ":");
+            groupbox->setTitle(app->translate("Settings", title.c_str()));
         }
-
-        setToolTip(app->translate("Settings", description.c_str()));
-    }
-    else
-    {
-        if(left_widget)
+        if(label)
         {
-            ((QGroupBox*)left_widget)->setTitle(app->translate("Settings", title.c_str()));
+            label->setText(app->translate("Settings", title.c_str()) + ":");
         }
-
-        setToolTip(app->translate("Settings", description.c_str()));
     }
+    setToolTip(app->translate("Settings", description.c_str()));
 }
