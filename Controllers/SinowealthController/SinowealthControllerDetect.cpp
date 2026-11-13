@@ -31,7 +31,9 @@
 #include "LogManager.h"
 
 #define SINOWEALTH_VID                      0x258A
+#define SINOWEALTH_VID_3794                 0x3794 // Model O Eternal
 
+#define Glorious_Model_O_Eternal_PID        0xA000
 #define Glorious_Model_O_PID                0x0036
 #define Glorious_Model_OW_PID1              0x2022 // wireless
 #define Glorious_Model_OW_PID2              0x2011 // when connected via cable
@@ -317,6 +319,34 @@ DetectedControllers DetectSinowealthMouse(hid_device_info* info, const std::stri
     return(detected_controllers);
 }
 
+/*-----------------------------------------------------------------------------*\
+| The Model O Eternal exposes a single 0xFF00 collection, so it expects 1 device |
+| rather than 3 like the Model O / Model D.                                      |
+\*-----------------------------------------------------------------------------*/
+DetectedControllers DetectSinowealthMouseEternal(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+
+    unsigned char command[6] = {0x05, 0x11, 0x00, 0x00, 0x00, 0x00};
+    expected_reports reports{expected_report(0x04, 520, command, sizeof(command))};
+
+    if(DetectUsages(info, name, 1, reports))
+    {
+        hid_device *dev     = reports.at(0).device;
+        hid_device *dev_cmd = reports.at(0).cmd_device;
+
+        if(dev && dev_cmd)
+        {
+            SinowealthController*     controller     = new SinowealthController(dev, dev_cmd, info->path, name);
+            RGBController_Sinowealth* rgb_controller = new RGBController_Sinowealth(controller);
+
+            detected_controllers.push_back(rgb_controller);
+        }
+    }
+
+    return(detected_controllers);
+}
+
 DetectedControllers DetectGMOW_Cable(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -442,6 +472,7 @@ DetectedControllers DetectSinowealthKeyboard10c(hid_device_info* info, const std
     return(detected_controllers);
 }
 
+REGISTER_HID_DETECTOR_P("Glorious Model O Eternal",         DetectSinowealthMouseEternal,       SINOWEALTH_VID_3794, Glorious_Model_O_Eternal_PID,      0xFF00          );
 REGISTER_HID_DETECTOR_P("Glorious Model O / O-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_O_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Glorious Model D / D-",            DetectSinowealthMouse,              SINOWEALTH_VID, Glorious_Model_D_PID,                   0xFF00          );
 REGISTER_HID_DETECTOR_P("Everest GT-100 RGB",               DetectSinowealthMouse,              SINOWEALTH_VID, Everest_GT100_PID,                      0xFF00          );
