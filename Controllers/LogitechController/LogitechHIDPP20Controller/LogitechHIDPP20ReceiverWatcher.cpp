@@ -106,9 +106,10 @@ bool LogitechHIDPP20ReceiverWatcher::HasSubDevice(const std::string& node_path, 
 }
 
 LogitechHIDPP20ReceiverWatcher::LogitechHIDPP20ReceiverWatcher(const std::string& node_path, uint8_t bridge_feat_idx,
-                                                               uint8_t bridge_report_id, bool bridge_addressed)
+                                                               uint8_t bridge_report_id, bool bridge_addressed, const std::string& event_path)
 {
     this->node_path        = node_path;
+    this->event_path       = event_path;
     this->bridge_feat_idx  = bridge_feat_idx;
     this->bridge_report_id = bridge_report_id;
     this->bridge_addressed = bridge_addressed;
@@ -145,7 +146,7 @@ LogitechHIDPP20ReceiverWatcher::~LogitechHIDPP20ReceiverWatcher()
 
 bool LogitechHIDPP20ReceiverWatcher::Start()
 {
-    dev = hid_open_path(node_path.c_str());
+    dev = hid_open_path(event_path.c_str());
 
     if(dev == nullptr)
     {

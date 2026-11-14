@@ -151,6 +151,18 @@ std::string getWirelessDeviceName(usages device_usages, uint8_t device_index)
     }
 
     hid_device* dev_use1 = find_usage->second;
+    hid_device* dev_reply = dev_use1;
+
+#ifdef _WIN32
+    usages::iterator reply_usage = device_usages.find(2);
+
+    if(reply_usage == device_usages.end() || reply_usage->second == nullptr)
+    {
+        return "";
+    }
+
+    dev_reply = reply_usage->second;
+#endif
 
     /*-----------------------------------------------------*\
     | GET_LONG_REGISTER 0xB5 (receiver info), sub 0x40 + N  |
@@ -175,14 +187,17 @@ std::string getWirelessDeviceName(usages device_usages, uint8_t device_index)
         blankFAPmessage response;
         response.init();
 
-        int rd = hid_read_timeout(dev_use1, response.buffer, response.size(), LOGITECH_PROTOCOL_TIMEOUT);
+        int rd = hid_read_timeout(dev_reply, response.buffer, response.size(), LOGITECH_PROTOCOL_TIMEOUT);
 
         if(rd <= 0)
         {
             break;
         }
 
-        if(response.feature_index   != LOGITECH_GET_LONG_REGISTER_REQUEST ||
+        if(rd                       != LOGITECH_LONG_MESSAGE_LEN         ||
+           response.report_id       != LOGITECH_LONG_MESSAGE             ||
+           response.device_index    != LOGITECH_RECEIVER_DEVICE_INDEX    ||
+           response.feature_index   != LOGITECH_GET_LONG_REGISTER_REQUEST ||
            response.feature_command != 0xB5                               ||
            response.data[0]         != (uint8_t)(0x40 + device_index - 1))
         {
@@ -247,6 +262,18 @@ std::string getWirelessDeviceSerial(usages device_usages, uint8_t device_index)
     }
 
     hid_device* dev_use1 = find_usage->second;
+    hid_device* dev_reply = dev_use1;
+
+#ifdef _WIN32
+    usages::iterator reply_usage = device_usages.find(2);
+
+    if(reply_usage == device_usages.end() || reply_usage->second == nullptr)
+    {
+        return "";
+    }
+
+    dev_reply = reply_usage->second;
+#endif
 
     shortFAPrequest get_serial;
     get_serial.init(LOGITECH_RECEIVER_DEVICE_INDEX, LOGITECH_GET_LONG_REGISTER_REQUEST);
@@ -260,14 +287,17 @@ std::string getWirelessDeviceSerial(usages device_usages, uint8_t device_index)
         blankFAPmessage response;
         response.init();
 
-        int rd = hid_read_timeout(dev_use1, response.buffer, response.size(), LOGITECH_PROTOCOL_TIMEOUT);
+        int rd = hid_read_timeout(dev_reply, response.buffer, response.size(), LOGITECH_PROTOCOL_TIMEOUT);
 
         if(rd <= 0)
         {
             break;
         }
 
-        if(response.feature_index   != LOGITECH_GET_LONG_REGISTER_REQUEST ||
+        if(rd                       != LOGITECH_LONG_MESSAGE_LEN         ||
+           response.report_id       != LOGITECH_LONG_MESSAGE             ||
+           response.device_index    != LOGITECH_RECEIVER_DEVICE_INDEX    ||
+           response.feature_index   != LOGITECH_GET_LONG_REGISTER_REQUEST ||
            response.feature_command != 0xB5                               ||
            response.data[0]         != (uint8_t)(0x30 + device_index - 1))
         {
