@@ -46,6 +46,9 @@ struct mystic_light_185_config
     const std::vector<MSI_ZONE>*             supported_zones;           // pointer to vector of supported zones
     MSIMotherboard185Controller::DIRECT_MODE per_led_mode;              // type of direct mode support
     unsigned char                            minimum_firmware_version;  // minimum required firmware version for this config (0 = all versions acceptable)
+    bool                                     supports_per_zone_modes = false;
+    unsigned int                             max_effect_leds = 30;
+    bool                                     keep_master_output_enabled = false;
 };
 
 const std::vector<MSI_ZONE> all_zones =
@@ -278,7 +281,7 @@ static const mystic_light_185_config board_configs[] =
     { 0x7C81, 6,  0,  0, 2, &zones_set0,  MSIMotherboard185Controller::DIRECT_MODE_PER_LED,     0 },    // MAG B460 TOMAHAWK
     { 0x7C82, 6,  0,  0, 1, &zones_set5,  MSIMotherboard185Controller::DIRECT_MODE_PER_LED,     0 },    // MAG B460M MORTAR WIFI
     { 0x7C83, 6,  0,  0, 1, &zones_set5,  MSIMotherboard185Controller::DIRECT_MODE_DISABLED,    0 },    // B460M PRO-VDH WIFI
-    { 0x7C84, 6,  0,  0, 2, &zones_set0,  MSIMotherboard185Controller::DIRECT_MODE_ZONE_BASED,  0 },    // MAG X570 TOMAHAWK WIFI
+    { 0x7C84, 6,  0,  0, 2, &zones_set0,  MSIMotherboard185Controller::DIRECT_MODE_ZONE_BASED,  0, true, 75, true },    // MAG X570 TOMAHAWK WIFI
     { 0x7C86, 6,  0,  0, 1, &zones_set5,  MSIMotherboard185Controller::DIRECT_MODE_DISABLED,    0 },    // MPG B460I GAMING EDGE
     { 0x7C87, 6,  0,  0, 2, &zones_set13, MSIMotherboard185Controller::DIRECT_MODE_PER_LED,     0 },    // B450M BAZOOKA MAX WIFI
     { 0x7C90, 6,  4,  0, 1, &zones_set3,  MSIMotherboard185Controller::DIRECT_MODE_PER_LED,     0 },    // MPG B550 GAMING CARBON WIFI
@@ -440,12 +443,15 @@ MSIMotherboard185Controller::MSIMotherboard185Controller(hid_device* handle, con
             return;
         }
 
-        numof_onboard_leds  = board_config->numof_onboard_leds;
-        numof_pipe1_leds    = board_config->numof_pipe1_leds;
-        numof_pipe2_leds    = board_config->numof_pipe2_leds;
-        numof_JRGBs         = board_config->numof_JRGBs;
-        supported_zones     = board_config->supported_zones;
-        per_led_mode        = board_config->per_led_mode;
+        numof_onboard_leds          = board_config->numof_onboard_leds;
+        numof_pipe1_leds            = board_config->numof_pipe1_leds;
+        numof_pipe2_leds            = board_config->numof_pipe2_leds;
+        numof_JRGBs                 = board_config->numof_JRGBs;
+        supported_zones             = board_config->supported_zones;
+        per_led_mode                = board_config->per_led_mode;
+        supports_per_zone_modes     = board_config->supports_per_zone_modes;
+        max_effect_leds             = board_config->max_effect_leds;
+        keep_master_output_enabled  = board_config->keep_master_output_enabled;
     }
     else
     {
@@ -678,7 +684,38 @@ void MSIMotherboard185Controller::SetMode
     | For modes above MSI_MODE_LIGHTNING, set the onboard   |
     | zone to sync with JRGB, JPIPE1, and JPIPE2            |
     \*-----------------------------------------------------*/
-    if(mode > MSI_MODE_LIGHTNING)
+    if(supports_per_zone_modes)
+    {
+        /*-------------------------------------------------*\
+        | Keep the master output/animation enable set when  |
+        | required by firmware, including in                |
+        | Static/Breathing.                                 |
+        \*-------------------------------------------------*/
+        if(keep_master_output_enabled)
+        {
+            on_board_zone->speedAndBrightnessFlags |= MSI_SPEED_BRIGHTNESS_FLAG_SYNC_SETTING_JRGB;
+        }
+
+        switch(zone)
+        {
+            case MSI_ZONE_J_RAINBOW_1:
+                on_board_zone->colorFlags &= ~MSI_COLOR_FLAG_SYNC_SETTING_JRAINBOW1;
+                break;
+
+            case MSI_ZONE_J_RAINBOW_2:
+                on_board_zone->colorFlags &= ~MSI_COLOR_FLAG_SYNC_SETTING_JRAINBOW2;
+                break;
+
+            case MSI_ZONE_ON_BOARD_LED_0:
+                on_board_zone->colorFlags &= ~(MSI_COLOR_FLAG_SYNC_SETTING_JPIPE1 | MSI_COLOR_FLAG_SYNC_SETTING_JPIPE2);
+                on_board_zone->colorFlags |= MSI_COLOR_FLAG_SYNC_SETTING_ONBOARD;
+                break;
+
+            default:
+                break;
+        }
+    }
+    else if(mode > MSI_MODE_LIGHTNING)
     {
         on_board_zone->speedAndBrightnessFlags |= MSI_SPEED_BRIGHTNESS_FLAG_SYNC_SETTING_JRGB;
         on_board_zone->colorFlags              |= (MSI_COLOR_FLAG_SYNC_SETTING_JPIPE1 | MSI_COLOR_FLAG_SYNC_SETTING_JPIPE2);
@@ -1272,8 +1309,8 @@ void MSIMotherboard185Controller::GetMode
     \*-----------------------------------------------------*/
     mode            = (MSI_MODE)        zone_data->effect;
     speed           = (MSI_SPEED)     ((zone_data->speedAndBrightnessFlags >> MSI_SPEED_BRIGHTNESS_FLAG_SPEED_SHIFT)      & MSI_SPEED_BRIGHTNESS_FLAG_SPEED_MASK);
-    brightness      = (MSI_BRIGHTNESS)((zone_data->speedAndBrightnessFlags >> MSI_SPEED_BRIGHTNESS_FLAG_BRIGHTNESS_SHIFT) & MSI_SPEED_BRIGHTNESS_FLAG_BRIGHTNESS_MASK);
-    rainbow_color   = ((zone_data->colorFlags & MSI_COLOR_FLAG_USE_CUSTOM_COLOR) == 0 ? false : true);
+    brightness      = (MSI_BRIGHTNESS)((zone_data->speedAndBrightnessFlags & MSI_SPEED_BRIGHTNESS_FLAG_BRIGHTNESS_MASK) >> MSI_SPEED_BRIGHTNESS_FLAG_BRIGHTNESS_SHIFT);
+    rainbow_color   = ((zone_data->colorFlags & MSI_COLOR_FLAG_USE_CUSTOM_COLOR) == 0);
     color           = ToRGBColor(zone_data->color.R, zone_data->color.G, zone_data->color.B);
 }
 

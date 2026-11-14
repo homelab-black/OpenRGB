@@ -147,6 +147,21 @@ void RGBController_MSIMotherboard185::SetupZones()
         unsigned int            maxLeds                 = (unsigned int)controller->GetMaxDirectLeds(zd->zone_type);
 
         /*-------------------------------------------------*\
+        | Expose the hardware effects supported by each     |
+        | zone.                                             |
+        \*-------------------------------------------------*/
+        if(first_run && controller->HasPerZoneModes())
+        {
+            for(std::size_t mode_idx = 0; mode_idx < modes.size(); mode_idx++)
+            {
+                if(modes[mode_idx].value != MSI_MODE_DIRECT_DUMMY)
+                {
+                    zones[zone_idx].modes.push_back(modes[mode_idx]);
+                }
+            }
+        }
+
+        /*-------------------------------------------------*\
         | This is a fixed size zone                         |
         \*-------------------------------------------------*/
         if(((zd->zone_type != MSI_ZONE_J_RAINBOW_1)
@@ -170,7 +185,7 @@ void RGBController_MSIMotherboard185::SetupZones()
             zones[zone_idx].name                        = zd->name;
             zones[zone_idx].type                        = ZONE_TYPE_SINGLE;
             zones[zone_idx].leds_min                    = 0;
-            zones[zone_idx].leds_max                    = 30;//maxLeds;
+            zones[zone_idx].leds_max                    = controller->GetMaxEffectLeds();
 
             if(first_run)
             {
@@ -274,7 +289,7 @@ void RGBController_MSIMotherboard185::DeviceUpdateLEDs()
 
     for(std::size_t zone_idx = 0; zone_idx < zones.size(); ++zone_idx)
     {
-        for(int led_idx = zones[zone_idx].leds_count - 1; led_idx >= 0; led_idx--)
+        for(int led_idx = (int)LEDsInZone((unsigned int)zone_idx) - 1; led_idx >= 0; led_idx--)
         {
             UpdateLed((int)zone_idx, led_idx);
         }
@@ -289,7 +304,7 @@ void RGBController_MSIMotherboard185::DeviceUpdateZoneLEDs(int zone)
         controller->SetDirectMode(true);
     }
 
-    for(int led_idx = zones[zone].leds_count - 1; led_idx >= 0; led_idx--)
+    for(int led_idx = (int)LEDsInZone((unsigned int)zone) - 1; led_idx >= 0; led_idx--)
     {
         UpdateLed(zone, led_idx);
     }
@@ -332,6 +347,23 @@ void RGBController_MSIMotherboard185::DeviceUpdateMode()
     }
 }
 
+void RGBController_MSIMotherboard185::DeviceUpdateZoneMode(int zone)
+{
+    /*-----------------------------------------------------*\
+    | Direct mode uses a device-wide packet and cannot mix  |
+    | with independent hardware effects.                    |
+    \*-----------------------------------------------------*/
+    if(zone < 0 || (size_t)zone >= zones.size()
+       || zones[zone].modes.empty()
+       || modes[active_mode].value == MSI_MODE_DIRECT_DUMMY)
+    {
+        return;
+    }
+
+    controller->SetDirectMode(false);
+    DeviceUpdateZoneLEDs(zone);
+}
+
 void RGBController_MSIMotherboard185::DeviceSaveMode()
 {
     controller->Update(true);
@@ -346,6 +378,10 @@ void RGBController_MSIMotherboard185::SetupModes()
     if(controller->GetSupportedDirectMode() != MSIMotherboard185Controller::DIRECT_MODE_DISABLED)
     {
         SetupMode("Direct",                 MSI_MODE_DIRECT_DUMMY,                  MODE_FLAG_HAS_PER_LED_COLOR);
+        if(controller->HasPerZoneModes())
+        {
+            modes.back().flags |= MODE_FLAG_REQUIRES_ENTIRE_DEVICE;
+        }
     }
 
     SetupMode("Static",                     MSI_MODE_STATIC,                        MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_MANUAL_SAVE);
@@ -408,10 +444,17 @@ void RGBController_MSIMotherboard185::UpdateLed
     {
         if(led == 0)
         {
-            bool           random     = modes[active_mode].color_mode == MODE_COLORS_RANDOM;
-            MSI_MODE       mode       = (MSI_MODE)modes[active_mode].value;
-            MSI_SPEED      speed      = (MSI_SPEED)modes[active_mode].speed;
-            MSI_BRIGHTNESS brightness = (MSI_BRIGHTNESS)modes[active_mode].brightness;
+            const mode* effect = &modes[active_mode];
+            if(zones[zone].active_mode >= 0
+               && (size_t)zones[zone].active_mode < zones[zone].modes.size())
+            {
+                effect = &zones[zone].modes[zones[zone].active_mode];
+            }
+
+            bool           random     = effect->color_mode == MODE_COLORS_RANDOM;
+            MSI_MODE       mode       = (MSI_MODE)effect->value;
+            MSI_SPEED      speed      = (MSI_SPEED)effect->speed;
+            MSI_BRIGHTNESS brightness = (MSI_BRIGHTNESS)effect->brightness;
 
             controller->SetMode((MSI_ZONE)zones[zone].leds[led].value, mode, speed, brightness, random);
             controller->SetZoneColor((MSI_ZONE)zones[zone].leds[led].value, red, grn, blu, red, grn, blu);
@@ -479,7 +522,7 @@ void RGBController_MSIMotherboard185::GetDeviceConfig()
 {
     if(controller->GetMode() != MSI_MODE_DIRECT_DUMMY)
     {
-        MSI_MODE       mode;
+        MSI_MODE       device_mode;
         MSI_SPEED      speed;
         MSI_BRIGHTNESS brightness;
         bool           rainbow;
@@ -487,7 +530,33 @@ void RGBController_MSIMotherboard185::GetDeviceConfig()
 
         for(size_t i = 0; i < zone_description.size(); ++i)
         {
-            controller->GetMode(zone_description[i]->zone_type, mode, speed, brightness, rainbow, color);
+            controller->GetMode(zone_description[i]->zone_type, device_mode, speed, brightness, rainbow, color);
+
+            /*---------------------------------------------*\
+            | Restore each zone's effect and parameters     |
+            | from hardware.                                |
+            \*---------------------------------------------*/
+            for(size_t effect_idx = 0; effect_idx < zones[i].modes.size(); ++effect_idx)
+            {
+                mode* effect = &zones[i].modes[effect_idx];
+                if(effect->value == device_mode)
+                {
+                    zones[i].active_mode = (int)effect_idx;
+                    if(effect->flags & MODE_FLAG_HAS_SPEED)
+                    {
+                        effect->speed = speed;
+                    }
+                    if(effect->flags & MODE_FLAG_HAS_BRIGHTNESS)
+                    {
+                        effect->brightness = brightness;
+                    }
+                    if(effect->flags & MODE_FLAG_HAS_PER_LED_COLOR)
+                    {
+                        effect->color_mode = (rainbow && (effect->flags & MODE_FLAG_HAS_RANDOM_COLOR)) ? MODE_COLORS_RANDOM : MODE_COLORS_PER_LED;
+                    }
+                    break;
+                }
+            }
 
             if(zones[i].colors != nullptr)
             {
@@ -498,11 +567,11 @@ void RGBController_MSIMotherboard185::GetDeviceConfig()
             }
         }
 
-        controller->GetMode(zone_description[0]->zone_type, mode, speed, brightness, rainbow, color);
+        controller->GetMode(zone_description[0]->zone_type, device_mode, speed, brightness, rainbow, color);
 
         for(size_t i = 0; i < modes.size(); ++i)
         {
-            if(mode == modes[i].value)
+            if(device_mode == modes[i].value)
             {
                 if(modes[i].flags & MODE_FLAG_HAS_SPEED)
                 {
@@ -512,19 +581,9 @@ void RGBController_MSIMotherboard185::GetDeviceConfig()
                 {
                    modes[i].brightness = brightness;
                 }
-                if(rainbow)
+                if(modes[i].flags & MODE_FLAG_HAS_PER_LED_COLOR)
                 {
-                    if(modes[i].flags & (MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR))
-                    {
-                        if(rainbow)
-                        {
-                            modes[i].color_mode = MODE_COLORS_RANDOM;
-                        }
-                        else
-                        {
-                            modes[i].color_mode = MODE_COLORS_PER_LED;
-                        }
-                    }
+                    modes[i].color_mode = (rainbow && (modes[i].flags & MODE_FLAG_HAS_RANDOM_COLOR)) ? MODE_COLORS_RANDOM : MODE_COLORS_PER_LED;
                 }
                 break;
             }

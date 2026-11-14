@@ -2229,35 +2229,23 @@ void OpenRGBDevicePage::on_EditButton_clicked()
 
     GetSelectedZone(&selected_all_zones, &selected_zone, &selected_segment);
 
-    switch(device->GetModeColorMode(device->GetActiveMode()))
+    /*-----------------------------------------------------*\
+    | Zone configuration is independent of effect color     |
+    | mode.                                                 |
+    \*-----------------------------------------------------*/
+    if(selected_all_zones)
     {
-        case MODE_COLORS_PER_LED:
-            {
-                /*-----------------------------------------*\
-                | If all zones or a segment are selected,   |
-                | the edit button should not be clickable.  |
-                | If somehow this did get clicked, ignore.  |
-                \*-----------------------------------------*/
-                if(selected_all_zones)
-                {
-                    OpenRGBDeviceEditorDialog dlg(device);
-                    dlg.show();
-                }
-                else
-                {
-                    OpenRGBZoneEditorDialog dlg(device, selected_zone);
-                    dlg.show();
+        OpenRGBDeviceEditorDialog dlg(device);
+        dlg.show();
+    }
+    else if(selected_zone >= 0)
+    {
+        OpenRGBZoneEditorDialog dlg(device, selected_zone);
+        dlg.show();
 
-                    /*-----------------------------------------*\
-                    | Update Zone list and then reset the       |
-                    | current index                             |
-                    \*-----------------------------------------*/
-                    selected_zone = ui->ZoneBox->currentIndex();
-                    UpdateZoneList();
-                    ui->ZoneBox->setCurrentIndex(selected_zone);
-                }
-            }
-            break;
+        const int previous_index = ui->ZoneBox->currentIndex();
+        UpdateZoneList();
+        ui->ZoneBox->setCurrentIndex(previous_index);
     }
 }
 

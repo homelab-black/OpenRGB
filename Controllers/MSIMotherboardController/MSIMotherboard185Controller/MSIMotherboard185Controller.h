@@ -90,6 +90,8 @@ public:
                         );
 
     std::string     GetDeviceName();
+    bool            HasPerZoneModes() const { return supports_per_zone_modes; }
+    unsigned int    GetMaxEffectLeds() const { return max_effect_leds; }
     std::string     GetDeviceLocation();
     std::string     GetFWVersion();
     std::string     GetSerial();
@@ -144,6 +146,9 @@ private:
     int                             numof_JRGBs;
     const std::vector<MSI_ZONE>*    supported_zones;
     DIRECT_MODE                     per_led_mode;
+    bool                            supports_per_zone_modes = false;
+    unsigned int                    max_effect_leds = 30;
+    bool                            keep_master_output_enabled = false;
 
     bool            ReadSettings();
     bool            ReadFwVersion();

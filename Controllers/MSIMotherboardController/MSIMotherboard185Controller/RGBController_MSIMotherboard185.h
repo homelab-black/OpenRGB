@@ -30,6 +30,7 @@ public:
     void        DeviceUpdateSingleLED(int led);
 
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone) override;
     void        DeviceSaveMode();
 
 private:
