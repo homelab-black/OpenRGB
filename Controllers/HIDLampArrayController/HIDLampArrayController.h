@@ -113,7 +113,7 @@ class HIDLampArrayController
 {
 public:
     HIDLampArrayController(hid_device *dev_handle, const char *path);
-    ~HIDLampArrayController();
+    virtual ~HIDLampArrayController();
 
     std::string GetDeviceLocation();
     std::string GetDeviceName();
@@ -124,8 +124,8 @@ public:
     unsigned int GetLampCount();
     std::vector<LampAttributes> GetLamps();
 
-    void SetLampArrayControlReport(unsigned char AutonomousMode);
-    void SetLampMultiUpdateReport(unsigned char LampCount, unsigned char LampUpdateFlags, unsigned short * LampIds, LampArrayColor * UpdateColors);
+    bool SetLampArrayControlReport(unsigned char AutonomousMode);
+    bool SetLampMultiUpdateReport(unsigned char LampCount, unsigned char LampUpdateFlags, unsigned short * LampIds, LampArrayColor * UpdateColors);
 
 private:
     hid_device *                dev;

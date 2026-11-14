@@ -15,11 +15,13 @@
 #include "HIDLampArrayController.h"
 #include "StringUtils.h"
 
-HIDLampArrayController::HIDLampArrayController(hid_device *dev_handle, const char *path)
+HIDLampArrayController::HIDLampArrayController(hid_device *dev_handle, const char *path) :
+    dev(dev_handle),
+    ids{},
+    location(path),
+    Lamps{},
+    LampArray{}
 {
-    dev                                 = dev_handle;
-    location                            = path;
-
     /*-----------------------------------------------------*\
     | Parse report IDs from descriptor                      |
     \*-----------------------------------------------------*/
@@ -281,7 +283,7 @@ void HIDLampArrayController::GetLampAttributesResponseReport()
     Lamps.push_back(attributes);
 }
 
-void HIDLampArrayController::SetLampArrayControlReport(unsigned char AutonomousMode)
+bool HIDLampArrayController::SetLampArrayControlReport(unsigned char AutonomousMode)
 {
     unsigned char   usb_buf[sizeof(LampArrayControl) + 1];
 
@@ -300,7 +302,7 @@ void HIDLampArrayController::SetLampArrayControlReport(unsigned char AutonomousM
     /*-----------------------------------------------------*\
     | Send the report                                       |
     \*-----------------------------------------------------*/
-    hid_send_feature_report(dev, usb_buf, sizeof(usb_buf));
+    return(hid_send_feature_report(dev, usb_buf, sizeof(usb_buf)) == sizeof(usb_buf));
 }
 
 void HIDLampArrayController::SetLampAttributesRequestReport(unsigned short LampId)
@@ -325,8 +327,13 @@ void HIDLampArrayController::SetLampAttributesRequestReport(unsigned short LampI
     hid_send_feature_report(dev, usb_buf, sizeof(usb_buf));
 }
 
-void HIDLampArrayController::SetLampMultiUpdateReport(unsigned char LampCount, unsigned char LampUpdateFlags, unsigned short * LampIds, LampArrayColor * UpdateColors)
+bool HIDLampArrayController::SetLampMultiUpdateReport(unsigned char LampCount, unsigned char LampUpdateFlags, unsigned short * LampIds, LampArrayColor * UpdateColors)
 {
+    if(LampCount > LAMP_MULTI_UPDATE_LAMP_COUNT)
+    {
+        return(false);
+    }
+
     unsigned char   usb_buf[sizeof(LampMultiUpdate) + 1];
 
     memset(usb_buf, 0, sizeof(usb_buf));
@@ -351,5 +358,5 @@ void HIDLampArrayController::SetLampMultiUpdateReport(unsigned char LampCount, u
     /*-----------------------------------------------------*\
     | Send the report                                       |
     \*-----------------------------------------------------*/
-    hid_send_feature_report(dev, usb_buf, sizeof(usb_buf));
+    return(hid_send_feature_report(dev, usb_buf, sizeof(usb_buf)) == sizeof(usb_buf));
 }
