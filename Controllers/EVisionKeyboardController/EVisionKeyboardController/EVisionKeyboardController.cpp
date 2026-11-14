@@ -14,11 +14,12 @@
 #include "EVisionKeyboardController.h"
 #include "StringUtils.h"
 
-EVisionKeyboardController::EVisionKeyboardController(hid_device* dev_handle, const char* path, std::string dev_name)
+EVisionKeyboardController::EVisionKeyboardController(hid_device* dev_handle, const char* path, std::string dev_name, bool direct_supported)
 {
-    dev         = dev_handle;
-    location    = path;
-    name        = dev_name;
+    dev                     = dev_handle;
+    location                = path;
+    name                    = dev_name;
+    this->direct_supported  = direct_supported;
 }
 
 EVisionKeyboardController::~EVisionKeyboardController()
@@ -49,8 +50,56 @@ std::string EVisionKeyboardController::GetSerialString()
     return(StringUtils::wstring_to_string(serial_string));
 }
 
+bool EVisionKeyboardController::SupportsDirect()
+{
+    return(direct_supported);
+}
+
 void EVisionKeyboardController::SetKeyboardColors
     (
+    unsigned char *     color_data,
+    unsigned int        size
+    )
+{
+    /*-----------------------------------------------------*\
+    | Direct-capable 320F:5000 firmware uses a different    |
+    | base offset for the persistent 0x11 color region.     |
+    \*-----------------------------------------------------*/
+    unsigned short data_offset = direct_supported ? 0x0200 : 0x0000;
+
+    SetKeyboardColorsEx
+        (
+        EVISION_KB_COMMAND_WRITE_CUSTOM_COLOR_DATA,
+        data_offset,
+        color_data,
+        size
+        );
+}
+
+void EVisionKeyboardController::SetKeyboardColorsDirect
+    (
+    unsigned char *     color_data,
+    unsigned int        size
+    )
+{
+    if(!direct_supported)
+    {
+        return;
+    }
+
+    SetKeyboardColorsEx
+        (
+        EVISION_KB_COMMAND_SEND_DYNAMIC_COLOR_DATA,
+        0x0000,
+        color_data,
+        size
+        );
+}
+
+void EVisionKeyboardController::SetKeyboardColorsEx
+    (
+    unsigned char       command,
+    unsigned short      data_offset,
     unsigned char *     color_data,
     unsigned int        size
     )
@@ -71,14 +120,45 @@ void EVisionKeyboardController::SetKeyboardColors
 
         SendKeyboardData
             (
+            command,
             &color_data[packet_offset],
             packet_size,
-            packet_offset
+            data_offset + packet_offset
             );
 
         size           -= packet_size;
         packet_offset  += packet_size;
     }
+}
+
+void EVisionKeyboardController::SendKeyboardDirectEnd()
+{
+    if(!direct_supported)
+    {
+        return;
+    }
+
+    char usb_buf[64];
+
+    /*-----------------------------------------------------*\
+    | Zero out buffer                                       |
+    \*-----------------------------------------------------*/
+    memset(usb_buf, 0x00, sizeof(usb_buf));
+
+    /*-----------------------------------------------------*\
+    | Set up End Dynamic Color (0x13) packet                |
+    \*-----------------------------------------------------*/
+    usb_buf[0x00] = 0x04;
+    usb_buf[0x03] = EVISION_KB_COMMAND_END_DYNAMIC_COLOR_DATA;
+
+    ComputeChecksum(usb_buf);
+
+    /*-----------------------------------------------------*\
+    | Send packet.  0104 does not ACK 0x13; use a short     |
+    | timed read so ACK-capable revisions still drain.      |
+    \*-----------------------------------------------------*/
+    hid_write(dev, (unsigned char *)usb_buf, 64);
+    hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 10);
 }
 
 void EVisionKeyboardController::SendKeyboardMode
@@ -189,6 +269,7 @@ void EVisionKeyboardController::SendKeyboardEnd()
 
 void EVisionKeyboardController::SendKeyboardData
     (
+    unsigned char       command,
     unsigned char *     data,
     unsigned char       data_size,
     unsigned short      data_offset
@@ -202,10 +283,10 @@ void EVisionKeyboardController::SendKeyboardData
     memset(usb_buf, 0x00, sizeof(usb_buf));
 
     /*-----------------------------------------------------*\
-    | Set up Keyboard Color Data (0x11) packet              |
+    | Set up Keyboard Color Data packet                     |
     \*-----------------------------------------------------*/
     usb_buf[0x00]           = 0x04;
-    usb_buf[0x03]           = 0x11;
+    usb_buf[0x03]           = command;
 
     usb_buf[0x04]           = data_size;
     usb_buf[0x05]           = data_offset & 0x00FF;
@@ -225,7 +306,21 @@ void EVisionKeyboardController::SendKeyboardData
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+
+    /*-----------------------------------------------------*\
+    | Command 0x12 (and 0x13) may not ACK on bcdDevice      |
+    | 0x0104.  A blocking hid_read stalls after the first   |
+    | 54-byte chunk.  Use a short timed read so ACK-capable |
+    | revisions (e.g. 0x0103) still drain their reply.      |
+    \*-----------------------------------------------------*/
+    if(command == EVISION_KB_COMMAND_SEND_DYNAMIC_COLOR_DATA)
+    {
+        hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 10);
+    }
+    else
+    {
+        hid_read(dev, (unsigned char *)usb_buf, 64);
+    }
 }
 
 void EVisionKeyboardController::SendKeyboardParameter

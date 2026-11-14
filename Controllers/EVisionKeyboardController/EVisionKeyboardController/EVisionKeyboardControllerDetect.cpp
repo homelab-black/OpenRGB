@@ -45,6 +45,15 @@
 #define EVISION_5078_PID                            0x5078
 #define EVISION_5084_PID                            0x5084
 
+/*---------------------------------------------------------*\
+| 320F:5000 firmware revisions known to accept the RAM-only |
+| dynamic color command (0x12).  0x0103 is the K551RGB-1 V2 |
+| revision documented by community research; 0x0104 is the  |
+| K552RGB-1 V2 / Kumara-class board verified in this change.|
+\*---------------------------------------------------------*/
+#define EVISION_5000_DIRECT_RELEASE_0103            0x0103
+#define EVISION_5000_DIRECT_RELEASE_0104            0x0104
+
 DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -54,7 +63,13 @@ DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::str
 
     if(dev)
     {
-        EVisionKeyboardController*     controller     = new EVisionKeyboardController(dev, info->path, name);
+        bool direct_supported =
+            (info->vendor_id == EVISION_VID)
+            && (info->product_id == EVISION_5000_PID)
+            && ((info->release_number == EVISION_5000_DIRECT_RELEASE_0103)
+             || (info->release_number == EVISION_5000_DIRECT_RELEASE_0104));
+
+        EVisionKeyboardController*     controller     = new EVisionKeyboardController(dev, info->path, name, direct_supported);
         RGBController_EVisionKeyboard* rgb_controller = new RGBController_EVisionKeyboard(controller);
 
         detected_controllers.push_back(rgb_controller);
