@@ -128,14 +128,29 @@ std::vector<unsigned short int> CorsairCommanderCoreController::GetLedCounts()
     \*-----------------------------------------------------*/
     std::vector<unsigned short int> led_counts;
     unsigned char endpoint[2] = {0x20, 0x00};
-    unsigned char* res = new unsigned char[command_res_size];
+    unsigned char* res = new unsigned char[command_res_size]();
     ReadData(endpoint, res);
-    for(int i = 0; i < res[2]; i++)
+
+    /*-----------------------------------------------------*\
+    | A stale firmware/keepalive response can be returned  |
+    | instead of the connected LED data (type 0x0F).       |
+    | Validate the response before reading LED counts.     |
+    \*-----------------------------------------------------*/
+    if(command_res_size >= 7 && res[0] == 0x0F && res[1] == 0x00 &&
+       res[2] <= CORSAIR_COMMANDER_CORE_NUM_CHANNELS + 1)
     {
-        led_counts.push_back(res[i*4+6] << 8 | res[i*4+5]);
+        for(int i = 0; i < res[2] && (i * 4 + 6) < command_res_size; i++)
+        {
+            led_counts.push_back(res[i * 4 + 6] << 8 | res[i * 4 + 5]);
+        }
     }
     delete[] res;
 
+    /*-----------------------------------------------------*\
+    | A missing or malformed response must not make the    |
+    | caller index beyond the LED count array.             |
+    \*-----------------------------------------------------*/
+    led_counts.resize(CORSAIR_COMMANDER_CORE_NUM_CHANNELS + 1, 0);
     return led_counts;
 }
 
@@ -174,7 +189,9 @@ void CorsairCommanderCoreController::SendCommit()
         | Keepalive                                             |
         \*-----------------------------------------------------*/
         unsigned char command[2] = {0x02, 0x13};
-        SendCommand(command, NULL, 2, NULL, false);
+        /* Consume the keepalive response so it cannot be mistaken for
+         * an endpoint read by the next command. */
+        SendCommand(command, NULL, 0, NULL);
     }
 }
 
