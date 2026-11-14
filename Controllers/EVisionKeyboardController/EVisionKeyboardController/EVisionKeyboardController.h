@@ -25,6 +25,8 @@ enum
     EVISION_KB_COMMAND_SET_PARAMETER                = 0x06, /* Set parameter command    */
     EVISION_KB_COMMAND_READ_CUSTOM_COLOR_DATA       = 0x10, /* Read custom color data   */
     EVISION_KB_COMMAND_WRITE_CUSTOM_COLOR_DATA      = 0x11, /* Write custom color data  */
+    EVISION_KB_COMMAND_SEND_DYNAMIC_COLOR_DATA      = 0x12, /* Write live color data     */
+    EVISION_KB_COMMAND_END_DYNAMIC_COLOR_DATA       = 0x13, /* End live color mode       */
 };
 
 enum
@@ -60,6 +62,7 @@ enum
     EVISION_KB_MODE_SURMOUNT                        = 0x11, /* "Surmount"               */
     EVISION_KB_MODE_RAINBOW_WAVE_CIRCLE             = 0x12, /* "Fast and the Furious"   */
     EVISION_KB_MODE_CUSTOM                          = 0x14, /* "Coastal"                */
+    EVISION_KB_MODE_DIRECT                          = 0xFF, /* Software controlled mode */
 };
 
 enum
@@ -94,18 +97,28 @@ enum
 class EVisionKeyboardController
 {
 public:
-    EVisionKeyboardController(hid_device* dev_handle, const char* path, std::string dev_name);
+    EVisionKeyboardController(hid_device* dev_handle, const char* path, std::string dev_name, bool direct_supported);
     ~EVisionKeyboardController();
 
     std::string GetDeviceLocation();
     std::string GetNameString();
     std::string GetSerialString();
 
+    bool        SupportsDirect();
+
     void        SetKeyboardColors
                     (
                     unsigned char *     color_data,
                     unsigned int        size
                     );
+
+    void        SetKeyboardColorsDirect
+                    (
+                    unsigned char *     color_data,
+                    unsigned int        size
+                    );
+
+    void        SendKeyboardDirectEnd();
 
     void        SendKeyboardBegin();
 
@@ -128,6 +141,7 @@ public:
 
     void        SendKeyboardData
                     (
+                    unsigned char       command,
                     unsigned char *     data,
                     unsigned char       data_size,
                     unsigned short      data_offset
@@ -139,6 +153,15 @@ private:
     hid_device*             dev;
     std::string             location;
     std::string             name;
+    bool                    direct_supported;
+
+    void        SetKeyboardColorsEx
+                    (
+                    unsigned char       command,
+                    unsigned short      data_offset,
+                    unsigned char *     color_data,
+                    unsigned int        size
+                    );
 
     void        ComputeChecksum
                     (

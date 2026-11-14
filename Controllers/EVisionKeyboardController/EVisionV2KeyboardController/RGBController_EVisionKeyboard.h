@@ -12,6 +12,10 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <thread>
 #include "RGBController.h"
 #include "EVisionKeyboardController.h"
 
@@ -29,6 +33,13 @@ public:
 
     void        DeviceUpdateMode();
 
+    void        KeepaliveThreadFunction();
+
 private:
     EVisionKeyboardController*  controller;
+    std::atomic<bool>           direct_active;
+    std::atomic<bool>           keepalive_thread_run;
+    std::thread*                keepalive_thread;
+    std::mutex                  direct_update_mutex;
+    std::chrono::time_point<std::chrono::steady_clock> last_update_time;
 };

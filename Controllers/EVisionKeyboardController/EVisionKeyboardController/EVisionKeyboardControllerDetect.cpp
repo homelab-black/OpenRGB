@@ -45,6 +45,11 @@
 #define EVISION_5078_PID                            0x5078
 #define EVISION_5084_PID                            0x5084
 
+/*---------------------------------------------------------*\
+| Firmware revision with RAM-only dynamic color command     |
+\*---------------------------------------------------------*/
+#define EVISION_5000_DIRECT_RELEASE                 0x0103
+
 DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::string& name)
 {
     DetectedControllers detected_controllers;
@@ -54,7 +59,12 @@ DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::str
 
     if(dev)
     {
-        EVisionKeyboardController*     controller     = new EVisionKeyboardController(dev, info->path, name);
+        bool direct_supported =
+            info->vendor_id      == EVISION_VID
+            && info->product_id  == EVISION_5000_PID
+            && info->release_number == EVISION_5000_DIRECT_RELEASE;
+
+        EVisionKeyboardController*     controller     = new EVisionKeyboardController(dev, info->path, name, direct_supported);
         RGBController_EVisionKeyboard* rgb_controller = new RGBController_EVisionKeyboard(controller);
 
         detected_controllers.push_back(rgb_controller);
