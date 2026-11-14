@@ -176,7 +176,9 @@ extern const char* KEY_KR_HANJA;
 
 extern const char* KEY_NORD_AAL;
 extern const char* KEY_NORD_A_OE;
+extern const char* KEY_NORD_AE_A;
 extern const char* KEY_NORD_O_AE;
+extern const char* KEY_NORD_OE_O;
 extern const char* KEY_NORD_HALF;
 extern const char* KEY_NORD_HYPHEN;
 extern const char* KEY_NORD_PLUS_QUESTION;
