@@ -9,8 +9,36 @@
 
 #pragma once
 
+#include <chrono>
 #include "RGBController.h"
 #include "LogitechHIDPP20Controller.h"
+
+/*---------------------------------------------------------*\
+| mode.value scheme: values >= 0 are HID++ effect ids,      |
+| stable across clusters and devices. The wire wants the    |
+| per-cluster effect index instead, which varies between    |
+| clusters, so it is resolved at send time. Negative        |
+| values are pseudo-modes with no firmware effect id.       |
+\*---------------------------------------------------------*/
+static const int HIDPP20_MODE_VALUE_DIRECT = -1;
+static const int HIDPP20_MODE_VALUE_OFF    = -2;
+static const int HIDPP20_MODE_VALUE_CUSTOM = -4;
+static const int HIDPP20_MODE_VALUE_DARK_VISUALIZER = -5;
+
+/*---------------------------------------------------------*\
+| Desired rendering state of one cluster: the effect it     |
+| should run, the zone's color, and the effect params.      |
+| Derived from zones[i].active_mode and the device mode,    |
+| never accumulated: see RebuildZoneDesired.                |
+\*---------------------------------------------------------*/
+struct HIDPP20ZoneState
+{
+    int          mode_value    = HIDPP20_MODE_VALUE_DIRECT;
+    RGBColor     color         = 0;
+    int          speed         = 0;
+    int          brightness    = 100;
+    unsigned int direction     = 0;
+};
 
 class RGBController_LogitechHIDPP20 : public RGBController
 {
@@ -26,7 +54,10 @@ public:
     void        DeviceUpdateZoneLEDs(int zone);
     void        DeviceUpdateSingleLED(int led);
 
+    void        SetActiveMode(int mode);
+
     void        DeviceUpdateMode();
+    void        DeviceUpdateZoneMode(int zone);
     void        DeviceSaveMode();
 
     bool        ReapplyActiveMode();
@@ -43,6 +74,34 @@ private:
     | when no animation is driving updates.                 |
     \*-----------------------------------------------------*/
     void                        OnRepaintRequest();
+
+    /*-----------------------------------------------------*\
+    | Zone state model, for every device with clusters      |
+    | (per-key devices route their animated fall-through    |
+    | here too, mirroring the device mode instead).         |
+    | zone_desired is the single representation of what     |
+    | each cluster should show; zone_committed is what      |
+    | the wire last got. ReconcileZones diffs them and      |
+    | sends only changed zones, coalescing color-only       |
+    | updates to animated effects. The UI entry points      |
+    | (mode/zone mode/LED updates) only mutate desired      |
+    | state; the reapply/save paths invalidate committed    |
+    | state to force a full re-send.                        |
+    \*-----------------------------------------------------*/
+    bool                        IsZoneStateLayout() const;
+    HIDPP20ZoneState            DesiredFromMode(const mode& m, size_t zone_idx) const;
+    const mode*                 GoverningMode(size_t zone_idx) const;
+    void                        RebuildZoneDesired();
+    void                        ApplyGlobalToZones(const mode& current);
+    void                        ReconcileZones();
+    bool                        ApplyZoneState(size_t cluster_pos, const HIDPP20ZoneState& s);
+
+    std::vector<HIDPP20ZoneState> zone_desired;
+    std::vector<HIDPP20ZoneState> zone_committed;
+    std::vector<bool>             zone_committed_valid;
+    std::vector<std::chrono::steady_clock::time_point> zone_last_effect_send;
+    int                         last_nondirect_mode      = 0;
+    bool                        internal_reapply         = false;
 
     /*-----------------------------------------------------*\
     | Per-key frame body. Registered with the               |
