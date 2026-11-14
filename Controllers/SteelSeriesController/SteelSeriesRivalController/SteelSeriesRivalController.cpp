@@ -225,19 +225,34 @@ void SteelSeriesRivalController::SetRival600Color
     unsigned char   blue
     )
 {
-    unsigned char usb_pkt[0x07];
+    /*-----------------------------------------------------*\
+    | The Rival 600 takes a single color as a one-stop      |
+    | gradient sent as a feature report (same format as     |
+    | rivalcfg). The LED ID appears twice in the header.    |
+    \*-----------------------------------------------------*/
+    const uint16_t REPORT_SIZE = 578;
 
-    memset(usb_pkt, 0x00, sizeof(usb_pkt));
+    unsigned char usb_buf[REPORT_SIZE + 1];
+    memset(usb_buf, 0x00, sizeof(usb_buf));
 
-    usb_pkt[0x00] = 0x1c;
-    usb_pkt[0x01] = 0x27;
-    usb_pkt[0x02] = 0x00;
-    usb_pkt[0x03] = 1 << zone_id;
-    usb_pkt[0x04] = red;
-    usb_pkt[0x05] = green;
-    usb_pkt[0x06] = blue;
+    usb_buf[0x00] = 0x00;                   /* Report ID        */
+    usb_buf[0x01] = 0x05;                   /* Set LED command  */
+    usb_buf[0x02] = 0x00;
+    usb_buf[0x03] = zone_id;                /* LED ID           */
+    usb_buf[0x08] = zone_id;                /* LED ID           */
+    usb_buf[0x09] = 0xE8;                   /* Duration (1000ms)*/
+    usb_buf[0x0A] = 0x03;
+    usb_buf[0x19] = 0x01;                   /* Repeat flag      */
+    usb_buf[0x1E] = 0x01;                   /* Color stop count */
+    usb_buf[0x1F] = red;                    /* Base color       */
+    usb_buf[0x20] = green;
+    usb_buf[0x21] = blue;
+    usb_buf[0x22] = red;                    /* Color stop 0     */
+    usb_buf[0x23] = green;
+    usb_buf[0x24] = blue;
+    usb_buf[0x25] = 0x00;                   /* Stop position    */
 
-    hid_write(dev, usb_pkt, 0x07);
+    hid_send_feature_report(dev, usb_buf, sizeof(usb_buf));
 }
 
 void SteelSeriesRivalController::SetRival700Color
