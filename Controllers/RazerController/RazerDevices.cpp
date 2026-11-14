@@ -9683,6 +9683,58 @@ static const razer_device seiren_emote_device =
 };
 
 /*-------------------------------------------------------------*\
+|  Razer Seiren V3 Chroma 1532:056F                             |
+|                                                               |
+|  Zone "Bottom Ring"                                           |
+|       Linear                                                  |
+|       6 LEDs (frame 0-5)                                      |
+|                                                               |
+|  Zone "Top Ring"                                              |
+|       Linear                                                  |
+|       6 LEDs (frame 6-11)                                     |
+|                                                               |
+|  Frame layout (verified on hardware 2026-08-17):              |
+|    LEDs 0-5  -> bottom ring (middle outwards)                 |
+|    LEDs 6-11 -> top ring (back, then around)                  |
+|    LEDs 12-15 -> DEAD (firmware ignores)                      |
+\*-------------------------------------------------------------*/
+static const razer_zone seiren_v3_chroma_bottom_ring_zone =
+{
+    "Bottom Ring",
+    ZONE_TYPE_LINEAR,
+    1,
+    6
+};
+
+static const razer_zone seiren_v3_chroma_top_ring_zone =
+{
+    "Top Ring",
+    ZONE_TYPE_LINEAR,
+    1,
+    6
+};
+
+static const razer_device seiren_v3_chroma_device =
+{
+    "Razer Seiren V3 Chroma",
+    RAZER_SEIREN_V3_CHROMA_PID,
+    DEVICE_TYPE_MICROPHONE,
+    RAZER_MATRIX_TYPE_EXTENDED,
+    0x0A,
+    1,
+    12,
+    {
+        &seiren_v3_chroma_bottom_ring_zone,
+        &seiren_v3_chroma_top_ring_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    },
+    NULL
+};
+
+/*-------------------------------------------------------------*\
 |  Razer Thunderbolt 4 Dock Chroma                              |
 |                                                               |
 |  Zone "LED Strip"                                             |
@@ -10053,6 +10105,7 @@ const razer_device* razer_device_list[] =
     &nommo_pro_device,
     &o11_dynamic_device,
     &seiren_emote_device,
+    &seiren_v3_chroma_device,
     &thunderbolt_4_dock_chroma_device,
     &thunderbolt_5_dock_chroma_device,
     &hanbo_chroma_device
