@@ -341,6 +341,23 @@ static const char *HIDUsageIDsToKeyNames[HID_KEYBOARD_USAGE_IDS_COUNT] =
     KEY_EN_RIGHT_WINDOWS,       // Keyboard Right GUI
 };
 
+const char* HIDLampArrayKeyName(unsigned char hid_usage)
+{
+    if(hid_usage >= HID_KEYBOARD_USAGE_IDS_COUNT)
+    {
+        return(nullptr);
+    }
+
+    const char* name = HIDUsageIDsToKeyNames[hid_usage];
+
+    if(name == nullptr || name == KEY_EN_UNUSED)
+    {
+        return(nullptr);
+    }
+
+    return(name);
+}
+
 void RGBController_HIDLampArray::SetupZones()
 {
     zone new_zone;
@@ -391,6 +408,7 @@ void RGBController_HIDLampArray::SetupZones()
         {
             new_led.name = "Lamp " + std::to_string(lamp_idx);
         }
+        new_led.value = controller->GetLamps()[lamp_idx].LampId;
         leds.push_back(new_led);
     }
 
@@ -416,7 +434,7 @@ void RGBController_HIDLampArray::DeviceUpdateLEDs()
         for(unsigned int led_frame_idx = 0; led_frame_idx < leds_this_frame; led_frame_idx++)
         {
             unsigned short led_idx = (unsigned short)((leds.size() - leds_to_go) + led_frame_idx);
-            LampIds[led_frame_idx] = led_idx;
+            LampIds[led_frame_idx] = (unsigned short)leds[led_idx].value;
             UpdateColors[led_frame_idx].RedChannel = RGBGetRValue(colors[led_idx]);
             UpdateColors[led_frame_idx].GreenChannel = RGBGetGValue(colors[led_idx]);
             UpdateColors[led_frame_idx].BlueChannel = RGBGetBValue(colors[led_idx]);

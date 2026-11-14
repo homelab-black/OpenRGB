@@ -11,6 +11,7 @@
 
 #include <array>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <hidapi.h>
@@ -67,9 +68,12 @@ class LenovoGen7And8USBController
     std::string getLocation();
     uint8_t getCurrentProfileId();
     uint8_t getCurrentBrightness();
+    /* Live per-LED colors from the effect engine. Does not change the device. */
+    std::unordered_map<uint16_t, RGBColor> getLiveLedColors();
     void setBrightness(uint8_t brightness);
     uint8_t getKeyboardId();
     void switchProfileTo(uint8_t profile_id);
+    std::vector<uint8_t> getProfileReport(uint8_t profile_id);
     std::vector<led_group> getProfileSettings(uint8_t profile_id);
 
 

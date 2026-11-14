@@ -7,15 +7,42 @@
 |   SPDX-License-Identifier: GPL-2.0-or-later               |
 \*---------------------------------------------------------*/
 
+#include <algorithm>
 #include <vector>
+#include <hidapi.h>
 #include "RGBController_Lenovo_Gen7_8.h"
 #include "LenovoDevices.h"
+#include "Legion9ProfileGuard.h"
+#include "HIDLampArrayController.h"
+#include "RGBController_HIDLampArray.h"
 
 using namespace std;
 
+/**------------------------------------------------------------------*\
+    @name Lenovo Legion Gen 7-10
+    @category Keyboard
+    @type USB
+    @save :robot:
+    @direct :white_check_mark:
+    @effects :white_check_mark:
+    @detectors DetectLenovoLegionUSBControllersGen7And8
+    @comment Legion 9 18IAX10 is 048D:C909. Direct on that keyboard is a per-key static profile. The chassis strip is 048D:C903 and shares this device view. Tested on Nobara Linux 44.
+\*-------------------------------------------------------------------*/
+
 static bool UsesGen10PacketFormat(uint16_t pid)
 {
-    return pid == LEGION_7GEN10 || pid == LEGION_5GEN10;
+    return pid == LEGION_7GEN10 || pid == LEGION_5GEN10 || pid == LEGION_9GEN10;
+}
+
+/*---------------------------------------------------------*\
+| Legion 9 18IAX10 ignores Aurora direct packets. Per-key   |
+| colors apply only as a static profile, which is what      |
+| Static already sends. Direct on this keyboard uses that   |
+| write so a color edit shows up without changing mode.     |
+\*---------------------------------------------------------*/
+static bool DirectUsesStaticProfile(uint16_t pid)
+{
+    return pid == LEGION_9GEN10;
 }
 
 static bool Is24ZoneDevice(uint16_t pid)
@@ -26,6 +53,86 @@ static bool Is24ZoneDevice(uint16_t pid)
 static bool IsKeyboardOnlyDevice(uint16_t pid)
 {
     return pid == LEGION_5GEN10;
+}
+
+#define LEGION9_LIGHT_STRIP_VID 0x048D
+#define LEGION9_LIGHT_STRIP_PID 0xC903
+#define HID_LAMPARRAY_PURPOSE_CONTROL   0x01
+#define HID_LAMPARRAY_PURPOSE_ACCENT    0x02
+#define HID_LAMPARRAY_PURPOSE_BRANDING  0x04
+
+/*---------------------------------------------------------*\
+| Open the chassis LampArray (048d:c903, usage page 0x59).  |
+| The keyboard keys are advertised there too; the Spectrum  |
+| controller keeps those. This handle is the strip and logo.|
+\*---------------------------------------------------------*/
+static HIDLampArrayController* OpenLegion9LightStrip()
+{
+    hid_device_info*        infos   = hid_enumerate(LEGION9_LIGHT_STRIP_VID, LEGION9_LIGHT_STRIP_PID);
+    HIDLampArrayController* strip   = nullptr;
+    hid_device_info*        chosen  = nullptr;
+
+    for(hid_device_info* info = infos; info != nullptr; info = info->next)
+    {
+        if(info->usage_page == 0x59 && info->usage == 0x01)
+        {
+            chosen = info;
+            break;
+        }
+    }
+
+    if(chosen == nullptr)
+    {
+        for(hid_device_info* info = infos; info != nullptr; info = info->next)
+        {
+            if(info->interface_number == 1)
+            {
+                chosen = info;
+                break;
+            }
+        }
+    }
+
+    if(chosen != nullptr)
+    {
+        hid_device* dev = hid_open_path(chosen->path);
+
+        if(dev)
+        {
+            strip = new HIDLampArrayController(dev, chosen->path);
+
+            if(strip->GetLampCount() == 0)
+            {
+                delete strip;
+                strip = nullptr;
+            }
+        }
+    }
+
+    hid_free_enumeration(infos);
+
+    if(strip == nullptr)
+    {
+        LOG_WARNING("[Lenovo Legion 9] light strip 048D:C903 did not open. Using the keyboard-only map.");
+    }
+    else
+    {
+        LOG_INFO("[Lenovo Legion 9] light strip 048D:C903 opened with %u lamps.", strip->GetLampCount());
+    }
+
+    return(strip);
+}
+
+static std::vector<unsigned short> LampIdsInRange(const std::vector<LampAttributes>& lamps, size_t begin, size_t end)
+{
+    std::vector<unsigned short> ids;
+
+    for(size_t index = begin; index < end && index < lamps.size(); index++)
+    {
+        ids.push_back(lamps[index].LampId);
+    }
+
+    return(ids);
 }
 
 static const lenovo_led legion_5gen10_24zone_leds[] =
@@ -87,7 +194,10 @@ static const RGBColor legion_5gen10_zone_visualization_colors[24] =
 
 LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBController* controller_ptr)
 {
-    controller = controller_ptr;
+    controller              = controller_ptr;
+    light_strip             = nullptr;
+    use_frame_colors        = false;
+    preserve_key_lamps      = false;
 
     mode Screw;
     Screw.name = "Screw Rainbow";
@@ -364,10 +474,20 @@ LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBControll
     case LEGION_5GEN10:
         description = "Lenovo Legion 5 Gen 10";
         break;
+
+    case LEGION_9GEN10:
+        description = "Lenovo Legion 9 18IAX10";
+        break;
     }
 
     brightness = controller->getCurrentBrightness();
     profile_id = controller->getCurrentProfileId();
+
+    if(controller->getPid() == LEGION_9GEN10)
+    {
+        light_strip = OpenLegion9LightStrip();
+        LOG_INFO("[Lenovo Legion 9] 18IAX10 keyboard 048D:C909 profile %u brightness %u.", profile_id, brightness);
+    }
     for(mode &m : modes)
     {
         m.brightness = brightness;
@@ -389,11 +509,23 @@ LenovoRGBController_Gen7_8::LenovoRGBController_Gen7_8(LenovoGen7And8USBControll
     }
     ReadDeviceSettings();
     last_mode = active_mode;
+    committed_key_colors = colors;
+    key_touched.assign(colors.size(), 0);
+    chassis_hold.assign(colors.size(), 0);
+    chassis_held.assign(colors.size(), 0);
 }
 
 LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 {
     Shutdown();
+
+    if(light_strip != nullptr)
+    {
+        /* The strip and logo colors are in the keyboard profile. Firmware shows that once host control ends. */
+        light_strip->SetLampArrayControlReport(1);
+        delete light_strip;
+        light_strip = nullptr;
+    }
 
     delete controller;
 }
@@ -401,7 +533,27 @@ LenovoRGBController_Gen7_8::~LenovoRGBController_Gen7_8()
 void LenovoRGBController_Gen7_8::SetupZones()
 {
     vector<lenovo_zone> lenovo_zones;
-    if(Is24ZoneDevice(controller->getPid()))
+    if(controller->getPid() == LEGION_9GEN10)
+    {
+        /*-------------------------------------------------*\
+        | The strip and logo share this view. Side and      |
+        | front squares own the LampArray runs. The logo    |
+        | square owns the branding lamps. Without the strip |
+        | device, keep the full matrix including the top    |
+        | lens row.                                         |
+        \*-------------------------------------------------*/
+        if(light_strip != nullptr)
+        {
+            lenovo_zones.push_back(legion9_gen10_kbd_with_strip);
+            lenovo_zones.push_back(legion9_gen10_light_strip);
+        }
+        else
+        {
+            lenovo_zones.push_back(legion9_gen10_kbd);
+        }
+        lenovo_zones.push_back(lenovo_legion_7gen7_logo);
+    }
+    else if(Is24ZoneDevice(controller->getPid()))
     {
         lenovo_zones.push_back(legion_5gen10_kbd_24zone);
     }
@@ -410,7 +562,7 @@ void LenovoRGBController_Gen7_8::SetupZones()
         lenovo_zones.push_back(legion7_gen7and8_kbd_ansi);
     }
 
-    if(!IsKeyboardOnlyDevice(controller->getPid()))
+    if(controller->getPid() != LEGION_9GEN10 && !IsKeyboardOnlyDevice(controller->getPid()))
     {
         lenovo_zones.push_back(legion7_gen7and8_neon);
     }
@@ -452,7 +604,15 @@ void LenovoRGBController_Gen7_8::SetupZones()
         {
             led new_led;
             new_led.name = lenovo_zones[i].leds[led_idx].name;
-            new_led.value = lenovo_zones[i].id << 8 | lenovo_zones[i].leds[led_idx].led_num ;
+            uint16_t led_num = lenovo_zones[i].leds[led_idx].led_num;
+            if(led_num > 0xFF)
+            {
+                new_led.value = led_num;
+            }
+            else
+            {
+                new_led.value = lenovo_zones[i].id << 8 | led_num;
+            }
             leds.push_back(new_led);
 
             /*---------------------------------------------*\
@@ -463,6 +623,7 @@ void LenovoRGBController_Gen7_8::SetupZones()
     }
 
     SetupColors();
+    BuildStripGroups();
 }
 
 void LenovoRGBController_Gen7_8::DeviceUpdateSingleLED(int /*led*/)
@@ -506,19 +667,25 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
 
         if(modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
         {
-            controller->setLedsDirectOn(profile_id);
-            direct_enabled = true;
-            if(!UsesGen10PacketFormat(controller->getPid()))
+            if(!DirectUsesStaticProfile(controller->getPid()))
             {
-                controller->setLedsByGroup(profile_id, GetLedGroups());
+                controller->setLedsDirectOn(profile_id);
+                if(!UsesGen10PacketFormat(controller->getPid()))
+                {
+                    controller->setLedsByGroup(profile_id, GetLedGroups());
+                }
             }
+            direct_enabled = true;
         }
 
         last_mode = active_mode;
     }
     else if((modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT) && !direct_enabled)
     {
-        controller->setLedsDirectOn(profile_id);
+        if(!DirectUsesStaticProfile(controller->getPid()))
+        {
+            controller->setLedsDirectOn(profile_id);
+        }
         direct_enabled = true;
     }
 
@@ -528,31 +695,450 @@ void LenovoRGBController_Gen7_8::DeviceUpdateMode()
     }
 }
 
-void LenovoRGBController_Gen7_8::DeviceUpdateLEDs()
+bool LenovoRGBController_Gen7_8::HostPerLedColorMode() const
 {
-    if(modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
+    if(active_mode < 0 || active_mode >= (int)modes.size())
     {
-        if(UsesGen10PacketFormat(controller->getPid()))
-        {
-            /*---------------------------------------------*\
-            | Gen10 may ignore A1 updates unless D0 is      |
-            | reasserted.                                   |
-            \*---------------------------------------------*/
-            controller->setLedsDirectOn(profile_id);
-            direct_enabled = true;
-        }
-        else if(!direct_enabled)
-        {
-            controller->setLedsDirectOn(profile_id);
-            direct_enabled = true;
-        }
-        controller->setLedsDirect(leds, colors);
-    }
-    else
-    {
-        controller->setLedsByGroup(profile_id, GetLedGroups());
+        return(false);
     }
 
+    if(modes[active_mode].color_mode != MODE_COLORS_PER_LED)
+    {
+        return(false);
+    }
+
+    unsigned int value = modes[active_mode].value;
+
+    return(value == LENOVO_LEGION_GEN7_8_MODE_STATIC ||
+           (value == LENOVO_LEGION_GEN7_8_MODE_DIRECT && DirectUsesStaticProfile(controller->getPid())));
+}
+
+bool LenovoRGBController_Gen7_8::IsChassisLed(unsigned int led_value) const
+{
+    return(strip_groups.find((uint16_t)led_value) != strip_groups.end());
+}
+
+bool LenovoRGBController_Gen7_8::LedColorEdited(size_t led_index) const
+{
+    if(led_index < key_touched.size() && key_touched[led_index])
+    {
+        return(true);
+    }
+
+    if(led_index < committed_key_colors.size() && led_index < colors.size() &&
+       colors[led_index] != committed_key_colors[led_index])
+    {
+        return(true);
+    }
+
+    return(false);
+}
+
+void LenovoRGBController_Gen7_8::PrepareFrameColors()
+{
+    frame_colors = colors;
+    preserve_key_lamps = false;
+    use_frame_colors = false;
+
+    /* The strip device is not required. c909 still has to fill untouched keys. */
+    if(!DirectUsesStaticProfile(controller->getPid()) || !HostPerLedColorMode())
+    {
+        return;
+    }
+
+    if(committed_key_colors.size() != colors.size())
+    {
+        committed_key_colors = colors;
+        key_touched.assign(colors.size(), 0);
+    }
+
+    if(chassis_hold.size() != colors.size())
+    {
+        chassis_hold.assign(colors.size(), 0);
+        chassis_held.assign(colors.size(), 0);
+    }
+
+    bool any_edit = false;
+
+    for(size_t led_index = 0; led_index < leds.size() && led_index < colors.size(); led_index++)
+    {
+        if(!IsChassisLed(leds[led_index].value) && LedColorEdited(led_index))
+        {
+            any_edit = true;
+            break;
+        }
+    }
+
+    std::unordered_map<uint16_t, RGBColor> hardware = controller->getLiveLedColors();
+
+    /*-----------------------------------------------------*\
+    | The UI buffer starts black. A strip edit used to save |
+    | a profile that listed only the strip, and the keyboard|
+    | firmware turned every missing key blue. Fill untouched|
+    | keys from the live colors, and keep untouched strip   |
+    | squares on the color they already have.               |
+    \*-----------------------------------------------------*/
+    if(!Legion9HaveKeyColors(hardware.empty() ? 1 : 0, any_edit ? 1 : 0))
+    {
+        return;
+    }
+
+    for(size_t led_index = 0; led_index < leds.size() && led_index < frame_colors.size(); led_index++)
+    {
+        bool chassis = IsChassisLed(leds[led_index].value);
+
+        if(LedColorEdited(led_index))
+        {
+            frame_colors[led_index] = colors[led_index];
+
+            if(chassis)
+            {
+                chassis_hold[led_index] = colors[led_index];
+                chassis_held[led_index] = 1;
+            }
+
+            continue;
+        }
+
+        if(chassis && chassis_held[led_index])
+        {
+            frame_colors[led_index] = chassis_hold[led_index];
+            continue;
+        }
+
+        std::unordered_map<uint16_t, RGBColor>::iterator found = hardware.find((uint16_t)leds[led_index].value);
+
+        if(found != hardware.end())
+        {
+            frame_colors[led_index] = found->second;
+
+            if(chassis)
+            {
+                chassis_hold[led_index] = found->second;
+                chassis_held[led_index] = 1;
+            }
+        }
+    }
+
+    use_frame_colors = true;
+    preserve_key_lamps = true;
+}
+
+void LenovoRGBController_Gen7_8::RememberColorEdits()
+{
+    if(committed_key_colors.size() != colors.size())
+    {
+        committed_key_colors = colors;
+        key_touched.assign(colors.size(), 0);
+        return;
+    }
+
+    for(size_t led_index = 0; led_index < colors.size() && led_index < leds.size(); led_index++)
+    {
+        if(colors[led_index] != committed_key_colors[led_index])
+        {
+            committed_key_colors[led_index] = colors[led_index];
+
+            if(key_touched.size() != colors.size())
+            {
+                key_touched.assign(colors.size(), 0);
+            }
+
+            key_touched[led_index] = 1;
+        }
+    }
+}
+
+void LenovoRGBController_Gen7_8::DeviceUpdateLEDs()
+{
+    bool skip_keyboard = false;
+
+    PrepareFrameColors();
+
+    /*------------------------------------------------------*\
+    | No live key colors and the user has not painted a key.|
+    | Saving the black UI buffer is what turns the keyboard |
+    | blue, so leave the keyboard profile alone.            |
+    \*------------------------------------------------------*/
+    if(DirectUsesStaticProfile(controller->getPid()) && HostPerLedColorMode() && !use_frame_colors)
+    {
+        bool any_edit = false;
+
+        for(size_t led_index = 0; led_index < leds.size() && led_index < colors.size(); led_index++)
+        {
+            if(!IsChassisLed(leds[led_index].value) && LedColorEdited(led_index))
+            {
+                any_edit = true;
+                break;
+            }
+        }
+
+        skip_keyboard = !any_edit;
+    }
+
+    if(!skip_keyboard)
+    {
+        if(modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
+        {
+            if(DirectUsesStaticProfile(controller->getPid()))
+            {
+                controller->setLedsByGroup(profile_id, GetLedGroups());
+            }
+            else if(UsesGen10PacketFormat(controller->getPid()))
+            {
+                /*-----------------------------------------*\
+                | Gen10 may ignore A1 updates unless D0 is  |
+                | reasserted.                               |
+                \*-----------------------------------------*/
+                controller->setLedsDirectOn(profile_id);
+                direct_enabled = true;
+                controller->setLedsDirect(leds, colors);
+            }
+            else
+            {
+                if(!direct_enabled)
+                {
+                    controller->setLedsDirectOn(profile_id);
+                    direct_enabled = true;
+                }
+                controller->setLedsDirect(leds, colors);
+            }
+        }
+        else
+        {
+            controller->setLedsByGroup(profile_id, GetLedGroups());
+        }
+    }
+
+    UpdateLightStrip();
+    RememberColorEdits();
+    use_frame_colors = false;
+}
+
+void LenovoRGBController_Gen7_8::BuildStripGroups()
+{
+    strip_groups.clear();
+
+    if(light_strip == nullptr)
+    {
+        return;
+    }
+
+    std::vector<LampAttributes> lamps = light_strip->GetLamps();
+    std::vector<LampAttributes> left;
+    std::vector<LampAttributes> right;
+    std::vector<LampAttributes> front;
+    std::vector<unsigned short> logo;
+    unsigned int matched_keys = 0;
+
+    keyboard_lamps.clear();
+
+    for(const LampAttributes& lamp : lamps)
+    {
+        if(lamp.LampPurposes & HID_LAMPARRAY_PURPOSE_ACCENT)
+        {
+            /* Left column is x=6000. Right column is x=394000, including its front corner. */
+            if(lamp.PositionXInMicrometers < 15000 && lamp.PositionYInMicrometers < 296000)
+            {
+                left.push_back(lamp);
+            }
+            else if(lamp.PositionXInMicrometers >= 390000)
+            {
+                right.push_back(lamp);
+            }
+            else
+            {
+                front.push_back(lamp);
+            }
+        }
+        else if(lamp.LampPurposes & HID_LAMPARRAY_PURPOSE_BRANDING)
+        {
+            logo.push_back(lamp.LampId);
+        }
+        else if(lamp.LampPurposes & HID_LAMPARRAY_PURPOSE_CONTROL)
+        {
+            legion9_key_lamp key_lamp;
+            key_lamp.lamp_id = lamp.LampId;
+            key_lamp.led_index = (size_t)-1;
+
+            const char* key_name = HIDLampArrayKeyName(lamp.LampKey);
+
+            /* Firmware labels a few keys with a different HID usage than the legend. */
+            if(key_name == KEY_EN_BACK_SLASH)
+            {
+                key_name = KEY_EN_ANSI_BACK_SLASH;
+            }
+            else if(lamp.LampKey == 0xFE)
+            {
+                key_name = KEY_EN_LEFT_FUNCTION;
+            }
+            else if(lamp.LampKey == 0x72)
+            {
+                key_name = KEY_EN_RIGHT_CONTROL;
+            }
+
+            if(key_name != nullptr)
+            {
+                for(size_t led_index = 0; led_index < leds.size(); led_index++)
+                {
+                    if(leds[led_index].name == key_name)
+                    {
+                        key_lamp.led_index = led_index;
+                        matched_keys++;
+                        break;
+                    }
+                }
+            }
+
+            keyboard_lamps.push_back(key_lamp);
+        }
+    }
+
+    std::sort(left.begin(), left.end(), [](const LampAttributes& a, const LampAttributes& b)
+    {
+        return(a.PositionYInMicrometers < b.PositionYInMicrometers);
+    });
+    std::sort(right.begin(), right.end(), [](const LampAttributes& a, const LampAttributes& b)
+    {
+        return(a.PositionYInMicrometers > b.PositionYInMicrometers);
+    });
+    std::sort(front.begin(), front.end(), [](const LampAttributes& a, const LampAttributes& b)
+    {
+        return(a.PositionXInMicrometers < b.PositionXInMicrometers);
+    });
+
+    /* Back half, then the half toward the front edge. An odd count keeps the extra lamp on the front half. */
+    size_t left_mid = left.size() / 2;
+    size_t right_mid = (right.size() + 1) / 2;
+    strip_groups[0x01F5] = LampIdsInRange(left, 0, left_mid);
+    strip_groups[0x01F6] = LampIdsInRange(left, left_mid, left.size());
+
+    const uint16_t front_addresses[6] =
+    {
+        0x01F7, 0x01F8, 0x01F9, 0x01FA, 0x01FB, 0x01FC
+    };
+
+    for(int part = 0; part < 6; part++)
+    {
+        size_t begin = front.size() * part / 6;
+        size_t end = front.size() * (part + 1) / 6;
+        strip_groups[front_addresses[part]] = LampIdsInRange(front, begin, end);
+    }
+
+    strip_groups[0x01FD] = LampIdsInRange(right, 0, right_mid);
+    strip_groups[0x01FE] = LampIdsInRange(right, right_mid, right.size());
+    strip_groups[0x05DD] = logo;
+
+    LOG_DEBUG("[Lenovo Legion 9] strip groups left=%u lower-left=%u front=%u right=%u logo=%u key lamps=%u matched=%u",
+              (unsigned int)strip_groups[0x01F5].size(),
+              (unsigned int)strip_groups[0x01F6].size(),
+              (unsigned int)front.size(),
+              (unsigned int)(strip_groups[0x01FD].size() + strip_groups[0x01FE].size()),
+              (unsigned int)logo.size(),
+              (unsigned int)keyboard_lamps.size(),
+              matched_keys);
+}
+
+void LenovoRGBController_Gen7_8::UpdateLightStrip()
+{
+    if(light_strip == nullptr || strip_groups.empty())
+    {
+        return;
+    }
+
+    bool per_led = (modes[active_mode].color_mode == MODE_COLORS_PER_LED) &&
+                   (modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT ||
+                    modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_STATIC);
+
+    if(!per_led)
+    {
+        light_strip->SetLampArrayControlReport(1);
+        return;
+    }
+
+    /* No key colors yet. Taking the lamp array over now drops the key lamps back to blue. */
+    if(!Legion9SeizeLampArray(preserve_key_lamps ? 1 : 0))
+    {
+        return;
+    }
+
+    std::vector<unsigned short> lamp_ids;
+    std::vector<RGBColor>       lamp_colors;
+    const std::vector<RGBColor>& active_colors = (frame_colors.size() == colors.size()) ? frame_colors : colors;
+
+    for(std::unordered_map<uint16_t, std::vector<unsigned short>>::iterator group = strip_groups.begin(); group != strip_groups.end(); group++)
+    {
+        std::unordered_map<unsigned int, size_t>::iterator led = led_id_to_index.find(group->first);
+
+        if(led == led_id_to_index.end() || led->second >= active_colors.size())
+        {
+            continue;
+        }
+
+        for(unsigned int lamp_idx = 0; lamp_idx < group->second.size(); lamp_idx++)
+        {
+            lamp_ids.push_back(group->second[lamp_idx]);
+            lamp_colors.push_back(active_colors[led->second]);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Host control applies to every lamp on this device.    |
+    | Key lamps left out of the update fall back to blue.   |
+    \*-----------------------------------------------------*/
+    if(preserve_key_lamps)
+    {
+        for(const legion9_key_lamp& key_lamp : keyboard_lamps)
+        {
+            if(key_lamp.led_index == (size_t)-1 || key_lamp.led_index >= active_colors.size())
+            {
+                continue;
+            }
+
+            lamp_ids.push_back(key_lamp.lamp_id);
+            lamp_colors.push_back(active_colors[key_lamp.led_index]);
+        }
+    }
+
+    if(lamp_ids.empty())
+    {
+        return;
+    }
+
+    light_strip->SetLampArrayControlReport(0);
+
+    size_t sent = 0;
+
+    while(sent < lamp_ids.size())
+    {
+        unsigned int    count = LAMP_MULTI_UPDATE_LAMP_COUNT;
+        unsigned short  ids[LAMP_MULTI_UPDATE_LAMP_COUNT];
+        LampArrayColor  update_colors[LAMP_MULTI_UPDATE_LAMP_COUNT];
+        unsigned char   flags = 0;
+
+        if(lamp_ids.size() - sent < count)
+        {
+            count = (unsigned int)(lamp_ids.size() - sent);
+        }
+
+        for(unsigned int index = 0; index < count; index++)
+        {
+            ids[index] = lamp_ids[sent + index];
+            update_colors[index].RedChannel = RGBGetRValue(lamp_colors[sent + index]);
+            update_colors[index].GreenChannel = RGBGetGValue(lamp_colors[sent + index]);
+            update_colors[index].BlueChannel = RGBGetBValue(lamp_colors[sent + index]);
+            update_colors[index].IntensityChannel = 255;
+        }
+
+        sent += count;
+
+        if(sent >= lamp_ids.size())
+        {
+            flags = LAMP_UPDATE_FLAG_UPDATE_COMPLETE;
+        }
+
+        light_strip->SetLampMultiUpdateReport((unsigned char)count, flags, ids, update_colors);
+    }
 }
 
 void LenovoRGBController_Gen7_8::ReadDeviceSettings()
@@ -680,13 +1266,23 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
     }
 
     std::unordered_map<RGBColor, vector<uint16_t>> led_map;
+    const std::vector<RGBColor>& active_colors = (use_frame_colors && frame_colors.size() == colors.size()) ? frame_colors : colors;
 
+    /*-----------------------------------------------------*\
+    | Legion 9 Direct is sent as per-key static, so it     |
+    | has to be grouped by color like Static. Other Direct |
+    | modes keep the single uncolored group used with A1.  |
+    | The strip and logo are in this save. LampArray is    |
+    | only the live update, and a zone left out turns off  |
+    | when OpenRGB exits.                                  |
+    \*-----------------------------------------------------*/
     if(modes[active_mode].color_mode == MODE_COLORS_PER_LED &&
-            modes[active_mode].value != LENOVO_LEGION_GEN7_8_MODE_DIRECT)
+            (modes[active_mode].value != LENOVO_LEGION_GEN7_8_MODE_DIRECT ||
+             DirectUsesStaticProfile(controller->getPid())))
     {
-        for(size_t i = 0; i < leds.size(); i++)
+        for(size_t i = 0; i < leds.size() && i < active_colors.size(); i++)
         {
-            led_map[colors[i]].push_back(leds[i].value);
+            led_map[active_colors[i]].push_back(leds[i].value);
         }
     }
     else
@@ -713,6 +1309,11 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
 
         for(size_t i = start; i < end; i++)
         {
+            if(IsChassisLed(leds[i].value))
+            {
+                continue;
+            }
+
             led_map[0x00].push_back(leds[i].value);
         }
     }
@@ -720,13 +1321,28 @@ std::vector<led_group> LenovoRGBController_Gen7_8::GetLedGroups()
     vector<led_group> led_groups;
     for(const auto &pair : led_map)
     {
-        if(pair.first == 0x00 && led_map.size() != 1)
+        /*-------------------------------------------------*\
+        | Dropping black keys makes this firmware paint    |
+        | them its default blue. Keep them on Legion 9.    |
+        \*-------------------------------------------------*/
+        if(!Legion9KeepColorGroup(DirectUsesStaticProfile(controller->getPid()) ? 1 : 0,
+                                  HostPerLedColorMode() ? 1 : 0,
+                                  led_map.size() == 1 ? 1 : 0,
+                                  pair.first))
         {
             continue;
         }
 
         led_group group;
-        group.mode = modes[active_mode].value;
+        if(DirectUsesStaticProfile(controller->getPid()) &&
+           modes[active_mode].value == LENOVO_LEGION_GEN7_8_MODE_DIRECT)
+        {
+            group.mode = LENOVO_LEGION_GEN7_8_MODE_STATIC;
+        }
+        else
+        {
+            group.mode = modes[active_mode].value;
+        }
         group.speed = modes[active_mode].speed;
         group.spin = 0x00;
         group.direction = 0x00;

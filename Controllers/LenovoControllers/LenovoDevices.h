@@ -39,6 +39,7 @@
 #define LEGION_7GEN9_H                          0xC998
 #define LEGION_7GEN10                           0xC197
 #define LEGION_5GEN10                           0xC195
+#define LEGION_9GEN10                           0xC909
 
 enum LENOVO_KEYBOARD
 {
@@ -56,7 +57,12 @@ enum LENOVO_SIZE
 
 struct lenovo_led
 {
-    uint8_t led_num;
+    /*-----------------------------------------------------*\
+    | Spectrum address. Values above 0xFF are a full        |
+    | 16-bit id (zone in the high byte) and are sent as-is. |
+    | Smaller values are combined with the zone id.         |
+    \*-----------------------------------------------------*/
+    uint16_t led_num;
     std::string name;
 };
 
@@ -1983,3 +1989,336 @@ static lenovo_zone legion7_gen7and8_neon
     0,
     9,
 };
+
+/*--------------------------------------------------------*\
+| Legion 9 18IAX10 (048d:c909): 22x9 Spectrum matrix        |
+|                                                            |
+| Read from this machine (type 83EY, ANSI). Key addresses    |
+| are the firmware key-page codes. Wide keys and lens        |
+| segments repeat one address across several cells.          |
+| Addresses above 0xFF are full Spectrum ids (zone in the    |
+| high byte) and must be sent as-is. The lid/deck logo       |
+| 0x05DD is a separate zone.                                  |
+\*--------------------------------------------------------*/
+
+static const unsigned int legion9_gen10_leds_map[] =
+{
+     NA,  NA,   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  NA,  NA,
+     NA,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  NA,
+     NA,  38,  39,  40,  41,  42,  43,  44,  NA,  45,  46,  47,  48,  49,  50,  51,  51,  52,  53,  54,  55,  NA,
+     NA,  56,  57,  NA,  58,  59,  60,  61,  62,  63,  64,  65,  66,  NA,  67,  68,  69,  70,  71,  72,  73,  NA,
+     NA,  74,  74,  75,  76,  77,  78,  79,  80,  NA,  81,  82,  83,  84,  85,  86,  86,  87,  88,  89,  73,  NA,
+     90,  91,  91,  92,  93,  NA,  94,  95,  96,  97,  98,  99, 100,  NA, 101, 102, 102, 103, 104, 105, 106, 107,
+     90, 108, 109, 110, 111, 112, 112, 112, 112, 112, 112, 113, 114,  NA,  NA, 115,  NA, 116, 116, 117, 106, 107,
+    118,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA, 119, 120,  NA, 121,  NA,  NA,  NA, 122,
+    118, 123, 123, 123, 123, 124, 124, 124, 125, 125, 125, 126, 126, 126, 127, 127, 127, 128, 128, 128, 128, 122,
+};
+
+const lenovo_led legion9_gen10_leds[] =
+{
+    {0x03E9, "Lighting lens top 1"},
+    {0x03F3, "Lighting lens top 2"},
+    {0x03EA, "Lighting lens top 3"},
+    {0x03F4, "Lighting lens top 4"},
+    {0x03EB, "Lighting lens top 5"},
+    {0x03F5, "Lighting lens top 6"},
+    {0x03EC, "Lighting lens top 7"},
+    {0x03F6, "Lighting lens top 8"},
+    {0x03ED, "Lighting lens top 9"},
+    {0x03EE, "Lighting lens top 10"},
+    {0x03EF, "Lighting lens top 11"},
+    {0x03F7, "Lighting lens top 12"},
+    {0x03F0, "Lighting lens top 13"},
+    {0x03F8, "Lighting lens top 14"},
+    {0x03F1, "Lighting lens top 15"},
+    {0x03F9, "Lighting lens top 16"},
+    {0x03F2, "Lighting lens top 17"},
+    {0x03FA, "Lighting lens top 18"},
+    {0x0001, KEY_EN_ESCAPE},
+    {0x0002, KEY_EN_F1},
+    {0x0003, KEY_EN_F2},
+    {0x0004, KEY_EN_F3},
+    {0x0005, KEY_EN_F4},
+    {0x0006, KEY_EN_F5},
+    {0x0007, KEY_EN_F6},
+    {0x0008, KEY_EN_F7},
+    {0x0009, KEY_EN_F8},
+    {0x000A, KEY_EN_F9},
+    {0x000B, KEY_EN_F10},
+    {0x000C, KEY_EN_F11},
+    {0x000D, KEY_EN_F12},
+    {0x000E, KEY_EN_INSERT},
+    {0x000F, KEY_EN_PRINT_SCREEN},
+    {0x0010, KEY_EN_DELETE},
+    {0x0011, KEY_EN_HOME},
+    {0x0012, KEY_EN_END},
+    {0x0013, KEY_EN_PAGE_UP},
+    {0x0014, KEY_EN_PAGE_DOWN},
+    {0x0016, KEY_EN_BACK_TICK},
+    {0x0017, KEY_EN_1},
+    {0x0018, KEY_EN_2},
+    {0x0019, KEY_EN_3},
+    {0x001A, KEY_EN_4},
+    {0x001B, KEY_EN_5},
+    {0x001C, KEY_EN_6},
+    {0x001D, KEY_EN_7},
+    {0x001E, KEY_EN_8},
+    {0x001F, KEY_EN_9},
+    {0x0020, KEY_EN_0},
+    {0x0021, KEY_EN_MINUS},
+    {0x0022, KEY_EN_EQUALS},
+    {0x0038, KEY_EN_BACKSPACE},
+    {0x0026, KEY_EN_NUMPAD_LOCK},
+    {0x0027, KEY_EN_NUMPAD_DIVIDE},
+    {0x0028, KEY_EN_NUMPAD_TIMES},
+    {0x0029, KEY_EN_NUMPAD_MINUS},
+    {0x0040, KEY_EN_TAB},
+    {0x0042, KEY_EN_Q},
+    {0x0043, KEY_EN_W},
+    {0x0044, KEY_EN_E},
+    {0x0045, KEY_EN_R},
+    {0x0046, KEY_EN_T},
+    {0x0047, KEY_EN_Y},
+    {0x0048, KEY_EN_U},
+    {0x0049, KEY_EN_I},
+    {0x004A, KEY_EN_O},
+    {0x004B, KEY_EN_P},
+    {0x004C, KEY_EN_LEFT_BRACKET},
+    {0x004D, KEY_EN_RIGHT_BRACKET},
+    {0x004E, KEY_EN_ANSI_BACK_SLASH},
+    {0x004F, KEY_EN_NUMPAD_7},
+    {0x0050, KEY_EN_NUMPAD_8},
+    {0x0051, KEY_EN_NUMPAD_9},
+    {0x0068, KEY_EN_NUMPAD_PLUS},
+    {0x0055, KEY_EN_CAPS_LOCK},
+    {0x006D, KEY_EN_A},
+    {0x006E, KEY_EN_S},
+    {0x0058, KEY_EN_D},
+    {0x0059, KEY_EN_F},
+    {0x005A, KEY_EN_G},
+    {0x0071, KEY_EN_H},
+    {0x0072, KEY_EN_J},
+    {0x005B, KEY_EN_K},
+    {0x005C, KEY_EN_L},
+    {0x005D, KEY_EN_SEMICOLON},
+    {0x005F, KEY_EN_QUOTE},
+    {0x0077, KEY_EN_ANSI_ENTER},
+    {0x0079, KEY_EN_NUMPAD_4},
+    {0x007B, KEY_EN_NUMPAD_5},
+    {0x007C, KEY_EN_NUMPAD_6},
+    {0x01F5, "Lighting lens left"},
+    {0x006A, KEY_EN_LEFT_SHIFT},
+    {0x0082, KEY_EN_Z},
+    {0x0083, KEY_EN_X},
+    {0x006F, KEY_EN_C},
+    {0x0070, KEY_EN_V},
+    {0x0087, KEY_EN_B},
+    {0x0088, KEY_EN_N},
+    {0x0073, KEY_EN_M},
+    {0x0074, KEY_EN_COMMA},
+    {0x0075, KEY_EN_PERIOD},
+    {0x0076, KEY_EN_FORWARD_SLASH},
+    {0x008D, KEY_EN_RIGHT_SHIFT},
+    {0x008E, KEY_EN_NUMPAD_1},
+    {0x0090, KEY_EN_NUMPAD_2},
+    {0x0092, KEY_EN_NUMPAD_3},
+    {0x00A7, KEY_EN_NUMPAD_ENTER},
+    {0x01FE, "Lighting lens right"},
+    {0x007F, KEY_EN_LEFT_CONTROL},
+    {0x0080, KEY_EN_LEFT_FUNCTION},
+    {0x0096, KEY_EN_LEFT_WINDOWS},
+    {0x0097, KEY_EN_LEFT_ALT},
+    {0x0098, KEY_EN_SPACE},
+    {0x009A, KEY_EN_RIGHT_ALT},
+    {0x009B, KEY_EN_RIGHT_CONTROL},
+    {0x009D, KEY_EN_UP_ARROW},
+    {0x00A3, KEY_EN_NUMPAD_0},
+    {0x00A5, KEY_EN_NUMPAD_PERIOD},
+    {0x01F6, "Lighting lens lower left"},
+    {0x009C, KEY_EN_LEFT_ARROW},
+    {0x009F, KEY_EN_DOWN_ARROW},
+    {0x00A1, KEY_EN_RIGHT_ARROW},
+    {0x01FD, "Lighting lens lower right"},
+    {0x01F7, "Lighting lens front 1"},
+    {0x01F8, "Lighting lens front 2"},
+    {0x01F9, "Lighting lens front 3"},
+    {0x01FA, "Lighting lens front 4"},
+    {0x01FB, "Lighting lens front 5"},
+    {0x01FC, "Lighting lens front 6"},
+};
+
+static lenovo_zone legion9_gen10_kbd =
+{
+    "Keyboard",
+    ZONE_TYPE_MATRIX,
+    0,
+    9,
+    22,
+    legion9_gen10_leds_map,
+    legion9_gen10_leds,
+    0,
+    128,
+};
+
+/*--------------------------------------------------------*\
+| Keyboard without the top lens row. Those addresses       |
+| never light. The chassis strip is its own zone so it     |
+| can be colored without the keys.                         |
+\*--------------------------------------------------------*/
+
+static const unsigned int legion9_gen10_kbd_with_strip_map[] =
+{
+     NA,   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  NA,
+     NA,  20,  21,  22,  23,  24,  25,  26,  NA,  27,  28,  29,  30,  31,  32,  33,  33,  34,  35,  36,  37,  NA,
+     NA,  38,  39,  NA,  40,  41,  42,  43,  44,  45,  46,  47,  48,  NA,  49,  50,  51,  52,  53,  54,  55,  NA,
+     NA,  56,  56,  57,  58,  59,  60,  61,  62,  NA,  63,  64,  65,  66,  67,  68,  68,  69,  70,  71,  55,  NA,
+     NA,  72,  72,  73,  74,  NA,  75,  76,  77,  78,  79,  80,  81,  NA,  82,  83,  83,  84,  85,  86,  87,  NA,
+     NA,  88,  89,  90,  91,  92,  92,  92,  92,  92,  92,  93,  94,  NA,  NA,  95,  NA,  96,  96,  97,  87,  NA,
+     NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  98,  99,  NA, 100,  NA,  NA,  NA,  NA,
+};
+
+const lenovo_led legion9_gen10_kbd_with_strip_leds[] =
+{
+    {0x0001, KEY_EN_ESCAPE},
+    {0x0002, KEY_EN_F1},
+    {0x0003, KEY_EN_F2},
+    {0x0004, KEY_EN_F3},
+    {0x0005, KEY_EN_F4},
+    {0x0006, KEY_EN_F5},
+    {0x0007, KEY_EN_F6},
+    {0x0008, KEY_EN_F7},
+    {0x0009, KEY_EN_F8},
+    {0x000A, KEY_EN_F9},
+    {0x000B, KEY_EN_F10},
+    {0x000C, KEY_EN_F11},
+    {0x000D, KEY_EN_F12},
+    {0x000E, KEY_EN_INSERT},
+    {0x000F, KEY_EN_PRINT_SCREEN},
+    {0x0010, KEY_EN_DELETE},
+    {0x0011, KEY_EN_HOME},
+    {0x0012, KEY_EN_END},
+    {0x0013, KEY_EN_PAGE_UP},
+    {0x0014, KEY_EN_PAGE_DOWN},
+    {0x0016, KEY_EN_BACK_TICK},
+    {0x0017, KEY_EN_1},
+    {0x0018, KEY_EN_2},
+    {0x0019, KEY_EN_3},
+    {0x001A, KEY_EN_4},
+    {0x001B, KEY_EN_5},
+    {0x001C, KEY_EN_6},
+    {0x001D, KEY_EN_7},
+    {0x001E, KEY_EN_8},
+    {0x001F, KEY_EN_9},
+    {0x0020, KEY_EN_0},
+    {0x0021, KEY_EN_MINUS},
+    {0x0022, KEY_EN_EQUALS},
+    {0x0038, KEY_EN_BACKSPACE},
+    {0x0026, KEY_EN_NUMPAD_LOCK},
+    {0x0027, KEY_EN_NUMPAD_DIVIDE},
+    {0x0028, KEY_EN_NUMPAD_TIMES},
+    {0x0029, KEY_EN_NUMPAD_MINUS},
+    {0x0040, KEY_EN_TAB},
+    {0x0042, KEY_EN_Q},
+    {0x0043, KEY_EN_W},
+    {0x0044, KEY_EN_E},
+    {0x0045, KEY_EN_R},
+    {0x0046, KEY_EN_T},
+    {0x0047, KEY_EN_Y},
+    {0x0048, KEY_EN_U},
+    {0x0049, KEY_EN_I},
+    {0x004A, KEY_EN_O},
+    {0x004B, KEY_EN_P},
+    {0x004C, KEY_EN_LEFT_BRACKET},
+    {0x004D, KEY_EN_RIGHT_BRACKET},
+    {0x004E, KEY_EN_ANSI_BACK_SLASH},
+    {0x004F, KEY_EN_NUMPAD_7},
+    {0x0050, KEY_EN_NUMPAD_8},
+    {0x0051, KEY_EN_NUMPAD_9},
+    {0x0068, KEY_EN_NUMPAD_PLUS},
+    {0x0055, KEY_EN_CAPS_LOCK},
+    {0x006D, KEY_EN_A},
+    {0x006E, KEY_EN_S},
+    {0x0058, KEY_EN_D},
+    {0x0059, KEY_EN_F},
+    {0x005A, KEY_EN_G},
+    {0x0071, KEY_EN_H},
+    {0x0072, KEY_EN_J},
+    {0x005B, KEY_EN_K},
+    {0x005C, KEY_EN_L},
+    {0x005D, KEY_EN_SEMICOLON},
+    {0x005F, KEY_EN_QUOTE},
+    {0x0077, KEY_EN_ANSI_ENTER},
+    {0x0079, KEY_EN_NUMPAD_4},
+    {0x007B, KEY_EN_NUMPAD_5},
+    {0x007C, KEY_EN_NUMPAD_6},
+    {0x006A, KEY_EN_LEFT_SHIFT},
+    {0x0082, KEY_EN_Z},
+    {0x0083, KEY_EN_X},
+    {0x006F, KEY_EN_C},
+    {0x0070, KEY_EN_V},
+    {0x0087, KEY_EN_B},
+    {0x0088, KEY_EN_N},
+    {0x0073, KEY_EN_M},
+    {0x0074, KEY_EN_COMMA},
+    {0x0075, KEY_EN_PERIOD},
+    {0x0076, KEY_EN_FORWARD_SLASH},
+    {0x008D, KEY_EN_RIGHT_SHIFT},
+    {0x008E, KEY_EN_NUMPAD_1},
+    {0x0090, KEY_EN_NUMPAD_2},
+    {0x0092, KEY_EN_NUMPAD_3},
+    {0x00A7, KEY_EN_NUMPAD_ENTER},
+    {0x007F, KEY_EN_LEFT_CONTROL},
+    {0x0080, KEY_EN_LEFT_FUNCTION},
+    {0x0096, KEY_EN_LEFT_WINDOWS},
+    {0x0097, KEY_EN_LEFT_ALT},
+    {0x0098, KEY_EN_SPACE},
+    {0x009A, KEY_EN_RIGHT_ALT},
+    {0x009B, KEY_EN_RIGHT_CONTROL},
+    {0x009D, KEY_EN_UP_ARROW},
+    {0x00A3, KEY_EN_NUMPAD_0},
+    {0x00A5, KEY_EN_NUMPAD_PERIOD},
+    {0x009C, KEY_EN_LEFT_ARROW},
+    {0x009F, KEY_EN_DOWN_ARROW},
+    {0x00A1, KEY_EN_RIGHT_ARROW},
+};
+
+static const lenovo_led legion9_gen10_light_strip_leds[] =
+{
+    {0x01F5, "Light strip left"},
+    {0x01F6, "Light strip lower left"},
+    {0x01F7, "Light strip front 1"},
+    {0x01F8, "Light strip front 2"},
+    {0x01F9, "Light strip front 3"},
+    {0x01FA, "Light strip front 4"},
+    {0x01FB, "Light strip front 5"},
+    {0x01FC, "Light strip front 6"},
+    {0x01FD, "Light strip lower right"},
+    {0x01FE, "Light strip right"},
+};
+
+static lenovo_zone legion9_gen10_light_strip =
+{
+    "Light strip",
+    ZONE_TYPE_LINEAR,
+    0,
+    1,
+    10,
+    NULL,
+    legion9_gen10_light_strip_leds,
+    0,
+    9,
+};
+
+static lenovo_zone legion9_gen10_kbd_with_strip =
+{
+    "Keyboard",
+    ZONE_TYPE_MATRIX,
+    0,
+    7,
+    22,
+    legion9_gen10_kbd_with_strip_map,
+    legion9_gen10_kbd_with_strip_leds,
+    0,
+    100,
+};
+

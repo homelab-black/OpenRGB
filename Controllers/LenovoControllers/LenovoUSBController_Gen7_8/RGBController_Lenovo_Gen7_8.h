@@ -9,8 +9,12 @@
 
 #pragma once
 
+#include <unordered_map>
+#include <vector>
 #include "RGBController.h"
 #include "LenovoUSBController_Gen7_8.h"
+
+class HIDLampArrayController;
 
 enum
 {
@@ -44,9 +48,34 @@ public:
     void        DeviceUpdateMode();
 
 private:
+    struct legion9_key_lamp
+    {
+        unsigned short lamp_id;
+        size_t         led_index;
+    };
+
     LenovoGen7And8USBController* controller;
+    HIDLampArrayController* light_strip;
+    /* Spectrum address -> LampArray lamp ids owned by that square. */
+    std::unordered_map<uint16_t, std::vector<unsigned short>> strip_groups;
+    /* Keyboard lamps on the strip controller. led_index is npos when unmatched. */
+    std::vector<legion9_key_lamp> keyboard_lamps;
+    std::vector<RGBColor> frame_colors;
+    std::vector<RGBColor> committed_key_colors;
+    std::vector<uint8_t>  key_touched;
+    std::vector<RGBColor> chassis_hold;
+    std::vector<uint8_t>  chassis_held;
+    bool use_frame_colors;
+    bool preserve_key_lamps;
     std::vector<led_group> GetLedGroups();
     void ReadDeviceSettings();
+    void BuildStripGroups();
+    void UpdateLightStrip();
+    void PrepareFrameColors();
+    void RememberColorEdits();
+    bool HostPerLedColorMode() const;
+    bool IsChassisLed(unsigned int led_value) const;
+    bool LedColorEdited(size_t led_index) const;
     std::unordered_map<unsigned int, size_t> led_id_to_index;
     int last_mode = 0;
     bool direct_enabled = false;

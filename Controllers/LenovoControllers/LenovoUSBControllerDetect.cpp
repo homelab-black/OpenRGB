@@ -78,3 +78,10 @@ REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 9",   DetectLenovoLegionUSBControl
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 9",   DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN9_H, LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 7 Gen 10",  DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_7GEN10,  LENOVO_PAGE, LENOVO_USAGE);
 REGISTER_HID_DETECTOR_PU("Lenovo Legion 5 Gen 10", DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_5GEN10, LENOVO_PAGE, LENOVO_USAGE);
+REGISTER_HID_DETECTOR_PU("Lenovo Legion 9 Gen 10", DetectLenovoLegionUSBControllersGen7And8, ITE_VID, LEGION_9GEN10, LENOVO_PAGE, LENOVO_USAGE);
+
+/*---------------------------------------------------------*\
+| The chassis strip is HID LampArray 048D:C903. It is not a |
+| separate detector, so the generated rules would omit it.  |
+\*---------------------------------------------------------*/
+REGISTER_CUSTOM_UDEV_RULE(legion_9_gen10_light_strip, "Lenovo Legion 9 Gen 10 Light Strip", "SUBSYSTEMS==\"usb|hidraw\", ATTRS{idVendor}==\"048d\", ATTRS{idProduct}==\"c903\", TAG+=\"uaccess\", TAG+=\"Lenovo_Legion_9_Gen_10_Light_Strip\"");

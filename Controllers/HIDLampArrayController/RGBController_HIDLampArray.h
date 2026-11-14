@@ -31,3 +31,5 @@ public:
 private:
     HIDLampArrayController* controller;
 };
+
+const char* HIDLampArrayKeyName(unsigned char hid_usage);
