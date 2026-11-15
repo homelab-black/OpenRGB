@@ -33,4 +33,8 @@ private:
     ENESMBusController* controller;
 
     int         GetDeviceMode();
+
+    // 前回送信した時刻とColorの情報
+    std::chrono::steady_clock::time_point last_update_time;
+    std::vector<RGBColor>                 last_colors;
 };

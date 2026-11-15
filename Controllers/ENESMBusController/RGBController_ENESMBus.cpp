@@ -57,6 +57,10 @@ RGBController_ENESMBus::RGBController_ENESMBus(ENESMBusController * controller_p
     location                    = controller->GetLocation();
     type                        = controller->GetType();
 
+    // 追加した変数の初期化
+    last_update_time = std::chrono::steady_clock::now();
+    last_colors.clear();
+
     if((version.find("DIMM_LED") != std::string::npos) || (version.find("AUDA") != std::string::npos) )
     {
         vendor                  = "ENE";
@@ -291,15 +295,48 @@ int RGBController_ENESMBus::GetDeviceMode()
 
 void RGBController_ENESMBus::DeviceUpdateLEDs()
 {
+    // 1. colors (親クラスの変数) が準備できていなければ即リターン
+    if (colors.empty() || colors.size() == 0)
+    {
+        return;
+    }
+
+    // 2. last_colors (今回追加した変数) のサイズが colors と不一致なら同期だけしてリターン
+    // サイズ不一致状態でのループ比較を回避
+    if (last_colors.size() != colors.size())
+    {
+        last_colors = colors;
+        last_update_time = std::chrono::steady_clock::now();
+        return;
+    }
+
+    // 3. 時間ガード (80ms = 約12.5fps)
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_update_time).count();
+    if (duration < 80)
+    {
+        return;
+    }
+
+    // 4. 差分チェック
+    if (colors == last_colors)
+    {
+        return;
+    }
+	
+	// 5. 実際の書き込み
     if(active_mode == 0)
     {
-        controller->SetAllColorsDirect(&colors[0]);
+        controller->SetAllColorsDirect(colors.data());
     }
     else
     {
-        controller->SetAllColorsEffect(&colors[0]);
+        controller->SetAllColorsEffect(colors.data());
     }
 
+    // 6. 状態を更新
+    last_update_time = now;
+    last_colors = colors;
 }
 
 void RGBController_ENESMBus::DeviceUpdateZoneLEDs(int zone)
