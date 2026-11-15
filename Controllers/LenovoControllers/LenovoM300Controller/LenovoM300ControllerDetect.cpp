@@ -18,6 +18,7 @@
 \*---------------------------------------------------------*/
 #define LENOVO_VID 0x17EF
 #define LEGION_M300_PID 0x60E4
+#define LEGION_M300S_PID 0x6132
 #define LENOVO_USAGE 0X01
 #define LENOVO_PAGE 0XFF01
 
@@ -40,3 +41,4 @@ DetectedControllers DetectLenovoLegionM300Controllers(hid_device_info* info, con
 }
 
 REGISTER_HID_DETECTOR_PU("Lenovo Legion M300", DetectLenovoLegionM300Controllers, LENOVO_VID, LEGION_M300_PID, LENOVO_PAGE, LENOVO_USAGE);
+REGISTER_HID_DETECTOR_PU("Lenovo Legion M300s", DetectLenovoLegionM300Controllers, LENOVO_VID, LEGION_M300S_PID, LENOVO_PAGE, LENOVO_USAGE);
