@@ -14,11 +14,12 @@
 
 #include "RGBController.h"
 #include "EVisionKeyboardController.h"
+#include "EVisionKeyboardLayouts.h"
 
 class RGBController_EVisionKeyboard : public RGBController
 {
 public:
-    RGBController_EVisionKeyboard(EVisionKeyboardController* controller_ptr);
+    RGBController_EVisionKeyboard(EVisionKeyboardController* controller_ptr, const evision_keyboard_layout* layout_ptr = nullptr);
     ~RGBController_EVisionKeyboard();
 
     void        SetupZones();
@@ -30,5 +31,7 @@ public:
     void        DeviceUpdateMode();
 
 private:
-    EVisionKeyboardController*  controller;
+    EVisionKeyboardController*      controller;
+    const evision_keyboard_layout*  layout;
+    bool                            mode_sent       = false;
 };

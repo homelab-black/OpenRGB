@@ -37,6 +37,7 @@
 #define EVISION_SONIX_652F_PID                      0x652F
 #define EVISION_SONIX_7672_PID                      0x7672
 #define EVISION_SONIX_7698_PID                      0x7698
+#define EVISION_SONIX_8513_PID                      0x8513  /* Sharkoon Skiller Mech SGK3 */
 #define EVISION_SONIX_8520_PID                      0x8520
 #define EVISION_5000_PID                            0x5000
 #define EVISION_502A_PID                            0x502A
@@ -63,9 +64,28 @@ DetectedControllers DetectEVisionKeyboards(hid_device_info* info, const std::str
     return(detected_controllers);
 }
 
+DetectedControllers DetectEVisionKeyboardsSharkoonSGK3(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
+
+    dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        EVisionKeyboardController*     controller     = new EVisionKeyboardController(dev, info->path, name);
+        RGBController_EVisionKeyboard* rgb_controller = new RGBController_EVisionKeyboard(controller, &sharkoon_sgk3_layout);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return(detected_controllers);
+}
+
 /*---------------------------------------------------------*\
 | Keyboards                                                 |
 \*---------------------------------------------------------*/
+REGISTER_HID_DETECTOR_IP("Sharkoon Skiller Mech SGK3",  DetectEVisionKeyboardsSharkoonSGK3, SONIX_VID, EVISION_SONIX_8513_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 0C45:5004",  DetectEVisionKeyboards, SONIX_VID,      EVISION_SONIX_5004_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 0C45:5104",  DetectEVisionKeyboards, SONIX_VID,      EVISION_SONIX_5104_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);
 REGISTER_HID_DETECTOR_IP("EVision Keyboard 0C45:5204",  DetectEVisionKeyboards, SONIX_VID,      EVISION_SONIX_5204_PID, 1, EVISION_KEYBOARD_USAGE_PAGE);

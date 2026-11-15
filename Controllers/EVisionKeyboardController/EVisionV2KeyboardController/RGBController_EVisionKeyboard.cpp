@@ -30,18 +30,38 @@ static unsigned int matrix_map[6][23] =
     @save :robot:
     @direct :x:
     @effects :white_check_mark:
-    @detectors DetectEVisionKeyboards
-    @comment
+    @detectors DetectEVisionKeyboards,DetectEVisionKeyboardsSharkoonSGK3
+    @comment The Sharkoon Skiller Mech SGK3 uses a model-specific ISO layout; colors and effects are written to the active onboard profile.
 \*-------------------------------------------------------------------*/
 
-RGBController_EVisionKeyboard::RGBController_EVisionKeyboard(EVisionKeyboardController* controller_ptr)
+RGBController_EVisionKeyboard::RGBController_EVisionKeyboard(EVisionKeyboardController* controller_ptr, const evision_keyboard_layout* layout_ptr)
 {
     controller                      = controller_ptr;
+    layout                          = layout_ptr;
 
     name                            = controller->GetNameString();
     vendor                          = "EVision";
     type                            = DEVICE_TYPE_KEYBOARD;
     description                     = "EVision Keyboard Device";
+
+    if(layout != nullptr)
+    {
+        vendor                      = layout->vendor;
+        description                 = layout->description;
+
+        /*-------------------------------------------------*\
+        | Write to the onboard profile the keyboard is      |
+        | currently showing                                 |
+        \*-------------------------------------------------*/
+        int active_profile          = controller->ReadActiveProfile();
+
+        if(active_profile > 0 && active_profile < 3)
+        {
+            controller->SetProfile((unsigned char)active_profile);
+        }
+
+        controller->SetVerifyReplies(layout->use_begin_end);
+    }
     location                        = controller->GetDeviceLocation();
     serial                          = controller->GetSerialString();
 
@@ -297,6 +317,48 @@ RGBController_EVisionKeyboard::RGBController_EVisionKeyboard(EVisionKeyboardCont
     ReactiveLine.colors.resize(1);
     modes.push_back(ReactiveLine);
 
+    if(layout != nullptr)
+    {
+        /*-------------------------------------------------*\
+        | Additional effect exposed by the vendor software  |
+        | of keyboards with a model-specific layout         |
+        \*-------------------------------------------------*/
+        mode StarlightSlow;
+        StarlightSlow.name              = "Starlight (Slow)";
+        StarlightSlow.value             = EVISION_KB_MODE_STARLIGHT_SLOW;
+        StarlightSlow.flags             = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_RANDOM_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_AUTOMATIC_SAVE;
+        StarlightSlow.speed_min         = EVISION_KB_SPEED_SLOWEST;
+        StarlightSlow.speed_max         = EVISION_KB_SPEED_FASTEST;
+        StarlightSlow.speed             = EVISION_KB_SPEED_NORMAL;
+        StarlightSlow.brightness_min    = EVISION_KB_BRIGHTNESS_LOWEST;
+        StarlightSlow.brightness_max    = EVISION_KB_BRIGHTNESS_HIGHEST;
+        StarlightSlow.brightness        = EVISION_KB_BRIGHTNESS_HIGHEST;
+        StarlightSlow.colors_min        = 1;
+        StarlightSlow.colors_max        = 1;
+        StarlightSlow.color_mode        = MODE_COLORS_MODE_SPECIFIC;
+        StarlightSlow.colors.resize(1);
+        modes.push_back(StarlightSlow);
+
+        for(mode& m : modes)
+        {
+            if(layout->brightness_max != 0 && (m.flags & MODE_FLAG_HAS_BRIGHTNESS))
+            {
+                m.brightness_max    = layout->brightness_max;
+                m.brightness        = layout->brightness_max;
+            }
+
+            /*---------------------------------------------*\
+            | Effect colors default to black, which leaves  |
+            | the keyboard dark when an effect is selected. |
+            | Start from red, like the vendor defaults.     |
+            \*---------------------------------------------*/
+            if(m.color_mode == MODE_COLORS_MODE_SPECIFIC && m.colors.size() > 0)
+            {
+                m.colors[0]         = ToRGBColor(0xFF, 0x00, 0x00);
+            }
+        }
+    }
+
     SetupZones();
 }
 
@@ -310,6 +372,41 @@ RGBController_EVisionKeyboard::~RGBController_EVisionKeyboard()
 void RGBController_EVisionKeyboard::SetupZones()
 {
     zone new_zone;
+
+    if(layout != nullptr)
+    {
+        /*-------------------------------------------------*\
+        | Model-specific layout: one LED per physical key,  |
+        | led.value holds the index into the color buffer   |
+        \*-------------------------------------------------*/
+        std::vector<unsigned int> map(layout->rows * layout->cols, 0xFFFFFFFF);
+
+        for(unsigned int key_idx = 0; key_idx < layout->key_count; key_idx++)
+        {
+            const evision_keyboard_key& key = layout->keys[key_idx];
+
+            map[(key.row * layout->cols) + key.col] = key_idx;
+
+            led new_led;
+
+            new_led.name    = key.name;
+            new_led.value   = key.index;
+
+            leds.push_back(new_led);
+        }
+
+        new_zone.name               = "Keyboard";
+        new_zone.type               = ZONE_TYPE_MATRIX;
+        new_zone.leds_min           = layout->key_count;
+        new_zone.leds_max           = layout->key_count;
+        new_zone.leds_count         = layout->key_count;
+        new_zone.matrix_map.Set(layout->rows, layout->cols, map.data());
+
+        zones.push_back(new_zone);
+
+        SetupColors();
+        return;
+    }
 
     new_zone.name               = "Keyboard";
     new_zone.type               = ZONE_TYPE_MATRIX;
@@ -337,11 +434,45 @@ void RGBController_EVisionKeyboard::DeviceUpdateLEDs()
 {
     unsigned char color_data[7*0x36];
 
-    for(int led_idx = 0; led_idx < 126; led_idx++)
+    if(layout != nullptr)
     {
-        color_data[(3 * led_idx) + 0] = RGBGetRValue(colors[led_idx]);
-        color_data[(3 * led_idx) + 1] = RGBGetGValue(colors[led_idx]);
-        color_data[(3 * led_idx) + 2] = RGBGetBValue(colors[led_idx]);
+        memset(color_data, 0x00, sizeof(color_data));
+
+        for(unsigned int led_idx = 0; led_idx < leds.size(); led_idx++)
+        {
+            unsigned int offset = 3 * leds[led_idx].value;
+
+            if(offset + 2 < sizeof(color_data))
+            {
+                color_data[offset + 0] = RGBGetRValue(colors[led_idx]);
+                color_data[offset + 1] = RGBGetGValue(colors[led_idx]);
+                color_data[offset + 2] = RGBGetBValue(colors[led_idx]);
+            }
+        }
+    }
+    else
+    {
+        for(int led_idx = 0; led_idx < 126; led_idx++)
+        {
+            color_data[(3 * led_idx) + 0] = RGBGetRValue(colors[led_idx]);
+            color_data[(3 * led_idx) + 1] = RGBGetGValue(colors[led_idx]);
+            color_data[(3 * led_idx) + 2] = RGBGetBValue(colors[led_idx]);
+        }
+    }
+
+    /*-----------------------------------------------------*\
+    | Per-key colors are only shown in Custom mode. The     |
+    | keyboard may still be running an onboard effect, so   |
+    | send the mode once before the first color update.     |
+    \*-----------------------------------------------------*/
+    if(layout != nullptr && !mode_sent)
+    {
+        DeviceUpdateMode();
+    }
+
+    if(layout != nullptr && layout->use_begin_end)
+    {
+        controller->SendKeyboardBegin();
     }
 
     controller->SetKeyboardColors
@@ -349,6 +480,11 @@ void RGBController_EVisionKeyboard::DeviceUpdateLEDs()
                     color_data,
                     0x36 * 7
                     );
+
+    if(layout != nullptr && layout->use_begin_end)
+    {
+        controller->SendKeyboardEnd();
+    }
 }
 
 void RGBController_EVisionKeyboard::DeviceUpdateZoneLEDs(int /*zone*/)
@@ -375,6 +511,11 @@ void RGBController_EVisionKeyboard::DeviceUpdateMode()
         blu = RGBGetBValue(modes[active_mode].colors[0]);
     }
 
+    if(layout != nullptr && layout->use_begin_end)
+    {
+        controller->SendKeyboardBegin();
+    }
+
     controller->SendKeyboardModeEx
             (
             modes[active_mode].value,
@@ -386,4 +527,11 @@ void RGBController_EVisionKeyboard::DeviceUpdateMode()
             grn,
             blu
             );
+
+    if(layout != nullptr && layout->use_begin_end)
+    {
+        controller->SendKeyboardEnd();
+    }
+
+    mode_sent = true;
 }
