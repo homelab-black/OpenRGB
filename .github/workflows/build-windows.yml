@@ -47,8 +47,13 @@ jobs:
           mkdir OpenRGB_Windows_64bit
           copy release\OpenRGB.exe OpenRGB_Windows_64bit\
           windeployqt --release OpenRGB_Windows_64bit\OpenRGB.exe
-          if exist dependencies\win64\*.dll copy dependencies\win64\*.dll OpenRGB_Windows_64bit\
-
+          for /r dependencies %%f in (*.dll) do (
+            echo %%f | findstr /i "x64 win64 MS64" >nul && copy /y "%%f" OpenRGB_Windows_64bit\
+          )
+          for /r dependencies %%f in (*.bin) do (
+            copy /y "%%f" OpenRGB_Windows_64bit\
+          )
+          
       # 完成したZIPファイルをGitHub Actionsの画面からダウンロード可能にする
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
