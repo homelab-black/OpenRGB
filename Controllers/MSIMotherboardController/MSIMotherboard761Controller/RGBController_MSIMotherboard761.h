@@ -41,8 +41,10 @@ private:
     void        SetupMode
         (
             const char      *name,
-            MSI_MODE        mode,
-            unsigned int    flags
+            int             mode,
+            unsigned int    flags,
+            unsigned int    colors_min,
+            unsigned int    colors_max
             );
     int         GetDeviceMode();
     void        GetDeviceConfig();
