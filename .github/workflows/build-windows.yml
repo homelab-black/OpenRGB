@@ -1,0 +1,57 @@
+name: Build OpenRGB (Windows)
+
+on:
+  # 作業ブランチへPushした時に自動実行（ブランチ名は実際のものに合わせて変更してください）
+  push:
+    branches:
+      - Custom/ENESMBus_CorsairCommanderCore  
+  # GitHubの画面から手動でもいつでも実行できるようにする
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Qt5のインストール（OpenRGBの標準ビルド環境）
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+
+      # Visual Studio (MSVC) のビルド環境をセットアップ
+      - name: Setup MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # 依存ライブラリの取得とビルドの実行
+      - name: Build OpenRGB
+        shell: cmd
+        run: |
+          qmake OpenRGB.pro
+          nmake release
+
+      # 実行に必要なDLLやプラグインをフォルダにまとめる（デプロイ）
+      - name: Package OpenRGB
+        shell: cmd
+        run: |
+          mkdir OpenRGB_Windows_64bit
+          copy release\OpenRGB.exe OpenRGB_Windows_64bit\
+          windeployqt --release OpenRGB_Windows_64bit\OpenRGB.exe
+          if exist dependencies\win64\*.dll copy dependencies\win64\*.dll OpenRGB_Windows_64bit\
+
+      # 完成したZIPファイルをGitHub Actionsの画面からダウンロード可能にする
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRGB-Windows-64bit
+          path: OpenRGB_Windows_64bit/
