@@ -238,6 +238,12 @@
 #define RAZER_KRAKEN_PID                                0x0504
 #define RAZER_KRAKEN_ULTIMATE_PID                       0x0527
 #define RAZER_KRAKEN_V2_PID                             0x0510
+#define RAZER_NARI_ULTIMATE_WIRELESS_PID                0x051A
+#define RAZER_NARI_ULTIMATE_WIRED_PID                   0x051B
+#define RAZER_NARI_WIRELESS_PID                         0x051C
+#define RAZER_NARI_WIRED_PID                            0x051D
+#define RAZER_NARI_ESSENTIAL_WIRELESS_PID               0x051E
+#define RAZER_NARI_ESSENTIAL_WIRED_PID                  0x051F
 #define RAZER_KRAKEN_KITTY_BLACK_EDITION_V2_PID         0x0560
 #define RAZER_KRAKEN_V3_HYPERSENSE_PID                  0x0533
 #define RAZER_KRAKEN_V3_X_PID                           0x0537

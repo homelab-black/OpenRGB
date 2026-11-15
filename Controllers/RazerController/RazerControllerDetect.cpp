@@ -17,6 +17,7 @@
 #include "RazerKrakenController.h"
 #include "RazerKrakenV3Controller.h"
 #include "RazerKrakenV4Controller.h"
+#include "RazerNariController.h"
 #include "RazerHanboController.h"
 #include "ResourceManager.h"
 #include "RGBController_Razer.h"
@@ -24,6 +25,7 @@
 #include "RGBController_RazerKraken.h"
 #include "RGBController_RazerKrakenV3.h"
 #include "RGBController_RazerKrakenV4.h"
+#include "RGBController_RazerNari.h"
 #include "RGBController_RazerHanbo.h"
 
 DetectedControllers DetectRazerControllers(hid_device_info* info, const std::string& name)
@@ -226,6 +228,24 @@ DetectedControllers DetectRazerKrakenV4Controllers(hid_device_info* info, const 
     {
         RazerKrakenV4Controller*     controller     = new RazerKrakenV4Controller(dev, info->path, info->product_id, name);
         RGBController_RazerKrakenV4* rgb_controller = new RGBController_RazerKrakenV4(controller);
+
+        detected_controllers.push_back(rgb_controller);
+    }
+
+    return(detected_controllers);
+}
+
+DetectedControllers DetectRazerNariControllers(hid_device_info* info, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+    hid_device*         dev;
+
+    dev = hid_open_path(info->path);
+
+    if(dev)
+    {
+        RazerNariController* controller = new RazerNariController(dev, info->path, info->product_id, name);
+        RGBController_RazerNari* rgb_controller = new RGBController_RazerNari(controller);
 
         detected_controllers.push_back(rgb_controller);
     }
@@ -443,6 +463,12 @@ REGISTER_HID_DETECTOR_IPU("Razer Kraken V4 (Wired)",                         Det
 REGISTER_HID_DETECTOR_IPU("Razer Kraken V4 (Wireless)",                      DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_V4_WIRELESS_PID,                   0x05,   0xFF14, 0x01);
 REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty V3 Pro (Wired)",               DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_KITTY_V3_PRO_WIRED_PID,            0x05,   0xFF14, 0x01);
 REGISTER_HID_DETECTOR_IPU("Razer Kraken Kitty V3 Pro (Wireless)",            DetectRazerKrakenV4Controllers,RAZER_VID,  RAZER_KRAKEN_KITTY_V3_PRO_WIRELESS_PID,         0x05,   0xFF14, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari Ultimate (Wireless)",                  DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_ULTIMATE_WIRELESS_PID,               0x05,   0xFF00, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari Ultimate (Wired)",                     DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_ULTIMATE_WIRED_PID,                  0x05,   0xFF00, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari (Wireless)",                           DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_WIRELESS_PID,                        0x05,   0xFF00, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari (Wired)",                              DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_WIRED_PID,                           0x05,   0xFF00, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari Essential (Wireless)",                 DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_ESSENTIAL_WIRELESS_PID,              0x05,   0xFF00, 0x01);
+REGISTER_HID_DETECTOR_IPU("Razer Nari Essential (Wired)",                    DetectRazerNariControllers,    RAZER_VID,  RAZER_NARI_ESSENTIAL_WIRED_PID,                 0x05,   0xFF00, 0x01);
 REGISTER_HID_DETECTOR_I(  "Razer Tiamat 7.1 V2",                             DetectRazerControllers,        RAZER_VID,  RAZER_TIAMAT_71_V2_PID,                         0x00                );
 
 /*-----------------------------------------------------------------------------------------------------*\
