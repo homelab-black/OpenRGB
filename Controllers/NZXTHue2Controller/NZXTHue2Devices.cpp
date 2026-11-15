@@ -77,6 +77,13 @@ static const nzxt_hue2_zone kraken_x3_logo_zone =
     false
 };
 
+static const nzxt_hue2_zone kraken_2024_plus_fans_zone =
+{
+    "Fans",
+    "Fan LED ",
+    true
+};
+
 /*---------------------------------------------------------*\
 | DEVICES                                                   |
 \*---------------------------------------------------------*/
@@ -243,6 +250,23 @@ static const nzxt_hue2_device nzxt_kraken_2024_elite_series_rgb_device =
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    }
+};
+
+static const nzxt_hue2_device nzxt_kraken_2024_plus_device =
+{
+    NZXT_KRAKEN_2024_PLUS_PID,
+    1,
+    0,
+    NZXT_HUE_2_PACKET_SIZE_512,
+    NZXT_HUE_2_PROTOCOL_2024_PLUS,
+    {
+        &kraken_2024_plus_fans_zone,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -452,6 +476,7 @@ static const nzxt_hue2_device* device_list[] =
     &nzxt_kraken_x3_series_device,
     &nzxt_kraken_x3_series_rgb_device,
     &nzxt_kraken_2024_elite_series_rgb_device,
+    &nzxt_kraken_2024_plus_device,
     &nzxt_rgb_fan_controller_device,
     &nzxt_rgb_fan_controller2_device,
     &nzxt_rgb_fan_controller3_device,
