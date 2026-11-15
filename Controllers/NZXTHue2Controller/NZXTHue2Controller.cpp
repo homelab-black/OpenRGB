@@ -47,7 +47,7 @@ NZXTHue2Controller::NZXTHue2Controller(hid_device* dev_handle, const char* path,
     }
 
     packet_size      = nzxt_hue2_device_list[device_index]->packet_size;
-    use_2023_effects = nzxt_hue2_device_list[device_index]->use_2023_effects;
+    protocol         = nzxt_hue2_device_list[device_index]->protocol;
     num_fan_channels = nzxt_hue2_device_list[device_index]->num_fan_channels;
     num_rgb_channels = nzxt_hue2_device_list[device_index]->num_rgb_channels;
 
@@ -103,6 +103,11 @@ std::string NZXTHue2Controller::GetName()
 unsigned short NZXTHue2Controller::GetPID()
 {
     return(pid);
+}
+
+nzxt_hue2_protocol NZXTHue2Controller::GetProtocol()
+{
+    return(protocol);
 }
 
 unsigned int NZXTHue2Controller::GetNumFanChannels()
@@ -383,13 +388,16 @@ void NZXTHue2Controller::SetChannelEffect
     /*-----------------------------------------------------*\
     | Send effect packet                                    |
     \*-----------------------------------------------------*/
-    if(use_2023_effects)
+    switch(protocol)
     {
+    case NZXT_HUE_2_PROTOCOL_2023:
         SendEffect2023(channel, mode, speed, direction, num_colors, &color_data[0]);
-    }
-    else
-    {
+        break;
+
+    case NZXT_HUE_2_PROTOCOL_LEGACY:
+    default:
         SendEffect(channel, mode, speed, direction, num_colors, &color_data[0]);
+        break;
     }
 }
 

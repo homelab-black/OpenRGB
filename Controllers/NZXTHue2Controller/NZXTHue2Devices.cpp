@@ -86,7 +86,7 @@ static const nzxt_hue2_device nzxt_hue_2_device =
     4,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -103,7 +103,7 @@ static const nzxt_hue2_device nzxt_hue_2_ambient_device =
     2,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -120,7 +120,7 @@ static const nzxt_hue2_device nzxt_hue_2_motherboard_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -137,7 +137,7 @@ static const nzxt_hue2_device nzxt_hue_2_motherboard_2_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -154,7 +154,7 @@ static const nzxt_hue2_device nzxt_smart_device_v2_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -171,7 +171,7 @@ static const nzxt_hue2_device nzxt_smart_device_v2_1_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -188,7 +188,7 @@ static const nzxt_hue2_device nzxt_smart_device_v2_2_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -205,7 +205,7 @@ static const nzxt_hue2_device nzxt_kraken_x3_series_device =
     3,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &kraken_x3_rgb_header_zone,
         &kraken_x3_ring_zone,
@@ -222,7 +222,7 @@ static const nzxt_hue2_device nzxt_kraken_x3_series_rgb_device =
     3,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &kraken_x3_rgb_header_zone,
         &kraken_x3_ring_zone,
@@ -239,7 +239,7 @@ static const nzxt_hue2_device nzxt_kraken_2024_elite_series_rgb_device =
     2,
     2,
     NZXT_HUE_2_PACKET_SIZE_64,
-    true,
+    NZXT_HUE_2_PROTOCOL_2023,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -256,7 +256,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -273,7 +273,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller2_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -290,7 +290,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller3_device =
     2,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -307,7 +307,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller4_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -324,7 +324,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller5_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -341,7 +341,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller6_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -358,7 +358,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller7_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -375,7 +375,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller8_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -392,7 +392,7 @@ static const nzxt_hue2_device nzxt_rgb_fan_controller9_device =
     6,
     3,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -409,7 +409,7 @@ static const nzxt_hue2_device nzxt_rgb_controller_1_device =
     3,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,
@@ -426,7 +426,7 @@ static const nzxt_hue2_device nzxt_rgb_controller_2_device =
     3,
     0,
     NZXT_HUE_2_PACKET_SIZE_64,
-    false,
+    NZXT_HUE_2_PROTOCOL_LEGACY,
     {
         &hue_2_channel_1_zone,
         &hue_2_channel_2_zone,

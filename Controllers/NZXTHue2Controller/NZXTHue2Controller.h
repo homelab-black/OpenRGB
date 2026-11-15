@@ -86,6 +86,7 @@ public:
     std::string     GetLocation();
     std::string     GetName();
     unsigned short  GetPID();
+    nzxt_hue2_protocol GetProtocol();
     std::string     GetSerialString();
     bool            IsDeviceSupported();
 
@@ -147,7 +148,7 @@ private:
     unsigned short  pid;
     unsigned int    device_index;
     unsigned int    packet_size;
-    bool            use_2023_effects;
+    nzxt_hue2_protocol protocol;
     unsigned int    num_fan_channels;
     unsigned int    num_rgb_channels;
 
