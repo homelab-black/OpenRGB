@@ -12,11 +12,13 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <hidapi.h>
 #include "RGBController.h"
 #include "SteelSeriesDevices.h"
 #include "SteelSeriesApex3Controller.h"
+#include "SteelSeriesGameSense.h"
 
 #define STEELSERIES_8Z_LED_COUNT            8
 #define STEELSERIES_8Z_WRITE_PACKET_SIZE    65
@@ -36,10 +38,17 @@ public:
     bool        SupportsSave();
 
 private:
-    uint8_t     current_brightness;
+    uint8_t                 current_brightness;
+    std::mutex              write_mutex;
+    std::vector<RGBColor>   direct_colors;
+    uint8_t                 direct_brightness;
+    SteelSeriesGameSense    gamesense;
 
     void        SetBrightness(uint8_t brightness);
     uint8_t     GetBrightness();
+    void        WriteColors(std::vector<RGBColor> colors, uint8_t mode, uint8_t brightness);
+
+    static void GameSenseLost(void* this_ptr);
 };
 
 /*-----------------------------------------------------------------------------------------------*\

@@ -14,9 +14,9 @@
 #include "SteelSeriesApex8ZoneController.h"
 #include "LogManager.h"
 
-SteelSeriesApex8ZoneController::SteelSeriesApex8ZoneController(hid_device* dev_handle, const char* path, std::string dev_name) : SteelSeriesApex3Controller(dev_handle, path, dev_name)
+SteelSeriesApex8ZoneController::SteelSeriesApex8ZoneController(hid_device* dev_handle, const char* path, std::string dev_name) : SteelSeriesApex3Controller(dev_handle, path, dev_name), gamesense(GameSenseLost, this)
 {
-
+    direct_brightness = STEELSERIES_8Z_BRIGHTNESS_MAX;
 }
 
 SteelSeriesApex8ZoneController::~SteelSeriesApex8ZoneController()
@@ -77,6 +77,69 @@ uint8_t SteelSeriesApex8ZoneController::GetBrightness()
 
 void SteelSeriesApex8ZoneController::SetColor(std::vector<RGBColor> colors, uint8_t mode, uint8_t brightness)
 {
+    /*-----------------------------------------------------*\
+    | Direct mode (0): if SteelSeries Engine is running it  |
+    | overwrites HID writes, so route through GameSense.    |
+    | Engine ignores the hardware brightness command, so    |
+    | brightness is applied to the colors instead.          |
+    \*-----------------------------------------------------*/
+    if(mode == 0)
+    {
+        {
+            std::lock_guard<std::mutex> lock(write_mutex);
+
+            direct_colors       = colors;
+            direct_brightness   = brightness;
+        }
+
+        std::vector<RGBColor> scaled(colors.size());
+        unsigned int          level = (brightness > STEELSERIES_8Z_BRIGHTNESS_MAX) ? STEELSERIES_8Z_BRIGHTNESS_MAX : brightness;
+
+        for(unsigned int i = 0; i < colors.size(); i++)
+        {
+            scaled[i] = ToRGBColor(RGBGetRValue(colors[i]) * level / STEELSERIES_8Z_BRIGHTNESS_MAX,
+                                   RGBGetGValue(colors[i]) * level / STEELSERIES_8Z_BRIGHTNESS_MAX,
+                                   RGBGetBValue(colors[i]) * level / STEELSERIES_8Z_BRIGHTNESS_MAX);
+        }
+
+        if(gamesense.SendColors(scaled))
+        {
+            return;
+        }
+    }
+    else
+    {
+        gamesense.Stop();
+    }
+
+    WriteColors(colors, mode, brightness);
+}
+
+void SteelSeriesApex8ZoneController::GameSenseLost(void* this_ptr)
+{
+    SteelSeriesApex8ZoneController* this_obj = (SteelSeriesApex8ZoneController*)this_ptr;
+
+    std::vector<RGBColor> colors;
+    uint8_t               brightness;
+
+    {
+        std::lock_guard<std::mutex> lock(this_obj->write_mutex);
+
+        colors      = this_obj->direct_colors;
+        brightness  = this_obj->direct_brightness;
+    }
+
+    this_obj->WriteColors(colors, 0, brightness);
+}
+
+void SteelSeriesApex8ZoneController::WriteColors(std::vector<RGBColor> colors, uint8_t mode, uint8_t brightness)
+{
+    /*-----------------------------------------------------*\
+    | Called from both the device update path and the       |
+    | GameSense keepalive thread                            |
+    \*-----------------------------------------------------*/
+    std::lock_guard<std::mutex> lock(write_mutex);
+
     uint8_t buffer[STEELSERIES_8Z_WRITE_PACKET_SIZE]    = { 0x00, 0x21, 0xFF };
 
     buffer[1]              += mode;
