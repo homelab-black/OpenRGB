@@ -37,18 +37,26 @@ public:
     void        SetMode
                     (
                     MSI_ZONE        zone,
-                    MSI_MODE        mode,
+                    int             mode,
                     MSI_SPEED       speed,
                     MSI_BRIGHTNESS  brightness,
-                    bool            rainbow_color
+                    bool            rainbow_color,
+                    bool            direction_left
                     );
 
-    MSI_MODE    GetMode();
+    void        SetZonePalette
+                    (
+                    MSI_ZONE        zone,
+                    const Color     palette[],
+                    unsigned int    num_colors
+                    );
+
+    int         GetMode();
 
     void        GetMode
                     (
                     MSI_ZONE        zone,
-                    MSI_MODE        &mode,
+                    int             &mode,
                     MSI_SPEED       &speed,
                     MSI_BRIGHTNESS  &brightness,
                     bool            &rainbow_color,
@@ -123,10 +131,62 @@ public:
         return DIRECT_MODE_PER_LED;
     }
 
+    /*-----------------------------------------------------*\
+    | True when this board accepts effect presets in the    |
+    | zone rows of the 0x50 report (see MSI_50_EFFECT)      |
+    \*-----------------------------------------------------*/
+    bool            SupportsHardwareModes()
+    {
+        return hw_modes;
+    }
+
+    /*-----------------------------------------------------*\
+    | LED count MSI Center configures these headers with    |
+    | (effects only reach a row with a non-zero count)      |
+    \*-----------------------------------------------------*/
+    unsigned char   GetDefaultLedNum()
+    {
+        return (unsigned char)default_lednum;
+    }
+
+    /*-----------------------------------------------------*\
+    | LED count the controller itself reported for a zone   |
+    | row when the device was detected, falling back to the |
+    | board default.  Used as the initial zone size so the  |
+    | cycle length the board is already using is preserved. |
+    \*-----------------------------------------------------*/
+    unsigned char   GetZoneLedNum
+                        (
+                        MSI_ZONE zone
+                        );
+
+    /*-----------------------------------------------------*\
+    | Effect state of one row of the 0x50 report.  Each     |
+    | zone's effect is written into that zone's own row     |
+    | (verified against MSI Center's traffic on MS-7E47),   |
+    | so effects can differ per header.                     |
+    \*-----------------------------------------------------*/
+    struct Effect50
+    {
+        int             mode            = MSI_MODE_DIRECT_DUMMY;
+        unsigned char   effect          = MSI_50_EFFECT_PER_LED;
+        unsigned char   sub             = MSI_50_SUB_PLAIN;
+        MSI_SPEED       speed           = MSI_SPEED_MEDIUM;
+        MSI_BRIGHTNESS  brightness      = MSI_BRIGHTNESS_LEVEL_100;
+        bool            rainbow_color   = false;
+        bool            use_palette     = false;
+        bool            direction_left  = false;
+        Color           palette[MSI_50_NUM_PALETTE_COLORS] =
+                        { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
+        bool            valid           = false;
+    };
+
     struct ZoneConfig
     {
         MSI_ZONE msi_zone;
         ZoneData * zone_data;
+        Effect50 effect;
+        unsigned char adopted_lednum = 0;   // LED count the controller reported for this row
     };
 
 private:
@@ -141,6 +201,27 @@ private:
     unsigned char*                                          setup_data;
     bool                                                    setup_dirty;
     int                                                     numof_pipe1_leds;
+    bool                                                    hw_modes;
+    bool                                                    direct_mode_active;
+    int                                                     default_lednum;
+
+    void            WriteEffectRows();
+    bool            ReadEffectRows
+                        (
+                        unsigned char* arr
+                        );
+    bool            UpdateEffects
+                        (
+                        bool save
+                        );
+    ZoneConfig*     FindZoneConfig
+                        (
+                        MSI_ZONE zone
+                        );
+    static unsigned char BrightnessTo50
+                        (
+                        MSI_BRIGHTNESS brightness
+                        );
 
     bool            ReadSettings();
     bool            ReadFwVersion();

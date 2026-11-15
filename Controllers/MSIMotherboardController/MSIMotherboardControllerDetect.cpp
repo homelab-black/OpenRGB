@@ -98,6 +98,23 @@ DetectedControllers DetectMSIMotherboardControllers(hid_device_info* info, const
 
             size_t packet_length_new_attempt = hid_send_feature_report(dev, second_buffer, 761);
 
+            if(packet_length_new_attempt <= 0)
+            {
+                /*-------------------------------------------------*\
+                | The per-LED report is 727 bytes (7 + 720 colors)  |
+                | on the newer 0db0:0076 boards and 761 on others,  |
+                | so retry with the size the driver actually sends. |
+                \*-------------------------------------------------*/
+                memset(second_buffer + sizeof(unsigned char), 0x0, sizeof(second_buffer) - sizeof(unsigned char));
+
+                second_buffer[0]          = 0x51;
+
+                packet_length_new_attempt = hid_send_feature_report(dev, second_buffer, sizeof(FeaturePacket_PerLED_761));
+
+                LOG_INFO("761-byte per-LED report rejected, retrying with %i bytes: %i",
+                         (int)sizeof(FeaturePacket_PerLED_761), (int)packet_length_new_attempt);
+            }
+
             if(packet_length_new_attempt > 0)
             {
                 try

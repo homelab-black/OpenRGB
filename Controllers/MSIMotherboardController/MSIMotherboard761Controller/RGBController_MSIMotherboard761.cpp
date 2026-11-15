@@ -90,7 +90,7 @@ RGBController_MSIMotherboard761::~RGBController_MSIMotherboard761()
 
 int RGBController_MSIMotherboard761::GetDeviceMode()
 {
-    MSI_MODE mode = controller->GetMode();
+    int mode = controller->GetMode();
 
     for(std::size_t i = 0; i < modes.size(); ++i)
     {
@@ -193,7 +193,14 @@ void RGBController_MSIMotherboard761::SetupZones()
 
             if(!(zones[zone_idx].flags & ZONE_FLAG_MANUALLY_CONFIGURED_SIZE))
             {
-                zones[zone_idx].leds_count              = 0;
+                /*-------------------------------------------------*\
+                | A hardware effect only spreads over the number of |
+                | LEDs named in the row's count byte, so size these |
+                | headers the way MSI Center does rather than 0.    |
+                \*-------------------------------------------------*/
+                zones[zone_idx].leds_count              = controller->SupportsHardwareModes()
+                                                        ? controller->GetZoneLedNum(zd->zone_type)
+                                                        : 0;
             }
 
             if(!(zones[zone_idx].flags & ZONE_FLAG_MANUALLY_CONFIGURED_TYPE))
@@ -254,6 +261,14 @@ void RGBController_MSIMotherboard761::DeviceConfigureZone(int zone_idx)
 
 void RGBController_MSIMotherboard761::DeviceUpdateLEDs()
 {
+    /*-----------------------------------------------------*\
+    | OpenRGB keeps one active mode per device, so an       |
+    | effect is written into every zone row even though the |
+    | report carries a row per header and could hold one    |
+    | effect each.  This is how the other MSI motherboard   |
+    | drivers behave too; giving the headers their own      |
+    | effects would mean mapping modes onto zones.          |
+    \*-----------------------------------------------------*/
     for(std::size_t zone_idx = 0; zone_idx < zones.size(); ++zone_idx)
     {
         for(int led_idx = zones[zone_idx].leds_count - 1; led_idx >= 0; led_idx--)
@@ -311,9 +326,51 @@ void RGBController_MSIMotherboard761::DeviceSaveMode()
 
 void RGBController_MSIMotherboard761::SetupModes()
 {
+    constexpr unsigned int SAVED  = MODE_FLAG_MANUAL_SAVE;
+    constexpr unsigned int PARAMS = MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_SPEED;
+
     if(controller->GetSupportedDirectMode() != MSIMotherboard761Controller::DIRECT_MODE_DISABLED)
     {
-        SetupMode("Direct",                 MSI_MODE_DIRECT_DUMMY,                  MODE_FLAG_HAS_PER_LED_COLOR);
+        SetupMode("Direct",                 MSI_MODE_DIRECT_DUMMY,                  MODE_FLAG_HAS_PER_LED_COLOR, 0, 0);
+    }
+
+    /*-----------------------------------------------------*\
+    | Effect presets of the 0x50 report's zone rows.  The   |
+    | names follow MSI Center, whose capture identified     |
+    | every ID that is offered here.  Mapping is always by  |
+    | name, never by number, because this report's numbering|
+    | differs from the older MSI protocols.                 |
+    |                                                       |
+    | ID 0x07 is not offered: it left every LED dark even   |
+    | when MSI Center's own frame was replayed unchanged.   |
+    \*-----------------------------------------------------*/
+    if(controller->SupportsHardwareModes())
+    {
+        /*-------------------------------------------------*\
+        | Names follow the MSI_MODE vocabulary the other    |
+        | MSI motherboard drivers use; the MSI Center label |
+        | for each ID is in the controller's table.         |
+        |                                                   |
+        | Color source per capture:  Fire/Lightning use the |
+        | row's palette,  Color ring was only ever written  |
+        | with generated colors,  Wave and Meteor do either |
+        | (MSI Center writes the generated form unless a    |
+        | color preset is chosen), so those advertise both. |
+        |  Wave honouring a custom palette was confirmed on |
+        | hardware; whether Color ring does the same is not |
+        | established, so it stays generated-only.          |
+        |                                                   |
+        | Direction is offered where the capture shows the  |
+        | bit toggling: Wave and Color ring.                |
+        \*-------------------------------------------------*/
+        SetupMode("Off",                    MSI_MODE_DISABLE,                       SAVED, 0, 0);
+        SetupMode("Static",                 MSI_MODE_STATIC,                        SAVED | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR, 0, 0);
+        SetupMode("Breathing",              MSI_MODE_BREATHING,                     SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_PER_LED_COLOR, 0, 0);
+        SetupMode("Fire",                   MSI_MODE_FIRE,                          SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR, 1, MSI_50_NUM_PALETTE_COLORS);
+        SetupMode("Color wave",             MSI_MODE_COLOR_WAVE,                    SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR, 1, MSI_50_NUM_PALETTE_COLORS);
+        SetupMode("Color ring",             MSI_MODE_COLOR_RING,                    SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_DIRECTION_LR | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR, 1, MSI_50_NUM_PALETTE_COLORS);
+        SetupMode("Lightning",              MSI_MODE_LIGHTNING,                     SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR, 1, MSI_50_NUM_PALETTE_COLORS);
+        SetupMode("Meteor",                 MSI_MODE_METEOR,                        SAVED | PARAMS | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_PER_LED_COLOR | MODE_FLAG_HAS_RANDOM_COLOR, 1, MSI_50_NUM_PALETTE_COLORS);
     }
 }
 
@@ -336,12 +393,69 @@ void RGBController_MSIMotherboard761::UpdateLed
         if(led == 0)
         {
             bool           random     = modes[active_mode].color_mode == MODE_COLORS_RANDOM;
-            MSI_MODE       mode       = (MSI_MODE)modes[active_mode].value;
+            int            mode       = modes[active_mode].value;
             MSI_SPEED      speed      = (MSI_SPEED)modes[active_mode].speed;
             MSI_BRIGHTNESS brightness = (MSI_BRIGHTNESS)modes[active_mode].brightness;
+            MSI_ZONE       msi_zone   = (MSI_ZONE)zones[zone].leds[led].value;
 
-            controller->SetMode((MSI_ZONE)zones[zone].leds[led].value, mode, speed, brightness, random);
-            controller->SetZoneColor((MSI_ZONE)zones[zone].leds[led].value, red, grn, blu, red, grn, blu);
+            /*-------------------------------------------------*\
+            | Direction is only offered for modes that carry   |
+            | the flag.  OpenRGB's default direction value is  |
+            | LEFT, so the flag must be checked before using   |
+            | it, or every mode would ask for the direction    |
+            | bit to be set.                                   |
+            \*-------------------------------------------------*/
+            bool left = ((modes[active_mode].flags & MODE_FLAG_HAS_DIRECTION_LR)
+                      && (modes[active_mode].direction == MODE_DIRECTION_LEFT));
+
+            controller->SetMode(msi_zone, mode, speed, brightness, random, left);
+
+            /*-------------------------------------------------*\
+            | Presets that cycle a palette take their colors   |
+            | from the mode's color list (up to 4 slots); the  |
+            | others use the zone's first LED color.           |
+            \*-------------------------------------------------*/
+            if((modes[active_mode].color_mode == MODE_COLORS_MODE_SPECIFIC)
+             && (modes[active_mode].colors.size() > 0))
+            {
+                Color        palette[MSI_50_NUM_PALETTE_COLORS] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
+                unsigned int num_colors                         = 0;
+
+                for(std::size_t i = 0; i < modes[active_mode].colors.size(); i++)
+                {
+                    if(num_colors >= MSI_50_NUM_PALETTE_COLORS)
+                    {
+                        break;
+                    }
+
+                    palette[num_colors].R = RGBGetRValue(modes[active_mode].colors[i]);
+                    palette[num_colors].G = RGBGetGValue(modes[active_mode].colors[i]);
+                    palette[num_colors].B = RGBGetBValue(modes[active_mode].colors[i]);
+                    num_colors++;
+                }
+
+                /*-------------------------------------------------*\
+                | The row always carries four slots, so repeat the  |
+                | last given color into the unused ones; otherwise  |
+                | a single-color choice would still cycle through   |
+                | whatever the row held before.                     |
+                \*-------------------------------------------------*/
+                if((num_colors > 0) && (num_colors < MSI_50_NUM_PALETTE_COLORS))
+                {
+                    for(unsigned int i = num_colors; i < MSI_50_NUM_PALETTE_COLORS; i++)
+                    {
+                        palette[i] = palette[num_colors - 1];
+                    }
+
+                    num_colors = MSI_50_NUM_PALETTE_COLORS;
+                }
+
+                controller->SetZonePalette(msi_zone, palette, num_colors);
+            }
+            else
+            {
+                controller->SetZoneColor(msi_zone, red, grn, blu, red, grn, blu);
+            }
         }
     }
 }
@@ -349,8 +463,10 @@ void RGBController_MSIMotherboard761::UpdateLed
 void RGBController_MSIMotherboard761::SetupMode
     (
     const char      *name,
-    MSI_MODE        mod,
-    unsigned int    flags
+    int             mod,
+    unsigned int    flags,
+    unsigned int    colors_min,
+    unsigned int    colors_max
     )
 {
     mode Mode;
@@ -358,7 +474,45 @@ void RGBController_MSIMotherboard761::SetupMode
     Mode.value  = mod;
     Mode.flags  = flags;
 
-    if(flags & MODE_FLAG_HAS_PER_LED_COLOR)
+    if(flags & MODE_FLAG_HAS_MODE_SPECIFIC_COLOR)
+    {
+        /*-----------------------------------------------------*\
+        | Start the palette off with the same                 |
+        | red/green/blue/white colors MSI Center leaves in the|
+        | rows, not white in every slot: an untouched palette |
+        | then still shows a recognizable effect instead of a |
+        | steady white one.  Colors are packed 0x00BBGGRR.    |
+        |                                                     |
+        | Every one of MSI Center's 67 captured frames that   |
+        | uses the row palette fills all four slots with      |
+        | different colors; the only frames with identical    |
+        | slots are the generated-color form, where the       |
+        | palette is cleared.  Its Flame row carries          |
+        | red/orange/blue/white.  Picking one color here      |
+        | repeats it into all four slots (OpenRGB convention),|
+        | which left Fire looking steady on MS-7E47: the      |
+        | vendor never writes that shape, so a preset needs   |
+        | distinct slots to look animated.                    |
+        \*-----------------------------------------------------*/
+        static const RGBColor default_palette[MSI_50_NUM_PALETTE_COLORS] =
+        {
+            ToRGBColor(255,   0,   0),
+            ToRGBColor(  0, 255,   0),
+            ToRGBColor(  0,   0, 255),
+            ToRGBColor(255, 255, 255),
+        };
+
+        Mode.color_mode = MODE_COLORS_MODE_SPECIFIC;
+        Mode.colors_min = colors_min;
+        Mode.colors_max = colors_max;
+        Mode.colors.resize(colors_max);
+
+        for(unsigned int i = 0; i < colors_max; i++)
+        {
+            Mode.colors[i] = default_palette[i % MSI_50_NUM_PALETTE_COLORS];
+        }
+    }
+    else if(flags & MODE_FLAG_HAS_PER_LED_COLOR)
     {
         Mode.color_mode = MODE_COLORS_PER_LED;
     }
@@ -405,7 +559,7 @@ void RGBController_MSIMotherboard761::GetDeviceConfig()
 {
     if(controller->GetMode() != MSI_MODE_DIRECT_DUMMY)
     {
-        MSI_MODE       mode;
+        int            mode;
         MSI_SPEED      speed;
         MSI_BRIGHTNESS brightness;
         bool           rainbow;

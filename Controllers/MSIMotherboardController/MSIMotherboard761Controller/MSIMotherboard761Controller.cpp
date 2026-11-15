@@ -35,7 +35,79 @@ struct mystic_light_761_config
     int                                      numof_JRGBs;           // number of supported JRGB headers (used in per LED mode only)
     const std::vector<MSI_ZONE>*             supported_zones;       // pointer to vector of supported zones
     MSIMotherboard761Controller::DIRECT_MODE per_led_mode;          // type of direct mode support
+    bool                                     supports_hw_modes = false; // board accepts effect presets in the 0x50 zone rows
+    int                                      default_lednum    = 0; // LED count MSI Center uses for the headers
 };
+
+/*---------------------------------------------------------*\
+| Modes of the 0x50 report's zone rows.  The IDs and the    |
+| per-mode sub values below come from capturing MSI        |
+| Center's USB traffic on an MSI X870 GAMING PLUS WIFI     |
+| (MS-7E47): applying an effect to a header rewrites that  |
+| header's row.  MSI Center uses IDs 0x00 .. 0x08; only    |
+| Off / Static / Breathing could be identified with        |
+| certainty (the standalone reverse engineering of the     |
+| older B860 boards numbers wave as 0x01 and rainbow as    |
+| 0x05), so the remaining presets are not offered until    |
+| their UI names are matched up.                           |
+|                                                           |
+| NB: these IDs are not the 112/162/185-byte protocol's     |
+| MSI_MODE values, hence this explicit translation table.   |
+\*---------------------------------------------------------*/
+struct mystic_light_50_effect
+{
+    int             mode;       // OpenRGB-visible mode value for this driver
+    unsigned char   effect;     // byte written to MSI_50_ROW_COL_EFFECT
+    unsigned char   sub;        // byte written to MSI_50_ROW_COL_SUB
+    bool            palette;    // the effect reads the row's palette slots
+};
+
+static const mystic_light_50_effect effect_50_table[] =
+{
+    { MSI_MODE_DISABLE,            MSI_50_EFFECT_DISABLE,        MSI_50_SUB_PLAIN,      false }, // Off      0x00
+    { MSI_MODE_STATIC,             MSI_50_EFFECT_STATIC,         MSI_50_SUB_PLAIN,      true  }, // Steady   0x02
+    { MSI_MODE_BREATHING,          MSI_50_EFFECT_BREATHING,      MSI_50_SUB_PLAIN,      true  }, // Breath   0x04
+    { MSI_MODE_FIRE,               MSI_50_EFFECT_FIRE,           MSI_50_SUB_FOUR_COLOR, true  }, // Flame     0x03
+    { MSI_MODE_COLOR_WAVE,         MSI_50_EFFECT_COLOR_WAVE,     MSI_50_SUB_GENERATED,  true  }, // Wave      0x01
+    { MSI_MODE_COLOR_RING,         MSI_50_EFFECT_COLOR_RING,     MSI_50_SUB_GENERATED,  true  }, // Color ring 0x05
+    { MSI_MODE_LIGHTNING,          MSI_50_EFFECT_LIGHTNING,      MSI_50_SUB_PLAIN,      true  }, // Lightning 0x06
+    { MSI_MODE_METEOR,             MSI_50_EFFECT_METEOR,         MSI_50_SUB_GENERATED,  true  }, // Meteor    0x08
+
+    /*-------------------------------------------------*\
+    | ID 0x07 (MSI Center "Recreation") is deliberately |
+    | absent: it produced no light from MSI Center's    |
+    | own captured frame, nor with sub 0x01/0x03, the   |
+    | palette or generated colors, or cycle 30/60 -     |
+    | while a 0x04 Breath written into the same row was |
+    | clearly visible, so the row itself was fine.      |
+    \*-------------------------------------------------*/
+};
+
+static const mystic_light_50_effect * FindEffect50ById(unsigned char effect_id)
+{
+    for(std::size_t i = 0; i < sizeof(effect_50_table) / sizeof(effect_50_table[0]); i++)
+    {
+        if(effect_50_table[i].effect == effect_id)
+        {
+            return &effect_50_table[i];
+        }
+    }
+
+    return nullptr;
+}
+
+static const mystic_light_50_effect * FindEffect50(int mode)
+{
+    for(std::size_t i = 0; i < sizeof(effect_50_table) / sizeof(effect_50_table[0]); i++)
+    {
+        if(effect_50_table[i].mode == mode)
+        {
+            return &effect_50_table[i];
+        }
+    }
+
+    return nullptr;
+}
 
 static const std::vector<MSI_ZONE> zone_set1 =
 {
@@ -101,7 +173,7 @@ static const mystic_light_761_config board_configs[] =
     { &(board_names[0]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI X870 TOMAHAWK WIFI
     { &(board_names[1]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI MAG B850M MORTAR WIFI
     { &(board_names[2]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI MPG B850I EDGE TI WIFI
-    { &(board_names[3]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI X870 GAMING PLUS WIFI
+    { &(board_names[3]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED, true, 30 },  // MSI X870 GAMING PLUS WIFI (validated with a MSI Center capture, LED count 30 as MSI Center uses)
     { &(board_names[4]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI B850 GAMING PLUS WIFI6E
     { &(board_names[5]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI B850M GAMING PLUS WIFI6E
     { &(board_names[6]), 0,  0,  0, 1, &zone_set1,  MSIMotherboard761Controller::DIRECT_MODE_ZONE_BASED },      // MSI MPG X870E CARBON WIFI
@@ -244,6 +316,9 @@ MSIMotherboard761Controller::MSIMotherboard761Controller(hid_device* handle, con
     {
         supported_zones     = (std::vector<MSI_ZONE>*) board_config->supported_zones;
         numof_pipe1_leds    = board_config->numof_pipe1_leds;
+        hw_modes            = board_config->supports_hw_modes;
+        default_lednum      = board_config->default_lednum;
+        direct_mode_active  = true;
         unsigned int max    = 0;
 
         for(std::size_t i = 0; i < board_config->supported_zones[0].size(); i++)
@@ -308,6 +383,19 @@ MSIMotherboard761Controller::MSIMotherboard761Controller(hid_device* handle, con
             ReadName();
             ReadFwVersion();
             ReadSettings();
+
+            /*---------------------------------------------*\
+            | On these boards the effect state lives in the |
+            | 0x50 report itself, so read it back before    |
+            | pushing a configuration: otherwise detecting  |
+            | (or resizing a zone) would overwrite whatever |
+            | the board is running, and the UI would claim  |
+            | Direct while an effect is in fact lit.        |
+            \*---------------------------------------------*/
+            if(hw_modes)
+            {
+                ReadEffectRows(conf_arr);
+            }
 
             /*---------------------------------------------*\
             | Push config so setting colors works           |
@@ -385,14 +473,351 @@ MSIMotherboard761Controller::~MSIMotherboard761Controller()
 
 void MSIMotherboard761Controller::SetMode
     (
-    MSI_ZONE        /*zone*/,
-    MSI_MODE        /*mode*/,
-    MSI_SPEED       /*speed*/,
-    MSI_BRIGHTNESS  /*brightness*/,
-    bool            /*rainbow_color*/
+    MSI_ZONE        zone,
+    int             mode,
+    MSI_SPEED       speed,
+    MSI_BRIGHTNESS  brightness,
+    bool            rainbow_color,
+    bool            direction_left
     )
 {
-    return; // Only supporting direct for now
+    if(!hw_modes)
+    {
+        return; // only direct mode is known to work on this board
+    }
+
+    /*-----------------------------------------------------*\
+    | Look up the ID this protocol uses for the requested   |
+    | mode; modes without a captured ID are not offered     |
+    \*-----------------------------------------------------*/
+    const mystic_light_50_effect* effect = FindEffect50(mode);
+
+    if(effect == nullptr)
+    {
+        LOG_WARNING("[%s]: no 0x50 effect ID known for mode %d, mode not applied", name.c_str(), mode);
+        return;
+    }
+
+    /*-----------------------------------------------------*\
+    | Update the zone's effect state; each zone's effect is |
+    | written into its own row of the 0x50 report           |
+    \*-----------------------------------------------------*/
+    ZoneConfig* conf = FindZoneConfig(zone);
+
+    if(conf == nullptr)
+    {
+        return;
+    }
+
+    conf->effect.mode            = mode;
+    conf->effect.effect          = effect->effect;
+    conf->effect.sub             = effect->sub;
+    conf->effect.speed           = speed;
+    conf->effect.brightness      = brightness;
+    conf->effect.rainbow_color   = rainbow_color;
+    conf->effect.use_palette     = effect->palette && !rainbow_color;
+    conf->effect.direction_left  = direction_left;
+    conf->effect.valid           = true;
+
+    direct_mode_active           = false;
+}
+
+MSIMotherboard761Controller::ZoneConfig* MSIMotherboard761Controller::FindZoneConfig
+    (
+    MSI_ZONE zone
+    )
+{
+    for(std::size_t i = 0; i < zone_configs.size(); i++)
+    {
+        if(zone_configs[i].msi_zone == zone)
+        {
+            return &zone_configs[i];
+        }
+    }
+
+    return nullptr;
+}
+
+unsigned char MSIMotherboard761Controller::BrightnessTo50
+    (
+    MSI_BRIGHTNESS brightness
+    )
+{
+    /*-----------------------------------------------------*\
+    | This report uses brightness 1..5 (5 = maximum), with  |
+    | 0 switching the effect off.  OpenRGB's MSI_BRIGHTNESS |
+    | runs 0..10.                                           |
+    \*-----------------------------------------------------*/
+    if(brightness <= MSI_BRIGHTNESS_OFF)
+    {
+        return MSI_50_BRIGHTNESS_OFF;
+    }
+
+    unsigned char level = (unsigned char)(((unsigned int)brightness + 1) / 2);
+
+    if(level < MSI_50_BRIGHTNESS_MIN)
+    {
+        level = MSI_50_BRIGHTNESS_MIN;
+    }
+    if(level > MSI_50_BRIGHTNESS_MAX)
+    {
+        level = MSI_50_BRIGHTNESS_MAX;
+    }
+
+    return level;
+}
+
+void MSIMotherboard761Controller::SetZonePalette
+    (
+    MSI_ZONE        zone,
+    const Color     palette[],
+    unsigned int    num_colors
+    )
+{
+    if(!hw_modes)
+    {
+        return;
+    }
+
+    ZoneConfig* conf = FindZoneConfig(zone);
+
+    if(conf == nullptr)
+    {
+        return;
+    }
+
+    for(unsigned int i = 0; (i < num_colors) && (i < MSI_50_NUM_PALETTE_COLORS); i++)
+    {
+        conf->effect.palette[i] = palette[i];
+    }
+}
+
+bool MSIMotherboard761Controller::ReadEffectRows(unsigned char* arr)
+{
+    if((dev == nullptr) || (arr == nullptr))
+    {
+        return false;
+    }
+
+    unsigned char buffer[SETUP_ARRAY_SIZE];
+    buffer[0] = 0x50;
+    memset(&buffer[1], 0x00, sizeof(buffer) - 1);
+
+    if(hid_get_feature_report(dev, buffer, sizeof(buffer)) < (int)sizeof(buffer))
+    {
+        LOG_INFO("[%s]: could not read the 0x50 report back, using the default configuration", name.c_str());
+        return false;
+    }
+
+    /*-----------------------------------------------------*\
+    | Adopt the rows as the controller holds them, so a     |
+    | configuration send cannot clobber a running effect.   |
+    | The apply byte is never carried over: a configuration |
+    | send must not commit to controller flash.             |
+    \*-----------------------------------------------------*/
+    memcpy(&arr[1], &buffer[1], SETUP_ARRAY_SIZE - 1);
+    arr[MSI_50_IDX_APPLY] = 0x00;
+
+    int adopted = 0;
+
+    for(std::size_t i = 0; i < zone_configs.size(); i++)
+    {
+        int idx = get_zone_setup_index(zone_configs[i].msi_zone);
+
+        if(idx < 0)
+        {
+            continue;
+        }
+
+        zone_configs[i].adopted_lednum = arr[ARRAY_ROW_RAW(idx, MSI_50_ROW_COL_LEDNUM)];
+
+        unsigned char sub = arr[ARRAY_ROW_RAW(idx, MSI_50_ROW_COL_SUB)];
+        unsigned char par = arr[ARRAY_ROW_RAW(idx, MSI_50_ROW_COL_PARAM)];
+
+        /*-------------------------------------------------*\
+        | An unknown id (the per-LED marker among them) is  |
+        | not an effect this driver models, and a row whose |
+        | parameter byte has bit 7 set is the controller's  |
+        | idle row - the state it holds after power has been|
+        | lost, and one the controller ignores.  Neither is |
+        | adopted; only the LED count is kept from it.      |
+        \*-------------------------------------------------*/
+        const mystic_light_50_effect* effect = FindEffect50ById(arr[ARRAY_ROW_RAW(idx, MSI_50_ROW_COL_EFFECT)]);
+
+        if((effect == nullptr) || ((par & ~MSI_50_PARAM_ZONE_MASK) != 0))
+        {
+            continue;
+        }
+
+        Effect50& state   = zone_configs[i].effect;
+
+        state.mode          = effect->mode;
+        state.effect        = effect->effect;
+        state.sub           = sub;
+        state.speed         = (MSI_SPEED)(par & MSI_50_PARAM_SPEED_MASK);
+        state.brightness    = (MSI_BRIGHTNESS)(2 * ((par & MSI_50_PARAM_BRIGHTNESS_MASK) >> MSI_50_PARAM_BRIGHTNESS_SHIFT));
+        state.use_palette   = (par & MSI_50_PARAM_USE_PALETTE) != 0;
+        state.rainbow_color = !state.use_palette;
+        state.direction_left= (par & MSI_50_PARAM_DIRECTION_LEFT) != 0;
+        state.valid         = true;
+
+        for(int c = 0; c < MSI_50_NUM_PALETTE_COLORS; c++)
+        {
+            int col = MSI_50_ROW_COL_COLOR1 + (c * 3);
+
+            state.palette[c].R = arr[ARRAY_ROW_RAW(idx, col    )];
+            state.palette[c].G = arr[ARRAY_ROW_RAW(idx, col + 1)];
+            state.palette[c].B = arr[ARRAY_ROW_RAW(idx, col + 2)];
+        }
+
+        adopted++;
+        direct_mode_active = false;
+    }
+
+    LOG_INFO("[%s]: adopted %d effect row(s) from the controller", name.c_str(), adopted);
+
+    return true;
+}
+
+unsigned char MSIMotherboard761Controller::GetZoneLedNum
+    (
+    MSI_ZONE zone
+    )
+{
+    ZoneConfig* conf = FindZoneConfig(zone);
+
+    if((conf != nullptr) && (conf->adopted_lednum > 0))
+    {
+        return conf->adopted_lednum;
+    }
+
+    return (unsigned char)default_lednum;
+}
+
+void MSIMotherboard761Controller::WriteEffectRows()
+{
+    if(setup_data == nullptr)
+    {
+        return;
+    }
+
+    for(std::size_t i = 0; i < zone_configs.size(); i++)
+    {
+        const ZoneConfig& conf = zone_configs[i];
+
+        if(!conf.effect.valid)
+        {
+            continue;
+        }
+
+        /*-------------------------------------------------*\
+        | Pack the row's parameter byte.  Bit 7 is kept     |
+        | clear: MSI Center never sets it in a zone row and |
+        | the controller ignores the row when it is.        |
+        \*-------------------------------------------------*/
+        unsigned char param = 0;
+
+        param  = (unsigned char)(((unsigned int)conf.effect.speed << MSI_50_PARAM_SPEED_SHIFT) & MSI_50_PARAM_SPEED_MASK);
+        param |= (unsigned char)((BrightnessTo50(conf.effect.brightness) << MSI_50_PARAM_BRIGHTNESS_SHIFT) & MSI_50_PARAM_BRIGHTNESS_MASK);
+
+        /*-------------------------------------------------*\
+        | Random (generated) colors clear the palette bit,  |
+        | custom colors use the row's palette slots         |
+        \*-------------------------------------------------*/
+        if(conf.effect.use_palette)
+        {
+            param |= MSI_50_PARAM_USE_PALETTE;
+        }
+
+        if(conf.effect.direction_left)
+        {
+            param |= MSI_50_PARAM_DIRECTION_LEFT;
+        }
+
+        /*-------------------------------------------------*\
+        | Bit 7 is masked off: MSI Center never sets it in  |
+        | a zone row and the controller ignores the row    |
+        | when it is (measured on MS-7E47).  It is only an  |
+        | animate flag in the command row of the older     |
+        | B860 boards.                                      |
+        \*-------------------------------------------------*/
+        param &= MSI_50_PARAM_ZONE_MASK;
+
+        MSI_ZONE zone = conf.msi_zone;
+
+        /*-------------------------------------------------*\
+        | An effect only reaches a header whose row has a   |
+        | non-zero LED count (measured on MS-7E47), so keep |
+        | the row sized the way MSI Center sizes it.        |
+        \*-------------------------------------------------*/
+        if(setup_data[ARRAY_ROW(zone, MSI_50_ROW_COL_LEDNUM)] == 0)
+        {
+            setup_data[ARRAY_ROW(zone, MSI_50_ROW_COL_LEDNUM)] = (unsigned char)default_lednum;
+        }
+
+        setup_data[ARRAY_ROW(zone, MSI_50_ROW_COL_EFFECT)] = conf.effect.effect;
+        setup_data[ARRAY_ROW(zone, MSI_50_ROW_COL_SUB)]    = conf.effect.sub;
+        setup_data[ARRAY_ROW(zone, MSI_50_ROW_COL_PARAM)]  = param;
+
+        for(int c = 0; c < MSI_50_NUM_PALETTE_COLORS; c++)
+        {
+            int col = MSI_50_ROW_COL_COLOR1 + (c * 3);
+
+            setup_data[ARRAY_ROW(zone, col    )] = conf.effect.palette[c].R;
+            setup_data[ARRAY_ROW(zone, col + 1)] = conf.effect.palette[c].G;
+            setup_data[ARRAY_ROW(zone, col + 2)] = conf.effect.palette[c].B;
+        }
+    }
+}
+
+bool MSIMotherboard761Controller::UpdateEffects
+    (
+    bool save
+    )
+{
+    bool any_effect = false;
+
+    for(std::size_t i = 0; i < zone_configs.size(); i++)
+    {
+        any_effect = any_effect || zone_configs[i].effect.valid;
+    }
+
+    if((dev == nullptr) || (setup_data == nullptr) || !any_effect)
+    {
+        return false;
+    }
+
+    WriteEffectRows();
+
+    /*-----------------------------------------------------*\
+    | Byte 289 commits the frame to the controller's      |
+    | flash, 0x00 only changes the frame held in RAM.  A  |
+    | committed frame is what the board shows after power |
+    | is lost, measured by replaying MSI Center's own     |
+    | commit and cold-cycling the machine.  The byte is   |
+    | set only on an explicit save, to spare the flash.   |
+    |                                                     |
+    | Note that a warm reboot is not a test of this: 5V   |
+    | standby power keeps the RAM frame alive, so the same|
+    | lights come back either way.                        |
+    \*-----------------------------------------------------*/
+    setup_data[MSI_50_IDX_APPLY] = save ? 0x01 : 0x00;
+
+    if(hid_send_feature_report(dev, setup_data, SETUP_ARRAY_SIZE) < 0)
+    {
+        LOG_ERROR("[%s]: failed to send effect settings", name.c_str());
+        return false;
+    }
+
+    setup_dirty = false;
+
+    /*-------------------------------------------------*\
+    | Drop the flash commit again so it cannot be       |
+    | replayed by a later configuration send.           |
+    \*-------------------------------------------------*/
+    setup_data[MSI_50_IDX_APPLY] = 0x00;
+
+    return true;
 }
 
 std::string MSIMotherboard761Controller::GetDeviceName()
@@ -435,9 +860,19 @@ bool MSIMotherboard761Controller::ReadSettings()
 
 bool MSIMotherboard761Controller::Update
     (
-    bool /*save*/
+    bool save
     )
 {
+    /*-----------------------------------------------------*\
+    | Hardware modes are driven by the 0x50 report's command|
+    | row; the per-LED packets must not be sent in that     |
+    | case or they overwrite the effect.                    |
+    \*-----------------------------------------------------*/
+    if(hw_modes && !direct_mode_active)
+    {
+        return UpdateEffects(save);
+    }
+
     bool flag = true;
     FeaturePacket_Zone_761* packets[] = { &data->jaf, &data->jargb1, &data->jargb2, &data->jargb3, &data->jpipe1 };
 
@@ -495,6 +930,28 @@ void MSIMotherboard761Controller::SetZoneColor
             zone_configs[i].zone_data->color2.R = red2;
             zone_configs[i].zone_data->color2.G = grn2;
             zone_configs[i].zone_data->color2.B = blu2;
+        }
+    }
+
+    if(hw_modes)
+    {
+        /*-------------------------------------------------*\
+        | Palette slot 1 is what the single-colour effects  |
+        | use; MSI Center also fills slots 3 and 4 with the |
+        | default colors, but keeping the two given colors  |
+        | in the first slots is what drives the effect.     |
+        \*-------------------------------------------------*/
+        ZoneConfig* conf = FindZoneConfig(zone);
+
+        if(conf != nullptr)
+        {
+            Color color1 { red1, grn1, blu1 };
+            Color color2 { red2, grn2, blu2 };
+
+            conf->effect.palette[0] = color1;
+            conf->effect.palette[1] = color2;
+            conf->effect.palette[2] = color1;
+            conf->effect.palette[3] = color2;
         }
     }
 }
@@ -612,21 +1069,53 @@ void MSIMotherboard761Controller::ReadName()
     name.append(" ").append(StringUtils::wstring_to_string(tname));
 }
 
-MSI_MODE MSIMotherboard761Controller::GetMode()
+int MSIMotherboard761Controller::GetMode()
 {
+    if(direct_mode_active)
+    {
+        return MSI_MODE_DIRECT_DUMMY;
+    }
+
+    /*-----------------------------------------------------*\
+    | Report the first zone that has an effect set          |
+    \*-----------------------------------------------------*/
+    for(std::size_t i = 0; i < zone_configs.size(); i++)
+    {
+        if(zone_configs[i].effect.valid)
+        {
+            return zone_configs[i].effect.mode;
+        }
+    }
+
     return MSI_MODE_DIRECT_DUMMY;
 }
 
 void MSIMotherboard761Controller::GetMode
     (
     MSI_ZONE            zone,
-    MSI_MODE &          mode,
+    int &               mode,
     MSI_SPEED &         speed,
     MSI_BRIGHTNESS &    brightness,
     bool &              rainbow_color,
     unsigned int &      color
     )
 {
+    /*-----------------------------------------------------*\
+    | On boards with hardware presets the per-zone effect   |
+    | state is the authoritative source                     |
+    \*-----------------------------------------------------*/
+    ZoneConfig* conf = FindZoneConfig(zone);
+
+    if((conf != nullptr) && conf->effect.valid)
+    {
+        mode          = conf->effect.mode;
+        speed         = conf->effect.speed;
+        brightness    = conf->effect.brightness;
+        rainbow_color = conf->effect.rainbow_color;
+        color         = ToRGBColor(conf->effect.palette[0].R, conf->effect.palette[0].G, conf->effect.palette[0].B);
+        return;
+    }
+
     /*-----------------------------------------------------*\
     | Get data for given zone                               |
     \*-----------------------------------------------------*/
@@ -704,6 +1193,13 @@ void MSIMotherboard761Controller::SendConfiguration()
     /*-----------------------------------------------------*\
     | Stays dirty on failure so the next update tries again |
     \*-----------------------------------------------------*/
+    /*-----------------------------------------------------*\
+    | This path only carries zone configuration, so make    |
+    | sure a flash commit left over from an earlier save    |
+    | cannot be replayed here.                              |
+    \*-----------------------------------------------------*/
+    setup_data[MSI_50_IDX_APPLY] = 0x00;
+
     if(hid_send_feature_report(dev, setup_data, SETUP_ARRAY_SIZE) < 0)
     {
         LOG_ERROR("[%s]: failed to send configuration", name.c_str());
@@ -715,15 +1211,44 @@ void MSIMotherboard761Controller::SendConfiguration()
 
 void MSIMotherboard761Controller::SetDirectMode
     (
-    bool /*mode*/
+    bool mode
     )
 {
+    direct_mode_active = mode;
+
+    /*-----------------------------------------------------*\
+    | Leaving a hardware mode hands the row's colors back   |
+    | to the per-LED packets, so clear the zone rows' effect|
+    | IDs again (this is what the setup array leaves them at|
+    | when the controller is created).                      |
+    \*-----------------------------------------------------*/
+    if(mode && (setup_data != nullptr))
+    {
+        for(std::size_t i = 0; i < zone_configs.size(); i++)
+        {
+            if(!zone_configs[i].effect.valid)
+            {
+                continue;
+            }
+
+            int idx = get_zone_setup_index(zone_configs[i].msi_zone);
+
+            if(idx >= 0)
+            {
+                setup_data[ARRAY_ROW_RAW(idx, MSI_50_ROW_COL_EFFECT)] = MSI_50_EFFECT_PER_LED;
+            }
+
+            zone_configs[i].effect.valid = false;
+            setup_dirty                  = true;
+        }
+    }
+
     SelectPerLedProtocol();
 }
 
 bool MSIMotherboard761Controller::IsDirectModeActive()
 {
-    return true;
+    return direct_mode_active;
 }
 
 size_t MSIMotherboard761Controller::GetMaxDirectLeds
