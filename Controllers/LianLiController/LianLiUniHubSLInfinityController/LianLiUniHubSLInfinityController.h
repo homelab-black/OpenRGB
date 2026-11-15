@@ -18,6 +18,8 @@
 #include <hidapi.h>
 #include "RGBController.h"
 
+#define UNIHUB_SLINF_LED_MODE_DIRECT 0xFFFF
+
 /*----------------------------------------------------------------------------*\
 | Global definitions.                                                          |
 \*----------------------------------------------------------------------------*/
@@ -28,36 +30,45 @@
 
 enum
 {
-    UNIHUB_SLINF_CHANNEL_COUNT              = 0x08,   /* Channel count                   */
-    UNIHUB_SLINF_CHAN_LED_COUNT             = 0x10 * 6,   /* Max-LED per channel count - 96  */
+    UNIHUB_SLINF_CHANNEL_COUNT              = 0x08,
+    UNIHUB_SLINF_CHAN_LED_COUNT             = 0x10 * 6,
 };
 
 /*----------------------------------------------------------------------------*\
 | Definitions related to LED configuration.                                    |
 \*----------------------------------------------------------------------------*/
 
-// Used for sync'd mode between Fan and Edge
+/*---------------------------------------------------------*\
+| Used for sync'd mode between Fan and Edge.                |
+| Palette: Static/Breathing use the full data array.        |
+| Stack uses 1 colour; Color Cycle uses 3.                  |
+| Staggered/Tide/Runway/Mixing/Meteor/Groove use 2.         |
+| Render/Tunnel use 4. Rainbow Morph/Rainbow/Stack Multi    |
+| Color/Neon/Voice do not use a palette.                    |
+\*---------------------------------------------------------*/
 
 enum
 {
-    UNIHUB_SLINF_LED_MODE_STATIC_COLOR   = 0x01, // full data array
-    UNIHUB_SLINF_LED_MODE_BREATHING      = 0x02, // full data array
-    UNIHUB_SLINF_LED_MODE_RAINBOW_MORPH  = 0x04, // no array
-    UNIHUB_SLINF_LED_MODE_RAINBOW        = 0x05, // no array
-    UNIHUB_SLINF_LED_MODE_STAGGERED      = 0x18, // size 2
-    UNIHUB_SLINF_LED_MODE_TIDE           = 0x1A, // size 2
-    UNIHUB_SLINF_LED_MODE_RUNWAY         = 0x1C, // size 2
-    UNIHUB_SLINF_LED_MODE_MIXING         = 0x1E, // size 2
-    UNIHUB_SLINF_LED_MODE_STACK          = 0x20, // size 1
-    UNIHUB_SLINF_LED_MODE_STACK_MULTI_COLOR = 0x21, // no array
-    UNIHUB_SLINF_LED_MODE_NEON           = 0x22, // no array
-    UNIHUB_SLINF_LED_MODE_COLOR_CYCLE    = 0x23, // size 3
-    UNIHUB_SLINF_LED_MODE_METEOR         = 0x24, // size 2
-    UNIHUB_SLINF_LED_MODE_VOICE          = 0x26, // no array
-    UNIHUB_SLINF_LED_MODE_GROOVE         = 0x27, // size 2
-    UNIHUB_SLINF_LED_MODE_RENDER         = 0x28, // size 4
-    UNIHUB_SLINF_LED_MODE_TUNNEL         = 0x29, // size 4
-    // merged modes
+    UNIHUB_SLINF_LED_MODE_STATIC_COLOR   = 0x01,
+    UNIHUB_SLINF_LED_MODE_BREATHING      = 0x02,
+    UNIHUB_SLINF_LED_MODE_RAINBOW_MORPH  = 0x04,
+    UNIHUB_SLINF_LED_MODE_RAINBOW        = 0x05,
+    UNIHUB_SLINF_LED_MODE_STAGGERED      = 0x18,
+    UNIHUB_SLINF_LED_MODE_TIDE           = 0x1A,
+    UNIHUB_SLINF_LED_MODE_RUNWAY         = 0x1C,
+    UNIHUB_SLINF_LED_MODE_MIXING         = 0x1E,
+    UNIHUB_SLINF_LED_MODE_STACK          = 0x20,
+    UNIHUB_SLINF_LED_MODE_STACK_MULTI_COLOR = 0x21,
+    UNIHUB_SLINF_LED_MODE_NEON           = 0x22,
+    UNIHUB_SLINF_LED_MODE_COLOR_CYCLE    = 0x23,
+    UNIHUB_SLINF_LED_MODE_METEOR         = 0x24,
+    UNIHUB_SLINF_LED_MODE_VOICE          = 0x26,
+    UNIHUB_SLINF_LED_MODE_GROOVE         = 0x27,
+    UNIHUB_SLINF_LED_MODE_RENDER         = 0x28,
+    UNIHUB_SLINF_LED_MODE_TUNNEL         = 0x29,
+    /*---------------------------------------------------------*\
+    | merged modes                                              |
+    \*---------------------------------------------------------*/
     UNIHUB_SLINF_LED_MODE_METEOR_MERGED  = 0x2A,
     UNIHUB_SLINF_LED_MODE_RUNWAY_MERGED  = 0x2B,
     UNIHUB_SLINF_LED_MODE_TIDE_MERGED    = 0x2C,
@@ -67,33 +78,36 @@ enum
 
 enum
 {
-    UNIHUB_SLINF_LED_SPEED_000              = 0x02,   /* Very slow speed         */
-    UNIHUB_SLINF_LED_SPEED_025              = 0x01,   /* Rather slow speed       */
-    UNIHUB_SLINF_LED_SPEED_050              = 0x00,   /* Medium speed            */
-    UNIHUB_SLINF_LED_SPEED_075              = 0xFF,   /* Rather fast speed       */
-    UNIHUB_SLINF_LED_SPEED_100              = 0xFE,   /* Very fast speed         */
+    UNIHUB_SLINF_LED_SPEED_000              = 0x02,
+    UNIHUB_SLINF_LED_SPEED_025              = 0x01,
+    UNIHUB_SLINF_LED_SPEED_050              = 0x00,
+    UNIHUB_SLINF_LED_SPEED_075              = 0xFF,
+    UNIHUB_SLINF_LED_SPEED_100              = 0xFE,
 };
 
 enum
 {
-    UNIHUB_SLINF_LED_DIRECTION_LTR          = 0x00,   /* Left-to-Right direction */
-    UNIHUB_SLINF_LED_DIRECTION_RTL          = 0x01,   /* Right-to-Left direction */
+    UNIHUB_SLINF_LED_DIRECTION_LTR          = 0x00,
+    UNIHUB_SLINF_LED_DIRECTION_RTL          = 0x01,
 };
 
 enum
 {
-    UNIHUB_SLINF_LED_BRIGHTNESS_000         = 0x08,   /* Very dark (off)         */
-    UNIHUB_SLINF_LED_BRIGHTNESS_025         = 0x03,   /* Rather dark             */
-    UNIHUB_SLINF_LED_BRIGHTNESS_050         = 0x02,   /* Medium bright           */
-    UNIHUB_SLINF_LED_BRIGHTNESS_075         = 0x01,   /* Rather bright           */
-    UNIHUB_SLINF_LED_BRIGHTNESS_100         = 0x00,   /* Very bright             */
+    UNIHUB_SLINF_LED_BRIGHTNESS_000         = 0x08,
+    UNIHUB_SLINF_LED_BRIGHTNESS_025         = 0x03,
+    UNIHUB_SLINF_LED_BRIGHTNESS_050         = 0x02,
+    UNIHUB_SLINF_LED_BRIGHTNESS_075         = 0x01,
+    UNIHUB_SLINF_LED_BRIGHTNESS_100         = 0x00,
 };
 
 enum
 {
-    UNIHUB_SLINF_LED_LIMITER                = 0x01    /* Limit the color white to 999999 as per manufacturer limits */
+    /*---------------------------------------------------------*\
+    | Limit the color white to 999999 as per manufacturer       |
+    | limits                                                    |
+    \*---------------------------------------------------------*/
+    UNIHUB_SLINF_LED_LIMITER                = 0x01
 };
-
 
 /*----------------------------------------------------------------------------*\
 | Definitions related to packet configuration.                                 |
@@ -101,7 +115,7 @@ enum
 
 enum
 {
-    UNIHUB_SLINF_TRANSACTION_ID            = 0xE0, /* Command value to start all packets */
+    UNIHUB_SLINF_TRANSACTION_ID            = 0xE0,
 };
 
 /*----------------------------------------------------------------------------*\
@@ -110,7 +124,6 @@ enum
 
 class LianLiUniHubSLInfinityController
 {
-
 
 public:
     LianLiUniHubSLInfinityController(hid_device* dev_handle, const char* path, std::string dev_name);
@@ -136,22 +149,22 @@ public:
                                 float           brightness
                                 );
 
-    void                SendStartAction
+    bool                SendStartAction
                                 (
                                 unsigned char   channel,
                                 unsigned int    num_fans
                                 );
 
-    void                SendColorData
+    bool                SendColorData
                                 (
-                                unsigned char   channel,            // Zone index
+                                unsigned char   channel,
                                 unsigned int    num_leds,
-                                unsigned char*  led_data            // Color data payload
+                                unsigned char*  led_data
                                 );
 
     void                SendCommitAction
                                 (
-                                unsigned char   channel,            // Zone index
+                                unsigned char   channel,
                                 unsigned char   effect,
                                 unsigned char   speed,
                                 unsigned int    direction,
@@ -159,7 +172,9 @@ public:
                                 );
 
 private:
-    /* The Uni Hub requires colors in RBG order */
+    /*---------------------------------------------------------*\
+    | The Uni Hub requires colors in RBG order                  |
+    \*---------------------------------------------------------*/
     struct Color
     {
         uint8_t r;
@@ -167,7 +182,6 @@ private:
         uint8_t g;
     };
 
-    /* The values correspond to the definitions above */
     struct Channel
     {
         uint8_t  index;
@@ -200,6 +214,10 @@ private:
     };
 
 private:
+    void                    LogLightingFailure(unsigned char channel, const char* message);
+    bool                    lighting_failed[8] = {};
+    bool                    direct_lighting_enabled = false;
+    unsigned int            configured_fan_counts[4] = {};
     hid_device*             dev;
 
     /*---------------------------------------------------------*\

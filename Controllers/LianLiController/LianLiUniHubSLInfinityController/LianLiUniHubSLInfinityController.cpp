@@ -15,6 +15,7 @@
 #include <string.h>
 #include "LianLiUniHubSLInfinityController.h"
 #include "StringUtils.h"
+#include "LogManager.h"
 
 using namespace std::chrono_literals;
 
@@ -82,14 +83,15 @@ float infinityBrightnessLimit(RGBColor color)
 
 void LianLiUniHubSLInfinityController::SetChannelLEDs(unsigned char channel, RGBColor * colors, unsigned int num_colors, float brightness)
 {
-    unsigned char   led_data[16 * 6 * 3];
+    unsigned char   led_data[16 * 6 * 3] = {};
     int             fan_idx = 0;
     int             mod_led_idx;
     int             cur_led_idx;
 
     if(num_colors == 0)
     {
-        return;     // Do nothing, channel isn't in use
+
+        return;
     }
 
     for(unsigned int led_idx = 0; led_idx < num_colors; led_idx++)
@@ -103,7 +105,6 @@ void LianLiUniHubSLInfinityController::SetChannelLEDs(unsigned char channel, RGB
 
         float brightness_scale = brightness * infinityBrightnessLimit(colors[led_idx]);
 
-        //Determine current position of led_data array from colors array
         cur_led_idx = ((mod_led_idx + (fan_idx * 16)) * 3);
 
         led_data[cur_led_idx + 0] = (unsigned char)(RGBGetRValue(colors[led_idx]) * brightness_scale);
@@ -115,27 +116,17 @@ void LianLiUniHubSLInfinityController::SetChannelLEDs(unsigned char channel, RGB
     | Send fan LED data                                         |
     \*---------------------------------------------------------*/
 
-    SendStartAction
-    (
-        channel,            // Current channel
-        (fan_idx + 1)       // Number of fans
-    );
+    if(!SendStartAction(channel, fan_idx + 1))
+    {
+        return;
+    }
 
-    SendColorData
-    (
-        channel,            // Channel
-        (fan_idx + 1)*16,
-        led_data
-    );
+    if(!SendColorData(channel, (fan_idx + 1) * 16, led_data))
+    {
+        return;
+    }
 
-    SendCommitAction
-    (
-        channel,                                   // Channel
-        UNIHUB_SLINF_LED_MODE_STATIC_COLOR,        // Effect
-        UNIHUB_SLINF_LED_SPEED_000,                // Speed
-        UNIHUB_SLINF_LED_DIRECTION_LTR,            // Direction
-        UNIHUB_SLINF_LED_BRIGHTNESS_100            // Brightness
-    );
+    SendCommitAction(channel, UNIHUB_SLINF_LED_MODE_STATIC_COLOR, UNIHUB_SLINF_LED_SPEED_000, UNIHUB_SLINF_LED_DIRECTION_LTR, UNIHUB_SLINF_LED_BRIGHTNESS_100);
 
 }
 
@@ -171,9 +162,9 @@ void LianLiUniHubSLInfinityController::SetChannelMode(unsigned char channel, con
     std::vector<RGBColor> colors = active_mode.colors;
     unsigned int num_colors = (unsigned int)colors.size();
 
-    if(!colors.empty())                                          // Update led_data if there's colors
+    if(!colors.empty())
     {
-        brightness = static_cast<float>(active_mode.brightness)/4;
+        brightness = (float)active_mode.brightness/4;
         if(num_colors == 6)
         {
             for(unsigned int i = 0; i < 6; i++)
@@ -196,7 +187,10 @@ void LianLiUniHubSLInfinityController::SetChannelMode(unsigned char channel, con
                 colors[i] = 0x00;
             }
 
-            // needs a 72 length array of 4 colors, even if less are defined
+            /*---------------------------------------------------------*\
+            | needs a 72 length array of 4 colors, even if less are     |
+            | defined                                                   |
+            \*---------------------------------------------------------*/
             for(unsigned int j = 0; j < 4; j++)
             {
                 float brightness_scale = brightness * infinityBrightnessLimit(colors[j]);
@@ -212,32 +206,44 @@ void LianLiUniHubSLInfinityController::SetChannelMode(unsigned char channel, con
 
     }
 
-    SendStartAction
-    (
-        channel,                                // Current channel
-        (num_fans + 1)                          // Number of fans
-    );
+    if(!SendStartAction(channel, num_fans + 1))
+    {
+        return;
+    }
 
-    SendColorData
-    (
-        channel,                                // Channel
-        (num_fans + 1)*16,
-        fan_led_data                            // Data
-    );
+    if(!SendColorData(channel, (num_fans + 1) * 16, fan_led_data))
+    {
+        return;
+    }
 
-    SendCommitAction
-    (
-        channel,                                // Channel
-        active_mode.value,                      // Effect
-        speed_code[active_mode.speed],          // Speed
-        active_mode.direction,                  // Direction
-        brightness_code[active_mode.brightness] // Brightness
-    );
+    SendCommitAction(channel, active_mode.value, speed_code[active_mode.speed], active_mode.direction, brightness_code[active_mode.brightness]);
 }
 
-void LianLiUniHubSLInfinityController::SendStartAction(unsigned char channel, unsigned int /*num_fans*/)
+bool LianLiUniHubSLInfinityController::SendStartAction(unsigned char channel, unsigned int num_fans)
 {
-    unsigned char usb_buf[65];
+    unsigned int port = channel / 2;
+    if(port >= 4 || num_fans == 0 || num_fans > 6)
+    {
+        LOG_ERROR("[Lian Li SL Infinity] Invalid lighting port or fan count");
+        return false;
+    }
+
+    if(!direct_lighting_enabled)
+    {
+        unsigned char sync_off[7] = {0xE0, 0x10, 0x61, 0, 0, 0, 0};
+        if(hid_send_feature_report(dev, sync_off, sizeof(sync_off)) != (int)sizeof(sync_off))
+        {
+            LogLightingFailure(channel, "Unable to disable motherboard lighting sync");
+            return false;
+        }
+        std::this_thread::sleep_for(20ms);
+        direct_lighting_enabled = true;
+    }
+    if(configured_fan_counts[port] == num_fans)
+    {
+        return true;
+    }
+    unsigned char usb_buf[7];
 
     /*-----------------------------------------------------*\
     | Zero out buffer                                       |
@@ -250,18 +256,28 @@ void LianLiUniHubSLInfinityController::SendStartAction(unsigned char channel, un
     usb_buf[0x00]   = UNIHUB_SLINF_TRANSACTION_ID;
     usb_buf[0x01]   = 0x10;
     usb_buf[0x02]   = 0x60;
-    usb_buf[0x03]   = 1 + (channel / 2); // every fan-array uses two channels (one for the spinner and one for the led-band on the side)
-    usb_buf[0x04]   = 0x04; // TODO: number of fans (1-4) on this channel, hardcoding this to 4 for now
+    /*---------------------------------------------------------*\
+    | every fan-array uses two channels (one for the spinner    |
+    | and one for the led-band on the side)                     |
+    \*---------------------------------------------------------*/
+    usb_buf[0x03]   = 1 + (channel / 2);
+    usb_buf[0x04]   = (unsigned char)num_fans;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, sizeof(usb_buf));
+    if(hid_send_feature_report(dev, usb_buf, sizeof(usb_buf)) != (int)sizeof(usb_buf))
+    {
+        LogLightingFailure(channel, "Lighting setup report failed");
+        return false;
+    }
     std::this_thread::sleep_for(5ms);
+    configured_fan_counts[port] = num_fans;
+    return true;
 
 }
 
-void LianLiUniHubSLInfinityController::SendColorData(unsigned char   channel, unsigned int    num_leds, unsigned char*  led_data)
+bool LianLiUniHubSLInfinityController::SendColorData(unsigned char   channel, unsigned int    num_leds, unsigned char*  led_data)
 {
     /*---------------------------------------------------------*\
     | Send LED data                                        |
@@ -278,7 +294,10 @@ void LianLiUniHubSLInfinityController::SendColorData(unsigned char   channel, un
     | Set up message packet                                 |
     \*-----------------------------------------------------*/
     usb_buf[0x00]   = UNIHUB_SLINF_TRANSACTION_ID;
-    usb_buf[0x01]   = 0x30 + channel; // action + channel(30 = channel 1, 31 = channel 2, etc.)
+    /*---------------------------------------------------------*\
+    | action + channel(30 = channel 1, 31 = channel 2, etc.)    |
+    \*---------------------------------------------------------*/
+    usb_buf[0x01]   = 0x30 + channel;
 
     /*-----------------------------------------------------*\
     | Copy in color data bytes                              |
@@ -288,13 +307,27 @@ void LianLiUniHubSLInfinityController::SendColorData(unsigned char   channel, un
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, sizeof(usb_buf));
+    /*---------------------------------------------------------*\
+    | HIDAPI 0.15 adds control output reports. Keep support for |
+    | older libraries through the existing write API.           |
+    \*---------------------------------------------------------*/
+#if defined(HID_API_VERSION) && HID_API_VERSION >= 0x00000F00
+    int result = hid_send_output_report(dev, usb_buf, sizeof(usb_buf));
+#else
+    int result = hid_write(dev, usb_buf, sizeof(usb_buf));
+#endif
+    if(result != (int)sizeof(usb_buf))
+    {
+        LogLightingFailure(channel, "Lighting colour report failed");
+        return false;
+    }
     std::this_thread::sleep_for(5ms);
+    return true;
 }
 
 void LianLiUniHubSLInfinityController::SendCommitAction(unsigned char channel, unsigned char effect, unsigned char speed, unsigned int direction, unsigned int brightness)
 {
-    unsigned char usb_buf[65];
+    unsigned char usb_buf[7];
 
     /*-----------------------------------------------------*\
     | Zero out buffer                                       |
@@ -305,15 +338,36 @@ void LianLiUniHubSLInfinityController::SendCommitAction(unsigned char channel, u
     | Set up message packet                                 |
     \*-----------------------------------------------------*/
     usb_buf[0x00]   = UNIHUB_SLINF_TRANSACTION_ID;
-    usb_buf[0x01]   = 0x10 + channel; // Channel+device (10 = channel 1, 11 = channel 2, etc.)
-    usb_buf[0x02]   = effect;                           // Effect
-    usb_buf[0x03]   = speed;                            // Speed, 02=0%, 01=25%, 00=50%, ff=75%, fe=100%
-    usb_buf[0x04]   = direction;                        // Direction, right=00, left=01
-    usb_buf[0x05]   = brightness;                       // Brightness, 0=100%, 1= 75%, 2 = 50%, 3 = 25%, 8 = 0%
+    /*---------------------------------------------------------*\
+    | Channel+device (10 = channel 1, 11 = channel 2, etc.)     |
+    \*---------------------------------------------------------*/
+    usb_buf[0x01]   = 0x10 + channel;
+
+    usb_buf[0x02]   = effect;
+
+    usb_buf[0x03]   = speed;
+
+    usb_buf[0x04]   = direction;
+
+    usb_buf[0x05]   = brightness;
 
     /*-----------------------------------------------------*\
     | Send packet                                           |
     \*-----------------------------------------------------*/
-    hid_write(dev, usb_buf, sizeof(usb_buf));
+    if(hid_send_feature_report(dev, usb_buf, sizeof(usb_buf)) != (int)sizeof(usb_buf))
+    {
+        LogLightingFailure(channel, "Lighting commit report failed");
+        return;
+    }
+    lighting_failed[channel] = false;
     std::this_thread::sleep_for(5ms);
+}
+
+void LianLiUniHubSLInfinityController::LogLightingFailure(unsigned char channel, const char* message)
+{
+    if(!lighting_failed[channel])
+    {
+        LOG_ERROR("[Lian Li SL Infinity] Channel %u: %s", (unsigned int)channel, message);
+    }
+    lighting_failed[channel] = true;
 }
