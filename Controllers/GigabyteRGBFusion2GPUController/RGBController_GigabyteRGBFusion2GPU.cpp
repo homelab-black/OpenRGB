@@ -21,6 +21,44 @@
     @comment
 \*-------------------------------------------------------------------*/
 
+int RGBController_RGBFusion2GPU::NbZones()
+{
+    if (name == "Gigabyte GeForce RTX 4090 GAMING OC")
+    {
+        return 4;
+    }
+    else
+    {
+        return 5;
+    }
+}
+
+int RGBController_RGBFusion2GPU::TricolorNbColors()
+{
+    if (name == "Gigabyte GeForce RTX 4090 GAMING OC")
+    {
+        return 8;
+    }
+    else
+    {
+        return 3;
+    }
+}
+
+std::string RGBController_RGBFusion2GPU::TricolorEffectName()
+{
+    if (name == "Gigabyte GeForce RTX 4090 GAMING OC")
+    {
+        std::string effect = "Dazzle";
+        return effect;
+    }
+    else
+    {
+        std::string effect = "Tricolor";
+        return effect;
+    }
+}
+
 RGBController_RGBFusion2GPU::RGBController_RGBFusion2GPU(RGBFusion2GPUController* controller_ptr)
 {
     controller                      = controller_ptr;
@@ -136,7 +174,7 @@ RGBController_RGBFusion2GPU::RGBController_RGBFusion2GPU(RGBFusion2GPUController
     modes.push_back(Shift);
 
     mode Tricolor;
-    Tricolor.name                   = "Tricolor";
+    Tricolor.name                   = TricolorEffectName();
     Tricolor.value                  = RGB_FUSION2_GPU_MODE_TRICOLOR;
     Tricolor.flags                  = MODE_FLAG_HAS_SPEED | MODE_FLAG_HAS_MODE_SPECIFIC_COLOR | MODE_FLAG_HAS_BRIGHTNESS | MODE_FLAG_MANUAL_SAVE;
     Tricolor.speed_min              = RGB_FUSION2_GPU_SPEED_SLOWEST;
@@ -144,8 +182,8 @@ RGBController_RGBFusion2GPU::RGBController_RGBFusion2GPU(RGBFusion2GPUController
     Tricolor.speed                  = RGB_FUSION2_GPU_SPEED_NORMAL;
     Tricolor.color_mode             = MODE_COLORS_MODE_SPECIFIC;
     Tricolor.colors_min             = 1;
-    Tricolor.colors_max             = 3;
-    Tricolor.colors.resize(3);
+    Tricolor.colors_max             = TricolorNbColors();
+    Tricolor.colors.resize(TricolorNbColors());
     Tricolor.brightness_min         = RGB_FUSION2_GPU_BRIGHTNESS_MIN;
     Tricolor.brightness_max         = RGB_FUSION2_GPU_BRIGHTNESS_MAX;
     Tricolor.brightness             = RGB_FUSION2_GPU_BRIGHTNESS_MAX;
@@ -168,7 +206,7 @@ void RGBController_RGBFusion2GPU::SetupZones()
     | LED's in the zone and does not allow per LED control.     |
     \*---------------------------------------------------------*/
 
-    for(uint8_t zone_idx = 0; zone_idx < RGB_FUSION_2_GPU_NUMBER_OF_ZONES; zone_idx++)
+    for(uint8_t zone_idx = 0; zone_idx < NbZones(); zone_idx++)
     {
         zone new_zone;
         led  new_led;
@@ -199,8 +237,8 @@ void RGBController_RGBFusion2GPU::DeviceUpdateLEDs()
     zone_config.speed           = modes[active_mode].speed;
     zone_config.direction       = modes[active_mode].direction;
     zone_config.numberOfColors  = (uint8_t)modes[active_mode].colors.size();
-
-    for(uint8_t zone_idx = 0; zone_idx < RGB_FUSION_2_GPU_NUMBER_OF_ZONES; zone_idx++)
+	
+    for(uint8_t zone_idx = 0; zone_idx < NbZones(); zone_idx++)
     {
         zone_config.colors[0] = colors[zone_idx];
 
