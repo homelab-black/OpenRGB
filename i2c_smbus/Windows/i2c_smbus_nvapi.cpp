@@ -10,6 +10,7 @@
 \*---------------------------------------------------------*/
 
 #include "i2c_smbus_nvapi.h"
+#include "pci_ids.h"
 
 i2c_smbus_nvapi::i2c_smbus_nvapi(NV_PHYSICAL_GPU_HANDLE handle)
 {
@@ -85,6 +86,33 @@ s32 i2c_smbus_nvapi::i2c_smbus_xfer(u8 addr, char read_write, u8 command, int mo
 
 	default:
         return -1;
+    }
+
+    /*---------------------------------------------------------*\
+    | Use the captured FireStorm route for the verified card.   |
+    | Other devices retain the existing extended NVAPI path.    |
+    \*---------------------------------------------------------*/
+    bool zotac4a = info.pci_vendor == NVIDIA_VEN && info.pci_device == NVIDIA_RTX5080_DEV &&
+                   info.pci_subsystem_vendor == ZOTAC_SUB_VEN &&
+                   info.pci_subsystem_device == ZOTAC_RTX5080_SOLID_CORE_SUB_DEV &&
+                   addr == 0x4A && command == 0x5A && mode == I2C_SMBUS_I2C_BLOCK_DATA;
+    if(zotac4a)
+    {
+        i2c_data.display_mask = 1;
+        i2c_data.is_ddc_port = 1;
+        i2c_data.i2c_speed_khz = NV_I2C_SPEED::NVAPI_I2C_SPEED_10KHZ;
+        if(read_write == I2C_SMBUS_WRITE)
+        {
+            return NvAPI_I2CWrite(handle, &i2c_data);
+        }
+        ret = NvAPI_I2CRead(handle, &i2c_data);
+        if(ret != 0 || i2c_data.size > I2C_SMBUS_BLOCK_MAX)
+        {
+            return ret != 0 ? ret : -1;
+        }
+        data->block[0] = (u8)i2c_data.size;
+        memcpy(&data->block[1], i2c_data.data, i2c_data.size);
+        return 0;
     }
 
     // Perform read or write

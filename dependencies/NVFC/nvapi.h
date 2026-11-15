@@ -1010,6 +1010,16 @@ NV_STATUS NvAPI_GPU_GetPCIIdentifiers(
 	NV_U32 *revision_id,
 	NV_U32 *ext_device_id);
 
+// Interface: 2FDE12C5
+NV_STATUS NvAPI_I2CRead(
+    NV_PHYSICAL_GPU_HANDLE physical_gpu_handle,
+    NV_I2C_INFO_V3* i2c_info);
+
+// Interface: E812EB07
+NV_STATUS NvAPI_I2CWrite(
+    NV_PHYSICAL_GPU_HANDLE physical_gpu_handle,
+    NV_I2C_INFO_V3* i2c_info);
+
 // Interface: 283AC65A
 NV_STATUS NvAPI_I2CWriteEx(
 	NV_PHYSICAL_GPU_HANDLE physical_gpu_handle,
