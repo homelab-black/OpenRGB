@@ -158,7 +158,7 @@ void EVisionKeyboardController::SendKeyboardBegin()
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 100);
 }
 
 void EVisionKeyboardController::SendKeyboardEnd()
@@ -184,7 +184,7 @@ void EVisionKeyboardController::SendKeyboardEnd()
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 100);
 }
 
 void EVisionKeyboardController::SendKeyboardData
@@ -225,7 +225,7 @@ void EVisionKeyboardController::SendKeyboardData
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 100);
 }
 
 void EVisionKeyboardController::SendKeyboardParameter
@@ -264,5 +264,5 @@ void EVisionKeyboardController::SendKeyboardParameter
     | Send packet                                           |
     \*-----------------------------------------------------*/
     hid_write(dev, (unsigned char *)usb_buf, 64);
-    hid_read(dev, (unsigned char *)usb_buf, 64);
+    hid_read_timeout(dev, (unsigned char *)usb_buf, 64, 100);
 }
