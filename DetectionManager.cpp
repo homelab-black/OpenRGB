@@ -107,6 +107,21 @@ const hidapi_wrapper default_hidapi_wrapper =
 \*---------------------------------------------------------*/
 bool BasicHIDBlock::compare(hid_device_info* info)
 {
+    /*-----------------------------------------------------*\
+    | A LampArray interface is claimed by the HID LampArray |
+    | controller, which names this usage page explicitly.   |
+    | A detector that did not ask for a usage page must not |
+    | match one, or it will probe that interface with a     |
+    | vendor protocol it cannot answer.  A device can       |
+    | expose a LampArray interface alongside its vendor     |
+    | interfaces, so VID/PID alone is not enough.           |
+    \*-----------------------------------------------------*/
+    if((usage_page == HID_USAGE_PAGE_ANY)
+    && (info->usage_page == HID_USAGE_PAGE_LAMPARRAY))
+    {
+        return(false);
+    }
+
     return(((vid        == HID_VID_ANY)
          || (vid == info->vendor_id))
         && ((pid        == HID_PID_ANY)
@@ -1627,6 +1642,16 @@ void DetectionManager::RunHIDDetector(hid_device_info* current_hid_device, json&
                         break;
                     }
                 }
+                else
+                {
+                    /*-------------------------------------*\
+                    | Report why an enabled detector did    |
+                    | not run.  The message above says      |
+                    | only that the detector is enabled,    |
+                    | not that it matched this interface.   |
+                    \*-------------------------------------*/
+                    LOG_DEBUG("[%s] %s does not match this interface, skipping", DETECTIONMANAGER, detection_string.c_str());
+                }
             }
         }
     }
@@ -1738,6 +1763,16 @@ void DetectionManager::RunHIDWrappedDetector(const hidapi_wrapper* wrapper, hid_
                     {
                         break;
                     }
+                }
+                else
+                {
+                    /*-------------------------------------*\
+                    | Report why an enabled detector did    |
+                    | not run.  The message above says      |
+                    | only that the detector is enabled,    |
+                    | not that it matched this interface.   |
+                    \*-------------------------------------*/
+                    LOG_DEBUG("[%s] %s does not match this interface, skipping", DETECTIONMANAGER, detection_string.c_str());
                 }
             }
         }
